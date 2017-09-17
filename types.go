@@ -73,6 +73,7 @@ type (
 		Source       Archive              `json:"source"`
 		Deployment   Archive              `json:"deployment"`
 		BuildCommand string               `json:"buildcmd"`
+		Description  string               `json:"description"`
 		// In the future, we can have a debug build here too
 	}
 	PackageStatus struct {

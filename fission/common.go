@@ -17,13 +17,23 @@ limitations under the License.
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
 
+	uuid "github.com/satori/go.uuid"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/fission/fission"
 	"github.com/fission/fission/controller/client"
+	"github.com/fission/fission/crd"
+	storageSvcClient "github.com/fission/fission/storagesvc/client"
 )
 
 func fatal(msg string) {
@@ -85,4 +95,100 @@ func httpRequest(method, url, body string, headers []string) *http.Response {
 	checkErr(err, "execute HTTP request")
 
 	return resp
+}
+
+func fileSize(filePath string) int64 {
+	info, err := os.Stat(filePath)
+	checkErr(err, fmt.Sprintf("stat %v", filePath))
+	return info.Size()
+}
+
+// upload a file and return a fission.Archive
+func createArchive(client *client.Client, fileName string) *fission.Archive {
+	var archive fission.Archive
+	if fileSize(fileName) < fission.ArchiveLiteralSizeLimit {
+		contents := getContents(fileName)
+		archive.Type = fission.ArchiveTypeLiteral
+		archive.Literal = contents
+	} else {
+		u := strings.TrimSuffix(client.Url, "/") + "/proxy/storage"
+		ssClient := storageSvcClient.MakeClient(u)
+
+		// TODO add a progress bar
+		id, err := ssClient.Upload(fileName, nil)
+		checkErr(err, fmt.Sprintf("upload file %v", fileName))
+
+		archiveUrl := ssClient.GetUrl(id)
+
+		archive.Type = fission.ArchiveTypeUrl
+		archive.URL = archiveUrl
+
+		f, err := os.Open(fileName)
+		if err != nil {
+			checkErr(err, fmt.Sprintf("find file %v", fileName))
+		}
+		defer f.Close()
+
+		h := sha256.New()
+		if _, err := io.Copy(h, f); err != nil {
+			checkErr(err, fmt.Sprintf("calculate checksum for file %v", fileName))
+		}
+
+		archive.Checksum = fission.Checksum{
+			Type: fission.ChecksumTypeSHA256,
+			Sum:  hex.EncodeToString(h.Sum(nil)),
+		}
+	}
+	return &archive
+}
+
+func createPackage(client *client.Client, envName, srcArchiveName, deployArchiveName, buildcmd, description string) *metav1.ObjectMeta {
+	pkgSpec := fission.PackageSpec{
+		Environment: fission.EnvironmentReference{
+			Namespace: metav1.NamespaceDefault,
+			Name:      envName,
+		},
+		Description: description,
+	}
+	var pkgStatus fission.BuildStatus = fission.BuildStatusSucceeded
+
+	if len(deployArchiveName) > 0 {
+		pkgSpec.Deployment = *createArchive(client, deployArchiveName)
+		if len(srcArchiveName) > 0 {
+			fmt.Println("Deployment may be overwritten by builder manager after source package compilation")
+		}
+	}
+	if len(srcArchiveName) > 0 {
+		pkgSpec.Source = *createArchive(client, srcArchiveName)
+		// set pending status to package
+		pkgStatus = fission.BuildStatusPending
+	}
+
+	if len(buildcmd) > 0 {
+		pkgSpec.BuildCommand = buildcmd
+	}
+
+	pkgName := strings.ToLower(uuid.NewV4().String())
+	pkg := &crd.Package{
+		Metadata: metav1.ObjectMeta{
+			Name:      pkgName,
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: pkgSpec,
+		Status: fission.PackageStatus{
+			BuildStatus: pkgStatus,
+		},
+	}
+	pkgMetadata, err := client.PackageCreate(pkg)
+	checkErr(err, "create package")
+	return pkgMetadata
+}
+
+func getContents(filePath string) []byte {
+	var code []byte
+	var err error
+
+	code, err = ioutil.ReadFile(filePath)
+	checkErr(err, fmt.Sprintf("read %v", filePath))
+	return code
 }

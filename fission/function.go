@@ -18,138 +18,23 @@ package main
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
-	"strings"
 	"text/tabwriter"
 	"time"
 
-	"github.com/dchest/uniuri"
 	"github.com/satori/go.uuid"
 	"github.com/urfave/cli"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission"
-	"github.com/fission/fission/controller/client"
 	"github.com/fission/fission/crd"
 	"github.com/fission/fission/fission/logdb"
-	storageSvcClient "github.com/fission/fission/storagesvc/client"
 )
-
-func fileSize(filePath string) int64 {
-	info, err := os.Stat(filePath)
-	checkErr(err, fmt.Sprintf("stat %v", filePath))
-	return info.Size()
-}
-
-// upload a file and return a fission.Archive
-func createArchive(client *client.Client, fileName string) *fission.Archive {
-	var archive fission.Archive
-	if fileSize(fileName) < fission.ArchiveLiteralSizeLimit {
-		contents := getContents(fileName)
-		archive.Type = fission.ArchiveTypeLiteral
-		archive.Literal = contents
-	} else {
-		u := strings.TrimSuffix(client.Url, "/") + "/proxy/storage"
-		ssClient := storageSvcClient.MakeClient(u)
-
-		// TODO add a progress bar
-		id, err := ssClient.Upload(fileName, nil)
-		checkErr(err, fmt.Sprintf("upload file %v", fileName))
-
-		archiveUrl := ssClient.GetUrl(id)
-
-		archive.Type = fission.ArchiveTypeUrl
-		archive.URL = archiveUrl
-
-		f, err := os.Open(fileName)
-		if err != nil {
-			checkErr(err, fmt.Sprintf("find file %v", fileName))
-		}
-		defer f.Close()
-
-		h := sha256.New()
-		if _, err := io.Copy(h, f); err != nil {
-			checkErr(err, fmt.Sprintf("calculate checksum for file %v", fileName))
-		}
-
-		archive.Checksum = fission.Checksum{
-			Type: fission.ChecksumTypeSHA256,
-			Sum:  hex.EncodeToString(h.Sum(nil)),
-		}
-	}
-	return &archive
-}
-
-func createPackage(client *client.Client, fnName, envName, srcArchiveName, deployArchiveName, buildcmd string) *metav1.ObjectMeta {
-	pkgSpec := fission.PackageSpec{
-		Environment: fission.EnvironmentReference{
-			Namespace: metav1.NamespaceDefault,
-			Name:      envName,
-		},
-	}
-
-	var pkgStatus fission.BuildStatus
-
-	if len(deployArchiveName) > 0 {
-		pkgSpec.Deployment = *createArchive(client, deployArchiveName)
-	}
-	if len(srcArchiveName) > 0 {
-		pkgSpec.Source = *createArchive(client, srcArchiveName)
-	}
-
-	// start a build only when a package has no deploy archive
-	if len(srcArchiveName) > 0 && len(deployArchiveName) == 0 {
-		pkgStatus = fission.BuildStatusPending
-	} else {
-		pkgStatus = fission.BuildStatusNone
-	}
-
-	if len(buildcmd) > 0 {
-		pkgSpec.BuildCommand = buildcmd
-	}
-
-	fnList, err := json.Marshal([]string{fnName})
-	checkErr(err, "encode json")
-
-	annotation := map[string]string{
-		"createdForFunction": fnName,
-		"usedByFunctions":    string(fnList),
-	}
-
-	pkgName := strings.ToLower(fmt.Sprintf("%v-%v", fnName, uniuri.NewLen(6)))
-	pkg := &crd.Package{
-		Metadata: metav1.ObjectMeta{
-			Name:        pkgName,
-			Namespace:   metav1.NamespaceDefault,
-			Annotations: annotation,
-		},
-		Spec: pkgSpec,
-		Status: fission.PackageStatus{
-			BuildStatus: pkgStatus,
-		},
-	}
-	pkgMetadata, err := client.PackageCreate(pkg)
-	checkErr(err, "create package")
-	return pkgMetadata
-}
-
-func getContents(filePath string) []byte {
-	var code []byte
-	var err error
-
-	code, err = ioutil.ReadFile(filePath)
-	checkErr(err, fmt.Sprintf("read %v", filePath))
-	return code
-}
 
 func printPodLogs(c *cli.Context) error {
 	fnName := c.String("name")
@@ -202,14 +87,31 @@ func fnCreate(c *cli.Context) error {
 		deployArchiveName = c.String("deploy")
 	}
 
-	if len(srcArchiveName) == 0 && len(deployArchiveName) == 0 {
-		fatal("Need --code or --deploy to specify deployment archive, or use --src to specify source archive.")
-	}
+	pkgName := c.String("pkg")
 
 	entrypoint := c.String("entrypoint")
 	buildcmd := c.String("buildcmd")
 
-	pkgMetadata := createPackage(client, fnName, envName, srcArchiveName, deployArchiveName, buildcmd)
+	var pkgMetadata *metav1.ObjectMeta
+
+	if len(pkgName) > 0 {
+		// use existing package
+		pkg, err := client.PackageGet(&metav1.ObjectMeta{
+			Namespace: metav1.NamespaceDefault,
+			Name:      pkgName,
+		})
+		if err != nil {
+			return err
+		}
+		pkgMetadata = &pkg.Metadata
+		// use package environment
+		envName = pkg.Spec.Environment.Name
+	} else if len(srcArchiveName) != 0 || len(deployArchiveName) != 0 {
+		// create new package
+		pkgMetadata = createPackage(client, envName, srcArchiveName, deployArchiveName, buildcmd, "(empty)")
+	} else {
+		fatal("Need --env or --code or --deploy or --src or --pkg argument.")
+	}
 
 	function := &crd.Function{
 		Metadata: metav1.ObjectMeta{
@@ -319,6 +221,14 @@ func fnGetMeta(c *cli.Context) error {
 func fnUpdate(c *cli.Context) error {
 	client := getClient(c.GlobalString("server"))
 
+	if len(c.String("package")) > 0 {
+		fatal("--package is deprecated, please use --deploy instead.")
+	}
+
+	if len(c.String("srcpkg")) > 0 {
+		fatal("--srcpkg is deprecated, please use --src instead.")
+	}
+
 	fnName := c.String("name")
 	if len(fnName) == 0 {
 		fatal("Need name of function, use --name")
@@ -340,9 +250,10 @@ func fnUpdate(c *cli.Context) error {
 		deployArchiveName = c.String("deploy")
 	}
 	srcArchiveName := c.String("src")
+	pkgName := c.String("pkg")
 
-	if len(envName) == 0 && len(deployArchiveName) == 0 && len(srcArchiveName) == 0 {
-		fatal("Need --env or --code or --package or --deploy argument.")
+	if len(envName) == 0 && len(deployArchiveName) == 0 && len(srcArchiveName) == 0 && len(pkgName) == 0 {
+		fatal("Need --env or --code or --deploy or --src or --pkg argument.")
 	}
 
 	if len(envName) > 0 {
@@ -368,14 +279,17 @@ func fnUpdate(c *cli.Context) error {
 
 	if len(deployArchiveName) > 0 || len(srcArchiveName) > 0 {
 		// create a new package for function
-		pkgMetadata := createPackage(client, function.Metadata.Name,
-			function.Spec.Environment.Name, srcArchiveName, deployArchiveName, buildcmd)
 
-		// update function spec with resource version
-		function.Spec.Package.PackageRef = fission.PackageRef{
-			Namespace:       pkgMetadata.Namespace,
-			Name:            pkgMetadata.Name,
-			ResourceVersion: pkgMetadata.ResourceVersion,
+		pkgMetadata := createPackage(client,
+			function.Spec.Environment.Name, srcArchiveName, deployArchiveName, buildcmd, "(empty)")
+
+		if pkgMetadata != nil {
+			// update function spec with resource version
+			function.Spec.Package.PackageRef = fission.PackageRef{
+				Namespace:       pkgMetadata.Namespace,
+				Name:            pkgMetadata.Name,
+				ResourceVersion: pkgMetadata.ResourceVersion,
+			}
 		}
 	}
 

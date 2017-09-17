@@ -43,6 +43,7 @@ func main() {
 	fnPackageFlag := cli.StringFlag{Name: "package", Usage: "(Deprecated) local path or URL for binary package"}
 	fnDeployArchiveFlag := cli.StringFlag{Name: "deployarchive, deploy", Usage: "local path or URL for deployment archive"}
 	fnSrcArchiveFlag := cli.StringFlag{Name: "sourcearchive, src", Usage: "local path or URL for source archive"}
+	fnPkgNameFlag := cli.StringFlag{Name: "pkgname, pkg", Usage: "Name of the existing package (--deploy and --src and --env will be ignored)"}
 	fnPodFlag := cli.StringFlag{Name: "pod", Usage: "function pod name, optional (use latest if unspecified)"}
 	fnFollowFlag := cli.BoolFlag{Name: "follow, f", Usage: "specify if the logs should be streamed"}
 	fnDetailFlag := cli.BoolFlag{Name: "detail, d", Usage: "display detailed information"}
@@ -53,10 +54,10 @@ func main() {
 	fnBuildCmdFlag := cli.StringFlag{Name: "buildcmd", Usage: "build command for builder to run with"}
 
 	fnSubcommands := []cli.Command{
-		{Name: "create", Usage: "Create new function (and optionally, an HTTP route to it)", Flags: []cli.Flag{fnNameFlag, fnEnvNameFlag, fnCodeFlag, fnPackageFlag, fnSrcArchiveFlag, fnDeployArchiveFlag, fnEntryPointFlag, fnBuildCmdFlag, htUrlFlag, htMethodFlag}, Action: fnCreate},
+		{Name: "create", Usage: "Create new function (and optionally, an HTTP route to it)", Flags: []cli.Flag{fnNameFlag, fnEnvNameFlag, fnCodeFlag, fnPackageFlag, fnSrcArchiveFlag, fnDeployArchiveFlag, fnEntryPointFlag, fnBuildCmdFlag, fnPkgNameFlag, htUrlFlag, htMethodFlag}, Action: fnCreate},
 		{Name: "get", Usage: "Get function source code", Flags: []cli.Flag{fnNameFlag}, Action: fnGet},
 		{Name: "getmeta", Usage: "Get function metadata", Flags: []cli.Flag{fnNameFlag}, Action: fnGetMeta},
-		{Name: "update", Usage: "Update function source code", Flags: []cli.Flag{fnNameFlag, fnEnvNameFlag, fnCodeFlag, fnPackageFlag, fnSrcArchiveFlag, fnDeployArchiveFlag, fnEntryPointFlag, fnBuildCmdFlag}, Action: fnUpdate},
+		{Name: "update", Usage: "Update function source code", Flags: []cli.Flag{fnNameFlag, fnEnvNameFlag, fnCodeFlag, fnPackageFlag, fnSrcArchiveFlag, fnDeployArchiveFlag, fnEntryPointFlag, fnPkgNameFlag, fnBuildCmdFlag}, Action: fnUpdate},
 		{Name: "delete", Usage: "Delete function", Flags: []cli.Flag{fnNameFlag}, Action: fnDelete},
 		{Name: "list", Usage: "List all functions", Flags: []cli.Flag{}, Action: fnList},
 		{Name: "logs", Usage: "Display function logs", Flags: []cli.Flag{fnNameFlag, fnPodFlag, fnFollowFlag, fnDetailFlag, fnLogDBTypeFlag}, Action: fnLogs},
@@ -130,6 +131,24 @@ func main() {
 		{Name: "list", Usage: "List all watches", Flags: []cli.Flag{}, Action: wList},
 	}
 
+	// packages
+	pkgNameFlag := cli.StringFlag{Name: "name", Usage: "Package name"}
+	pkgForceFlag := cli.BoolFlag{Name: "force, f", Usage: "Force to update/delete a package used by functions"}
+	pkgEnvironmentFlag := cli.StringFlag{Name: "env", Usage: "Environment name"}
+	pkgSrcArchiveFlag := cli.StringFlag{Name: "sourcearchive, src", Usage: "Local path or URL for source archive"}
+	pkgDeployArchiveFlag := cli.StringFlag{Name: "deployarchive, deploy", Usage: "Local path or URL for binary archive"}
+	pkgBuildCmdFlag := cli.StringFlag{Name: "buildcmd", Usage: "Build command for builder to run with"}
+	pkgDescriptionFlag := cli.StringFlag{Name: "desc", Usage: "Description of package"}
+	pkgSubCommands := []cli.Command{
+		{Name: "create", Usage: "Create new package", Flags: []cli.Flag{pkgEnvironmentFlag, pkgSrcArchiveFlag, pkgDeployArchiveFlag, pkgBuildCmdFlag, pkgDescriptionFlag}, Action: pkgCreate},
+		{Name: "update", Usage: "Update package", Flags: []cli.Flag{pkgEnvironmentFlag, pkgSrcArchiveFlag, pkgDeployArchiveFlag, pkgBuildCmdFlag, pkgDescriptionFlag, pkgForceFlag}, Action: pkgCreate},
+		{Name: "getsrc", Usage: "Get source archive content", Flags: []cli.Flag{pkgNameFlag}, Action: pkgSourceGet},
+		{Name: "getdeploy", Usage: "Get deployment archive content", Flags: []cli.Flag{pkgNameFlag}, Action: pkgDeployGet},
+		{Name: "info", Usage: "Show package information", Flags: []cli.Flag{pkgNameFlag}, Action: pkgInfo},
+		{Name: "list", Usage: "List all packages", Flags: []cli.Flag{}, Action: pkgList},
+		{Name: "delete", Usage: "Delete package", Flags: []cli.Flag{pkgNameFlag, pkgForceFlag}, Action: pkgDelete},
+	}
+
 	upgradeFileFlag := cli.StringFlag{Name: "file", Usage: "JSON file containing all fission state"}
 	upgradeSubCommands := []cli.Command{
 		{Name: "dump", Usage: "Dump all state from a v0.1 fission installation", Flags: []cli.Flag{upgradeFileFlag}, Action: upgradeDumpState},
@@ -150,6 +169,7 @@ func main() {
 		{Name: "mqtrigger", Aliases: []string{"mqt", "messagequeue"}, Usage: "Manage message queue triggers for functions", Subcommands: mqtSubcommands},
 		{Name: "environment", Aliases: []string{"env"}, Usage: "Manage environments", Subcommands: envSubcommands},
 		{Name: "watch", Aliases: []string{"w"}, Usage: "Manage watches", Subcommands: wSubCommands},
+		{Name: "package", Aliases: []string{"pkg"}, Usage: "Manage packages", Subcommands: pkgSubCommands},
 		{Name: "upgrade", Aliases: []string{}, Usage: "Upgrade tool from fission v0.1", Subcommands: upgradeSubCommands},
 		{Name: "tpr2crd", Aliases: []string{}, Usage: "Migrate tool for TPR to CRD", Subcommands: migrateSubCommands},
 	}
