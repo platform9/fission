@@ -46,13 +46,6 @@ fission route create --function $fn --url /$fn --method GET
 echo "Waiting for router to catch up"
 sleep 3
 
-echo "Doing an HTTP POST on the builder manager's route to start a build"
-pkg=$(kubectl --namespace default get functions $fn -o jsonpath='{.spec.package.packageref.name}')
-echo $pkg
-response=$(curl -X POST $FISSION_URL/proxy/buildermgr/v1/build \
-  -H 'content-type: application/json' \
-  -d "{\"package\": {\"namespace\": \"default\",\"name\": \"$pkg\"}}")
-
 echo "Waiting for builder manager to finish the build triggered by http request"
 sleep 30
 
