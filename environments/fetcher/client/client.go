@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"io/ioutil"
-	"log"
 	"net/http"
 	//"time"
 
@@ -68,13 +67,11 @@ func (c *Client) Upload(fr *fetcher.UploadRequest) (*fetcher.UploadResponse, err
 		return nil, err
 	}
 
-	log.Printf("Received upload response: %v", string(rBody))
-
-	uploadReq := fetcher.UploadResponse{}
-	err = json.Unmarshal([]byte(rBody), &uploadReq)
+	uploadResp := fetcher.UploadResponse{}
+	err = json.Unmarshal([]byte(rBody), &uploadResp)
 	if err != nil {
 		return nil, err
 	}
 
-	return &uploadReq, nil
+	return &uploadResp, nil
 }
