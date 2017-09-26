@@ -36,18 +36,6 @@ func (api *API) BuilderManagerBuildProxy(w http.ResponseWriter, r *http.Request)
 	proxy.ServeHTTP(w, r)
 }
 
-func (api *API) BuilderManagerEnvBuilderProxy(w http.ResponseWriter, r *http.Request) {
-	u := api.builderManagerUrl + "/v1/builder"
-	proxy, err := api.getBuilderManagerProxy(u)
-	if err != nil {
-		msg := fmt.Sprintf("Failed to establish proxy server: %v", err)
-		log.Println(msg)
-		http.Error(w, msg, 500)
-		return
-	}
-	proxy.ServeHTTP(w, r)
-}
-
 func (api *API) getBuilderManagerProxy(targetUrl string) (*httputil.ReverseProxy, error) {
 	svcUrl, err := url.Parse(targetUrl)
 	if err != nil {
