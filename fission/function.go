@@ -163,9 +163,6 @@ func fnCreate(c *cli.Context) error {
 
 	entrypoint := c.String("entrypoint")
 	buildcmd := c.String("buildcmd")
-	if len(buildcmd) == 0 {
-		buildcmd = "/builder"
-	}
 
 	pkgMetadata := createPackage(client, envName, srcArchiveName, deployArchiveName, buildcmd)
 
