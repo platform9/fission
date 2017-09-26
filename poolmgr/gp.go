@@ -68,7 +68,7 @@ type (
 		instanceId             string // poolmgr instance id
 		labelsForPool          map[string]string
 		requestChannel         chan *choosePodRequest
-		sharedMountPath        string
+		sharedMountPath        string // used by generic pool when creating env deployment to specify the share volume path for fetcher & env
 	}
 
 	// serialize the choosing of pods so that choices don't conflict
@@ -132,8 +132,8 @@ func MakeGenericPool(
 		poolInstanceId:   uniuri.NewLen(8),
 		instanceId:       instanceId,
 		fetcherImage:     fetcherImage,
-		useSvc:           false,       // defaults off -- svc takes a second or more to become routable, slowing cold start
-		sharedMountPath:  "/userfunc", // used by generic pool when creating env deployment to specify the share volume path for fetcher & env
+		useSvc:           false, // defaults off -- svc takes a second or more to become routable, slowing cold start
+		sharedMountPath:  "/userfunc",
 	}
 
 	gp.runtimeImagePullPolicy = getImagePullPolicy(runtimeImagePullPolicy)
