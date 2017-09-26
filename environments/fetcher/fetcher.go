@@ -155,12 +155,10 @@ func (fetcher *Fetcher) FetchHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 400)
 		return
 	}
-	log.Printf("fetcher received fetch request: %v", req)
+	log.Printf("fetcher received fetch request and started downloading: %v", req)
 
 	tmpFile := req.Filename + ".tmp"
 	tmpPath := filepath.Join(fetcher.sharedVolumePath, tmpFile)
-
-	log.Printf("Start downloading...")
 
 	if req.FetchType == FETCH_URL {
 		// fetch the file and save it to the tmp path
@@ -286,7 +284,7 @@ func (fetcher *Fetcher) UploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("Start uploading...")
+	log.Println("Starting upload...")
 	ssClient := storageSvcClient.MakeClient(req.StorageSvcUrl)
 
 	fileID, err := ssClient.Upload(dstFilepath, nil)
