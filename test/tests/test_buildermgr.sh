@@ -9,8 +9,8 @@ set -euo pipefail
 # 2. package watcher triggers the build if any changes to packages
 
 ROOT=$(dirname $0)/../..
-PYTHON_RUNTIME_IMAGE=gcr.io/fission-ci/python-env:test
-PYTHON_BUILDER_IMAGE=gcr.io/fission-ci/python-env-builder:test
+PYTHON_RUNTIME_IMAGE=gcr.io/fission-ci/python3-env:test
+PYTHON_BUILDER_IMAGE=gcr.io/fission-ci/python3-env-builder:test
 
 fn=python-srcbuild-$(date +%s)
 

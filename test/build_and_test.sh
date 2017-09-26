@@ -10,19 +10,22 @@ fi
 
 source $(dirname $0)/test_utils.sh
 
-IMAGE=gcr.io/fission-ci/fission-bundle
-FETCHER_IMAGE=gcr.io/fission-ci/fetcher
-PYTHON_RUNTIME_IMAGE=gcr.io/fission-ci/python-env
-PYTHON_BUILDER_IMAGE=gcr.io/fission-ci/python-env-builder
+REPO=gcr.io/fission-ci
+IMAGE=$REPO/fission-bundle
+FETCHER_IMAGE=$REPO/fetcher
 TAG=test
 
 build_and_push_fission_bundle $IMAGE:$TAG
 
 build_and_push_fetcher $FETCHER_IMAGE:$TAG
 
-build_and_push_python_env_runtime $PYTHON_RUNTIME_IMAGE:$TAG
+build_builder
 
-build_and_push_python_env_builder $PYTHON_BUILDER_IMAGE:$TAG
+ENV='python3'
+
+build_and_push_env_runtime $ENV $REPO/$ENV-env:$TAG
+
+build_and_push_env_builder $ENV $REPO/$ENV-env-builder:$TAG
 
 build_fission_cli
 
