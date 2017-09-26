@@ -23,6 +23,18 @@ checkFunctionResponse() {
     echo $response | grep -i "a: 1 b: {c: 3, d: 4}"
 }
 
+waitBuild() {
+    echo "Waiting for builder manager to finish the build"
+    pkg=$(kubectl --namespace default get functions $fn -o jsonpath='{.spec.package.packageref.name}')
+
+    while true; do
+      kubectl --namespace default get packages $pkg -o jsonpath='{.spec.status.buildstatus}'|grep succeeded
+      if [[ $? -eq 0 ]]; then
+          break
+      fi
+    done
+}
+
 echo "Pre-test cleanup"
 fission env delete --name python || true
 
@@ -46,8 +58,8 @@ fission route create --function $fn --url /$fn --method GET
 echo "Waiting for router to catch up"
 sleep 3
 
-echo "Waiting for builder manager to finish the build triggered by http request"
-sleep 30
+# wait for build to finish at most 30s
+timeout 30s waitBuild
 
 checkFunctionResponse $fn
 
@@ -55,8 +67,8 @@ echo "Updating function " $fn
 fission fn update --name $fn --src demo-src-pkg.zip
 trap "fission fn delete --name $fn" EXIT
 
-echo "Waiting for builder manager to finish the build triggered by packageWatcher"
-sleep 30
+# wait for build to finish at most 30s
+timeout 30s waitBuild
 
 checkFunctionResponse $fn
 
