@@ -55,7 +55,6 @@ func envCreate(c *cli.Context) error {
 	// Environment API interface version is not specified and
 	// builder image is empty, set default interface version
 	if envVersion == 0 {
-		fmt.Println("Use default environment v1 API interface")
 		envVersion = 1
 	}
 
@@ -132,7 +131,7 @@ func envUpdate(c *cli.Context) error {
 	}
 
 	if env.Spec.Version == 1 && (len(envBuilderImg) > 0 || len(envBuildCmd) > 0) {
-		fatal("Environment v1 API interface doesn't supported environment builder.")
+		fatal("Version 1 Environments do not support builders. Must specify --version=2.")
 	}
 
 	if len(envBuilderImg) > 0 {
