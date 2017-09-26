@@ -269,22 +269,28 @@ func (envw *environmentWatcher) createBuilder(env *tpr.Environment) (*builderInf
 	if err != nil {
 		return nil, err
 	}
+	// there should be only one service in svcList
 	if len(svcList) == 0 {
 		svc, err = envw.createBuilderService(env)
 		if err != nil {
 			return nil, fmt.Errorf("Error creating builder service: %v", err)
 		}
+	} else {
+		svc = &svcList[0]
 	}
 
 	deployList, err := envw.getBuilderDeploymentList(sel)
 	if err != nil {
 		return nil, err
 	}
+	// there should be only one deploy in deployList
 	if len(deployList) == 0 {
 		deploy, err = envw.createBuilderDeployment(env)
 		if err != nil {
 			return nil, fmt.Errorf("Error creating builder deployment: %v", err)
 		}
+	} else {
+		deploy = &deployList[0]
 	}
 
 	return &builderInfo{
