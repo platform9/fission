@@ -28,6 +28,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/dchest/uniuri"
 	"github.com/satori/go.uuid"
 	"github.com/urfave/cli"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -84,7 +85,7 @@ func createArchive(client *client.Client, fileName string) *fission.Archive {
 	return &archive
 }
 
-func createPackage(client *client.Client, envName, srcArchiveName, deployArchiveName, buildcmd string) *metav1.ObjectMeta {
+func createPackage(client *client.Client, fnName, envName, srcArchiveName, deployArchiveName, buildcmd string) *metav1.ObjectMeta {
 	pkgSpec := fission.PackageSpec{
 		Environment: fission.EnvironmentReference{
 			Namespace: metav1.NamespaceDefault,
@@ -109,7 +110,7 @@ func createPackage(client *client.Client, envName, srcArchiveName, deployArchive
 		pkgSpec.BuildCommand = buildcmd
 	}
 
-	pkgName := strings.ToLower(uuid.NewV4().String())
+	pkgName := fmt.Sprintf("%v-%v", fnName, uniuri.NewLen(6))
 	pkg := &tpr.Package{
 		Metadata: metav1.ObjectMeta{
 			Name:      pkgName,
@@ -164,7 +165,7 @@ func fnCreate(c *cli.Context) error {
 	entrypoint := c.String("entrypoint")
 	buildcmd := c.String("buildcmd")
 
-	pkgMetadata := createPackage(client, envName, srcArchiveName, deployArchiveName, buildcmd)
+	pkgMetadata := createPackage(client, fnName, envName, srcArchiveName, deployArchiveName, buildcmd)
 
 	function := &tpr.Function{
 		Metadata: metav1.ObjectMeta{
@@ -323,7 +324,7 @@ func fnUpdate(c *cli.Context) error {
 
 	if len(deployArchiveName) > 0 || len(srcArchiveName) > 0 {
 		// create a new package for function
-		pkgMetadata := createPackage(client,
+		pkgMetadata := createPackage(client, function.Metadata.Name,
 			function.Spec.Environment.Name, srcArchiveName, deployArchiveName, buildcmd)
 
 		// update function spec with resource version
