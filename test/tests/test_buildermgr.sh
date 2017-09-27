@@ -34,6 +34,7 @@ waitBuild() {
       fi
     done
 }
+export -f waitBuild
 
 echo "Pre-test cleanup"
 fission env delete --name python || true
@@ -58,8 +59,8 @@ fission route create --function $fn --url /$fn --method GET
 echo "Waiting for router to catch up"
 sleep 3
 
-# wait for build to finish at most 30s
-timeout 30s waitBuild
+# wait for build to finish at most 60s
+timeout 60s bash -c waitBuild
 
 checkFunctionResponse $fn
 
@@ -67,8 +68,8 @@ echo "Updating function " $fn
 fission fn update --name $fn --src demo-src-pkg.zip
 trap "fission fn delete --name $fn" EXIT
 
-# wait for build to finish at most 30s
-timeout 30s waitBuild
+# wait for build to finish at most 60s
+timeout 60s bash -c waitBuild
 
 checkFunctionResponse $fn
 
