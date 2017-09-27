@@ -328,7 +328,7 @@ func (gp *GenericPool) specializePod(pod *apiv1.Pod, metadata *metav1.ObjectMeta
 		return err
 	}
 
-	targetFilename := "user"
+	targetFilename := string(fn.Metadata.UID)
 
 	err = fetcherClient.MakeClient(fetcherUrl).Fetch(&fetcher.FetchRequest{
 		FetchType: fetcher.FETCH_DEPLOYMENT,
@@ -336,7 +336,7 @@ func (gp *GenericPool) specializePod(pod *apiv1.Pod, metadata *metav1.ObjectMeta
 			Namespace: fn.Spec.Package.PackageRef.Namespace,
 			Name:      fn.Spec.Package.PackageRef.Name,
 		},
-		Filename: targetFilename, // XXX use function id instead
+		Filename: targetFilename,
 	})
 	if err != nil {
 		return err
