@@ -264,6 +264,7 @@ const (
 	BuildStatusRunning   = "running"
 	BuildStatusSucceeded = "succeeded"
 	BuildStatusFailed    = "failed"
+	BuildStatusNone      = "none"
 )
 
 const (
