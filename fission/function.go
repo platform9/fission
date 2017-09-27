@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -110,11 +111,24 @@ func createPackage(client *client.Client, fnName, envName, srcArchiveName, deplo
 		pkgSpec.BuildCommand = buildcmd
 	}
 
+	label := map[string]string{
+		"createdForFunction": fnName,
+	}
+
+	fnList, err := json.Marshal([]string{fnName})
+	checkErr(err, "encode json")
+
+	annotation := map[string]string{
+		"usedByFunctions": string(fnList),
+	}
+
 	pkgName := fmt.Sprintf("%v-%v", fnName, uniuri.NewLen(6))
 	pkg := &tpr.Package{
 		Metadata: metav1.ObjectMeta{
-			Name:      pkgName,
-			Namespace: metav1.NamespaceDefault,
+			Name:        pkgName,
+			Namespace:   metav1.NamespaceDefault,
+			Labels:      label,
+			Annotations: annotation,
 		},
 		Spec: pkgSpec,
 		Status: fission.PackageStatus{
