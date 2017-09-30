@@ -92,6 +92,16 @@ func fnCreate(c *cli.Context) error {
 	entrypoint := c.String("entrypoint")
 	buildcmd := c.String("buildcmd")
 
+	fnList, err := client.FunctionList()
+	checkErr(err, "get function list")
+	// check function existence before creating package
+	for _, fn := range fnList {
+		if fn.Metadata.Name == fnName {
+			fatal("Function with the same name already exists.")
+			break
+		}
+	}
+
 	var pkgMetadata *metav1.ObjectMeta
 
 	if len(pkgName) > 0 {
@@ -134,7 +144,7 @@ func fnCreate(c *cli.Context) error {
 		},
 	}
 
-	_, err := client.FunctionCreate(function)
+	_, err = client.FunctionCreate(function)
 	checkErr(err, "create function")
 
 	fmt.Printf("function '%v' created\n", fnName)
