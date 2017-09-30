@@ -328,7 +328,13 @@ func (gp *GenericPool) specializePod(pod *apiv1.Pod, metadata *metav1.ObjectMeta
 		return err
 	}
 
-	targetFilename := string(fn.Metadata.UID)
+	// for backward compatibility, since most v1 env
+	// still try to load user function from hard coded
+	// path /userfunc/user
+	targetFilename := "user"
+	if gp.env.Spec.Version == 2 {
+		targetFilename = string(fn.Metadata.UID)
+	}
 
 	err = fetcherClient.MakeClient(fetcherUrl).Fetch(&fetcher.FetchRequest{
 		FetchType: fetcher.FETCH_DEPLOYMENT,
