@@ -28,7 +28,7 @@ def loadv2():
     # add module directory into syspath for module import
     dirs = os.listdir(filepath)
     for moduleDir in dirs:
-        sys.path.append(os.path.join(filepath,moduleDir))
+        sys.path.append(os.path.join(filepath, moduleDir))
     fn, path, desc = imp.find_module('user')
     mod = imp.load_module('user', fn, path, desc)
     userfunc = getattr(mod, functionName)

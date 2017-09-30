@@ -439,7 +439,7 @@ func (gp *GenericPool) createPool() error {
 						{
 							Name:                   gp.env.Metadata.Name,
 							Image:                  gp.env.Spec.Runtime.Image,
-							ImagePullPolicy:        apiv1.PullIfNotPresent,
+							ImagePullPolicy:        gp.runtimeImagePullPolicy,
 							TerminationMessagePath: "/dev/termination-log",
 							VolumeMounts: []apiv1.VolumeMount{
 								{
