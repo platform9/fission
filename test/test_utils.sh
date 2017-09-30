@@ -237,6 +237,7 @@ dump_logs() {
     dump_fission_logs $ns $fns controller
     dump_fission_logs $ns $fns router
     dump_fission_logs $ns $fns poolmgr
+    dump_fission_logs $ns $fns buildermgr
     dump_function_pod_logs $ns $fns
     dump_fission_tprs
 }

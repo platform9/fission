@@ -25,16 +25,29 @@ checkFunctionResponse() {
 
 waitBuild() {
     echo "Waiting for builder manager to finish the build"
-    pkg=$(kubectl --namespace default get functions $fn -o jsonpath='{.spec.package.packageref.name}')
-
+    
     while true; do
-      kubectl --namespace default get packages $pkg -o jsonpath='{.spec.status.buildstatus}'|grep succeeded
+      kubectl --namespace default get packages $1 -o jsonpath='{.status.buildstatus}'|grep succeeded
       if [[ $? -eq 0 ]]; then
           break
       fi
     done
 }
 export -f waitBuild
+
+waitEnvBuilder() {
+    echo "Waiting for env builder to catch up"
+
+    while true; do
+      kubectl --namespace fission-builder get pod|grep python|grep Running
+      if [[ $? -eq 0 ]]; then
+          break
+      fi
+    done
+
+    sleep 10
+}
+export -f waitEnvBuilder
 
 echo "Pre-test cleanup"
 fission env delete --name python || true
@@ -43,8 +56,7 @@ echo "Creating python env"
 fission env create --name python --image $PYTHON_RUNTIME_IMAGE --builder $PYTHON_BUILDER_IMAGE
 trap "fission env delete --name python" EXIT
 
-echo "Waiting for env builder to catch up"
-sleep 30
+timeout 60s bash -c waitEnvBuilder
 
 echo "Creating source pacakage"
 zip -jr demo-src-pkg.zip $ROOT/examples/python/sourcepkg/
@@ -59,8 +71,10 @@ fission route create --function $fn --url /$fn --method GET
 echo "Waiting for router to catch up"
 sleep 3
 
+pkg=$(kubectl --namespace default get functions $fn -o jsonpath='{.spec.package.packageref.name}')
+
 # wait for build to finish at most 60s
-timeout 60s bash -c waitBuild
+timeout 60s bash -c "waitBuild $pkg"
 
 checkFunctionResponse $fn
 
@@ -68,8 +82,10 @@ echo "Updating function " $fn
 fission fn update --name $fn --src demo-src-pkg.zip
 trap "fission fn delete --name $fn" EXIT
 
+pkg=$(kubectl --namespace default get functions $fn -o jsonpath='{.spec.package.packageref.name}')
+
 # wait for build to finish at most 60s
-timeout 60s bash -c waitBuild
+timeout 60s bash -c "waitBuild $pkg"
 
 checkFunctionResponse $fn
 
