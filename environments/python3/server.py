@@ -25,9 +25,11 @@ def loadv2():
     body = request.get_json()
     filepath = body['filepath']
     functionName = body['functionName']
-    # add filepath into syspath for module import
-    sys.path.append(filepath)
-    fn, path, desc = imp.find_module('user', [filepath])
+    # add module directory into syspath for module import
+    dirs = os.listdir(filepath)
+    for moduleDir in dirs:
+        sys.path.append(os.path.join(filepath,moduleDir))
+    fn, path, desc = imp.find_module('user')
     mod = imp.load_module('user', fn, path, desc)
     userfunc = getattr(mod, functionName)
     return ""

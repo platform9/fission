@@ -332,21 +332,10 @@ func (fetcher *Fetcher) rename(src string, dst string) error {
 
 // archive is a function that zips directory into a zip file
 func (fetcher *Fetcher) archive(src string, dst string) error {
-	var files []string
-	target, err := os.Stat(src)
-	if err != nil {
+	if _, err := os.Stat(src); err != nil {
 		return errors.New(fmt.Sprintf("Failed to zip file: %v", err))
 	}
-	if target.IsDir() {
-		// list all
-		fs, _ := ioutil.ReadDir(src)
-		for _, f := range fs {
-			files = append(files, filepath.Join(src, f.Name()))
-		}
-	} else {
-		files = append(files, src)
-	}
-	return archiver.Zip.Make(dst, files)
+	return archiver.Zip.Make(dst, []string{src})
 }
 
 // unarchive is a function that unzips a zip file to destination
