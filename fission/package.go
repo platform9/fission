@@ -313,6 +313,12 @@ func pkgDelete(c *cli.Context) error {
 
 	force := c.Bool("f")
 
+	_, err := client.PackageGet(&metav1.ObjectMeta{
+		Namespace: metav1.NamespaceDefault,
+		Name:      pkgName,
+	})
+	checkErr(err, "find package")
+
 	fnList, err := getFunctionsByPackage(client, pkgName)
 
 	if !force && len(fnList) > 0 {
