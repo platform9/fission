@@ -51,6 +51,7 @@ export -f waitEnvBuilder
 
 echo "Pre-test cleanup"
 fission env delete --name python || true
+kubectl --namespace default get packages|grep -v NAME|awk '{print $1}'|xargs -I@ bash -c 'kubectl --namespace default delete packages @'
 
 echo "Creating python env"
 fission env create --name python --image $PYTHON_RUNTIME_IMAGE --builder $PYTHON_BUILDER_IMAGE
