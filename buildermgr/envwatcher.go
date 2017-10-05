@@ -275,8 +275,10 @@ func (envw *environmentWatcher) createBuilder(env *tpr.Environment) (*builderInf
 		if err != nil {
 			return nil, fmt.Errorf("Error creating builder service: %v", err)
 		}
-	} else {
+	} else if len(svcList) == 1 {
 		svc = &svcList[0]
+	} else {
+		return nil, fmt.Errorf("Found more than one builder service for environment %v", env.Metadata.Name)
 	}
 
 	deployList, err := envw.getBuilderDeploymentList(sel)
@@ -289,8 +291,10 @@ func (envw *environmentWatcher) createBuilder(env *tpr.Environment) (*builderInf
 		if err != nil {
 			return nil, fmt.Errorf("Error creating builder deployment: %v", err)
 		}
-	} else {
+	} else if len(deployList) == 1 {
 		deploy = &deployList[0]
+	} else {
+		return nil, fmt.Errorf("Found more than one builder deployment for environment %v", env.Metadata.Name)
 	}
 
 	return &builderInfo{
