@@ -21,12 +21,12 @@ import (
 
 	"github.com/dchest/uniuri"
 
-	"github.com/fission/fission/tpr"
+	"github.com/fission/fission/crd"
 )
 
 // Start the poolmgr service.
 func StartPoolmgr(fissionNamespace string, functionNamespace string, port int) error {
-	fissionClient, kubernetesClient, err := tpr.MakeFissionClient()
+	fissionClient, kubernetesClient, _, err := crd.MakeFissionClient()
 	if err != nil {
 		log.Printf("Failed to get kubernetes client: %v", err)
 		return err

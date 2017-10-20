@@ -28,9 +28,9 @@ import (
 	"github.com/fission/fission"
 	"github.com/fission/fission/builder"
 	builderClient "github.com/fission/fission/builder/client"
+	"github.com/fission/fission/crd"
 	"github.com/fission/fission/environments/fetcher"
 	fetcherClient "github.com/fission/fission/environments/fetcher/client"
-	"github.com/fission/fission/tpr"
 )
 
 // buildPackage helps to build source package into deployment package.
@@ -43,13 +43,13 @@ import (
 // 6. Update package status to succeed state
 // 7. Update package resource in package ref of functions that share the same package
 // *. Update package status to failed state,if any one of steps above failed
-func buildPackage(fissionClient *tpr.FissionClient, kubernetesClient *kubernetes.Clientset,
+func buildPackage(fissionClient *crd.FissionClient, kubernetesClient *kubernetes.Clientset,
 	builderNamespace string, storageSvcUrl string, buildReq BuildRequest) (buildLogs string, err error) {
 
 	pkg, err := fissionClient.Packages(
 		buildReq.Package.Namespace).Get(buildReq.Package.Name)
 	if err != nil {
-		e := fmt.Sprintf("Error getting function TPR info: %v", err)
+		e := fmt.Sprintf("Error getting function CRD info: %v", err)
 		log.Println(e)
 		updatePackage(fissionClient, pkg, fission.BuildStatusFailed, e, nil)
 		return e, fission.MakeError(500, e)
@@ -74,7 +74,7 @@ func buildPackage(fissionClient *tpr.FissionClient, kubernetesClient *kubernetes
 
 	env, err := fissionClient.Environments(metav1.NamespaceDefault).Get(pkg.Spec.Environment.Name)
 	if err != nil {
-		e := fmt.Sprintf("Error getting environment TPR info: %v", err)
+		e := fmt.Sprintf("Error getting environment CRD info: %v", err)
 		log.Println(e)
 		updatePackage(fissionClient, pkg, fission.BuildStatusFailed, e, nil)
 		return e, fission.MakeError(500, e)
@@ -137,7 +137,7 @@ func buildPackage(fissionClient *tpr.FissionClient, kubernetesClient *kubernetes
 	newPkgRV, err := updatePackage(fissionClient, pkg,
 		fission.BuildStatusSucceeded, buildResp.BuildLogs, uploadResp)
 	if err != nil {
-		e := fmt.Sprintf("Error creating deployment package TPR resource: %v", err)
+		e := fmt.Sprintf("Error creating deployment package CRD resource: %v", err)
 		log.Println(e)
 		updatePackage(fissionClient, pkg, fission.BuildStatusFailed, e, nil)
 		return e, fission.MakeError(500, e)
@@ -159,7 +159,7 @@ func buildPackage(fissionClient *tpr.FissionClient, kubernetesClient *kubernetes
 			fn.Spec.Package.PackageRef.Namespace == pkg.Metadata.Namespace &&
 			fn.Spec.Package.PackageRef.ResourceVersion != pkg.Metadata.ResourceVersion {
 			fn.Spec.Package.PackageRef.ResourceVersion = newPkgRV
-			// update TPR
+			// update CRD
 			_, err = fissionClient.Functions(fn.Metadata.Namespace).Update(&fn)
 			if err != nil {
 				e := fmt.Sprintf("Error updating function package resource version: %v", err)
@@ -175,8 +175,8 @@ func buildPackage(fissionClient *tpr.FissionClient, kubernetesClient *kubernetes
 	return buildResp.BuildLogs, nil
 }
 
-func updatePackage(fissionClient *tpr.FissionClient,
-	pkg *tpr.Package, status fission.BuildStatus, buildLogs string,
+func updatePackage(fissionClient *crd.FissionClient,
+	pkg *crd.Package, status fission.BuildStatus, buildLogs string,
 	uploadResp *fetcher.UploadResponse) (string, error) {
 
 	// Kubernetes checks resource version before applying

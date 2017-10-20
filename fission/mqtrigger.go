@@ -26,8 +26,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission"
+	"github.com/fission/fission/crd"
 	"github.com/fission/fission/mqtrigger/messageQueue"
-	"github.com/fission/fission/tpr"
 )
 
 func mqtCreate(c *cli.Context) error {
@@ -72,7 +72,7 @@ func mqtCreate(c *cli.Context) error {
 
 	checkMQTopicAvailability(mqType, topic, respTopic)
 
-	mqt := tpr.Messagequeuetrigger{
+	mqt := crd.Messagequeuetrigger{
 		Metadata: metav1.ObjectMeta{
 			Name:      mqtName,
 			Namespace: metav1.NamespaceDefault,

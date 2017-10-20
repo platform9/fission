@@ -29,13 +29,13 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/fission/fission"
+	"github.com/fission/fission/crd"
 	"github.com/fission/fission/fission/logdb"
-	"github.com/fission/fission/tpr"
 )
 
 type (
 	API struct {
-		fissionClient     *tpr.FissionClient
+		fissionClient     *crd.FissionClient
 		storageServiceUrl string
 		builderManagerUrl string
 		workflowApiUrl    string
@@ -49,7 +49,7 @@ type (
 )
 
 func MakeAPI() (*API, error) {
-	api, err := makeTPRBackedAPI()
+	api, err := makeCRDBackedAPI()
 
 	u := os.Getenv("STORAGE_SERVICE_URL")
 	if len(u) > 0 {

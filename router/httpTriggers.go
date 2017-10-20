@@ -26,22 +26,22 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 
 	"github.com/fission/fission"
+	"github.com/fission/fission/crd"
 	poolmgrClient "github.com/fission/fission/poolmgr/client"
-	"github.com/fission/fission/tpr"
 )
 
 type HTTPTriggerSet struct {
 	*functionServiceMap
 	*mutableRouter
-	fissionClient *tpr.FissionClient
+	fissionClient *crd.FissionClient
 	poolmgr       *poolmgrClient.Client
 	resolver      *functionReferenceResolver
-	triggers      []tpr.Httptrigger
-	functions     []tpr.Function
+	triggers      []crd.Httptrigger
+	functions     []crd.Function
 }
 
-func makeHTTPTriggerSet(fmap *functionServiceMap, fissionClient *tpr.FissionClient, poolmgr *poolmgrClient.Client, resolver *functionReferenceResolver) *HTTPTriggerSet {
-	triggers := make([]tpr.Httptrigger, 1)
+func makeHTTPTriggerSet(fmap *functionServiceMap, fissionClient *crd.FissionClient, poolmgr *poolmgrClient.Client, resolver *functionReferenceResolver) *HTTPTriggerSet {
+	triggers := make([]crd.Httptrigger, 1)
 	return &HTTPTriggerSet{
 		functionServiceMap: fmap,
 		triggers:           triggers,
@@ -127,7 +127,7 @@ func (ts *HTTPTriggerSet) getRouter() *mux.Router {
 	return muxRouter
 }
 
-func (ts *HTTPTriggerSet) updateTriggerStatusFailed(ht *tpr.Httptrigger, err error) {
+func (ts *HTTPTriggerSet) updateTriggerStatusFailed(ht *crd.Httptrigger, err error) {
 	// TODO
 }
 
@@ -157,7 +157,7 @@ func (ts *HTTPTriggerSet) watchTriggers() {
 				time.Sleep(time.Second)
 				break
 			}
-			ht := ev.Object.(*tpr.Httptrigger)
+			ht := ev.Object.(*crd.Httptrigger)
 			rv = ht.Metadata.ResourceVersion
 			ts.syncTriggers()
 		}
@@ -186,7 +186,7 @@ func (ts *HTTPTriggerSet) watchFunctions() {
 				time.Sleep(time.Second)
 				break
 			}
-			fn := ev.Object.(*tpr.Function)
+			fn := ev.Object.(*crd.Function)
 			rv = fn.Metadata.ResourceVersion
 
 			// update resolver function reference cache

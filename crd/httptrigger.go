@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package tpr
+package crd
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,32 +24,32 @@ import (
 )
 
 type (
-	KuberneteswatchtriggerInterface interface {
-		Create(*Kuberneteswatchtrigger) (*Kuberneteswatchtrigger, error)
-		Get(name string) (*Kuberneteswatchtrigger, error)
-		Update(*Kuberneteswatchtrigger) (*Kuberneteswatchtrigger, error)
+	HttptriggerInterface interface {
+		Create(*Httptrigger) (*Httptrigger, error)
+		Get(name string) (*Httptrigger, error)
+		Update(*Httptrigger) (*Httptrigger, error)
 		Delete(name string, options *metav1.DeleteOptions) error
-		List(opts metav1.ListOptions) (*KuberneteswatchtriggerList, error)
+		List(opts metav1.ListOptions) (*HttptriggerList, error)
 		Watch(opts metav1.ListOptions) (watch.Interface, error)
 	}
 
-	kubernetesWatchTriggerClient struct {
+	httpTriggerClient struct {
 		client    *rest.RESTClient
 		namespace string
 	}
 )
 
-func MakeKuberneteswatchtriggerInterface(tprClient *rest.RESTClient, namespace string) KuberneteswatchtriggerInterface {
-	return &kubernetesWatchTriggerClient{
-		client:    tprClient,
+func MakeHttptriggerInterface(crdClient *rest.RESTClient, namespace string) HttptriggerInterface {
+	return &httpTriggerClient{
+		client:    crdClient,
 		namespace: namespace,
 	}
 }
 
-func (c *kubernetesWatchTriggerClient) Create(obj *Kuberneteswatchtrigger) (*Kuberneteswatchtrigger, error) {
-	var result Kuberneteswatchtrigger
+func (c *httpTriggerClient) Create(obj *Httptrigger) (*Httptrigger, error) {
+	var result Httptrigger
 	err := c.client.Post().
-		Resource("kuberneteswatchtriggers").
+		Resource("httptriggers").
 		Namespace(c.namespace).
 		Body(obj).
 		Do().Into(&result)
@@ -59,10 +59,10 @@ func (c *kubernetesWatchTriggerClient) Create(obj *Kuberneteswatchtrigger) (*Kub
 	return &result, nil
 }
 
-func (c *kubernetesWatchTriggerClient) Get(name string) (*Kuberneteswatchtrigger, error) {
-	var result Kuberneteswatchtrigger
+func (c *httpTriggerClient) Get(name string) (*Httptrigger, error) {
+	var result Httptrigger
 	err := c.client.Get().
-		Resource("kuberneteswatchtriggers").
+		Resource("httptriggers").
 		Namespace(c.namespace).
 		Name(name).
 		Do().Into(&result)
@@ -72,10 +72,10 @@ func (c *kubernetesWatchTriggerClient) Get(name string) (*Kuberneteswatchtrigger
 	return &result, nil
 }
 
-func (c *kubernetesWatchTriggerClient) Update(obj *Kuberneteswatchtrigger) (*Kuberneteswatchtrigger, error) {
-	var result Kuberneteswatchtrigger
+func (c *httpTriggerClient) Update(obj *Httptrigger) (*Httptrigger, error) {
+	var result Httptrigger
 	err := c.client.Put().
-		Resource("kuberneteswatchtriggers").
+		Resource("httptriggers").
 		Namespace(c.namespace).
 		Name(obj.Metadata.Name).
 		Body(obj).
@@ -86,21 +86,21 @@ func (c *kubernetesWatchTriggerClient) Update(obj *Kuberneteswatchtrigger) (*Kub
 	return &result, nil
 }
 
-func (c *kubernetesWatchTriggerClient) Delete(name string, opts *metav1.DeleteOptions) error {
+func (c *httpTriggerClient) Delete(name string, opts *metav1.DeleteOptions) error {
 	return c.client.Delete().
 		Namespace(c.namespace).
-		Resource("kuberneteswatchtriggers").
+		Resource("httptriggers").
 		Name(name).
 		Body(opts).
 		Do().
 		Error()
 }
 
-func (c *kubernetesWatchTriggerClient) List(opts metav1.ListOptions) (*KuberneteswatchtriggerList, error) {
-	var result KuberneteswatchtriggerList
+func (c *httpTriggerClient) List(opts metav1.ListOptions) (*HttptriggerList, error) {
+	var result HttptriggerList
 	err := c.client.Get().
 		Namespace(c.namespace).
-		Resource("kuberneteswatchtriggers").
+		Resource("httptriggers").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Do().
 		Into(&result)
@@ -110,11 +110,11 @@ func (c *kubernetesWatchTriggerClient) List(opts metav1.ListOptions) (*Kubernete
 	return &result, nil
 }
 
-func (c *kubernetesWatchTriggerClient) Watch(opts metav1.ListOptions) (watch.Interface, error) {
+func (c *httpTriggerClient) Watch(opts metav1.ListOptions) (watch.Interface, error) {
 	return c.client.Get().
 		Prefix("watch").
 		Namespace(c.namespace).
-		Resource("kuberneteswatchtriggers").
+		Resource("httptriggers").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Watch()
 }

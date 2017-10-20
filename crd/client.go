@@ -14,13 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package tpr
+package crd
 
 import (
 	"errors"
 	"os"
 	"time"
 
+	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -34,14 +35,14 @@ import (
 
 type (
 	FissionClient struct {
-		tprClient *rest.RESTClient
+		crdClient *rest.RESTClient
 	}
 )
 
 // Get a kubernetes client using the kubeconfig file at the
 // environment var $KUBECONFIG, or an in-cluster config if that's
 // undefined.
-func GetKubernetesClient() (*rest.Config, *kubernetes.Clientset, error) {
+func GetKubernetesClient() (*rest.Config, *kubernetes.Clientset, *apiextensionsclient.Clientset, error) {
 	var config *rest.Config
 	var err error
 
@@ -51,26 +52,31 @@ func GetKubernetesClient() (*rest.Config, *kubernetes.Clientset, error) {
 	if len(kubeConfig) != 0 {
 		config, err = clientcmd.BuildConfigFromFlags("", kubeConfig)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 	} else {
 		config, err = rest.InClusterConfig()
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 	}
 
 	// creates the clientset
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
-	return config, clientset, nil
+	apiExtClientset, err := apiextensionsclient.NewForConfig(config)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	return config, clientset, apiExtClientset, nil
 }
 
-// GetTprClient gets a TPR client config
-func GetTprClient(config *rest.Config) (*rest.RESTClient, error) {
+// GetCrdClient gets a CRD client config
+func GetCrdClient(config *rest.Config) (*rest.RESTClient, error) {
 	// mutate config to add our types
 	configureClient(config)
 
@@ -78,14 +84,14 @@ func GetTprClient(config *rest.Config) (*rest.RESTClient, error) {
 	return rest.RESTClientFor(config)
 }
 
-// configureClient sets up a REST client for Fission TPR types.
+// configureClient sets up a REST client for Fission CRD types.
 //
-// This is copied from the client-go TPR example.  (I don't understand
+// This is copied from the client-go CRD example.  (I don't understand
 // all of it completely.)  It registers our types with the global API
 // "scheme" (api.Scheme), which keeps a directory of types [I guess so
 // it can use the string in the Kind field to make a Go object?].  It
-// also puts the fission TPR types under a "group version" which we
-// create for our TPRs types.
+// also puts the fission CRD types under a "group version" which we
+// create for our CRDs types.
 func configureClient(config *rest.Config) {
 	groupversion := schema.GroupVersion{
 		Group:   "fission.io",
@@ -152,10 +158,10 @@ func configureClient(config *rest.Config) {
 	schemeBuilder.AddToScheme(scheme.Scheme)
 }
 
-func waitForTPRs(tprClient *rest.RESTClient) error {
+func waitForCRDs(crdClient *rest.RESTClient) error {
 	start := time.Now()
 	for {
-		fi := MakeFunctionInterface(tprClient, metav1.NamespaceDefault)
+		fi := MakeFunctionInterface(crdClient, metav1.NamespaceDefault)
 		_, err := fi.List(metav1.ListOptions{})
 		if err != nil {
 			time.Sleep(100 * time.Millisecond)
@@ -164,48 +170,48 @@ func waitForTPRs(tprClient *rest.RESTClient) error {
 		}
 
 		if time.Now().Sub(start) > 30*time.Second {
-			return errors.New("timeout waiting for TPRs")
+			return errors.New("timeout waiting for CRDs")
 		}
 	}
 }
 
-func MakeFissionClient() (*FissionClient, *kubernetes.Clientset, error) {
-	config, kubeClient, err := GetKubernetesClient()
+func MakeFissionClient() (*FissionClient, *kubernetes.Clientset, *apiextensionsclient.Clientset, error) {
+	config, kubeClient, apiExtClient, err := GetKubernetesClient()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
-	tprClient, err := GetTprClient(config)
+	crdClient, err := GetCrdClient(config)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	fc := &FissionClient{
-		tprClient: tprClient,
+		crdClient: crdClient,
 	}
-	return fc, kubeClient, nil
+	return fc, kubeClient, apiExtClient, nil
 }
 
 func (fc *FissionClient) Functions(ns string) FunctionInterface {
-	return MakeFunctionInterface(fc.tprClient, ns)
+	return MakeFunctionInterface(fc.crdClient, ns)
 }
 func (fc *FissionClient) Environments(ns string) EnvironmentInterface {
-	return MakeEnvironmentInterface(fc.tprClient, ns)
+	return MakeEnvironmentInterface(fc.crdClient, ns)
 }
 func (fc *FissionClient) Httptriggers(ns string) HttptriggerInterface {
-	return MakeHttptriggerInterface(fc.tprClient, ns)
+	return MakeHttptriggerInterface(fc.crdClient, ns)
 }
 func (fc *FissionClient) Kuberneteswatchtriggers(ns string) KuberneteswatchtriggerInterface {
-	return MakeKuberneteswatchtriggerInterface(fc.tprClient, ns)
+	return MakeKuberneteswatchtriggerInterface(fc.crdClient, ns)
 }
 func (fc *FissionClient) Timetriggers(ns string) TimetriggerInterface {
-	return MakeTimetriggerInterface(fc.tprClient, ns)
+	return MakeTimetriggerInterface(fc.crdClient, ns)
 }
 func (fc *FissionClient) Messagequeuetriggers(ns string) MessagequeuetriggerInterface {
-	return MakeMessagequeuetriggerInterface(fc.tprClient, ns)
+	return MakeMessagequeuetriggerInterface(fc.crdClient, ns)
 }
 func (fc *FissionClient) Packages(ns string) PackageInterface {
-	return MakePackageInterface(fc.tprClient, ns)
+	return MakePackageInterface(fc.crdClient, ns)
 }
 
-func (fc *FissionClient) WaitForTPRs() {
-	waitForTPRs(fc.tprClient)
+func (fc *FissionClient) WaitForCRDs() {
+	waitForCRDs(fc.crdClient)
 }

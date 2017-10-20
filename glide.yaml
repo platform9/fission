@@ -29,6 +29,12 @@ import:
   - pkg/labels
   - pkg/util/intstr
   - rest
+- package: k8s.io/apiextensions-apiserver
+  version: release-1.7
+  subpackages:
+  - pkg/apis/apiextensions/v1beta1
+- package: k8s.io/apimachinery
+  version: release-1.7
 - package: github.com/influxdata/influxdb
   version: v1.2.0
   subpackages:

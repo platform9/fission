@@ -15,7 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission"
-	"github.com/fission/fission/tpr"
+	"github.com/fission/fission/crd"
 	"github.com/fission/fission/v1"
 )
 
@@ -235,7 +235,7 @@ func functionRefFromV1Metadata(m *v1.Metadata, nameRemap map[string]string) *fis
 	}
 }
 
-func tprMetadataFromV1Metadata(m *v1.Metadata, nameRemap map[string]string) *metav1.ObjectMeta {
+func crdMetadataFromV1Metadata(m *v1.Metadata, nameRemap map[string]string) *metav1.ObjectMeta {
 	return &metav1.ObjectMeta{
 		Name:      nameRemap[m.Name],
 		Namespace: metav1.NamespaceDefault,
@@ -302,7 +302,7 @@ func upgradeRestoreState(c *cli.Context) error {
 			},
 			Deployment: *archive,
 		}
-		pkg, err := client.PackageCreate(&tpr.Package{
+		pkg, err := client.PackageCreate(&crd.Package{
 			Metadata: metav1.ObjectMeta{
 				Name:      pkgName,
 				Namespace: metav1.NamespaceDefault,
@@ -310,8 +310,8 @@ func upgradeRestoreState(c *cli.Context) error {
 			Spec: pkgSpec,
 		})
 		checkErr(err, fmt.Sprintf("create package %v", pkgName))
-		_, err = client.FunctionCreate(&tpr.Function{
-			Metadata: *tprMetadataFromV1Metadata(&f.Metadata, v1state.NameChanges),
+		_, err = client.FunctionCreate(&crd.Function{
+			Metadata: *crdMetadataFromV1Metadata(&f.Metadata, v1state.NameChanges),
 			Spec: fission.FunctionSpec{
 				Environment: pkgSpec.Environment,
 				Package: fission.FunctionPackageRef{
@@ -329,8 +329,8 @@ func upgradeRestoreState(c *cli.Context) error {
 
 	// create envs
 	for _, e := range v1state.Environments {
-		_, err = client.EnvironmentCreate(&tpr.Environment{
-			Metadata: *tprMetadataFromV1Metadata(&e.Metadata, v1state.NameChanges),
+		_, err = client.EnvironmentCreate(&crd.Environment{
+			Metadata: *crdMetadataFromV1Metadata(&e.Metadata, v1state.NameChanges),
 			Spec: fission.EnvironmentSpec{
 				Version: 1,
 				Runtime: fission.Runtime{
@@ -343,8 +343,8 @@ func upgradeRestoreState(c *cli.Context) error {
 
 	// create httptriggers
 	for _, t := range v1state.Httptriggers {
-		_, err = client.HTTPTriggerCreate(&tpr.Httptrigger{
-			Metadata: *tprMetadataFromV1Metadata(&t.Metadata, v1state.NameChanges),
+		_, err = client.HTTPTriggerCreate(&crd.Httptrigger{
+			Metadata: *crdMetadataFromV1Metadata(&t.Metadata, v1state.NameChanges),
 			Spec: fission.HTTPTriggerSpec{
 				RelativeURL:       t.UrlPattern,
 				Method:            t.Method,
@@ -356,8 +356,8 @@ func upgradeRestoreState(c *cli.Context) error {
 
 	// create mqtriggers
 	for _, t := range v1state.Mqtriggers {
-		_, err = client.MessageQueueTriggerCreate(&tpr.Messagequeuetrigger{
-			Metadata: *tprMetadataFromV1Metadata(&t.Metadata, v1state.NameChanges),
+		_, err = client.MessageQueueTriggerCreate(&crd.Messagequeuetrigger{
+			Metadata: *crdMetadataFromV1Metadata(&t.Metadata, v1state.NameChanges),
 			Spec: fission.MessageQueueTriggerSpec{
 				FunctionReference: *functionRefFromV1Metadata(&t.Function, v1state.NameChanges),
 				MessageQueueType:  t.MessageQueueType,
@@ -370,8 +370,8 @@ func upgradeRestoreState(c *cli.Context) error {
 
 	// create time triggers
 	for _, t := range v1state.Timetriggers {
-		_, err = client.TimeTriggerCreate(&tpr.Timetrigger{
-			Metadata: *tprMetadataFromV1Metadata(&t.Metadata, v1state.NameChanges),
+		_, err = client.TimeTriggerCreate(&crd.Timetrigger{
+			Metadata: *crdMetadataFromV1Metadata(&t.Metadata, v1state.NameChanges),
 			Spec: fission.TimeTriggerSpec{
 				FunctionReference: *functionRefFromV1Metadata(&t.Function, v1state.NameChanges),
 				Cron:              t.Cron,
@@ -382,8 +382,8 @@ func upgradeRestoreState(c *cli.Context) error {
 
 	// create watches
 	for _, t := range v1state.Watches {
-		_, err = client.WatchCreate(&tpr.Kuberneteswatchtrigger{
-			Metadata: *tprMetadataFromV1Metadata(&t.Metadata, v1state.NameChanges),
+		_, err = client.WatchCreate(&crd.Kuberneteswatchtrigger{
+			Metadata: *crdMetadataFromV1Metadata(&t.Metadata, v1state.NameChanges),
 			Spec: fission.KubernetesWatchTriggerSpec{
 				Namespace:         t.Namespace,
 				Type:              t.ObjType,

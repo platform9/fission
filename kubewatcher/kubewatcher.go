@@ -36,8 +36,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/fission/fission"
+	"github.com/fission/fission/crd"
 	"github.com/fission/fission/publisher"
-	"github.com/fission/fission/tpr"
 )
 
 type requestType int
@@ -56,7 +56,7 @@ type (
 	}
 
 	watchSubscription struct {
-		watch               tpr.Kuberneteswatchtrigger
+		watch               crd.Kuberneteswatchtrigger
 		kubeWatch           watch.Interface
 		lastResourceVersion string
 		stopped             *int32
@@ -66,7 +66,7 @@ type (
 
 	kubeWatcherRequest struct {
 		requestType
-		watches         []tpr.Kuberneteswatchtrigger
+		watches         []crd.Kuberneteswatchtrigger
 		responseChannel chan *kubeWatcherResponse
 	}
 	kubeWatcherResponse struct {
@@ -85,7 +85,7 @@ func MakeKubeWatcher(kubernetesClient *kubernetes.Clientset, publisher publisher
 	return kw
 }
 
-func (kw *KubeWatcher) Sync(watches []tpr.Kuberneteswatchtrigger) error {
+func (kw *KubeWatcher) Sync(watches []crd.Kuberneteswatchtrigger) error {
 	req := &kubeWatcherRequest{
 		requestType:     SYNC,
 		watches:         watches,
@@ -145,7 +145,7 @@ func printKubernetesObject(obj runtime.Object, w io.Writer) error {
 	return err
 }
 
-func createKubernetesWatch(kubeClient *kubernetes.Clientset, w *tpr.Kuberneteswatchtrigger, resourceVersion string) (watch.Interface, error) {
+func createKubernetesWatch(kubeClient *kubernetes.Clientset, w *crd.Kuberneteswatchtrigger, resourceVersion string) (watch.Interface, error) {
 	var wi watch.Interface
 	var err error
 	var watchTimeoutSec int64 = 120
@@ -174,7 +174,7 @@ func createKubernetesWatch(kubeClient *kubernetes.Clientset, w *tpr.Kuberneteswa
 	return wi, err
 }
 
-func (kw *KubeWatcher) addWatch(w *tpr.Kuberneteswatchtrigger) error {
+func (kw *KubeWatcher) addWatch(w *crd.Kuberneteswatchtrigger) error {
 	log.Printf("Adding watch %v: %v", w.Metadata.Name, w.Spec.FunctionReference)
 	ws, err := MakeWatchSubscription(w, kw.kubernetesClient, kw.publisher)
 	if err != nil {
@@ -184,7 +184,7 @@ func (kw *KubeWatcher) addWatch(w *tpr.Kuberneteswatchtrigger) error {
 	return nil
 }
 
-func (kw *KubeWatcher) removeWatch(w *tpr.Kuberneteswatchtrigger) error {
+func (kw *KubeWatcher) removeWatch(w *crd.Kuberneteswatchtrigger) error {
 	log.Printf("Removing watch %v: %v", w.Metadata.Name, w.Spec.FunctionReference)
 	ws, ok := kw.watches[w.Metadata.UID]
 	if !ok {
@@ -211,7 +211,7 @@ func (kw *KubeWatcher) removeWatch(w *tpr.Kuberneteswatchtrigger) error {
 // 	return nil
 // }
 
-func MakeWatchSubscription(w *tpr.Kuberneteswatchtrigger, kubeClient *kubernetes.Clientset, publisher publisher.Publisher) (*watchSubscription, error) {
+func MakeWatchSubscription(w *crd.Kuberneteswatchtrigger, kubeClient *kubernetes.Clientset, publisher publisher.Publisher) (*watchSubscription, error) {
 	var stopped int32 = 0
 	ws := &watchSubscription{
 		watch:               *w,

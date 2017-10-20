@@ -25,10 +25,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission"
-	"github.com/fission/fission/tpr"
+	"github.com/fission/fission/crd"
 )
 
-func (c *Client) WatchCreate(w *tpr.Kuberneteswatchtrigger) (*metav1.ObjectMeta, error) {
+func (c *Client) WatchCreate(w *crd.Kuberneteswatchtrigger) (*metav1.ObjectMeta, error) {
 	reqbody, err := json.Marshal(w)
 	if err != nil {
 		return nil, err
@@ -54,7 +54,7 @@ func (c *Client) WatchCreate(w *tpr.Kuberneteswatchtrigger) (*metav1.ObjectMeta,
 	return &m, nil
 }
 
-func (c *Client) WatchGet(m *metav1.ObjectMeta) (*tpr.Kuberneteswatchtrigger, error) {
+func (c *Client) WatchGet(m *metav1.ObjectMeta) (*crd.Kuberneteswatchtrigger, error) {
 	relativeUrl := fmt.Sprintf("watches/%v", m.Name)
 	relativeUrl += fmt.Sprintf("?namespace=%v", m.Namespace)
 
@@ -69,7 +69,7 @@ func (c *Client) WatchGet(m *metav1.ObjectMeta) (*tpr.Kuberneteswatchtrigger, er
 		return nil, err
 	}
 
-	var w tpr.Kuberneteswatchtrigger
+	var w crd.Kuberneteswatchtrigger
 	err = json.Unmarshal(body, &w)
 	if err != nil {
 		return nil, err
@@ -78,7 +78,7 @@ func (c *Client) WatchGet(m *metav1.ObjectMeta) (*tpr.Kuberneteswatchtrigger, er
 	return &w, nil
 }
 
-func (c *Client) WatchUpdate(w *tpr.Kuberneteswatchtrigger) (*metav1.ObjectMeta, error) {
+func (c *Client) WatchUpdate(w *crd.Kuberneteswatchtrigger) (*metav1.ObjectMeta, error) {
 	return nil, fission.MakeError(fission.ErrorNotImplmented,
 		"watch update not implemented")
 }
@@ -89,7 +89,7 @@ func (c *Client) WatchDelete(m *metav1.ObjectMeta) error {
 	return c.delete(relativeUrl)
 }
 
-func (c *Client) WatchList() ([]tpr.Kuberneteswatchtrigger, error) {
+func (c *Client) WatchList() ([]crd.Kuberneteswatchtrigger, error) {
 	resp, err := http.Get(c.url("watches"))
 	if err != nil {
 		return nil, err
@@ -101,7 +101,7 @@ func (c *Client) WatchList() ([]tpr.Kuberneteswatchtrigger, error) {
 		return nil, err
 	}
 
-	watches := make([]tpr.Kuberneteswatchtrigger, 0)
+	watches := make([]crd.Kuberneteswatchtrigger, 0)
 	err = json.Unmarshal(body, &watches)
 	if err != nil {
 		return nil, err

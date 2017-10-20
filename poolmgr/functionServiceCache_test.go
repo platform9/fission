@@ -8,7 +8,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission"
-	"github.com/fission/fission/tpr"
+	"github.com/fission/fission/crd"
 )
 
 func TestFunctionServiceCache(t *testing.T) {
@@ -25,7 +25,7 @@ func TestFunctionServiceCache(t *testing.T) {
 			Name: "foo",
 			UID:  "1212",
 		},
-		environment: &tpr.Environment{
+		environment: &crd.Environment{
 			Metadata: metav1.ObjectMeta{
 				Name: "foo-env",
 				UID:  "2323",

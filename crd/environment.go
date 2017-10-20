@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package tpr
+package crd
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,9 +39,9 @@ type (
 	}
 )
 
-func MakeEnvironmentInterface(tprClient *rest.RESTClient, namespace string) EnvironmentInterface {
+func MakeEnvironmentInterface(crdClient *rest.RESTClient, namespace string) EnvironmentInterface {
 	return &environmentClient{
-		client:    tprClient,
+		client:    crdClient,
 		namespace: namespace,
 	}
 }

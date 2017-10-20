@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package tpr
+package crd
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,14 +24,14 @@ import (
 )
 
 //
-// To add a Fission TPR type:
+// To add a Fission CRD type:
 //   1. Create a "spec" type, for everything in the type except metadata
 //   2. Create the type with metadata + the spec
 //   3. Create a list type (for example see FunctionList and Function, below)
 //   4. Add methods at the bottom of this file for satisfying Object and List interfaces
 //   5. Add the type to configureClient in client.go
-//   6. Add the type to EnsureFissionTPRs in tpr.go
-//   7. Add tests to tpr_test.go
+//   6. Add the type to EnsureFissionCRDs in crd.go
+//   7. Add tests to crd_test.go
 //   8. Add a CRUD Interface type (analogous to FunctionInterface in function.go)
 //   9. Add a getter method for your interface type to FissionClient in client.go
 //
@@ -78,7 +78,7 @@ type (
 		Items []Environment `json:"items"`
 	}
 
-	// HTTP Triggers.  (Something in the TPR reflection stuff wants
+	// HTTP Triggers.  (Something in the CRD reflection stuff wants
 	// it to be spelled "Httptrigger" not "HTTPTrigger" or even
 	// "HttpTrigger".  Bleh.)
 	Httptrigger struct {
@@ -133,13 +133,13 @@ type (
 	}
 )
 
-// Each TPR type needs:
+// Each CRD type needs:
 //   GetObjectKind (to satisfy the Object interface)
 //
-// In addition, each singular TPR type needs:
+// In addition, each singular CRD type needs:
 //   GetObjectMeta (to satisfy the ObjectMetaAccessor interface)
 //
-// And each list TPR type needs:
+// And each list CRD type needs:
 //   GetListMeta (to satisfy the ListMetaAccessor interface)
 
 func (f *Function) GetObjectKind() schema.ObjectKind {

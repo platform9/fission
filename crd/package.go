@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package tpr
+package crd
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,34 +24,34 @@ import (
 )
 
 type (
-	HttptriggerInterface interface {
-		Create(*Httptrigger) (*Httptrigger, error)
-		Get(name string) (*Httptrigger, error)
-		Update(*Httptrigger) (*Httptrigger, error)
+	PackageInterface interface {
+		Create(*Package) (*Package, error)
+		Get(name string) (*Package, error)
+		Update(*Package) (*Package, error)
 		Delete(name string, options *metav1.DeleteOptions) error
-		List(opts metav1.ListOptions) (*HttptriggerList, error)
+		List(opts metav1.ListOptions) (*PackageList, error)
 		Watch(opts metav1.ListOptions) (watch.Interface, error)
 	}
 
-	httpTriggerClient struct {
+	packageClient struct {
 		client    *rest.RESTClient
 		namespace string
 	}
 )
 
-func MakeHttptriggerInterface(tprClient *rest.RESTClient, namespace string) HttptriggerInterface {
-	return &httpTriggerClient{
-		client:    tprClient,
+func MakePackageInterface(crdClient *rest.RESTClient, namespace string) PackageInterface {
+	return &packageClient{
+		client:    crdClient,
 		namespace: namespace,
 	}
 }
 
-func (c *httpTriggerClient) Create(obj *Httptrigger) (*Httptrigger, error) {
-	var result Httptrigger
+func (c *packageClient) Create(f *Package) (*Package, error) {
+	var result Package
 	err := c.client.Post().
-		Resource("httptriggers").
+		Resource("packages").
 		Namespace(c.namespace).
-		Body(obj).
+		Body(f).
 		Do().Into(&result)
 	if err != nil {
 		return nil, err
@@ -59,10 +59,10 @@ func (c *httpTriggerClient) Create(obj *Httptrigger) (*Httptrigger, error) {
 	return &result, nil
 }
 
-func (c *httpTriggerClient) Get(name string) (*Httptrigger, error) {
-	var result Httptrigger
+func (c *packageClient) Get(name string) (*Package, error) {
+	var result Package
 	err := c.client.Get().
-		Resource("httptriggers").
+		Resource("packages").
 		Namespace(c.namespace).
 		Name(name).
 		Do().Into(&result)
@@ -72,13 +72,13 @@ func (c *httpTriggerClient) Get(name string) (*Httptrigger, error) {
 	return &result, nil
 }
 
-func (c *httpTriggerClient) Update(obj *Httptrigger) (*Httptrigger, error) {
-	var result Httptrigger
+func (c *packageClient) Update(f *Package) (*Package, error) {
+	var result Package
 	err := c.client.Put().
-		Resource("httptriggers").
+		Resource("packages").
 		Namespace(c.namespace).
-		Name(obj.Metadata.Name).
-		Body(obj).
+		Name(f.Metadata.Name).
+		Body(f).
 		Do().Into(&result)
 	if err != nil {
 		return nil, err
@@ -86,21 +86,21 @@ func (c *httpTriggerClient) Update(obj *Httptrigger) (*Httptrigger, error) {
 	return &result, nil
 }
 
-func (c *httpTriggerClient) Delete(name string, opts *metav1.DeleteOptions) error {
+func (c *packageClient) Delete(name string, opts *metav1.DeleteOptions) error {
 	return c.client.Delete().
 		Namespace(c.namespace).
-		Resource("httptriggers").
+		Resource("packages").
 		Name(name).
 		Body(opts).
 		Do().
 		Error()
 }
 
-func (c *httpTriggerClient) List(opts metav1.ListOptions) (*HttptriggerList, error) {
-	var result HttptriggerList
+func (c *packageClient) List(opts metav1.ListOptions) (*PackageList, error) {
+	var result PackageList
 	err := c.client.Get().
 		Namespace(c.namespace).
-		Resource("httptriggers").
+		Resource("packages").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Do().
 		Into(&result)
@@ -110,11 +110,11 @@ func (c *httpTriggerClient) List(opts metav1.ListOptions) (*HttptriggerList, err
 	return &result, nil
 }
 
-func (c *httpTriggerClient) Watch(opts metav1.ListOptions) (watch.Interface, error) {
+func (c *packageClient) Watch(opts metav1.ListOptions) (watch.Interface, error) {
 	return c.client.Get().
 		Prefix("watch").
 		Namespace(c.namespace).
-		Resource("httptriggers").
+		Resource("packages").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Watch()
 }

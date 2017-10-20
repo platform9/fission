@@ -17,12 +17,12 @@ limitations under the License.
 package timer
 
 import (
+	"github.com/fission/fission/crd"
 	"github.com/fission/fission/publisher"
-	"github.com/fission/fission/tpr"
 )
 
 func Start(routerUrl string) error {
-	fissionClient, _, err := tpr.MakeFissionClient()
+	fissionClient, _, _, err := crd.MakeFissionClient()
 	if err != nil {
 		return err
 	}

@@ -24,7 +24,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/fission/fission"
-	"github.com/fission/fission/tpr"
+	"github.com/fission/fission/crd"
 )
 
 type requestType int
@@ -39,15 +39,15 @@ type (
 		pools            map[string]*GenericPool
 		kubernetesClient *kubernetes.Clientset
 		namespace        string
-		fissionClient    *tpr.FissionClient
+		fissionClient    *crd.FissionClient
 		fsCache          *functionServiceCache
 		instanceId       string
 		requestChannel   chan *request
 	}
 	request struct {
 		requestType
-		env             *tpr.Environment
-		envList         []tpr.Environment
+		env             *crd.Environment
+		envList         []crd.Environment
 		responseChannel chan *response
 	}
 	response struct {
@@ -57,7 +57,7 @@ type (
 )
 
 func MakeGenericPoolManager(
-	fissionClient *tpr.FissionClient,
+	fissionClient *crd.FissionClient,
 	kubernetesClient *kubernetes.Clientset,
 	fissionNamespace string,
 	functionNamespace string,
@@ -85,7 +85,7 @@ func (gpm *GenericPoolManager) service() {
 		switch req.requestType {
 		case GET_POOL:
 			var err error
-			pool, ok := gpm.pools[tpr.CacheKey(&req.env.Metadata)]
+			pool, ok := gpm.pools[crd.CacheKey(&req.env.Metadata)]
 			if !ok {
 				var poolSize int32 = 3 // TODO configurable/autoscalable
 				switch req.env.Spec.AllowedFunctionsPerContainer {
@@ -100,13 +100,13 @@ func (gpm *GenericPoolManager) service() {
 					req.responseChannel <- &response{error: err}
 					continue
 				}
-				gpm.pools[tpr.CacheKey(&req.env.Metadata)] = pool
+				gpm.pools[crd.CacheKey(&req.env.Metadata)] = pool
 			}
 			req.responseChannel <- &response{pool: pool}
 		case CLEANUP_POOLS:
 			latestEnvSet := make(map[string]bool)
 			for _, env := range req.envList {
-				latestEnvSet[tpr.CacheKey(&env.Metadata)] = true
+				latestEnvSet[crd.CacheKey(&env.Metadata)] = true
 			}
 			for key, pool := range gpm.pools {
 				_, ok := latestEnvSet[key]
@@ -124,7 +124,7 @@ func (gpm *GenericPoolManager) service() {
 	}
 }
 
-func (gpm *GenericPoolManager) GetPool(env *tpr.Environment) (*GenericPool, error) {
+func (gpm *GenericPoolManager) GetPool(env *crd.Environment) (*GenericPool, error) {
 	c := make(chan *response)
 	gpm.requestChannel <- &request{
 		requestType:     GET_POOL,
@@ -135,7 +135,7 @@ func (gpm *GenericPoolManager) GetPool(env *tpr.Environment) (*GenericPool, erro
 	return resp.pool, resp.error
 }
 
-func (gpm *GenericPoolManager) CleanupPools(envs []tpr.Environment) {
+func (gpm *GenericPoolManager) CleanupPools(envs []crd.Environment) {
 	gpm.requestChannel <- &request{
 		requestType: CLEANUP_POOLS,
 		envList:     envs,

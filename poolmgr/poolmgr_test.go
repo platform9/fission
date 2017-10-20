@@ -39,14 +39,14 @@ import (
 	apiv1 "k8s.io/client-go/pkg/api/v1"
 
 	"github.com/fission/fission"
+	"github.com/fission/fission/crd"
 	"github.com/fission/fission/poolmgr/client"
-	"github.com/fission/fission/tpr"
 )
 
 // return the number of pods in the given namespace matching the given labels
 func countPods(kubeClient *kubernetes.Clientset, ns string, labelz map[string]string) int {
 	pods, err := kubeClient.Pods(ns).List(metav1.ListOptions{
-		LabelSelector: labels.Set(labelz).AsSelector(),
+		LabelSelector: labels.Set(labelz).AsSelector().String(),
 	})
 	if err != nil {
 		log.Panicf("Failed to list pods: %v", err)
@@ -120,8 +120,8 @@ func TestPoolmgr(t *testing.T) {
 	}
 
 	// connect to k8s
-	// and get TPR client
-	fissionClient, kubeClient, err := tpr.MakeFissionClient()
+	// and get CRD client
+	fissionClient, kubeClient, apiExtClient, err := crd.MakeFissionClient()
 	if err != nil {
 		log.Panicf("failed to connect: %v", err)
 	}
@@ -133,16 +133,16 @@ func TestPoolmgr(t *testing.T) {
 	createTestNamespace(kubeClient, functionNs)
 	defer kubeClient.Namespaces().Delete(functionNs, nil)
 
-	// make sure TPR types exist on cluster
-	err = tpr.EnsureFissionTPRs(kubeClient)
+	// make sure CRD types exist on cluster
+	err = crd.EnsureFissionCRDs(apiExtClient)
 	if err != nil {
-		log.Panicf("failed to ensure tprs: %v", err)
+		log.Panicf("failed to ensure crds: %v", err)
 	}
-	fissionClient.WaitForTPRs()
+	fissionClient.WaitForCRDs()
 
 	// create an env on the cluster
-	env, err := fissionClient.Environments(fissionNs).Create(&tpr.Environment{
-		Metadata: metametav1.ObjectMeta{
+	env, err := fissionClient.Environments(fissionNs).Create(&crd.Environment{
+		Metadata: metav1.ObjectMeta{
 			Name:      "nodejs",
 			Namespace: fissionNs,
 		},
@@ -173,37 +173,47 @@ func TestPoolmgr(t *testing.T) {
 	// waitForPool(functionNs, "nodejs")
 	time.Sleep(6 * time.Second)
 
+	envRef := fission.EnvironmentReference{
+		Namespace: env.Metadata.Namespace,
+		Name:      env.Metadata.Name,
+	}
+
+	deployment := fission.Archive{
+		Type:    fission.ArchiveTypeLiteral,
+		Literal: []byte(`module.exports = async function(context) { return { status: 200, body: "Hello, world!\n" }; }`),
+	}
+
 	// create a package
-	p := &tpr.Package{
-		Metadata: metametav1.ObjectMeta{
+	p := &crd.Package{
+		Metadata: metav1.ObjectMeta{
 			Name:      "hello",
 			Namespace: fissionNs,
 		},
 		Spec: fission.PackageSpec{
-			Type:    fission.PackageTypeLiteral,
-			Literal: []byte(`module.exports = async function(context) { return { status: 200, body: "Hello, world!\n" }; }`),
+			Environment: envRef,
+			Deployment:  deployment,
 		},
 	}
-	_, err = fissionClient.Packages(fissionNs).Create(p)
+	p, err = fissionClient.Packages(fissionNs).Create(p)
 	if err != nil {
 		log.Panicf("failed to create package: %v", err)
 	}
 
 	// create a function
-	f := &tpr.Function{
-		Metadata: metametav1.ObjectMeta{
+	f := &crd.Function{
+		Metadata: metav1.ObjectMeta{
 			Name:      "hello",
 			Namespace: fissionNs,
 		},
 		Spec: fission.FunctionSpec{
-			Source: fission.FunctionPackageRef{},
-			Deployment: fission.FunctionPackageRef{
+			Environment: envRef,
+			Package: fission.FunctionPackageRef{
 				PackageRef: fission.PackageRef{
-					Name:      p.Metadata.Name,
-					Namespace: p.Metadata.Namespace,
+					Namespace:       p.Metadata.Namespace,
+					Name:            p.Metadata.Name,
+					ResourceVersion: p.Metadata.ResourceVersion,
 				},
 			},
-			EnvironmentName: env.Metadata.Name,
 		},
 	}
 	_, err = fissionClient.Functions(fissionNs).Create(f)

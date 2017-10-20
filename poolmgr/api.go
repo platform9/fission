@@ -33,7 +33,7 @@ import (
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/cache"
-	"github.com/fission/fission/tpr"
+	"github.com/fission/fission/crd"
 )
 
 type (
@@ -49,16 +49,16 @@ type (
 
 	Poolmgr struct {
 		gpm           *GenericPoolManager
-		functionEnv   *cache.Cache // map[string]tpr.Environment
+		functionEnv   *cache.Cache // map[string]crd.Environment
 		fsCache       *functionServiceCache
-		fissionClient *tpr.FissionClient
+		fissionClient *crd.FissionClient
 
 		fsCreateChannels map[string]*sync.WaitGroup // xxx no channels here, rename this
 		requestChan      chan *createFuncServiceRequest
 	}
 )
 
-func MakePoolmgr(gpm *GenericPoolManager, fissionClient *tpr.FissionClient, fissionNs string, fsCache *functionServiceCache) *Poolmgr {
+func MakePoolmgr(gpm *GenericPoolManager, fissionClient *crd.FissionClient, fissionNs string, fsCache *functionServiceCache) *Poolmgr {
 	poolMgr := &Poolmgr{
 		gpm:              gpm,
 		functionEnv:      cache.MakeCache(10*time.Second, 0),
@@ -83,13 +83,13 @@ func (poolMgr *Poolmgr) serveCreateFuncServices() {
 		m := req.funcMeta
 
 		// Cache miss -- is this first one to request the func?
-		wg, found := poolMgr.fsCreateChannels[tpr.CacheKey(m)]
+		wg, found := poolMgr.fsCreateChannels[crd.CacheKey(m)]
 		if !found {
 			// create a waitgroup for other requests for
 			// the same function to wait on
 			wg := &sync.WaitGroup{}
 			wg.Add(1)
-			poolMgr.fsCreateChannels[tpr.CacheKey(m)] = wg
+			poolMgr.fsCreateChannels[crd.CacheKey(m)] = wg
 
 			// launch a goroutine for each request, to parallelize
 			// the specialization of different functions
@@ -99,7 +99,7 @@ func (poolMgr *Poolmgr) serveCreateFuncServices() {
 					address: address,
 					err:     err,
 				}
-				delete(poolMgr.fsCreateChannels, tpr.CacheKey(m))
+				delete(poolMgr.fsCreateChannels, crd.CacheKey(m))
 				wg.Done()
 			}()
 		} else {
@@ -149,13 +149,13 @@ func (poolMgr *Poolmgr) getServiceForFunctionApi(w http.ResponseWriter, r *http.
 	w.Write([]byte(serviceName))
 }
 
-func (poolMgr *Poolmgr) getFunctionEnv(m *metav1.ObjectMeta) (*tpr.Environment, error) {
-	var env *tpr.Environment
+func (poolMgr *Poolmgr) getFunctionEnv(m *metav1.ObjectMeta) (*crd.Environment, error) {
+	var env *crd.Environment
 
 	// Cached ?
-	result, err := poolMgr.functionEnv.Get(tpr.CacheKey(m))
+	result, err := poolMgr.functionEnv.Get(crd.CacheKey(m))
 	if err == nil {
-		env = result.(*tpr.Environment)
+		env = result.(*crd.Environment)
 		return env, nil
 	}
 
@@ -173,7 +173,7 @@ func (poolMgr *Poolmgr) getFunctionEnv(m *metav1.ObjectMeta) (*tpr.Environment, 
 	}
 
 	// cache for future lookups
-	poolMgr.functionEnv.Set(tpr.CacheKey(m), env)
+	poolMgr.functionEnv.Set(crd.CacheKey(m), env)
 
 	return env, nil
 }

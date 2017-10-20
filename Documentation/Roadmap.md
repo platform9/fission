@@ -10,7 +10,7 @@
 
 ## Fission API ([area-api](https://github.com/fission/fission/labels/area-api))
 
-- TPR-based controller
+- CRD-based controller
 - API authentication
 - Aggregated API server
 

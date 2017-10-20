@@ -19,12 +19,12 @@ package buildermgr
 import (
 	"log"
 
-	"github.com/fission/fission/tpr"
+	"github.com/fission/fission/crd"
 )
 
 // Start the buildermgr service.
 func Start(port int, storageSvcUrl string, envBuilderNamespace string) error {
-	fissionClient, kubernetesClient, err := tpr.MakeFissionClient()
+	fissionClient, kubernetesClient, _, err := crd.MakeFissionClient()
 	if err != nil {
 		log.Printf("Failed to get kubernetes client: %v", err)
 		return err

@@ -26,7 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission"
-	"github.com/fission/fission/tpr"
+	"github.com/fission/fission/crd"
 )
 
 func (a *API) HTTPTriggerApiList(w http.ResponseWriter, r *http.Request) {
@@ -45,7 +45,7 @@ func (a *API) HTTPTriggerApiList(w http.ResponseWriter, r *http.Request) {
 	a.respondWithSuccess(w, resp)
 }
 
-func (a *API) checkHttpTriggerDuplicates(t *tpr.Httptrigger) error {
+func (a *API) checkHttpTriggerDuplicates(t *crd.Httptrigger) error {
 	triggers, err := a.fissionClient.Httptriggers(metav1.NamespaceAll).List(metav1.ListOptions{})
 	if err != nil {
 		return err
@@ -67,7 +67,7 @@ func (a *API) HTTPTriggerApiCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var t tpr.Httptrigger
+	var t crd.Httptrigger
 	err = json.Unmarshal(body, &t)
 	if err != nil {
 		a.respondWithError(w, err)
@@ -136,7 +136,7 @@ func (a *API) HTTPTriggerApiUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var t tpr.Httptrigger
+	var t crd.Httptrigger
 	err = json.Unmarshal(body, &t)
 	if err != nil {
 		a.respondWithError(w, err)

@@ -19,21 +19,21 @@ package controller
 import (
 	"log"
 
-	"github.com/fission/fission/tpr"
+	"github.com/fission/fission/crd"
 )
 
 func Start(port int) {
-	fc, kc, err := tpr.MakeFissionClient()
+	fc, _, apiExtClient, err := crd.MakeFissionClient()
 	if err != nil {
 		log.Fatalf("Failed to connect to K8s API: %v", err)
 	}
 
-	err = tpr.EnsureFissionTPRs(kc)
+	err = crd.EnsureFissionCRDs(apiExtClient)
 	if err != nil {
-		log.Fatalf("Failed to create fission TPRs: %v", err)
+		log.Fatalf("Failed to create fission CRDs: %v", err)
 	}
 
-	fc.WaitForTPRs()
+	fc.WaitForCRDs()
 
 	api, err := MakeAPI()
 	if err != nil {

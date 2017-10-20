@@ -26,7 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission"
-	"github.com/fission/fission/tpr"
+	"github.com/fission/fission/crd"
 )
 
 func (a *API) TimeTriggerApiList(w http.ResponseWriter, r *http.Request) {
@@ -52,7 +52,7 @@ func (a *API) TimeTriggerApiCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var t tpr.Timetrigger
+	var t crd.Timetrigger
 	err = json.Unmarshal(body, &t)
 	if err != nil {
 		a.respondWithError(w, err)
@@ -122,7 +122,7 @@ func (a *API) TimeTriggerApiUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var t tpr.Timetrigger
+	var t crd.Timetrigger
 	err = json.Unmarshal(body, &t)
 	if err != nil {
 		a.respondWithError(w, err)

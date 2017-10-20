@@ -25,7 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission"
-	"github.com/fission/fission/tpr"
+	"github.com/fission/fission/crd"
 )
 
 func envCreate(c *cli.Context) error {
@@ -59,7 +59,7 @@ func envCreate(c *cli.Context) error {
 		envVersion = 1
 	}
 
-	env := &tpr.Environment{
+	env := &crd.Environment{
 		Metadata: metav1.ObjectMeta{
 			Name:      envName,
 			Namespace: metav1.NamespaceDefault,

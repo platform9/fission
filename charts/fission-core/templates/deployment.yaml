@@ -131,7 +131,7 @@ roleRef:
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
-  name: fission-tpr
+  name: fission-crd
 subjects:
 - kind: ServiceAccount
   name: fission-svc
@@ -152,7 +152,7 @@ metadata:
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
-  name: fission-fetcher-tpr
+  name: fission-fetcher-crd
 subjects:
 - kind: ServiceAccount
   name: fission-fetcher
@@ -173,7 +173,7 @@ metadata:
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
-  name: fission-builder-tpr
+  name: fission-builder-crd
 subjects:
 - kind: ServiceAccount
   name: fission-builder

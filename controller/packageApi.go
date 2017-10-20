@@ -25,7 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission"
-	"github.com/fission/fission/tpr"
+	"github.com/fission/fission/crd"
 )
 
 func (a *API) PackageApiList(w http.ResponseWriter, r *http.Request) {
@@ -51,7 +51,7 @@ func (a *API) PackageApiCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var f tpr.Package
+	var f crd.Package
 	err = json.Unmarshal(body, &f)
 	if err != nil {
 		a.respondWithError(w, err)
@@ -130,7 +130,7 @@ func (a *API) PackageApiUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var f tpr.Package
+	var f crd.Package
 	err = json.Unmarshal(body, &f)
 	if err != nil {
 		a.respondWithError(w, err)

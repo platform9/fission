@@ -17,15 +17,15 @@ limitations under the License.
 package messagequeue
 
 import (
+	"log"
 	"os"
 
+	"github.com/fission/fission/crd"
 	"github.com/fission/fission/mqtrigger/messageQueue"
-	"github.com/fission/fission/tpr"
-	"log"
 )
 
 func Start(routerUrl string) error {
-	fissionClient, _, err := tpr.MakeFissionClient()
+	fissionClient, _, _, err := crd.MakeFissionClient()
 	if err != nil {
 		log.Fatalf("Failed to get fission client: %v", err)
 	}

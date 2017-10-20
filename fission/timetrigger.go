@@ -26,7 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission"
-	"github.com/fission/fission/tpr"
+	"github.com/fission/fission/crd"
 )
 
 func ttCreate(c *cli.Context) error {
@@ -45,7 +45,7 @@ func ttCreate(c *cli.Context) error {
 		fatal("Need a cron spec like '0 30 * * *', '@every 1h30m', or '@hourly'; use --cron")
 	}
 
-	tt := &tpr.Timetrigger{
+	tt := &crd.Timetrigger{
 		Metadata: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: metav1.NamespaceDefault,

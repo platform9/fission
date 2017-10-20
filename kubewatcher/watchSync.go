@@ -22,17 +22,17 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/fission/fission/tpr"
+	"github.com/fission/fission/crd"
 )
 
 type (
 	WatchSync struct {
-		client      *tpr.FissionClient
+		client      *crd.FissionClient
 		kubeWatcher *KubeWatcher
 	}
 )
 
-func MakeWatchSync(client *tpr.FissionClient, kubeWatcher *KubeWatcher) *WatchSync {
+func MakeWatchSync(client *crd.FissionClient, kubeWatcher *KubeWatcher) *WatchSync {
 	ws := &WatchSync{
 		client:      client,
 		kubeWatcher: kubeWatcher,

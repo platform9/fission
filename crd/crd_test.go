@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package tpr
+package crd
 
 import (
 	"log"
@@ -34,7 +34,7 @@ func panicIf(err error) {
 	}
 }
 
-func functionTests(tprClient *rest.RESTClient) {
+func functionTests(crdClient *rest.RESTClient) {
 	// sample function object
 	function := &Function{
 		TypeMeta: metav1.TypeMeta{
@@ -59,7 +59,7 @@ func functionTests(tprClient *rest.RESTClient) {
 	}
 
 	// Test function CRUD
-	fi := MakeFunctionInterface(tprClient, metav1.NamespaceDefault)
+	fi := MakeFunctionInterface(crdClient, metav1.NamespaceDefault)
 
 	// cleanup from old crashed tests, ignore errors
 	fi.Delete(function.Metadata.Name, nil)
@@ -131,7 +131,7 @@ func functionTests(tprClient *rest.RESTClient) {
 
 }
 
-func environmentTests(tprClient *rest.RESTClient) {
+func environmentTests(crdClient *rest.RESTClient) {
 	// sample environment object
 	environment := &Environment{
 		TypeMeta: metav1.TypeMeta{
@@ -153,7 +153,7 @@ func environmentTests(tprClient *rest.RESTClient) {
 	}
 
 	// Test environment CRUD
-	ei := MakeEnvironmentInterface(tprClient, metav1.NamespaceDefault)
+	ei := MakeEnvironmentInterface(crdClient, metav1.NamespaceDefault)
 
 	// cleanup from old crashed tests, ignore errors
 	ei.Delete(environment.Metadata.Name, nil)
@@ -221,7 +221,7 @@ func environmentTests(tprClient *rest.RESTClient) {
 
 }
 
-func httpTriggerTests(tprClient *rest.RESTClient) {
+func httpTriggerTests(crdClient *rest.RESTClient) {
 	// sample httpTrigger object
 	httpTrigger := &Httptrigger{
 		TypeMeta: metav1.TypeMeta{
@@ -242,7 +242,7 @@ func httpTriggerTests(tprClient *rest.RESTClient) {
 	}
 
 	// Test httpTrigger CRUD
-	ei := MakeHttptriggerInterface(tprClient, metav1.NamespaceDefault)
+	ei := MakeHttptriggerInterface(crdClient, metav1.NamespaceDefault)
 
 	// cleanup from old crashed tests, ignore errors
 	ei.Delete(httpTrigger.Metadata.Name, nil)
@@ -310,7 +310,7 @@ func httpTriggerTests(tprClient *rest.RESTClient) {
 
 }
 
-func kubernetesWatchTriggerTests(tprClient *rest.RESTClient) {
+func kubernetesWatchTriggerTests(crdClient *rest.RESTClient) {
 	// sample kubernetesWatchTrigger object
 	kubernetesWatchTrigger := &Kuberneteswatchtrigger{
 		TypeMeta: metav1.TypeMeta{
@@ -334,7 +334,7 @@ func kubernetesWatchTriggerTests(tprClient *rest.RESTClient) {
 	}
 
 	// Test kubernetesWatchTrigger CRUD
-	ei := MakeKuberneteswatchtriggerInterface(tprClient, metav1.NamespaceDefault)
+	ei := MakeKuberneteswatchtriggerInterface(crdClient, metav1.NamespaceDefault)
 
 	// cleanup from old crashed tests, ignore errors
 	ei.Delete(kubernetesWatchTrigger.Metadata.Name, nil)
@@ -402,7 +402,7 @@ func kubernetesWatchTriggerTests(tprClient *rest.RESTClient) {
 
 }
 
-func TestTpr(t *testing.T) {
+func TestCrd(t *testing.T) {
 	// skip test if no cluster available for testing
 	kubeconfig := os.Getenv("KUBECONFIG")
 	if len(kubeconfig) == 0 {
@@ -412,22 +412,22 @@ func TestTpr(t *testing.T) {
 
 	// Create the client config. Needs the KUBECONFIG env var to
 	// point at a valid kubeconfig.
-	config, clientset, err := GetKubernetesClient()
+	config, _, apiExtClient, err := GetKubernetesClient()
 	panicIf(err)
 
 	// init our types
-	err = EnsureFissionTPRs(clientset)
+	err = EnsureFissionCRDs(apiExtClient)
 	panicIf(err)
 
-	// rest client with knowledge about our tpr types
-	tprClient, err := GetTprClient(config)
+	// rest client with knowledge about our crd types
+	crdClient, err := GetCrdClient(config)
 	panicIf(err)
 
-	err = waitForTPRs(tprClient)
+	err = waitForCRDs(crdClient)
 	panicIf(err)
 
-	functionTests(tprClient)
-	environmentTests(tprClient)
-	httpTriggerTests(tprClient)
-	kubernetesWatchTriggerTests(tprClient)
+	functionTests(crdClient)
+	environmentTests(crdClient)
+	httpTriggerTests(crdClient)
+	kubernetesWatchTriggerTests(crdClient)
 }

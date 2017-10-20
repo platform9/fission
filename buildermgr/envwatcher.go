@@ -30,7 +30,7 @@ import (
 	apiv1 "k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/pkg/apis/extensions/v1beta1"
 
-	"github.com/fission/fission/tpr"
+	"github.com/fission/fission/crd"
 )
 
 type requestType int
@@ -52,8 +52,8 @@ type (
 
 	envwRequest struct {
 		requestType
-		env      *tpr.Environment
-		envList  []tpr.Environment
+		env      *crd.Environment
+		envList  []crd.Environment
 		respChan chan envwResponse
 	}
 
@@ -66,14 +66,14 @@ type (
 		cache                  map[string]*builderInfo
 		requestChan            chan envwRequest
 		builderNamespace       string
-		fissionClient          *tpr.FissionClient
+		fissionClient          *crd.FissionClient
 		kubernetesClient       *kubernetes.Clientset
 		fetcherImage           string
 		fetcherImagePullPolicy apiv1.PullPolicy
 	}
 )
 
-func makeEnvironmentWatcher(fissionClient *tpr.FissionClient,
+func makeEnvironmentWatcher(fissionClient *crd.FissionClient,
 	kubernetesClient *kubernetes.Clientset, builderNamespace string) *environmentWatcher {
 
 	fetcherImage := os.Getenv("FETCHER_IMAGE")
@@ -144,7 +144,7 @@ func (envw *environmentWatcher) watchEnvironments() {
 				time.Sleep(time.Second)
 				break
 			}
-			env := ev.Object.(*tpr.Environment)
+			env := ev.Object.(*crd.Environment)
 			rv = env.Metadata.ResourceVersion
 			envw.sync()
 		}
@@ -154,7 +154,7 @@ func (envw *environmentWatcher) watchEnvironments() {
 func (envw *environmentWatcher) sync() {
 	envList, err := envw.fissionClient.Environments(metav1.NamespaceAll).List(metav1.ListOptions{})
 	if err != nil {
-		log.Fatalf("Error syncing environment TPR resources: %v", err)
+		log.Fatalf("Error syncing environment CRD resources: %v", err)
 	}
 
 	// Create environment builders for all environments
@@ -191,7 +191,7 @@ func (envw *environmentWatcher) service() {
 			req.respChan <- envwResponse{builderInfo: builderInfo}
 
 		case CLEANUP_BUILDERS:
-			latestEnvList := make(map[string]*tpr.Environment)
+			latestEnvList := make(map[string]*crd.Environment)
 			for i := range req.envList {
 				env := req.envList[i]
 				key := envw.getCacheKey(env.Metadata.Name, env.Metadata.ResourceVersion)
@@ -201,7 +201,7 @@ func (envw *environmentWatcher) service() {
 			// If an environment is deleted when builder manager down,
 			// the builder belongs to the environment will be out-of-
 			// control (an orphan builder) since there is no record in
-			// cache and TPR. We need to iterate over the services &
+			// cache and CRD. We need to iterate over the services &
 			// deployments to remove both normal and orphan builders.
 
 			svcList, err := envw.getBuilderServiceList(nil)
@@ -241,7 +241,7 @@ func (envw *environmentWatcher) service() {
 	}
 }
 
-func (envw *environmentWatcher) getEnvBuilder(env *tpr.Environment) (*builderInfo, error) {
+func (envw *environmentWatcher) getEnvBuilder(env *crd.Environment) (*builderInfo, error) {
 	respChan := make(chan envwResponse)
 	envw.requestChan <- envwRequest{
 		requestType: GET_BUILDER,
@@ -252,14 +252,14 @@ func (envw *environmentWatcher) getEnvBuilder(env *tpr.Environment) (*builderInf
 	return resp.builderInfo, resp.err
 }
 
-func (envw *environmentWatcher) cleanupEnvBuilders(envs []tpr.Environment) {
+func (envw *environmentWatcher) cleanupEnvBuilders(envs []crd.Environment) {
 	envw.requestChan <- envwRequest{
 		requestType: CLEANUP_BUILDERS,
 		envList:     envs,
 	}
 }
 
-func (envw *environmentWatcher) createBuilder(env *tpr.Environment) (*builderInfo, error) {
+func (envw *environmentWatcher) createBuilder(env *crd.Environment) (*builderInfo, error) {
 	var svc *apiv1.Service
 	var deploy *v1beta1.Deployment
 
@@ -353,7 +353,7 @@ func (envw *environmentWatcher) getBuilderServiceList(sel map[string]string) ([]
 	return svcList.Items, nil
 }
 
-func (envw *environmentWatcher) createBuilderService(env *tpr.Environment) (*apiv1.Service, error) {
+func (envw *environmentWatcher) createBuilderService(env *crd.Environment) (*apiv1.Service, error) {
 	name := envw.getCacheKey(env.Metadata.Name, env.Metadata.ResourceVersion)
 	sel := envw.getLabels(env.Metadata.Name, env.Metadata.ResourceVersion)
 	service := apiv1.Service{
@@ -406,7 +406,7 @@ func (envw *environmentWatcher) getBuilderDeploymentList(sel map[string]string) 
 	return deployList.Items, nil
 }
 
-func (envw *environmentWatcher) createBuilderDeployment(env *tpr.Environment) (*v1beta1.Deployment, error) {
+func (envw *environmentWatcher) createBuilderDeployment(env *crd.Environment) (*v1beta1.Deployment, error) {
 	sharedMountPath := "/package"
 	name := envw.getCacheKey(env.Metadata.Name, env.Metadata.ResourceVersion)
 	sel := envw.getLabels(env.Metadata.Name, env.Metadata.ResourceVersion)

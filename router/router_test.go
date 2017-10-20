@@ -24,7 +24,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission"
-	"github.com/fission/fission/tpr"
+	"github.com/fission/fission/crd"
 )
 
 func TestRouter(t *testing.T) {
@@ -61,7 +61,7 @@ func TestRouter(t *testing.T) {
 	triggers := makeHTTPTriggerSet(fmap, nil, nil, frr)
 	triggerUrl := "/foo"
 	triggers.triggers = append(triggers.triggers,
-		tpr.Httptrigger{
+		crd.Httptrigger{
 			Metadata: metav1.ObjectMeta{
 				Name:      "xxx",
 				Namespace: metav1.NamespaceDefault,

@@ -28,7 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission"
-	"github.com/fission/fission/tpr"
+	"github.com/fission/fission/crd"
 )
 
 // returns one of http.Method*
@@ -76,7 +76,7 @@ func htCreate(c *cli.Context) error {
 	// just name triggers by uuid.
 	triggerName := uuid.NewV4().String()
 
-	ht := &tpr.Httptrigger{
+	ht := &crd.Httptrigger{
 		Metadata: metav1.ObjectMeta{
 			Name:      triggerName,
 			Namespace: metav1.NamespaceDefault,

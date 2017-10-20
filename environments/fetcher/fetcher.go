@@ -17,11 +17,10 @@ import (
 	"github.com/mholt/archiver"
 	"github.com/satori/go.uuid"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 
 	"github.com/fission/fission"
+	"github.com/fission/fission/crd"
 	storageSvcClient "github.com/fission/fission/storagesvc/client"
-	"github.com/fission/fission/tpr"
 )
 
 type (
@@ -51,8 +50,7 @@ type (
 
 	Fetcher struct {
 		sharedVolumePath string
-		fissionClient    *tpr.FissionClient
-		kubeClient       *kubernetes.Clientset
+		fissionClient    *crd.FissionClient
 	}
 )
 
@@ -63,14 +61,13 @@ const (
 )
 
 func MakeFetcher(sharedVolumePath string) *Fetcher {
-	fissionClient, kubeClient, err := tpr.MakeFissionClient()
+	fissionClient, _, _, err := crd.MakeFissionClient()
 	if err != nil {
 		return nil
 	}
 	return &Fetcher{
 		sharedVolumePath: sharedVolumePath,
 		fissionClient:    fissionClient,
-		kubeClient:       kubeClient,
 	}
 }
 

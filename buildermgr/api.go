@@ -30,7 +30,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/fission/fission"
-	"github.com/fission/fission/tpr"
+	"github.com/fission/fission/crd"
 )
 
 type (
@@ -39,14 +39,14 @@ type (
 	}
 
 	BuilderMgr struct {
-		fissionClient    *tpr.FissionClient
+		fissionClient    *crd.FissionClient
 		kubernetesClient *kubernetes.Clientset
 		storageSvcUrl    string
 		namespace        string
 	}
 )
 
-func MakeBuilderMgr(fissionClient *tpr.FissionClient,
+func MakeBuilderMgr(fissionClient *crd.FissionClient,
 	kubernetesClient *kubernetes.Clientset, storageSvcUrl string,
 	envBuilderNamespace string) *BuilderMgr {
 

@@ -25,19 +25,19 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/fission/fission"
-	"github.com/fission/fission/tpr"
+	"github.com/fission/fission/crd"
 )
 
 type (
 	packageWatcher struct {
-		fissionClient    *tpr.FissionClient
+		fissionClient    *crd.FissionClient
 		kubernetesClient *kubernetes.Clientset
 		builderNamespace string
 		storageSvcUrl    string
 	}
 )
 
-func makePackageWatcher(fissionClient *tpr.FissionClient,
+func makePackageWatcher(fissionClient *crd.FissionClient,
 	kubernetesClient *kubernetes.Clientset, builderNamespace string, storageSvcUrl string) *packageWatcher {
 	pkgw := &packageWatcher{
 		fissionClient:    fissionClient,
@@ -66,7 +66,7 @@ func (pkgw *packageWatcher) watchPackages() {
 			ResourceVersion: rv,
 		})
 		if err != nil {
-			log.Fatalf("Error watching package TPR resources: %v", err)
+			log.Fatalf("Error watching package CRD resources: %v", err)
 		}
 
 		for {
@@ -79,7 +79,7 @@ func (pkgw *packageWatcher) watchPackages() {
 				time.Sleep(time.Second)
 				break
 			}
-			pkg := ev.Object.(*tpr.Package)
+			pkg := ev.Object.(*crd.Package)
 			rv = pkg.Metadata.ResourceVersion
 
 			// only do build for packages in pending state

@@ -26,7 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission"
-	"github.com/fission/fission/tpr"
+	"github.com/fission/fission/crd"
 )
 
 func wCreate(c *cli.Context) error {
@@ -61,7 +61,7 @@ func wCreate(c *cli.Context) error {
 	// automatically name watches
 	watchName := uuid.NewV4().String()
 
-	w := &tpr.Kuberneteswatchtrigger{
+	w := &crd.Kuberneteswatchtrigger{
 		Metadata: metav1.ObjectMeta{
 			Name:      watchName,
 			Namespace: metav1.NamespaceDefault,

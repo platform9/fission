@@ -26,7 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission"
-	"github.com/fission/fission/tpr"
+	"github.com/fission/fission/crd"
 )
 
 func (a *API) EnvironmentApiList(w http.ResponseWriter, r *http.Request) {
@@ -52,7 +52,7 @@ func (a *API) EnvironmentApiCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var env tpr.Environment
+	var env crd.Environment
 	err = json.Unmarshal(body, &env)
 	if err != nil {
 		log.Printf("Failed to unmarshal request body: [%v]", body)
@@ -115,7 +115,7 @@ func (a *API) EnvironmentApiUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var env tpr.Environment
+	var env crd.Environment
 	err = json.Unmarshal(body, &env)
 	if err != nil {
 		a.respondWithError(w, err)

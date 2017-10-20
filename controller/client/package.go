@@ -24,10 +24,10 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/fission/fission/tpr"
+	"github.com/fission/fission/crd"
 )
 
-func (c *Client) PackageCreate(f *tpr.Package) (*metav1.ObjectMeta, error) {
+func (c *Client) PackageCreate(f *crd.Package) (*metav1.ObjectMeta, error) {
 
 	reqbody, err := json.Marshal(f)
 	if err != nil {
@@ -54,7 +54,7 @@ func (c *Client) PackageCreate(f *tpr.Package) (*metav1.ObjectMeta, error) {
 	return &m, nil
 }
 
-func (c *Client) PackageGet(m *metav1.ObjectMeta) (*tpr.Package, error) {
+func (c *Client) PackageGet(m *metav1.ObjectMeta) (*crd.Package, error) {
 	relativeUrl := fmt.Sprintf("packages/%v", m.Name)
 	relativeUrl += fmt.Sprintf("?namespace=%v", m.Namespace)
 
@@ -69,7 +69,7 @@ func (c *Client) PackageGet(m *metav1.ObjectMeta) (*tpr.Package, error) {
 		return nil, err
 	}
 
-	var f tpr.Package
+	var f crd.Package
 	err = json.Unmarshal(body, &f)
 	if err != nil {
 		return nil, err
@@ -78,7 +78,7 @@ func (c *Client) PackageGet(m *metav1.ObjectMeta) (*tpr.Package, error) {
 	return &f, nil
 }
 
-func (c *Client) PackageUpdate(f *tpr.Package) (*metav1.ObjectMeta, error) {
+func (c *Client) PackageUpdate(f *crd.Package) (*metav1.ObjectMeta, error) {
 	reqbody, err := json.Marshal(f)
 	if err != nil {
 		return nil, err
@@ -110,7 +110,7 @@ func (c *Client) PackageDelete(m *metav1.ObjectMeta) error {
 	return c.delete(relativeUrl)
 }
 
-func (c *Client) PackageList() ([]tpr.Package, error) {
+func (c *Client) PackageList() ([]crd.Package, error) {
 	resp, err := http.Get(c.url("packages"))
 	if err != nil {
 		return nil, err
@@ -122,7 +122,7 @@ func (c *Client) PackageList() ([]tpr.Package, error) {
 		return nil, err
 	}
 
-	funcs := make([]tpr.Package, 0)
+	funcs := make([]crd.Package, 0)
 	err = json.Unmarshal(body, &funcs)
 	if err != nil {
 		return nil, err

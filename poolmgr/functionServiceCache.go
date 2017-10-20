@@ -24,7 +24,7 @@ import (
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/cache"
-	"github.com/fission/fission/tpr"
+	"github.com/fission/fission/crd"
 )
 
 type fscRequestType int
@@ -39,7 +39,7 @@ const (
 type (
 	funcSvc struct {
 		function    *metav1.ObjectMeta // function this pod/service is for
-		environment *tpr.Environment   // function's environment
+		environment *crd.Environment   // function's environment
 		address     string             // Host:Port or IP:Port that the function's service can be reached at.
 		podName     string             // pod name (within the function namespace)
 
@@ -94,7 +94,7 @@ func (fsc *functionServiceCache) service() {
 			pods := make([]string, 0)
 			for podNameI, mI := range byPodCopy {
 				m := mI.(metav1.ObjectMeta)
-				fsvcI, err := fsc.byFunction.Get(tpr.CacheKey(&m))
+				fsvcI, err := fsc.byFunction.Get(crd.CacheKey(&m))
 				if err != nil {
 					resp.error = err
 				} else {
@@ -123,7 +123,7 @@ func (fsc *functionServiceCache) service() {
 }
 
 func (fsc *functionServiceCache) GetByFunction(m *metav1.ObjectMeta) (*funcSvc, error) {
-	key := tpr.CacheKey(m)
+	key := crd.CacheKey(m)
 
 	fsvcI, err := fsc.byFunction.Get(key)
 	if err != nil {
@@ -140,7 +140,7 @@ func (fsc *functionServiceCache) GetByFunction(m *metav1.ObjectMeta) (*funcSvc, 
 
 // TODO: error should be second return
 func (fsc *functionServiceCache) Add(fsvc funcSvc) (error, *funcSvc) {
-	err, existing := fsc.byFunction.Set(tpr.CacheKey(fsvc.function), &fsvc)
+	err, existing := fsc.byFunction.Set(crd.CacheKey(fsvc.function), &fsvc)
 	if err != nil {
 		if existing != nil {
 			f := existing.(*funcSvc)
@@ -199,7 +199,7 @@ func (fsc *functionServiceCache) _touchByAddress(address string) error {
 		return err
 	}
 	m := mI.(metav1.ObjectMeta)
-	fsvcI, err := fsc.byFunction.Get(tpr.CacheKey(&m))
+	fsvcI, err := fsc.byFunction.Get(crd.CacheKey(&m))
 	if err != nil {
 		return err
 	}
@@ -228,7 +228,7 @@ func (fsc *functionServiceCache) _deleteByPod(podName string, minAge time.Durati
 		return false, err
 	}
 	m := mI.(metav1.ObjectMeta)
-	fsvcI, err := fsc.byFunction.Get(tpr.CacheKey(&m))
+	fsvcI, err := fsc.byFunction.Get(crd.CacheKey(&m))
 	if err != nil {
 		return false, err
 	}
@@ -238,7 +238,7 @@ func (fsc *functionServiceCache) _deleteByPod(podName string, minAge time.Durati
 		return false, nil
 	}
 
-	fsc.byFunction.Delete(tpr.CacheKey(&m))
+	fsc.byFunction.Delete(crd.CacheKey(&m))
 	fsc.byAddress.Delete(fsvc.address)
 	fsc.byPod.Delete(podName)
 	return true, nil

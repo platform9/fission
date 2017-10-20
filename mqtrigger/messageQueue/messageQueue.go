@@ -23,7 +23,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/fission/fission/tpr"
+	"github.com/fission/fission/crd"
 )
 
 const (
@@ -47,7 +47,7 @@ type (
 	}
 
 	MessageQueue interface {
-		subscribe(trigger *tpr.Messagequeuetrigger) (messageQueueSubscription, error)
+		subscribe(trigger *crd.Messagequeuetrigger) (messageQueueSubscription, error)
 		unsubscribe(triggerSub messageQueueSubscription) error
 	}
 
@@ -55,12 +55,12 @@ type (
 		reqChan       chan request
 		mqCfg         MessageQueueConfig
 		triggers      map[string]*triggerSubscription
-		fissionClient *tpr.FissionClient
+		fissionClient *crd.FissionClient
 		messageQueue  MessageQueue
 	}
 
 	triggerSubscription struct {
-		trigger      tpr.Messagequeuetrigger
+		trigger      crd.Messagequeuetrigger
 		subscription messageQueueSubscription
 	}
 
@@ -75,7 +75,7 @@ type (
 	}
 )
 
-func MakeMessageQueueTriggerManager(fissionClient *tpr.FissionClient, routerUrl string, mqConfig MessageQueueConfig) *MessageQueueTriggerManager {
+func MakeMessageQueueTriggerManager(fissionClient *crd.FissionClient, routerUrl string, mqConfig MessageQueueConfig) *MessageQueueTriggerManager {
 	var messageQueue MessageQueue
 	var err error
 
@@ -105,7 +105,7 @@ func (mqt *MessageQueueTriggerManager) service() {
 		switch req.requestType {
 		case ADD_TRIGGER:
 			var err error
-			k := tpr.CacheKey(&req.triggerSub.trigger.Metadata)
+			k := crd.CacheKey(&req.triggerSub.trigger.Metadata)
 			if _, ok := mqt.triggers[k]; ok {
 				err = errors.New("Trigger already exists")
 			} else {
@@ -119,7 +119,7 @@ func (mqt *MessageQueueTriggerManager) service() {
 			}
 			req.respChan <- response{triggers: &copyTriggers}
 		case DELETE_TRIGGER:
-			delete(mqt.triggers, tpr.CacheKey(&req.triggerSub.trigger.Metadata))
+			delete(mqt.triggers, crd.CacheKey(&req.triggerSub.trigger.Metadata))
 		}
 	}
 }
@@ -149,7 +149,7 @@ func (mqt *MessageQueueTriggerManager) delTrigger(m *metav1.ObjectMeta) {
 	mqt.reqChan <- request{
 		requestType: DELETE_TRIGGER,
 		triggerSub: &triggerSubscription{
-			trigger: tpr.Messagequeuetrigger{
+			trigger: crd.Messagequeuetrigger{
 				Metadata: *m,
 			},
 		},
@@ -163,10 +163,10 @@ func (mqt *MessageQueueTriggerManager) syncTriggers() {
 		if err != nil {
 			log.Fatalf("Failed to read message queue trigger list: %v", err)
 		}
-		newTriggerMap := make(map[string]*tpr.Messagequeuetrigger)
+		newTriggerMap := make(map[string]*crd.Messagequeuetrigger)
 		for index := range newTriggers.Items {
 			newTrigger := &newTriggers.Items[index]
-			newTriggerMap[tpr.CacheKey(&newTrigger.Metadata)] = newTrigger
+			newTriggerMap[crd.CacheKey(&newTrigger.Metadata)] = newTrigger
 		}
 
 		// get current set of triggers

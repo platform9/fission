@@ -20,11 +20,11 @@ import (
 	"errors"
 	"regexp"
 
-	"github.com/fission/fission/tpr"
+	"github.com/fission/fission/crd"
 )
 
-func makeTPRBackedAPI() (*API, error) {
-	fissionClient, _, err := tpr.MakeFissionClient()
+func makeCRDBackedAPI() (*API, error) {
+	fissionClient, _, _, err := crd.MakeFissionClient()
 	if err != nil {
 		return nil, err
 	}

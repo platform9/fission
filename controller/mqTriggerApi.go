@@ -25,7 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission"
-	"github.com/fission/fission/tpr"
+	"github.com/fission/fission/crd"
 )
 
 func (a *API) MessageQueueTriggerApiList(w http.ResponseWriter, r *http.Request) {
@@ -50,7 +50,7 @@ func (a *API) MessageQueueTriggerApiCreate(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	var mqTrigger tpr.Messagequeuetrigger
+	var mqTrigger crd.Messagequeuetrigger
 	err = json.Unmarshal(body, &mqTrigger)
 	if err != nil {
 		a.respondWithError(w, err)
@@ -109,7 +109,7 @@ func (a *API) MessageQueueTriggerApiUpdate(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	var mqTrigger tpr.Messagequeuetrigger
+	var mqTrigger crd.Messagequeuetrigger
 	err = json.Unmarshal(body, &mqTrigger)
 	if err != nil {
 		a.respondWithError(w, err)

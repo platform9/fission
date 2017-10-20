@@ -49,8 +49,8 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 
+	"github.com/fission/fission/crd"
 	poolmgrClient "github.com/fission/fission/poolmgr/client"
-	"github.com/fission/fission/tpr"
 )
 
 // request url ---[mux]---> Function(name,uid) ----[fmap]----> k8s service url
@@ -73,7 +73,7 @@ func serve(port int, httpTriggerSet *HTTPTriggerSet) {
 func Start(port int, poolmgrUrl string) {
 	fmap := makeFunctionServiceMap(time.Minute)
 
-	fissionClient, _, err := tpr.MakeFissionClient()
+	fissionClient, _, _, err := crd.MakeFissionClient()
 	if err != nil {
 		log.Fatalf("Error connecting to kubernetes API: %v", err)
 	}

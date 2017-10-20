@@ -24,10 +24,10 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/fission/fission/tpr"
+	"github.com/fission/fission/crd"
 )
 
-func (c *Client) MessageQueueTriggerCreate(t *tpr.Messagequeuetrigger) (*metav1.ObjectMeta, error) {
+func (c *Client) MessageQueueTriggerCreate(t *crd.Messagequeuetrigger) (*metav1.ObjectMeta, error) {
 	reqbody, err := json.Marshal(t)
 	if err != nil {
 		return nil, err
@@ -53,7 +53,7 @@ func (c *Client) MessageQueueTriggerCreate(t *tpr.Messagequeuetrigger) (*metav1.
 	return &m, nil
 }
 
-func (c *Client) MessageQueueTriggerGet(m *metav1.ObjectMeta) (*tpr.Messagequeuetrigger, error) {
+func (c *Client) MessageQueueTriggerGet(m *metav1.ObjectMeta) (*crd.Messagequeuetrigger, error) {
 	relativeUrl := fmt.Sprintf("triggers/messagequeue/%v", m.Name)
 	relativeUrl += fmt.Sprintf("?namespace=%v", m.Namespace)
 
@@ -68,7 +68,7 @@ func (c *Client) MessageQueueTriggerGet(m *metav1.ObjectMeta) (*tpr.Messagequeue
 		return nil, err
 	}
 
-	var t tpr.Messagequeuetrigger
+	var t crd.Messagequeuetrigger
 	err = json.Unmarshal(body, &t)
 	if err != nil {
 		return nil, err
@@ -77,7 +77,7 @@ func (c *Client) MessageQueueTriggerGet(m *metav1.ObjectMeta) (*tpr.Messagequeue
 	return &t, nil
 }
 
-func (c *Client) MessageQueueTriggerUpdate(mqTrigger *tpr.Messagequeuetrigger) (*metav1.ObjectMeta, error) {
+func (c *Client) MessageQueueTriggerUpdate(mqTrigger *crd.Messagequeuetrigger) (*metav1.ObjectMeta, error) {
 	reqbody, err := json.Marshal(mqTrigger)
 	if err != nil {
 		return nil, err
@@ -109,7 +109,7 @@ func (c *Client) MessageQueueTriggerDelete(m *metav1.ObjectMeta) error {
 	return c.delete(relativeUrl)
 }
 
-func (c *Client) MessageQueueTriggerList(mqType string) ([]tpr.Messagequeuetrigger, error) {
+func (c *Client) MessageQueueTriggerList(mqType string) ([]crd.Messagequeuetrigger, error) {
 	relativeUrl := "triggers/messagequeue"
 	if len(mqType) > 0 {
 		// TODO remove this, replace with field selector
@@ -127,7 +127,7 @@ func (c *Client) MessageQueueTriggerList(mqType string) ([]tpr.Messagequeuetrigg
 		return nil, err
 	}
 
-	triggers := make([]tpr.Messagequeuetrigger, 0)
+	triggers := make([]crd.Messagequeuetrigger, 0)
 	err = json.Unmarshal(body, &triggers)
 	if err != nil {
 		return nil, err

@@ -40,10 +40,10 @@ import (
 	"k8s.io/client-go/pkg/apis/extensions/v1beta1"
 
 	"github.com/fission/fission"
+	"github.com/fission/fission/crd"
 	"github.com/fission/fission/environments/fetcher"
 	fetcherClient "github.com/fission/fission/environments/fetcher/client"
 	"github.com/fission/fission/logger"
-	"github.com/fission/fission/tpr"
 )
 
 const POOLMGR_INSTANCEID_LABEL string = "poolmgrInstanceId"
@@ -51,7 +51,7 @@ const POD_PHASE_RUNNING string = "Running"
 
 type (
 	GenericPool struct {
-		env                    *tpr.Environment
+		env                    *crd.Environment
 		replicas               int32                 // num idle pods
 		deployment             *v1beta1.Deployment   // kubernetes deployment
 		namespace              string                // namespace to keep our resources
@@ -64,7 +64,7 @@ type (
 		fetcherImagePullPolicy apiv1.PullPolicy
 		runtimeImagePullPolicy apiv1.PullPolicy // pull policy for generic pool to created env deployment
 		kubernetesClient       *kubernetes.Clientset
-		fissionClient          *tpr.FissionClient
+		fissionClient          *crd.FissionClient
 		instanceId             string // poolmgr instance id
 		labelsForPool          map[string]string
 		requestChannel         chan *choosePodRequest
@@ -94,9 +94,9 @@ func getImagePullPolicy(policy string) apiv1.PullPolicy {
 }
 
 func MakeGenericPool(
-	fissionClient *tpr.FissionClient,
+	fissionClient *crd.FissionClient,
 	kubernetesClient *kubernetes.Clientset,
-	env *tpr.Environment,
+	env *crd.Environment,
 	initialReplicas int32,
 	namespace string,
 	fsCache *functionServiceCache,

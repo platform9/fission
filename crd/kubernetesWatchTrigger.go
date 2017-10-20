@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package tpr
+package crd
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,34 +24,34 @@ import (
 )
 
 type (
-	PackageInterface interface {
-		Create(*Package) (*Package, error)
-		Get(name string) (*Package, error)
-		Update(*Package) (*Package, error)
+	KuberneteswatchtriggerInterface interface {
+		Create(*Kuberneteswatchtrigger) (*Kuberneteswatchtrigger, error)
+		Get(name string) (*Kuberneteswatchtrigger, error)
+		Update(*Kuberneteswatchtrigger) (*Kuberneteswatchtrigger, error)
 		Delete(name string, options *metav1.DeleteOptions) error
-		List(opts metav1.ListOptions) (*PackageList, error)
+		List(opts metav1.ListOptions) (*KuberneteswatchtriggerList, error)
 		Watch(opts metav1.ListOptions) (watch.Interface, error)
 	}
 
-	packageClient struct {
+	kubernetesWatchTriggerClient struct {
 		client    *rest.RESTClient
 		namespace string
 	}
 )
 
-func MakePackageInterface(tprClient *rest.RESTClient, namespace string) PackageInterface {
-	return &packageClient{
-		client:    tprClient,
+func MakeKuberneteswatchtriggerInterface(crdClient *rest.RESTClient, namespace string) KuberneteswatchtriggerInterface {
+	return &kubernetesWatchTriggerClient{
+		client:    crdClient,
 		namespace: namespace,
 	}
 }
 
-func (c *packageClient) Create(f *Package) (*Package, error) {
-	var result Package
+func (c *kubernetesWatchTriggerClient) Create(obj *Kuberneteswatchtrigger) (*Kuberneteswatchtrigger, error) {
+	var result Kuberneteswatchtrigger
 	err := c.client.Post().
-		Resource("packages").
+		Resource("kuberneteswatchtriggers").
 		Namespace(c.namespace).
-		Body(f).
+		Body(obj).
 		Do().Into(&result)
 	if err != nil {
 		return nil, err
@@ -59,10 +59,10 @@ func (c *packageClient) Create(f *Package) (*Package, error) {
 	return &result, nil
 }
 
-func (c *packageClient) Get(name string) (*Package, error) {
-	var result Package
+func (c *kubernetesWatchTriggerClient) Get(name string) (*Kuberneteswatchtrigger, error) {
+	var result Kuberneteswatchtrigger
 	err := c.client.Get().
-		Resource("packages").
+		Resource("kuberneteswatchtriggers").
 		Namespace(c.namespace).
 		Name(name).
 		Do().Into(&result)
@@ -72,13 +72,13 @@ func (c *packageClient) Get(name string) (*Package, error) {
 	return &result, nil
 }
 
-func (c *packageClient) Update(f *Package) (*Package, error) {
-	var result Package
+func (c *kubernetesWatchTriggerClient) Update(obj *Kuberneteswatchtrigger) (*Kuberneteswatchtrigger, error) {
+	var result Kuberneteswatchtrigger
 	err := c.client.Put().
-		Resource("packages").
+		Resource("kuberneteswatchtriggers").
 		Namespace(c.namespace).
-		Name(f.Metadata.Name).
-		Body(f).
+		Name(obj.Metadata.Name).
+		Body(obj).
 		Do().Into(&result)
 	if err != nil {
 		return nil, err
@@ -86,21 +86,21 @@ func (c *packageClient) Update(f *Package) (*Package, error) {
 	return &result, nil
 }
 
-func (c *packageClient) Delete(name string, opts *metav1.DeleteOptions) error {
+func (c *kubernetesWatchTriggerClient) Delete(name string, opts *metav1.DeleteOptions) error {
 	return c.client.Delete().
 		Namespace(c.namespace).
-		Resource("packages").
+		Resource("kuberneteswatchtriggers").
 		Name(name).
 		Body(opts).
 		Do().
 		Error()
 }
 
-func (c *packageClient) List(opts metav1.ListOptions) (*PackageList, error) {
-	var result PackageList
+func (c *kubernetesWatchTriggerClient) List(opts metav1.ListOptions) (*KuberneteswatchtriggerList, error) {
+	var result KuberneteswatchtriggerList
 	err := c.client.Get().
 		Namespace(c.namespace).
-		Resource("packages").
+		Resource("kuberneteswatchtriggers").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Do().
 		Into(&result)
@@ -110,11 +110,11 @@ func (c *packageClient) List(opts metav1.ListOptions) (*PackageList, error) {
 	return &result, nil
 }
 
-func (c *packageClient) Watch(opts metav1.ListOptions) (watch.Interface, error) {
+func (c *kubernetesWatchTriggerClient) Watch(opts metav1.ListOptions) (watch.Interface, error) {
 	return c.client.Get().
 		Prefix("watch").
 		Namespace(c.namespace).
-		Resource("packages").
+		Resource("kuberneteswatchtriggers").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Watch()
 }

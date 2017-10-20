@@ -24,10 +24,10 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/fission/fission/tpr"
+	"github.com/fission/fission/crd"
 )
 
-func (c *Client) FunctionCreate(f *tpr.Function) (*metav1.ObjectMeta, error) {
+func (c *Client) FunctionCreate(f *crd.Function) (*metav1.ObjectMeta, error) {
 
 	reqbody, err := json.Marshal(f)
 	if err != nil {
@@ -54,7 +54,7 @@ func (c *Client) FunctionCreate(f *tpr.Function) (*metav1.ObjectMeta, error) {
 	return &m, nil
 }
 
-func (c *Client) FunctionGet(m *metav1.ObjectMeta) (*tpr.Function, error) {
+func (c *Client) FunctionGet(m *metav1.ObjectMeta) (*crd.Function, error) {
 	relativeUrl := fmt.Sprintf("functions/%v", m.Name)
 	relativeUrl += fmt.Sprintf("?namespace=%v", m.Namespace)
 
@@ -69,7 +69,7 @@ func (c *Client) FunctionGet(m *metav1.ObjectMeta) (*tpr.Function, error) {
 		return nil, err
 	}
 
-	var f tpr.Function
+	var f crd.Function
 	err = json.Unmarshal(body, &f)
 	if err != nil {
 		return nil, err
@@ -92,7 +92,7 @@ func (c *Client) FunctionGetRawDeployment(m *metav1.ObjectMeta) ([]byte, error) 
 	return c.handleResponse(resp)
 }
 
-func (c *Client) FunctionUpdate(f *tpr.Function) (*metav1.ObjectMeta, error) {
+func (c *Client) FunctionUpdate(f *crd.Function) (*metav1.ObjectMeta, error) {
 	reqbody, err := json.Marshal(f)
 	if err != nil {
 		return nil, err
@@ -124,7 +124,7 @@ func (c *Client) FunctionDelete(m *metav1.ObjectMeta) error {
 	return c.delete(relativeUrl)
 }
 
-func (c *Client) FunctionList() ([]tpr.Function, error) {
+func (c *Client) FunctionList() ([]crd.Function, error) {
 	resp, err := http.Get(c.url("functions"))
 	if err != nil {
 		return nil, err
@@ -136,7 +136,7 @@ func (c *Client) FunctionList() ([]tpr.Function, error) {
 		return nil, err
 	}
 
-	funcs := make([]tpr.Function, 0)
+	funcs := make([]crd.Function, 0)
 	err = json.Unmarshal(body, &funcs)
 	if err != nil {
 		return nil, err

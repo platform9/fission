@@ -29,7 +29,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/fission/fission"
-	"github.com/fission/fission/tpr"
+	"github.com/fission/fission/crd"
 )
 
 const (
@@ -58,7 +58,7 @@ func makeNatsMessageQueue(routerUrl string, mqCfg MessageQueueConfig) (MessageQu
 	return nats, nil
 }
 
-func (nats Nats) subscribe(trigger *tpr.Messagequeuetrigger) (messageQueueSubscription, error) {
+func (nats Nats) subscribe(trigger *crd.Messagequeuetrigger) (messageQueueSubscription, error) {
 	subj := trigger.Spec.Topic
 
 	if !isTopicValidForNats(subj) {
@@ -91,7 +91,7 @@ func isTopicValidForNats(topic string) bool {
 	return nsUtil.IsSubjectValid(topic, false)
 }
 
-func msgHandler(nats *Nats, trigger *tpr.Messagequeuetrigger) func(*ns.Msg) {
+func msgHandler(nats *Nats, trigger *crd.Messagequeuetrigger) func(*ns.Msg) {
 	return func(msg *ns.Msg) {
 
 		// Support other function ref types

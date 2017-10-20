@@ -22,8 +22,8 @@ import (
 	"github.com/robfig/cron"
 
 	"github.com/fission/fission"
+	"github.com/fission/fission/crd"
 	"github.com/fission/fission/publisher"
-	"github.com/fission/fission/tpr"
 )
 
 type requestType int
@@ -41,14 +41,14 @@ type (
 
 	timerRequest struct {
 		requestType
-		triggers        []tpr.Timetrigger
+		triggers        []crd.Timetrigger
 		responseChannel chan *timerResponse
 	}
 	timerResponse struct {
 		error
 	}
 	timerTriggerWithCron struct {
-		trigger tpr.Timetrigger
+		trigger crd.Timetrigger
 		cron    *cron.Cron
 	}
 )
@@ -63,7 +63,7 @@ func MakeTimer(publisher publisher.Publisher) *Timer {
 	return timer
 }
 
-func (timer *Timer) Sync(triggers []tpr.Timetrigger) error {
+func (timer *Timer) Sync(triggers []crd.Timetrigger) error {
 	req := &timerRequest{
 		requestType:     SYNC,
 		triggers:        triggers,
@@ -85,7 +85,7 @@ func (timer *Timer) svc() {
 	}
 }
 
-func (timer *Timer) syncCron(triggers []tpr.Timetrigger) error {
+func (timer *Timer) syncCron(triggers []crd.Timetrigger) error {
 	// add new triggers or update existing ones
 	for _, t := range triggers {
 		if item, ok := timer.triggers[t.Metadata.Name]; ok {
@@ -137,7 +137,7 @@ func (timer *Timer) syncCron(triggers []tpr.Timetrigger) error {
 	return nil
 }
 
-func (timer *Timer) newCron(t tpr.Timetrigger) *cron.Cron {
+func (timer *Timer) newCron(t crd.Timetrigger) *cron.Cron {
 	c := cron.New()
 	c.AddFunc(t.Spec.Cron, func() {
 		headers := map[string]string{

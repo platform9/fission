@@ -24,10 +24,10 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/fission/fission/tpr"
+	"github.com/fission/fission/crd"
 )
 
-func (c *Client) HTTPTriggerCreate(t *tpr.Httptrigger) (*metav1.ObjectMeta, error) {
+func (c *Client) HTTPTriggerCreate(t *crd.Httptrigger) (*metav1.ObjectMeta, error) {
 	reqbody, err := json.Marshal(t)
 	if err != nil {
 		return nil, err
@@ -53,7 +53,7 @@ func (c *Client) HTTPTriggerCreate(t *tpr.Httptrigger) (*metav1.ObjectMeta, erro
 	return &m, nil
 }
 
-func (c *Client) HTTPTriggerGet(m *metav1.ObjectMeta) (*tpr.Httptrigger, error) {
+func (c *Client) HTTPTriggerGet(m *metav1.ObjectMeta) (*crd.Httptrigger, error) {
 	relativeUrl := fmt.Sprintf("triggers/http/%v", m.Name)
 	relativeUrl += fmt.Sprintf("?namespace=%v", m.Namespace)
 
@@ -68,7 +68,7 @@ func (c *Client) HTTPTriggerGet(m *metav1.ObjectMeta) (*tpr.Httptrigger, error) 
 		return nil, err
 	}
 
-	var t tpr.Httptrigger
+	var t crd.Httptrigger
 	err = json.Unmarshal(body, &t)
 	if err != nil {
 		return nil, err
@@ -77,7 +77,7 @@ func (c *Client) HTTPTriggerGet(m *metav1.ObjectMeta) (*tpr.Httptrigger, error) 
 	return &t, nil
 }
 
-func (c *Client) HTTPTriggerUpdate(t *tpr.Httptrigger) (*metav1.ObjectMeta, error) {
+func (c *Client) HTTPTriggerUpdate(t *crd.Httptrigger) (*metav1.ObjectMeta, error) {
 	reqbody, err := json.Marshal(t)
 	if err != nil {
 		return nil, err
@@ -109,7 +109,7 @@ func (c *Client) HTTPTriggerDelete(m *metav1.ObjectMeta) error {
 	return c.delete(relativeUrl)
 }
 
-func (c *Client) HTTPTriggerList() ([]tpr.Httptrigger, error) {
+func (c *Client) HTTPTriggerList() ([]crd.Httptrigger, error) {
 	resp, err := http.Get(c.url("triggers/http"))
 	if err != nil {
 		return nil, err
@@ -121,7 +121,7 @@ func (c *Client) HTTPTriggerList() ([]tpr.Httptrigger, error) {
 		return nil, err
 	}
 
-	triggers := make([]tpr.Httptrigger, 0)
+	triggers := make([]crd.Httptrigger, 0)
 	err = json.Unmarshal(body, &triggers)
 	if err != nil {
 		return nil, err

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package tpr
+package crd
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,32 +24,32 @@ import (
 )
 
 type (
-	TimetriggerInterface interface {
-		Create(*Timetrigger) (*Timetrigger, error)
-		Get(name string) (*Timetrigger, error)
-		Update(*Timetrigger) (*Timetrigger, error)
+	MessagequeuetriggerInterface interface {
+		Create(*Messagequeuetrigger) (*Messagequeuetrigger, error)
+		Get(name string) (*Messagequeuetrigger, error)
+		Update(*Messagequeuetrigger) (*Messagequeuetrigger, error)
 		Delete(name string, options *metav1.DeleteOptions) error
-		List(opts metav1.ListOptions) (*TimetriggerList, error)
+		List(opts metav1.ListOptions) (*MessagequeuetriggerList, error)
 		Watch(opts metav1.ListOptions) (watch.Interface, error)
 	}
 
-	timetriggerClient struct {
+	messagequeuetriggerClient struct {
 		client    *rest.RESTClient
 		namespace string
 	}
 )
 
-func MakeTimetriggerInterface(tprClient *rest.RESTClient, namespace string) TimetriggerInterface {
-	return &timetriggerClient{
-		client:    tprClient,
+func MakeMessagequeuetriggerInterface(crdClient *rest.RESTClient, namespace string) MessagequeuetriggerInterface {
+	return &messagequeuetriggerClient{
+		client:    crdClient,
 		namespace: namespace,
 	}
 }
 
-func (fc *timetriggerClient) Create(f *Timetrigger) (*Timetrigger, error) {
-	var result Timetrigger
+func (fc *messagequeuetriggerClient) Create(f *Messagequeuetrigger) (*Messagequeuetrigger, error) {
+	var result Messagequeuetrigger
 	err := fc.client.Post().
-		Resource("timetriggers").
+		Resource("messagequeuetriggers").
 		Namespace(fc.namespace).
 		Body(f).
 		Do().Into(&result)
@@ -59,10 +59,10 @@ func (fc *timetriggerClient) Create(f *Timetrigger) (*Timetrigger, error) {
 	return &result, nil
 }
 
-func (fc *timetriggerClient) Get(name string) (*Timetrigger, error) {
-	var result Timetrigger
+func (fc *messagequeuetriggerClient) Get(name string) (*Messagequeuetrigger, error) {
+	var result Messagequeuetrigger
 	err := fc.client.Get().
-		Resource("timetriggers").
+		Resource("messagequeuetriggers").
 		Namespace(fc.namespace).
 		Name(name).
 		Do().Into(&result)
@@ -72,10 +72,10 @@ func (fc *timetriggerClient) Get(name string) (*Timetrigger, error) {
 	return &result, nil
 }
 
-func (fc *timetriggerClient) Update(f *Timetrigger) (*Timetrigger, error) {
-	var result Timetrigger
+func (fc *messagequeuetriggerClient) Update(f *Messagequeuetrigger) (*Messagequeuetrigger, error) {
+	var result Messagequeuetrigger
 	err := fc.client.Put().
-		Resource("timetriggers").
+		Resource("messagequeuetriggers").
 		Namespace(fc.namespace).
 		Name(f.Metadata.Name).
 		Body(f).
@@ -86,21 +86,21 @@ func (fc *timetriggerClient) Update(f *Timetrigger) (*Timetrigger, error) {
 	return &result, nil
 }
 
-func (fc *timetriggerClient) Delete(name string, opts *metav1.DeleteOptions) error {
+func (fc *messagequeuetriggerClient) Delete(name string, opts *metav1.DeleteOptions) error {
 	return fc.client.Delete().
 		Namespace(fc.namespace).
-		Resource("timetriggers").
+		Resource("messagequeuetriggers").
 		Name(name).
 		Body(opts).
 		Do().
 		Error()
 }
 
-func (fc *timetriggerClient) List(opts metav1.ListOptions) (*TimetriggerList, error) {
-	var result TimetriggerList
+func (fc *messagequeuetriggerClient) List(opts metav1.ListOptions) (*MessagequeuetriggerList, error) {
+	var result MessagequeuetriggerList
 	err := fc.client.Get().
 		Namespace(fc.namespace).
-		Resource("timetriggers").
+		Resource("messagequeuetriggers").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Do().
 		Into(&result)
@@ -110,11 +110,11 @@ func (fc *timetriggerClient) List(opts metav1.ListOptions) (*TimetriggerList, er
 	return &result, nil
 }
 
-func (fc *timetriggerClient) Watch(opts metav1.ListOptions) (watch.Interface, error) {
+func (fc *messagequeuetriggerClient) Watch(opts metav1.ListOptions) (watch.Interface, error) {
 	return fc.client.Get().
 		Prefix("watch").
 		Namespace(fc.namespace).
-		Resource("timetriggers").
+		Resource("messagequeuetriggers").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Watch()
 }
