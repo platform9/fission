@@ -1,2 +1,2 @@
 #!/bin/sh
-docker build -t fission-daemonset-fluentd:latest .
+docker build -t pvramesh/fluentd:latest  .

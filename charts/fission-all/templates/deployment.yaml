@@ -441,7 +441,7 @@ spec:
                   key: password
           volumeMounts:
             - name: container-log
-              mountPath: /var/log/containers
+              mountPath: /var/log/
               readOnly: true
             - name: docker-log
               mountPath: /var/lib/docker/containers
@@ -453,7 +453,7 @@ spec:
       volumes:
         - name: container-log
           hostPath:
-              path: /var/log/containers
+              path: /var/log/
         - name: docker-log
           hostPath:
               path: /var/lib/docker/containers

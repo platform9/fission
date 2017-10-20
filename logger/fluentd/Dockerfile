@@ -35,7 +35,7 @@ ENV DEBIAN_FRONTEND noninteractive
 
 # Install build tools
 RUN apt-get -qq update && \
-    apt-get install -y -qq curl ca-certificates gcc make bash sudo && \
+    apt-get install -y -qq curl ca-certificates gcc g++ make bash sudo && \
     apt-get install -y -qq --reinstall lsb-base lsb-release && \
     # Install logging agent and required gems
     /usr/bin/curl -sSL https://toolbelt.treasuredata.com/sh/install-ubuntu-xenial-td-agent2.sh | sh && \
@@ -45,6 +45,7 @@ RUN apt-get -qq update && \
     td-agent-gem install --no-document fluent-plugin-google-cloud -v 0.5.2 && \
     td-agent-gem install --no-document fluent-plugin-detect-exceptions -v 0.0.4 && \
     td-agent-gem install --no-document fluent-plugin-influxdb && \
+    td-agent-gem install --no-document fluent-plugin-kubernetes_metadata_filter && \
     # Remove build tools
     apt-get remove -y -qq gcc make && \
     apt-get autoremove -y -qq && \
