@@ -174,6 +174,8 @@ func (api *API) Serve(port int) {
 	r.HandleFunc("/v2/triggers/messagequeue/{mqTrigger}", api.MessageQueueTriggerApiUpdate).Methods("PUT")
 	r.HandleFunc("/v2/triggers/messagequeue/{mqTrigger}", api.MessageQueueTriggerApiDelete).Methods("DELETE")
 
+	r.HandleFunc("/deleteTpr", api.Tpr2crdApi).Methods("DELETE")
+
 	r.HandleFunc("/proxy/{dbType}", api.FunctionLogsApiPost).Methods("POST")
 	r.HandleFunc("/proxy/storage/v1/archive", api.StorageServiceProxy)
 	r.HandleFunc("/proxy/buildermgr/v1/build", api.BuilderManagerBuildProxy)

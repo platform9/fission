@@ -131,6 +131,14 @@ func main() {
 		{Name: "dump", Usage: "Dump all state from a v0.1 fission installation", Flags: []cli.Flag{upgradeFileFlag}, Action: upgradeDumpState},
 		{Name: "restore", Usage: "Restore state dumped from a v0.1 install into a v0.2+ install", Flags: []cli.Flag{upgradeFileFlag}, Action: upgradeRestoreState},
 	}
+
+	migrateFileFlag := cli.StringFlag{Name: "file", Usage: "JSON file containing all CRDs"}
+	migrateSubCommands := []cli.Command{
+		{Name: "dump", Usage: "Dump all TPRs into CRDs from a pre-1.8.x Kubernetes cluster", Flags: []cli.Flag{migrateFileFlag}, Action: migrateDumpTPR},
+		{Name: "delete", Usage: "Delete all TPRs", Flags: []cli.Flag{}, Action: migrateDeleteTPR},
+		{Name: "restore", Usage: "Restore all CRDs", Flags: []cli.Flag{migrateFileFlag}, Action: migrateRestoreCRD},
+	}
+
 	app.Commands = []cli.Command{
 		{Name: "function", Aliases: []string{"fn"}, Usage: "Create, update and manage functions", Subcommands: fnSubcommands},
 		{Name: "httptrigger", Aliases: []string{"ht", "route"}, Usage: "Manage HTTP triggers (routes) for functions", Subcommands: htSubcommands},
@@ -139,6 +147,7 @@ func main() {
 		{Name: "environment", Aliases: []string{"env"}, Usage: "Manage environments", Subcommands: envSubcommands},
 		{Name: "watch", Aliases: []string{"w"}, Usage: "Manage watches", Subcommands: wSubCommands},
 		{Name: "upgrade", Aliases: []string{}, Usage: "Upgrade tool from fission v0.1", Subcommands: upgradeSubCommands},
+		{Name: "tpr2crd", Aliases: []string{}, Usage: "Migrate tool for TPR to CRD", Subcommands: migrateSubCommands},
 	}
 
 	app.Run(os.Args)
