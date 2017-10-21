@@ -18,6 +18,7 @@ package controller
 
 import (
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -72,12 +73,9 @@ func assertCronSpecFails(err error) {
 }
 
 func TestFunctionApi(t *testing.T) {
-	name1 := "foo"
-	name2 := "bar"
-
 	testFunc := &crd.Function{
 		Metadata: metav1.ObjectMeta{
-			Name:      name1,
+			Name:      "foo",
 			Namespace: metav1.NamespaceDefault,
 		},
 		Spec: fission.FunctionSpec{
@@ -95,24 +93,27 @@ func TestFunctionApi(t *testing.T) {
 	})
 	assertNotFoundFailure(err, "function")
 
-	_, err = g.client.FunctionCreate(testFunc)
+	m, err := g.client.FunctionCreate(testFunc)
 	panicIf(err)
+	defer g.client.FunctionDelete(m)
 
 	_, err = g.client.FunctionCreate(testFunc)
 	assertNameReuseFailure(err, "function")
 
+	testFunc.Metadata.ResourceVersion = m.ResourceVersion
 	testFunc.Spec.Package.FunctionName = "yyy"
 	_, err = g.client.FunctionUpdate(testFunc)
 	panicIf(err)
 
-	testFunc.Metadata.Name = name2
-	_, err = g.client.FunctionCreate(testFunc)
+	testFunc.Metadata.ResourceVersion = ""
+	testFunc.Metadata.Name = "bar"
+	m2, err := g.client.FunctionCreate(testFunc)
 	panicIf(err)
+	defer g.client.FunctionDelete(m2)
 
 	funcs, err := g.client.FunctionList()
 	panicIf(err)
-	assert(len(funcs) == 2,
-		"created two functions, but didn't find them")
+	assert(len(funcs) == 2, fmt.Sprintf("created two functions, but find %v", len(funcs)))
 
 	funcs_url := g.client.Url + "/v2/functions"
 	resp, err := http.Get(funcs_url)
@@ -127,11 +128,6 @@ func TestFunctionApi(t *testing.T) {
 		}
 	}
 	assert(found, "incorrect response content type")
-
-	err = g.client.FunctionDelete(&metav1.ObjectMeta{Name: name1, Namespace: metav1.NamespaceDefault})
-	panicIf(err)
-	err = g.client.FunctionDelete(&metav1.ObjectMeta{Name: name2, Namespace: metav1.NamespaceDefault})
-	panicIf(err)
 }
 
 func TestHTTPTriggerApi(t *testing.T) {
@@ -165,10 +161,12 @@ func TestHTTPTriggerApi(t *testing.T) {
 	panicIf(err)
 	assert(testTrigger.Spec == tr.Spec, "trigger should match after reading")
 
+	testTrigger.Metadata.ResourceVersion = m.ResourceVersion
 	testTrigger.Spec.RelativeURL = "/hi"
 	_, err = g.client.HTTPTriggerUpdate(testTrigger)
 	panicIf(err)
 
+	testTrigger.Metadata.ResourceVersion = ""
 	testTrigger.Metadata.Name = "yyy"
 	_, err = g.client.HTTPTriggerCreate(testTrigger)
 	assert(err != nil, "duplicate trigger should not be allowed")
@@ -180,7 +178,7 @@ func TestHTTPTriggerApi(t *testing.T) {
 
 	ts, err := g.client.HTTPTriggerList()
 	panicIf(err)
-	assert(len(ts) == 2, "created two triggers, but didn't find them")
+	assert(len(ts) == 2, fmt.Sprintf("created two triggers, but find %v", len(ts)))
 }
 
 func TestEnvironmentApi(t *testing.T) {
@@ -212,10 +210,12 @@ func TestEnvironmentApi(t *testing.T) {
 	panicIf(err)
 	assert(testEnv.Spec == e.Spec, "env should match after reading")
 
+	testEnv.Metadata.ResourceVersion = m.ResourceVersion
 	testEnv.Spec.Runtime.Image = "another-img"
 	_, err = g.client.EnvironmentUpdate(testEnv)
 	panicIf(err)
 
+	testEnv.Metadata.ResourceVersion = ""
 	testEnv.Metadata.Name = "bar"
 	m2, err := g.client.EnvironmentCreate(testEnv)
 	panicIf(err)
@@ -223,7 +223,7 @@ func TestEnvironmentApi(t *testing.T) {
 
 	ts, err := g.client.EnvironmentList()
 	panicIf(err)
-	assert(len(ts) == 2, "created two envs, but didn't find them")
+	assert(len(ts) == 2, fmt.Sprintf("created two envs, but find %v", len(ts)))
 }
 
 func TestWatchApi(t *testing.T) {
@@ -267,7 +267,7 @@ func TestWatchApi(t *testing.T) {
 
 	ws, err := g.client.WatchList()
 	panicIf(err)
-	assert(len(ws) == 2, "created two envs, but didn't find them")
+	assert(len(ws) == 2, fmt.Sprintf("created two watches, but find %v", len(ws)))
 }
 
 func TestTimeTriggerApi(t *testing.T) {
@@ -298,10 +298,12 @@ func TestTimeTriggerApi(t *testing.T) {
 	panicIf(err)
 	assert(testTrigger.Spec == tr.Spec, "trigger should match after reading")
 
+	testTrigger.Metadata.ResourceVersion = m.ResourceVersion
 	testTrigger.Spec.Cron = "@hourly"
 	_, err = g.client.TimeTriggerUpdate(testTrigger)
 	panicIf(err)
 
+	testTrigger.Metadata.ResourceVersion = ""
 	testTrigger.Metadata.Name = "yyy"
 	testTrigger.Spec.Cron = "Not valid cron spec"
 	_, err = g.client.TimeTriggerCreate(testTrigger)
@@ -309,7 +311,7 @@ func TestTimeTriggerApi(t *testing.T) {
 
 	ts, err := g.client.TimeTriggerList()
 	panicIf(err)
-	assert(len(ts) == 1, "created one trigger, but didn't find it")
+	assert(len(ts) == 1, fmt.Sprintf("created two time triggers, but find %v", len(ts)))
 }
 
 func TestMain(m *testing.M) {
@@ -324,7 +326,7 @@ func TestMain(m *testing.M) {
 
 	go Start(8888)
 
-	time.Sleep(time.Second)
+	time.Sleep(5 * time.Second)
 	g.client = client.MakeClient("http://localhost:8888")
 
 	resp, err := http.Get("http://localhost:8888/")

@@ -5,12 +5,16 @@ if [ ! -f ${KUBECONFIG} ]
 then
     unset KUBECONFIG
 else
-    K="kubectl --kubeconfig $KUBECONFIG"
+    K="kubectl --kubeconfig $KUBECONFIG --namespace default"
     if $K get configmap ok-to-destroy
     then
-	$K get function.fission.io -o name | cut -f2 -d'/' | xargs $K delete function.fission.io
-	$K get environment.fission.io -o name | cut -f2 -d'/' | xargs $K delete environment.fission.io
-	$K get httptrigger.fission.io -o name | cut -f2 -d'/' | xargs $K delete httptrigger.fission.io
+    $K delete functions --all
+    $K delete environments --all
+    $K delete httptriggers --all
+    $K delete kuberneteswatchtriggers --all
+    $K delete messagequeuetriggers --all
+    $K delete packages --all
+    $K delete timetriggers --all
     fi
 fi
 

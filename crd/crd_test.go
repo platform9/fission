@@ -42,7 +42,8 @@ func functionTests(crdClient *rest.RESTClient) {
 			APIVersion: "fission.io/v1",
 		},
 		Metadata: metav1.ObjectMeta{
-			Name: "hello",
+			Name:      "hello",
+			Namespace: metav1.NamespaceDefault,
 		},
 		Spec: fission.FunctionSpec{
 			Package: fission.FunctionPackageRef{
@@ -81,6 +82,7 @@ func functionTests(crdClient *rest.RESTClient) {
 	log.Printf("f.Metadata = %#v", f.Metadata)
 
 	// update
+	function.Metadata.ResourceVersion = f.Metadata.ResourceVersion
 	function.Spec.Environment.Name = "yyy"
 	f, err = fi.Update(function)
 	panicIf(err)
@@ -91,9 +93,9 @@ func functionTests(crdClient *rest.RESTClient) {
 	fl, err := fi.List(metav1.ListOptions{})
 	panicIf(err)
 	if len(fl.Items) != 1 {
-		log.Panicf("wrong count from list: %v", fl)
+		log.Panicf("wrong count from function list: %v", len(fl.Items))
 	}
-	if fl.Items[0].Spec.Environment.Name != function.Spec.Environment.Name {
+	if fl.Items[0].Spec.Environment.Name != f.Spec.Environment.Name {
 		log.Panicf("bad object from list: %v", fl.Items[0])
 	}
 
@@ -106,6 +108,7 @@ func functionTests(crdClient *rest.RESTClient) {
 	panicIf(err)
 
 	start := time.Now()
+	function.Metadata.ResourceVersion = ""
 	f, err = fi.Create(function)
 	panicIf(err)
 	defer fi.Delete(f.Metadata.Name, nil)
@@ -139,7 +142,8 @@ func environmentTests(crdClient *rest.RESTClient) {
 			APIVersion: "fission.io/v1",
 		},
 		Metadata: metav1.ObjectMeta{
-			Name: "hello",
+			Name:      "hello",
+			Namespace: metav1.NamespaceDefault,
 		},
 		Spec: fission.EnvironmentSpec{
 			Runtime: fission.Runtime{
@@ -173,6 +177,7 @@ func environmentTests(crdClient *rest.RESTClient) {
 	}
 
 	// update
+	environment.Metadata.ResourceVersion = e.Metadata.ResourceVersion
 	environment.Spec.Runtime.Image = "www"
 	e, err = ei.Update(environment)
 	panicIf(err)
@@ -181,9 +186,9 @@ func environmentTests(crdClient *rest.RESTClient) {
 	el, err := ei.List(metav1.ListOptions{})
 	panicIf(err)
 	if len(el.Items) != 1 {
-		log.Panicf("wrong count from list: %v", len(el.Items))
+		log.Panicf("wrong count from environment list: %v", len(el.Items))
 	}
-	if el.Items[0].Spec.Runtime.Image != environment.Spec.Runtime.Image {
+	if el.Items[0].Spec.Runtime.Image != e.Spec.Runtime.Image {
 		log.Panicf("bad object from list: %v", el.Items[0])
 	}
 
@@ -196,6 +201,7 @@ func environmentTests(crdClient *rest.RESTClient) {
 	panicIf(err)
 
 	start := time.Now()
+	environment.Metadata.ResourceVersion = ""
 	e, err = ei.Create(environment)
 	panicIf(err)
 	defer ei.Delete(e.Metadata.Name, nil)
@@ -229,7 +235,8 @@ func httpTriggerTests(crdClient *rest.RESTClient) {
 			APIVersion: "fission.io/v1",
 		},
 		Metadata: metav1.ObjectMeta{
-			Name: "hello",
+			Name:      "hello",
+			Namespace: metav1.NamespaceDefault,
 		},
 		Spec: fission.HTTPTriggerSpec{
 			RelativeURL: "/hi",
@@ -262,6 +269,7 @@ func httpTriggerTests(crdClient *rest.RESTClient) {
 	}
 
 	// update
+	httpTrigger.Metadata.ResourceVersion = e.Metadata.ResourceVersion
 	httpTrigger.Spec.Method = "POST"
 	e, err = ei.Update(httpTrigger)
 	panicIf(err)
@@ -270,9 +278,9 @@ func httpTriggerTests(crdClient *rest.RESTClient) {
 	el, err := ei.List(metav1.ListOptions{})
 	panicIf(err)
 	if len(el.Items) != 1 {
-		log.Panicf("wrong count from list: %v", el)
+		log.Panicf("wrong count from http trigger list: %v", len(el.Items))
 	}
-	if el.Items[0].Spec.Method != httpTrigger.Spec.Method {
+	if el.Items[0].Spec.Method != e.Spec.Method {
 		log.Panicf("bad object from list: %v", el.Items[0])
 	}
 
@@ -285,6 +293,7 @@ func httpTriggerTests(crdClient *rest.RESTClient) {
 	panicIf(err)
 
 	start := time.Now()
+	httpTrigger.Metadata.ResourceVersion = ""
 	e, err = ei.Create(httpTrigger)
 	panicIf(err)
 	defer ei.Delete(e.Metadata.Name, nil)
@@ -318,7 +327,8 @@ func kubernetesWatchTriggerTests(crdClient *rest.RESTClient) {
 			APIVersion: "fission.io/v1",
 		},
 		Metadata: metav1.ObjectMeta{
-			Name: "hello",
+			Name:      "hello",
+			Namespace: metav1.NamespaceDefault,
 		},
 		Spec: fission.KubernetesWatchTriggerSpec{
 			Namespace: "foo",
@@ -354,6 +364,7 @@ func kubernetesWatchTriggerTests(crdClient *rest.RESTClient) {
 	}
 
 	// update
+	kubernetesWatchTrigger.Metadata.ResourceVersion = e.Metadata.ResourceVersion
 	kubernetesWatchTrigger.Spec.Type = "service"
 	e, err = ei.Update(kubernetesWatchTrigger)
 	panicIf(err)
@@ -362,9 +373,9 @@ func kubernetesWatchTriggerTests(crdClient *rest.RESTClient) {
 	el, err := ei.List(metav1.ListOptions{})
 	panicIf(err)
 	if len(el.Items) != 1 {
-		log.Panicf("wrong count from list: %v", el)
+		log.Panicf("wrong count from kubeWatcher list: %v", len(el.Items))
 	}
-	if el.Items[0].Spec.Type != kubernetesWatchTrigger.Spec.Type {
+	if el.Items[0].Spec.Type != e.Spec.Type {
 		log.Panicf("bad object from list: %v", el.Items[0])
 	}
 
@@ -377,6 +388,7 @@ func kubernetesWatchTriggerTests(crdClient *rest.RESTClient) {
 	panicIf(err)
 
 	start := time.Now()
+	kubernetesWatchTrigger.Metadata.ResourceVersion = ""
 	e, err = ei.Create(kubernetesWatchTrigger)
 	panicIf(err)
 	defer ei.Delete(e.Metadata.Name, nil)
