@@ -55,7 +55,7 @@ func EnsureFissionCRDs(clientset *apiextensionsclient.Clientset) error {
 			Spec: apiextensionsv1beta1.CustomResourceDefinitionSpec{
 				Group:   crdGroupName,
 				Version: crdVersion,
-				Scope:   apiextensionsv1beta1.ClusterScoped,
+				Scope:   apiextensionsv1beta1.NamespaceScoped,
 				Names: apiextensionsv1beta1.CustomResourceDefinitionNames{
 					Kind:     "Function",
 					Plural:   "functions",
@@ -71,7 +71,7 @@ func EnsureFissionCRDs(clientset *apiextensionsclient.Clientset) error {
 			Spec: apiextensionsv1beta1.CustomResourceDefinitionSpec{
 				Group:   crdGroupName,
 				Version: crdVersion,
-				Scope:   apiextensionsv1beta1.ClusterScoped,
+				Scope:   apiextensionsv1beta1.NamespaceScoped,
 				Names: apiextensionsv1beta1.CustomResourceDefinitionNames{
 					Kind:     "Environment",
 					Plural:   "environments",
@@ -87,7 +87,7 @@ func EnsureFissionCRDs(clientset *apiextensionsclient.Clientset) error {
 			Spec: apiextensionsv1beta1.CustomResourceDefinitionSpec{
 				Group:   crdGroupName,
 				Version: crdVersion,
-				Scope:   apiextensionsv1beta1.ClusterScoped,
+				Scope:   apiextensionsv1beta1.NamespaceScoped,
 				Names: apiextensionsv1beta1.CustomResourceDefinitionNames{
 					Kind:     "Httptrigger",
 					Plural:   "httptriggers",
@@ -103,7 +103,7 @@ func EnsureFissionCRDs(clientset *apiextensionsclient.Clientset) error {
 			Spec: apiextensionsv1beta1.CustomResourceDefinitionSpec{
 				Group:   crdGroupName,
 				Version: crdVersion,
-				Scope:   apiextensionsv1beta1.ClusterScoped,
+				Scope:   apiextensionsv1beta1.NamespaceScoped,
 				Names: apiextensionsv1beta1.CustomResourceDefinitionNames{
 					Kind:     "Kuberneteswatchtrigger",
 					Plural:   "kuberneteswatchtriggers",
@@ -119,7 +119,7 @@ func EnsureFissionCRDs(clientset *apiextensionsclient.Clientset) error {
 			Spec: apiextensionsv1beta1.CustomResourceDefinitionSpec{
 				Group:   crdGroupName,
 				Version: crdVersion,
-				Scope:   apiextensionsv1beta1.ClusterScoped,
+				Scope:   apiextensionsv1beta1.NamespaceScoped,
 				Names: apiextensionsv1beta1.CustomResourceDefinitionNames{
 					Kind:     "Timetrigger",
 					Plural:   "timetriggers",
@@ -135,7 +135,7 @@ func EnsureFissionCRDs(clientset *apiextensionsclient.Clientset) error {
 			Spec: apiextensionsv1beta1.CustomResourceDefinitionSpec{
 				Group:   crdGroupName,
 				Version: crdVersion,
-				Scope:   apiextensionsv1beta1.ClusterScoped,
+				Scope:   apiextensionsv1beta1.NamespaceScoped,
 				Names: apiextensionsv1beta1.CustomResourceDefinitionNames{
 					Kind:     "Messagequeuetrigger",
 					Plural:   "messagequeuetriggers",
@@ -151,7 +151,7 @@ func EnsureFissionCRDs(clientset *apiextensionsclient.Clientset) error {
 			Spec: apiextensionsv1beta1.CustomResourceDefinitionSpec{
 				Group:   crdGroupName,
 				Version: crdVersion,
-				Scope:   apiextensionsv1beta1.ClusterScoped,
+				Scope:   apiextensionsv1beta1.NamespaceScoped,
 				Names: apiextensionsv1beta1.CustomResourceDefinitionNames{
 					Kind:     "Package",
 					Plural:   "packages",
