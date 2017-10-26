@@ -41,7 +41,9 @@ type HTTPTriggerSet struct {
 	poolmgr       *poolmgrClient.Client
 	resolver      *functionReferenceResolver
 	triggers      []tpr.Httptrigger
+	triggerStore  k8sCache.Store
 	functions     []tpr.Function
+	funcStore     k8sCache.Store
 	tprClient     *rest.RESTClient
 }
 
@@ -139,9 +141,6 @@ func (ts *HTTPTriggerSet) updateTriggerStatusFailed(ht *tpr.Httptrigger, err err
 }
 
 func (ts *HTTPTriggerSet) watchTriggers() {
-	// sync all http triggers
-	ts.syncTriggers()
-
 	watchlist := k8sCache.NewListWatchFromClient(ts.tprClient, "httptriggers", metav1.NamespaceDefault, fields.Everything())
 	listWatch := &k8sCache.ListWatch{
 		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
@@ -152,7 +151,7 @@ func (ts *HTTPTriggerSet) watchTriggers() {
 		},
 	}
 	resyncPeriod := 30 * time.Second
-	_, controller := k8sCache.NewInformer(listWatch, &tpr.Httptrigger{}, resyncPeriod,
+	store, controller := k8sCache.NewInformer(listWatch, &tpr.Httptrigger{}, resyncPeriod,
 		k8sCache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				ts.syncTriggers()
@@ -164,6 +163,7 @@ func (ts *HTTPTriggerSet) watchTriggers() {
 				ts.syncTriggers()
 			},
 		})
+	ts.triggerStore = store
 	stop := make(chan struct{})
 	defer func() {
 		stop <- struct{}{}
@@ -172,8 +172,6 @@ func (ts *HTTPTriggerSet) watchTriggers() {
 }
 
 func (ts *HTTPTriggerSet) watchFunctions() {
-	ts.syncTriggers()
-
 	watchlist := k8sCache.NewListWatchFromClient(ts.tprClient, "functions", metav1.NamespaceDefault, fields.Everything())
 	listWatch := &k8sCache.ListWatch{
 		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
@@ -184,7 +182,7 @@ func (ts *HTTPTriggerSet) watchFunctions() {
 		},
 	}
 	resyncPeriod := 30 * time.Second
-	_, controller := k8sCache.NewInformer(listWatch, &tpr.Function{}, resyncPeriod,
+	store, controller := k8sCache.NewInformer(listWatch, &tpr.Function{}, resyncPeriod,
 		k8sCache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				ts.syncTriggers()
@@ -208,6 +206,7 @@ func (ts *HTTPTriggerSet) watchFunctions() {
 				ts.syncTriggers()
 			},
 		})
+	ts.funcStore = store
 	stop := make(chan struct{})
 	defer func() {
 		stop <- struct{}{}
@@ -219,18 +218,20 @@ func (ts *HTTPTriggerSet) syncTriggers() {
 	log.Printf("Syncing http triggers")
 
 	// get triggers
-	triggers, err := ts.fissionClient.Httptriggers(metav1.NamespaceAll).List(metav1.ListOptions{})
-	if err != nil {
-		log.Fatalf("Failed to get http trigger list: %v", err)
+	latestTriggers := ts.triggerStore.List()
+	triggers := make([]tpr.Httptrigger, len(latestTriggers))
+	for _, t := range latestTriggers {
+		triggers = append(triggers, *t.(*tpr.Httptrigger))
 	}
-	ts.triggers = triggers.Items
+	ts.triggers = triggers
 
 	// get functions
-	functions, err := ts.fissionClient.Functions(metav1.NamespaceAll).List(metav1.ListOptions{})
-	if err != nil {
-		log.Fatalf("Failed to get function list: %v", err)
+	latestFunctions := ts.funcStore.List()
+	functions := make([]tpr.Function, len(latestFunctions))
+	for _, f := range latestFunctions {
+		functions = append(functions, *f.(*tpr.Function))
 	}
-	ts.functions = functions.Items
+	ts.functions = functions
 
 	// make a new router and use it
 	ts.mutableRouter.updateRouter(ts.getRouter())
