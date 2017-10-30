@@ -76,10 +76,10 @@ func (influx InfluxDB) GetLogs(filter LogFilter) ([]LogEntry, error) {
 	parameters["time"] = timestamp
 
 	if filter.Pod != "" {
-		queryCmd = "select * from \"log\" where \"funcuid\" = $funcuid AND \"pod\" = $pod AND \"time\" > $time ORDER BY time ASC"
+		queryCmd = "select log from \"log\" where \"funcuid\" = $funcuid AND \"pod\" = $pod AND \"time\" > $time ORDER BY time ASC"
 		parameters["pod"] = filter.Pod
 	} else {
-		queryCmd = "select * from \"log\" where \"funcuid\" = $funcuid AND \"time\" > $time ORDER BY time ASC"
+		queryCmd = "select log from \"log\" where \"funcuid\" = $funcuid AND \"time\" > $time ORDER BY time ASC"
 	}
 
 	query := influxdbClient.NewQueryWithParameters(queryCmd, INFLUXDB_DATABASE, "", parameters)

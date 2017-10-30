@@ -10,7 +10,7 @@ serviceType: LoadBalancer
 image: fission/fission-bundle
 
 ## Image pull policy
-pullPolicy: IfNotPresent
+pullPolicy: Always
 
 ## Fission image version
 imageTag: 0.3.0
@@ -44,7 +44,7 @@ openshift: false
 ## Logger config
 logger:
   influxdbAdmin: "admin"
-  fluentdImage: pvramesh/fluentd
+  fluentdImage: pvramesh/fluentd:flat
 
 ## Message queue trigger config
 ### NATS Streaming

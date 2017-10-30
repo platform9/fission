@@ -46,6 +46,7 @@ RUN apt-get -qq update && \
     td-agent-gem install --no-document fluent-plugin-detect-exceptions -v 0.0.4 && \
     td-agent-gem install --no-document fluent-plugin-influxdb && \
     td-agent-gem install --no-document fluent-plugin-kubernetes_metadata_filter && \
+    td-agent-gem install --no-document fluent-plugin-flatten-hash && \
     # Remove build tools
     apt-get remove -y -qq gcc make && \
     apt-get autoremove -y -qq && \
