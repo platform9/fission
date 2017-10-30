@@ -76,10 +76,10 @@ func (influx InfluxDB) GetLogs(filter LogFilter) ([]LogEntry, error) {
 	parameters["time"] = timestamp
 
 	if filter.Pod != "" {
-		queryCmd = "select log from \"log\" where \"funcuid\" = $funcuid AND \"pod\" = $pod AND \"time\" > $time ORDER BY time ASC"
+		queryCmd = "select * from \"log\" where \"funcuid\" = $funcuid AND \"pod\" = $pod AND \"time\" > $time ORDER BY time ASC"
 		parameters["pod"] = filter.Pod
 	} else {
-		queryCmd = "select log from \"log\" where \"funcuid\" = $funcuid AND \"time\" > $time ORDER BY time ASC"
+		queryCmd = "select * from \"log\" where \"funcuid\" = $funcuid AND \"time\" > $time ORDER BY time ASC"
 	}
 
 	query := influxdbClient.NewQueryWithParameters(queryCmd, INFLUXDB_DATABASE, "", parameters)
@@ -98,12 +98,12 @@ func (influx InfluxDB) GetLogs(filter LogFilter) ([]LogEntry, error) {
 				logEntries = append(logEntries, LogEntry{
 					Timestamp: t,
 					Container: row[2].(string),
-					FuncName:  row[3].(string),
-					FuncUid:   row[4].(string),
-					Message:   strings.TrimSuffix(row[5].(string), "\n"),
-					Namespace: row[6].(string),
-					Pod:       row[7].(string),
-					Stream:    row[8].(string),
+					FuncName:  row[8].(string),
+					FuncUid:   row[3].(string),
+					Message:   strings.TrimSuffix(row[17].(string), "\n"),
+					Namespace: row[14].(string),
+					Pod:       row[15].(string),
+					Stream:    row[18].(string),
 				})
 			}
 		}
