@@ -14,6 +14,7 @@ IMAGE=gcr.io/fission-ci/fission-bundle
 FETCHER_IMAGE=gcr.io/fission-ci/fetcher
 PYTHON_RUNTIME_IMAGE=gcr.io/fission-ci/python-env
 PYTHON_BUILDER_IMAGE=gcr.io/fission-ci/python-env-builder
+FLUENTD_IMAGE=gcr.io/fission-ci/fluentd
 TAG=test
 
 build_and_push_fission_bundle $IMAGE:$TAG
@@ -24,6 +25,8 @@ build_and_push_python_env_runtime $PYTHON_RUNTIME_IMAGE:$TAG
 
 build_and_push_python_env_builder $PYTHON_BUILDER_IMAGE:$TAG
 
+build_and_push_fluentd $FLUENTD_IMAGE:$TAG
+
 build_fission_cli
 
-install_and_test $IMAGE $TAG $FETCHER_IMAGE $TAG
+install_and_test $IMAGE $TAG $FETCHER_IMAGE $TAG $FLUENTD_IMAGE $TAG

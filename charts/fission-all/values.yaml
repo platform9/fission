@@ -10,7 +10,7 @@ serviceType: LoadBalancer
 image: fission/fission-bundle
 
 ## Image pull policy
-pullPolicy: Always
+pullPolicy: IfNotPresent 
 
 ## Fission image version
 imageTag: 0.3.0

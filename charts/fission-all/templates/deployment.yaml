@@ -348,7 +348,7 @@ metadata:
     svc: influxdb
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
 spec:
-  type: ClusterIP
+  type: NodePort 
   ports:
   - port: 8086
     targetPort: 8086
@@ -441,7 +441,7 @@ spec:
                   key: password
           volumeMounts:
             - name: container-log
-              mountPath: /var/log/
+              mountPath: /var/log/containers
               readOnly: true
             - name: docker-log
               mountPath: /var/lib/docker/containers
@@ -453,7 +453,7 @@ spec:
       volumes:
         - name: container-log
           hostPath:
-              path: /var/log/
+              path: /var/log/containers
         - name: docker-log
           hostPath:
               path: /var/lib/docker/containers
