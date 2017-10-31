@@ -25,6 +25,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 
 	uuid "github.com/satori/go.uuid"
@@ -106,6 +107,12 @@ func fileSize(filePath string) int64 {
 // upload a file and return a fission.Archive
 func createArchive(client *client.Client, fileName string) *fission.Archive {
 	var archive fission.Archive
+
+	// fetch archive from arbitrary url if fileName is a url
+	if strings.HasPrefix(fileName, "http://") || strings.HasPrefix(fileName, "https://") {
+		fileName = fetchArchiveFromArbitraryURL(fileName)
+	}
+
 	if fileSize(fileName) < fission.ArchiveLiteralSizeLimit {
 		contents := getContents(fileName)
 		archive.Type = fission.ArchiveTypeLiteral
@@ -191,4 +198,71 @@ func getContents(filePath string) []byte {
 	code, err = ioutil.ReadFile(filePath)
 	checkErr(err, fmt.Sprintf("read %v", filePath))
 	return code
+}
+
+func getTempDir() (string, error) {
+	tmpDir := uuid.NewV4().String()
+	tmpPath := filepath.Join(os.TempDir(), tmpDir)
+	err := os.Mkdir(tmpPath, 0744)
+	return tmpPath, err
+}
+
+func writeArchiveToFile(fileName string, body []byte) error {
+	tmpDir, err := getTempDir()
+	if err != nil {
+		return err
+	}
+
+	path := filepath.Join(tmpDir, fileName+".tmp")
+	err = ioutil.WriteFile(path, body, 0644)
+	if err != nil {
+		return err
+	}
+
+	err = os.Rename(path, fileName)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// fetchArchiveFromArbitraryURL fetches archive file from arbitrary url
+// and write it to temp file for further usage
+func fetchArchiveFromArbitraryURL(fileUrl string) string {
+	body, err := downloadURL(fileUrl)
+	checkErr(err, fmt.Sprintf("download from url: %v", fileUrl))
+
+	tmpDir, err := getTempDir()
+	checkErr(err, "create temp directory")
+
+	tmpFilename := uuid.NewV4().String()
+	destination := filepath.Join(tmpDir, tmpFilename)
+	err = os.Mkdir(tmpDir, 0744)
+	checkErr(err, "create temp directory")
+
+	err = writeArchiveToFile(destination, body)
+	checkErr(err, "write archive to file")
+
+	return destination
+}
+
+// downloadURL downloads file from given url
+func downloadURL(fileUrl string) ([]byte, error) {
+	resp, err := http.Get(fileUrl)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("%v - HTTP response returned non 200 status", resp.StatusCode)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	return body, nil
 }
