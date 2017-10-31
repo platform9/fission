@@ -44,7 +44,7 @@ openshift: false
 ## Logger config
 logger:
   influxdbAdmin: "admin"
-  fluentdImage: pvramesh/fluentd:flat
+  fluentdImage: fission/fluentd
 
 ## Message queue trigger config
 ### NATS Streaming

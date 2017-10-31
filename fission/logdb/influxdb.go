@@ -96,14 +96,15 @@ func (influx InfluxDB) GetLogs(filter LogFilter) ([]LogEntry, error) {
 					log.Fatal(err)
 				}
 				logEntries = append(logEntries, LogEntry{
+					//The attributes of the LogEntry are selected as relative to their position in InfluxDB's line protocol response
 					Timestamp: t,
-					Container: row[2].(string),
-					FuncName:  row[8].(string),
-					FuncUid:   row[3].(string),
-					Message:   strings.TrimSuffix(row[17].(string), "\n"),
-					Namespace: row[14].(string),
-					Pod:       row[15].(string),
-					Stream:    row[18].(string),
+					Container: row[2].(string), //docker_container_id
+					FuncName:  row[8].(string), //kubernetes_labels_functionName
+					FuncUid:   row[3].(string), //funcuid
+					Message:   strings.TrimSuffix(row[17].(string), "\n"), //log
+					Namespace: row[14].(string), //kubernetes_namespace_name
+					Pod:       row[15].(string), //kubernetes_pod_name
+					Stream:    row[18].(string), //stream
 				})
 			}
 		}
