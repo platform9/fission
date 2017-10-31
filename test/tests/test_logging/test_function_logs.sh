@@ -38,5 +38,8 @@ sleep 10
 logs=$(fission function logs --name $fn -d)
 echo "$logs"
 
+echo "Cleanup route"
+var=$(fission route list | grep $fn | awk '{print $1;}')
+fission route delete --name $var
 
 echo "All done."
