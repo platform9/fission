@@ -101,7 +101,7 @@ func (influx InfluxDB) GetLogs(filter LogFilter) ([]LogEntry, error) {
 					Container: row[2].(string), //docker_container_id
 					FuncName:  row[8].(string), //kubernetes_labels_functionName
 					FuncUid:   row[3].(string), //funcuid
-					Message:   strings.TrimSuffix(row[17].(string), "\n"), //log
+					Message:   strings.TrimSuffix(row[17].(string), "\n"), //log field
 					Namespace: row[14].(string), //kubernetes_namespace_name
 					Pod:       row[15].(string), //kubernetes_pod_name
 					Stream:    row[18].(string), //stream
