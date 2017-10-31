@@ -35,7 +35,7 @@ echo "Grabbing logs, should have 4 calls in logs"
 
 sleep 10
 
-logs=$(fission function logs --name $fn)
+logs=$(fission function logs --name $fn -d)
 echo "$logs"
 
 
