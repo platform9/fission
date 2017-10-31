@@ -118,7 +118,7 @@ func fnCreate(c *cli.Context) error {
 		envName = pkg.Spec.Environment.Name
 	} else if len(srcArchiveName) != 0 || len(deployArchiveName) != 0 {
 		// create new package
-		pkgMetadata = createPackage(client, envName, srcArchiveName, deployArchiveName, buildcmd, "(empty)")
+		pkgMetadata = createPackage(client, envName, srcArchiveName, deployArchiveName, buildcmd, "")
 	} else {
 		fatal("Need --env or --code or --deploy or --src or --pkg argument.")
 	}

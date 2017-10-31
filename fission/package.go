@@ -18,16 +18,11 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
 	"text/tabwriter"
 
-	"github.com/mholt/archiver"
-	"github.com/satori/go.uuid"
 	"github.com/urfave/cli"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -50,51 +45,17 @@ func getFunctionsByPackage(client *client.Client, pkgName string) ([]crd.Functio
 	return fns, nil
 }
 
-func writeFile(fileName string, body []byte) error {
-	tmpDir := uuid.NewV4().String()
-	tmpPath := filepath.Join(os.TempDir(), tmpDir)
-	err := os.Mkdir(tmpPath, 0744)
-	if err != nil {
-		return err
-	}
-
-	path := filepath.Join(tmpPath, fileName+".tmp")
-	err = ioutil.WriteFile(path, body, 0644)
-	if err != nil {
-		return err
-	}
-
-	if archiver.Zip.Match(path) {
-		fileName = fileName + ".zip"
-	}
-
-	err = os.Rename(path, fileName)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func downloadUrl(client *client.Client, fileUrl string) ([]byte, error) {
+// downloadStoragesvcURL downloads and return archive content with given storage service url
+func downloadStoragesvcURL(client *client.Client, fileUrl string) []byte {
 	u, err := url.ParseRequestURI(fileUrl)
 	if err != nil {
-		return nil, err
+		return nil
 	}
 	// replace in-cluster storage service host with controller server url
 	fileDownloadUrl := strings.TrimSuffix(client.Url, "/") + "/proxy/storage" + u.RequestURI()
-	resp, err := http.Get(fileDownloadUrl)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	return body, nil
+	body, err := downloadURL(fileDownloadUrl)
+	checkErr(err, fmt.Sprintf("download from storage service url: %v", fileUrl))
+	return body
 }
 
 func pkgCreate(c *cli.Context) error {
@@ -202,6 +163,8 @@ func pkgSourceGet(c *cli.Context) error {
 		fatal("Need name of package, use --name")
 	}
 
+	output := c.String("output")
+
 	pkg, err := client.PackageGet(&metav1.ObjectMeta{
 		Namespace: metav1.NamespaceDefault,
 		Name:      pkgName,
@@ -215,13 +178,15 @@ func pkgSourceGet(c *cli.Context) error {
 	if pkg.Spec.Source.Type == fission.ArchiveTypeLiteral {
 		sourceVal = pkg.Spec.Source.Literal
 	} else if pkg.Spec.Source.Type == fission.ArchiveTypeUrl {
-		sourceVal, err = downloadUrl(client, pkg.Spec.Source.URL)
-		if err != nil {
-			fatal(fmt.Sprintf("Error downloading source archive from storage service: %v", err))
-		}
+		sourceVal = downloadStoragesvcURL(client, pkg.Spec.Source.URL)
 	}
 
-	os.Stdout.Write(sourceVal)
+	if len(output) > 0 {
+		writeArchiveToFile(output, sourceVal)
+	} else {
+		os.Stdout.Write(sourceVal)
+	}
+
 	return nil
 }
 
@@ -232,6 +197,8 @@ func pkgDeployGet(c *cli.Context) error {
 	if len(pkgName) == 0 {
 		fatal("Need name of package, use --name")
 	}
+
+	output := c.String("output")
 
 	pkg, err := client.PackageGet(&metav1.ObjectMeta{
 		Namespace: metav1.NamespaceDefault,
@@ -246,13 +213,15 @@ func pkgDeployGet(c *cli.Context) error {
 	if pkg.Spec.Deployment.Type == fission.ArchiveTypeLiteral {
 		deployVal = pkg.Spec.Deployment.Literal
 	} else if pkg.Spec.Deployment.Type == fission.ArchiveTypeUrl {
-		deployVal, err = downloadUrl(client, pkg.Spec.Deployment.URL)
-		if err != nil {
-			fatal(fmt.Sprintf("Error downloading source archive from storage service: %v", err))
-		}
+		deployVal = downloadStoragesvcURL(client, pkg.Spec.Deployment.URL)
 	}
 
-	os.Stdout.Write(deployVal)
+	if len(output) > 0 {
+		writeArchiveToFile(output, deployVal)
+	} else {
+		os.Stdout.Write(deployVal)
+	}
+
 	return nil
 }
 
