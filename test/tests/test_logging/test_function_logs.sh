@@ -33,7 +33,7 @@ curl http://$FISSION_ROUTER/logtest
 
 echo "Grabbing logs, should have 4 calls in logs"
 
-sleep 5
+sleep 10
 
 logs=$(fission function logs --name $fn)
 echo "$logs"
