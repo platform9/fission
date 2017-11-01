@@ -33,10 +33,11 @@ curl http://$FISSION_ROUTER/logtest
 
 echo "Grabbing logs, should have 4 calls in logs"
 
-sleep 10
+sleep 15
 
-logs=$(fission function logs --name $fn -d)
-echo "$logs"
+logs=$(fission function logs --name $fn)
+num=$(echo "$logs" | grep 'log test' | wc -l)
+echo $num
 
 echo "Cleanup route"
 var=$(fission route list | grep $fn | awk '{print $1;}')
