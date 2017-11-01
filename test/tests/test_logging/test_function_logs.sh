@@ -6,6 +6,13 @@ ROOT=$(dirname $0)/../..
 
 fn=nodejs-logtest
 
+
+function cleanup {
+    echo "Cleanup route"
+    var=$(fission route list | grep $fn | awk '{print $1;}')
+    fission route delete --name $var
+}
+
 # Create a hello world function in nodejs, test it with an http trigger
 echo "Pre-test cleanup"
 fission env delete --name nodejs || true
@@ -35,12 +42,16 @@ echo "Grabbing logs, should have 4 calls in logs"
 
 sleep 15
 
+echo "woke up"
 logs=$(fission function logs --name $fn)
 num=$(echo "$logs" | grep 'log test' | wc -l)
 echo $num
 
-echo "Cleanup route"
-var=$(fission route list | grep $fn | awk '{print $1;}')
-fission route delete --name $var
-
+if [ $num -ne 4 ]
+then
+	echo "Test Failed"
+    trap cleanup EXIT
+fi
+cleanup
+ 
 echo "All done."
