@@ -76,33 +76,19 @@ func fnCreate(c *cli.Context) error {
 		fatal("Need --name argument.")
 	}
 
-	envName := c.String("env")
-	if len(envName) == 0 {
-		fatal("Need --env argument.")
-	}
-
-	srcArchiveName := c.String("src")
-	deployArchiveName := c.String("code")
-	if len(deployArchiveName) == 0 {
-		deployArchiveName = c.String("deploy")
-	}
-
-	pkgName := c.String("pkg")
-
-	entrypoint := c.String("entrypoint")
-	buildcmd := c.String("buildcmd")
-
 	fnList, err := client.FunctionList()
 	checkErr(err, "get function list")
 	// check function existence before creating package
 	for _, fn := range fnList {
 		if fn.Metadata.Name == fnName {
 			fatal("Function with the same name already exists.")
-			break
 		}
 	}
+	entrypoint := c.String("entrypoint")
+	pkgName := c.String("pkg")
 
 	var pkgMetadata *metav1.ObjectMeta
+	var envName string
 
 	if len(pkgName) > 0 {
 		// use existing package
@@ -110,17 +96,30 @@ func fnCreate(c *cli.Context) error {
 			Namespace: metav1.NamespaceDefault,
 			Name:      pkgName,
 		})
-		if err != nil {
-			return err
-		}
+		checkErr(err, fmt.Sprintf("read package '%v'", pkgName))
 		pkgMetadata = &pkg.Metadata
-		// use package environment
 		envName = pkg.Spec.Environment.Name
-	} else if len(srcArchiveName) != 0 || len(deployArchiveName) != 0 {
+	} else {
+		// need to specify environment for creating new package
+		envName = c.String("env")
+		if len(envName) == 0 {
+			fatal("Need --env argument.")
+		}
+
+		srcArchiveName := c.String("src")
+		deployArchiveName := c.String("code")
+		if len(deployArchiveName) == 0 {
+			deployArchiveName = c.String("deploy")
+		}
+		// fatal when both src & deploy archive are empty
+		if len(srcArchiveName) == 0 && len(deployArchiveName) == 0 {
+			fatal("Need --code or --deploy or --src argument.")
+		}
+
+		buildcmd := c.String("buildcmd")
+
 		// create new package
 		pkgMetadata = createPackage(client, envName, srcArchiveName, deployArchiveName, buildcmd, "")
-	} else {
-		fatal("Need --env or --code or --deploy or --src or --pkg argument.")
 	}
 
 	function := &crd.Function{
