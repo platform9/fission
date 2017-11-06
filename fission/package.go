@@ -75,7 +75,8 @@ func pkgCreate(c *cli.Context) error {
 		fatal("Need --src to specify source archive, or use --deploy to specify deployment archive.")
 	}
 
-	createPackage(client, envName, srcArchiveName, deployArchiveName, buildcmd, description)
+	meta := createPackage(client, envName, srcArchiveName, deployArchiveName, buildcmd, description)
+	fmt.Printf("Package %v is created\n", meta.GetName())
 
 	return nil
 }
@@ -151,6 +152,8 @@ func pkgUpdate(c *cli.Context) error {
 		_, err := client.FunctionUpdate(&fn)
 		checkErr(err, "update function")
 	}
+
+	fmt.Printf("Package %v is updated\n", newPkgMeta.GetName())
 
 	return err
 }
