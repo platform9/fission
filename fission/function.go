@@ -243,10 +243,6 @@ func fnUpdate(c *cli.Context) error {
 		fatal("Need name of function, use --name")
 	}
 
-	if len(c.String("package")) > 0 {
-		fatal("--package is deprecated, please use --deploy instead.")
-	}
-
 	function, err := client.FunctionGet(&metav1.ObjectMeta{
 		Name:      fnName,
 		Namespace: metav1.NamespaceDefault,
@@ -260,45 +256,58 @@ func fnUpdate(c *cli.Context) error {
 	}
 	srcArchiveName := c.String("src")
 	pkgName := c.String("pkg")
+	entrypoint := c.String("entrypoint")
+	buildcmd := c.String("buildcmd")
 
-	if len(envName) == 0 && len(deployArchiveName) == 0 && len(srcArchiveName) == 0 && len(pkgName) == 0 {
-		fatal("Need --env or --code or --deploy or --src or --pkg argument.")
+	if len(envName) == 0 && len(deployArchiveName) == 0 && len(srcArchiveName) == 0 && len(pkgName) == 0 &&
+		len(entrypoint) == 0 && len(buildcmd) == 0 {
+		fatal("Need --env or --code or --deploy or --src or --pkg or --entrypoint or --buildcmd argument.")
+	} else if len(pkgName) > 0 && (len(deployArchiveName) != 0 || len(srcArchiveName) != 0 || len(buildcmd) != 0 || len(envName) != 0) {
+		fatal("Please use package command to update package's src/deploy archive, environment and build command.")
 	}
 
 	if len(envName) > 0 {
 		function.Spec.Environment.Name = envName
 	}
 
-	entrypoint := c.String("entrypoint")
 	if len(entrypoint) > 0 {
 		function.Spec.Package.FunctionName = entrypoint
 	}
 
-	pkg, err := client.PackageGet(&metav1.ObjectMeta{
-		Name:      function.Spec.Package.PackageRef.Name,
-		Namespace: function.Spec.Package.PackageRef.Namespace,
-	})
-	checkErr(err, fmt.Sprintf("read package '%v'", function.Spec.Package.PackageRef.Name))
+	var pkgMetadata *metav1.ObjectMeta
 
-	buildcmd := c.String("buildcmd")
-	if len(buildcmd) == 0 {
+	if len(pkgName) > 0 {
+		pkg, err := client.PackageGet(&metav1.ObjectMeta{
+			Namespace: metav1.NamespaceDefault,
+			Name:      pkgName,
+		})
+		checkErr(err, fmt.Sprintf("read package '%v'", pkgName))
+		pkgMetadata = &pkg.Metadata
+	} else {
 		// use previous build command if not specified.
-		buildcmd = pkg.Spec.BuildCommand
+		if len(buildcmd) == 0 {
+			pkg, err := client.PackageGet(&metav1.ObjectMeta{
+				Name:      function.Spec.Package.PackageRef.Name,
+				Namespace: function.Spec.Package.PackageRef.Namespace,
+			})
+			checkErr(err, fmt.Sprintf("read package '%v'", function.Spec.Package.PackageRef.Name))
+			buildcmd = pkg.Spec.BuildCommand
+		}
+		if len(deployArchiveName) > 0 || len(srcArchiveName) > 0 {
+			// create a new package for function
+			pkgMetadata = createPackage(client,
+				function.Spec.Environment.Name, srcArchiveName, deployArchiveName, buildcmd, "")
+		}
 	}
 
-	if len(deployArchiveName) > 0 || len(srcArchiveName) > 0 {
-		// create a new package for function
-
-		pkgMetadata := createPackage(client,
-			function.Spec.Environment.Name, srcArchiveName, deployArchiveName, buildcmd, "(empty)")
-
-		if pkgMetadata != nil {
-			// update function spec with resource version
-			function.Spec.Package.PackageRef = fission.PackageRef{
-				Namespace:       pkgMetadata.Namespace,
-				Name:            pkgMetadata.Name,
-				ResourceVersion: pkgMetadata.ResourceVersion,
-			}
+	// pkgMetadata is nil when a user updates envName or
+	// entrypoint only. Check it before updating function pkg info.
+	if pkgMetadata != nil {
+		// update function spec with new package metadata
+		function.Spec.Package.PackageRef = fission.PackageRef{
+			Namespace:       pkgMetadata.Namespace,
+			Name:            pkgMetadata.Name,
+			ResourceVersion: pkgMetadata.ResourceVersion,
 		}
 	}
 
