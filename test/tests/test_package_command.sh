@@ -8,8 +8,8 @@ set -euo pipefail
 # able to work.
 
 ROOT=$(dirname $0)/../..
-PYTHON_RUNTIME_IMAGE=gcr.io/fission-ci/python-env:test
-PYTHON_BUILDER_IMAGE=gcr.io/fission-ci/python-env-builder:test
+PYTHON_RUNTIME_IMAGE=gcr.io/fission-ci/python3-env:test
+PYTHON_BUILDER_IMAGE=gcr.io/fission-ci/python3-env-builder:test
 
 fn=python-srcbuild-$(date +%s)
 

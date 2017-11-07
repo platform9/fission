@@ -211,10 +211,13 @@ dump_fission_crd() {
 }
 
 dump_fission_crds() {
-    dump_fission_crd function.fission.io    
-    dump_fission_crd package.fission.io    
-    dump_fission_crd httptrigger.fission.io    
-    dump_fission_crd environment.fission.io    
+    dump_fission_crd environments.fission.io
+    dump_fission_crd functions.fission.io
+    dump_fission_crd httptriggers.fission.io
+    dump_fission_crd kuberneteswatchtriggers.fission.io
+    dump_fission_crd messagequeuetriggers.fission.io
+    dump_fission_crd packages.fission.io
+    dump_fission_crd timetriggers.fission.io
 }
 
 dump_env_pods() {
