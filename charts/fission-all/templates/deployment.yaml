@@ -348,7 +348,7 @@ metadata:
     svc: influxdb
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
 spec:
-  type: NodePort 
+  type: ClusterIP 
   ports:
   - port: 8086
     targetPort: 8086

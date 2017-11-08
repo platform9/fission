@@ -11,6 +11,7 @@ function cleanup {
     echo "Cleanup route"
     var=$(fission route list | grep $fn | awk '{print $1;}')
     fission route delete --name $var
+    fission function delete --name $fn
 }
 
 # Create a hello world function in nodejs, test it with an http trigger
@@ -49,7 +50,7 @@ echo $num
 
 if [ $num -ne 4 ]
 then
-	echo "Test Failed"
+    echo "Test Failed"
     trap cleanup EXIT
 fi
 cleanup
