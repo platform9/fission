@@ -127,6 +127,8 @@ helm_install_fission() {
 	 --namespace $ns        \
 	 --debug                \
 	 $ROOT/charts/fission-all
+
+    helm list
 }
 
 wait_for_service() {
