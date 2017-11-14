@@ -46,8 +46,9 @@ import (
 func buildPackage(fissionClient *crd.FissionClient, kubernetesClient *kubernetes.Clientset,
 	builderNamespace string, storageSvcUrl string, buildReq BuildRequest) (buildLogs string, err error) {
 
-	pkg, err := fissionClient.Packages(
-		buildReq.Package.Namespace).Get(buildReq.Package.Name)
+	pkg, err := fissionClient.
+		Packages(buildReq.Package.Namespace).
+		Get(buildReq.Package.Name)
 	if err != nil {
 		e := fmt.Sprintf("Error getting function CRD info: %v", err)
 		log.Println(e)
@@ -107,9 +108,14 @@ func buildPackage(fissionClient *crd.FissionClient, kubernetesClient *kubernetes
 		return e, fission.MakeError(500, e)
 	}
 
+	buildCmd := pkg.Spec.BuildCommand
+	if len(buildCmd) == 0 {
+		buildCmd = env.Spec.Builder.Command
+	}
+
 	pkgBuildReq := &builder.PackageBuildRequest{
 		SrcPkgFilename: srcPkgFilename,
-		BuildCommand:   pkg.Spec.BuildCommand,
+		BuildCommand:   buildCmd,
 	}
 
 	log.Printf("Start building with source package: %v", srcPkgFilename)
