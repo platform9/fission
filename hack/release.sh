@@ -93,6 +93,24 @@ push_fetcher_image() {
     docker push $tag
 }
 
+build_builder_image() {
+    version=$1
+    tag=fission/builder:$version
+
+    pushd $DIR/builder/cmd
+
+    ./build.sh
+    docker build -t $tag .
+
+    popd
+}
+
+push_builder_image() {
+    version=$1
+    tag=fission/builder:$version
+    docker push $tag
+}
+
 build_and_push_env_image() {
     version=$1
     envdir=$2
@@ -172,13 +190,15 @@ build_all() {
     
     build_fission_bundle_image $version
     build_fetcher_image $version
+    build_builder_image $version
     build_all_cli
     build_charts $version
 }
 
 push_all() {
     push_fission_bundle_image $version
-    push_fetcher_image $version    
+    push_fetcher_image $version
+    push_builder_image $version
 }
 
 tag_and_release() {
