@@ -31,6 +31,7 @@ import (
 	"time"
 
 	"github.com/dchest/uniuri"
+	"io"
 )
 
 const (
@@ -136,12 +137,18 @@ func (builder *Builder) build(command string, srcPkgPath string, deployPkgPath s
 		fmt.Sprintf("%v=%v", envDeployPkg, deployPkgPath),
 	)
 
-	cmdReader, err := cmd.StdoutPipe()
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return "", errors.New(fmt.Sprintf("Error creating stdout pipe for cmd: %v", err.Error()))
 	}
 
-	scanner := bufio.NewScanner(cmdReader)
+	stderr,  err := cmd.StderrPipe()
+	if err != nil {
+		return "", errors.New(fmt.Sprintf("Error creating stderr pipe for cmd: %v", err.Error()))
+	}
+
+	out := io.MultiReader(stdout, stderr)
+	scanner := bufio.NewScanner(out)
 
 	err = cmd.Start()
 	if err != nil {
@@ -151,21 +158,28 @@ func (builder *Builder) build(command string, srcPkgPath string, deployPkgPath s
 	var buildLogs string
 
 	fmt.Println("\n=== Build Logs ===")
+	// Init logs
+	fmt.Printf("command=%v\n", command)
+	fmt.Printf("env=%v\n", cmd.Env)
+
+	// Runtime logs
 	for scanner.Scan() {
 		output := scanner.Text()
 		fmt.Println(output)
 		buildLogs += fmt.Sprintf("%v\n", output)
 	}
-	fmt.Println("==================\n")
 
 	if err := scanner.Err(); err != nil {
+		fmt.Println(err)
 		return "", errors.New(fmt.Sprintf("Error reading cmd output: %v", err.Error()))
 	}
 
 	err = cmd.Wait()
 	if err != nil {
-		return "", errors.New(fmt.Sprintf("Error waiting for cmd: %v", err.Error()))
+		fmt.Println(err)
+		return "", errors.New(fmt.Sprintf("Error waiting for cmd '%v': %v", command, err.Error()))
 	}
+	fmt.Println("==================\n")
 
 	return buildLogs, nil
 }

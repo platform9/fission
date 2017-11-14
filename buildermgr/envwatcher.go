@@ -449,7 +449,7 @@ func (envw *environmentWatcher) createBuilderDeployment(env *crd.Environment) (*
 						{
 							Name:                   "builder",
 							Image:                  env.Spec.Builder.Image,
-							ImagePullPolicy:        apiv1.PullAlways,
+							ImagePullPolicy:        apiv1.PullIfNotPresent,
 							TerminationMessagePath: "/dev/termination-log",
 							VolumeMounts: []apiv1.VolumeMount{
 								{
