@@ -150,10 +150,15 @@ type (
 		// default 8888.
 		FunctionEndpointPort int32 `json:"functionendpointport"`
 	}
+
 	Builder struct {
+		// Image for containing the language runtime.
 		Image   string `json:"image"`
+
+		// (Optional) Default build command to run for this build environment.
 		Command string `json:"command"`
 	}
+
 	EnvironmentSpec struct {
 		// Environment API version
 		Version int `json:"version"`
