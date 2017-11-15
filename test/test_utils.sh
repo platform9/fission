@@ -50,9 +50,17 @@ build_and_push_fetcher() {
     popd
 }
 
-build_builder() {
+
+build_and_push_builder() {
+    image_tag=$1
+
     pushd $ROOT/builder/cmd
     ./build.sh
+    docker build -t $image_tag .
+
+    gcloud_login
+
+    gcloud docker -- push $image_tag
     popd
 }
 
@@ -85,12 +93,11 @@ build_and_push_env_runtime() {
 build_and_push_env_builder() {
     env=$1
     image_tag=$2
+    builder_image=$3
 
     pushd $ROOT/environments/$env/builder
-    builderDir=${GOPATH}/src/github.com/fission/fission/builder/cmd
-    cp ${builderDir}/builder .
 
-    docker build -t $image_tag .
+    docker build -t $image_tag --build-arg BUILDER_IMAGE=${builder_image} .
 
     gcloud_login
     
@@ -250,6 +257,15 @@ dump_all_fission_resources() {
     echo "--- All objects in the fission namespace $ns ---"
     kubectl -n $ns get all 
     echo "--- End objects in the fission namespace $ns ---"
+}
+
+dump_system_info() {
+    echo "--- System Info ---"
+    go version
+    docker version
+    kubectl version
+    helm version
+    echo "--- End System Info ---"
 }
 
 dump_logs() {

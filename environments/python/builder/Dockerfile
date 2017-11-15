@@ -1,4 +1,5 @@
-FROM fission/builder
+ARG BUILDER_IMAGE=fission/builder:latest
+FROM ${BUILDER_IMAGE}
 
 RUN apk update
 RUN apk add --no-cache python3 python3-dev build-base

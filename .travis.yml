@@ -12,6 +12,13 @@ cache:
     - $HOME/google-cloud-sdk/
     - $HOME/k8scli
 
+services:
+  - docker
+
+before_install:
+  - sudo apt-get update
+  - sudo apt-get -y -o Dpkg::Options::="--force-confnew" install docker-ce
+
 install:
   - go get github.com/Masterminds/glide
   - hack/travis-kube-setup.sh
