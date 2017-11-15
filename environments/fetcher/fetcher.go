@@ -245,8 +245,7 @@ func (fetcher *Fetcher) FetchHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("Checking secrets/cfgmaps")
-	log.Printf("%v", req.SecretList)
-	if (len(req.SecretList[len(req.SecretList)-1].Name) > 0){
+	if len(req.SecretList) > 0 {
 		log.Println("writing secrets to file")
 
 		for _, secret := range req.SecretList {
@@ -295,7 +294,7 @@ func (fetcher *Fetcher) FetchHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 
-	if (len(req.ConfigMapList[len(req.ConfigMapList)-1].Name) > 0){
+	if len(req.ConfigMapList) > 0 {
 		log.Println("writing configMaps to file")
 		for _, config := range req.ConfigMapList {
 
