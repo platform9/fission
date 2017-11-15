@@ -32,6 +32,7 @@ import (
 
 	"github.com/dchest/uniuri"
 	"io"
+	"path"
 )
 
 const (
@@ -130,7 +131,17 @@ func (builder *Builder) Handler(w http.ResponseWriter, r *http.Request) {
 
 func (builder *Builder) build(command string, srcPkgPath string, deployPkgPath string) (string, error) {
 	cmd := exec.Command(command)
-	cmd.Dir = srcPkgPath
+
+	fi, err := os.Stat(srcPkgPath)
+	if err != nil {
+		return "", errors.New(fmt.Sprintf("could not find srcPkgPath: '%s'", srcPkgPath))
+	}
+	if fi.IsDir() {
+		cmd.Dir = srcPkgPath
+	} else {
+		cmd.Dir = path.Dir(srcPkgPath)
+	}
+
 	// set env variables for build command
 	cmd.Env = append(os.Environ(),
 		fmt.Sprintf("%v=%v", envSrcPkg, srcPkgPath),
@@ -142,17 +153,9 @@ func (builder *Builder) build(command string, srcPkgPath string, deployPkgPath s
 		return "", errors.New(fmt.Sprintf("Error creating stdout pipe for cmd: %v", err.Error()))
 	}
 
-	stderr,  err := cmd.StderrPipe()
+	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		return "", errors.New(fmt.Sprintf("Error creating stderr pipe for cmd: %v", err.Error()))
-	}
-
-	out := io.MultiReader(stdout, stderr)
-	scanner := bufio.NewScanner(out)
-
-	err = cmd.Start()
-	if err != nil {
-		return "", errors.New(fmt.Sprintf("Error starting cmd: %v", err.Error()))
 	}
 
 	var buildLogs string
@@ -161,6 +164,14 @@ func (builder *Builder) build(command string, srcPkgPath string, deployPkgPath s
 	// Init logs
 	fmt.Printf("command=%v\n", command)
 	fmt.Printf("env=%v\n", cmd.Env)
+
+	out := io.MultiReader(stdout, stderr)
+	scanner := bufio.NewScanner(out)
+
+	err = cmd.Start()
+	if err != nil {
+		return "", errors.New(fmt.Sprintf("Error starting cmd: %v", err.Error()))
+	}
 
 	// Runtime logs
 	for scanner.Scan() {

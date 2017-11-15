@@ -153,7 +153,7 @@ type (
 
 	Builder struct {
 		// Image for containing the language runtime.
-		Image   string `json:"image"`
+		Image string `json:"image"`
 
 		// (Optional) Default build command to run for this build environment.
 		Command string `json:"command"`
