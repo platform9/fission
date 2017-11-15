@@ -17,6 +17,7 @@ import (
 	"github.com/mholt/archiver"
 	"github.com/satori/go.uuid"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
@@ -32,6 +33,8 @@ type (
 		Url           string            `json:"url"`
 		StorageSvcUrl string            `json:"storagesvcurl"`
 		Filename      string            `json:"filename"`
+		SecretList    []fission.SecretReference    `json:"secretList"`
+		ConfigMapList []fission.ConfigMapReference `json:"configMapList"`
 	}
 
 	// UploadRequest send from builder manager describes which
@@ -50,7 +53,10 @@ type (
 
 	Fetcher struct {
 		sharedVolumePath string
+		sharedSecretPath string
+		sharedConfigPath string
 		fissionClient    *crd.FissionClient
+		kubeClient *kubernetes.Clientset
 	}
 )
 
@@ -60,14 +66,17 @@ const (
 	FETCH_URL // remove this?
 )
 
-func MakeFetcher(sharedVolumePath string) *Fetcher {
-	fissionClient, _, _, err := crd.MakeFissionClient()
+func MakeFetcher(sharedVolumePath string, sharedSecretPath string, sharedConfigPath string) *Fetcher {
+	fissionClient, kubeClient, _, err := crd.MakeFissionClient()
 	if err != nil {
 		return nil
 	}
 	return &Fetcher{
 		sharedVolumePath: sharedVolumePath,
+		sharedSecretPath: sharedSecretPath,
+		sharedConfigPath: sharedConfigPath,
 		fissionClient:    fissionClient,
+		kubeClient: kubeClient,
 	}
 }
 
@@ -233,6 +242,103 @@ func (fetcher *Fetcher) FetchHandler(w http.ResponseWriter, r *http.Request) {
 		log.Println(err.Error())
 		http.Error(w, err.Error(), 500)
 		return
+	}
+
+	log.Printf("Checking secrets/cfgmaps")
+	log.Printf("%v", req.SecretList)
+	if (len(req.SecretList[len(req.SecretList)-1].Name) > 0){
+		log.Println("writing secrets to file")
+
+		for _, secret := range req.SecretList {
+
+			if len(secret.Name) == 0 {
+				continue
+			}
+			data, err := fetcher.kubeClient.CoreV1().Secrets(secret.Namespace).Get(secret.Name, metav1.GetOptions{})
+			
+			if err != nil{
+				e := fmt.Sprintf("Failed to get secret from kubeapi: %v", err)
+				log.Printf(e)
+				http.Error(w, e, 400)
+				return
+			}
+
+			body, err = data.Marshal()
+			if err != nil{
+				e := fmt.Sprintf("Failed to marshal secret: %v", err)
+				log.Printf(e)
+				http.Error(w, e, 400)
+				return
+			}
+
+			secretDir := filepath.Join(fetcher.sharedSecretPath, secret.Namespace)
+			err = os.MkdirAll(secretDir, 0777)
+			if err != nil{
+				e := fmt.Sprintf("Failed to create directory %v: %v", secretDir, err)
+				log.Printf(e)
+				http.Error(w, e, 500)
+				return
+			}
+
+			
+			secretPath := filepath.Join(secretDir, secret.Name)
+			err = ioutil.WriteFile(secretPath, body, 0600)
+			if err != nil{
+				e := fmt.Sprintf("Failed to write file %v: %v", secretPath, err)
+				log.Printf(e)
+				http.Error(w, e, 500)
+				return
+
+			}
+
+		}
+	}
+
+
+	if (len(req.ConfigMapList[len(req.ConfigMapList)-1].Name) > 0){
+		log.Println("writing configMaps to file")
+		for _, config := range req.ConfigMapList {
+
+			if len(config.Name) == 0 {
+				continue
+			}
+			data, err := fetcher.kubeClient.CoreV1().ConfigMaps(config.Namespace).Get(config.Name, metav1.GetOptions{})
+
+			if err != nil{
+				e := fmt.Sprintf("Failed to get configmap from kubeapi: %v", err)
+				log.Printf(e)
+				http.Error(w, e, 400)
+				return
+			}
+
+			body, err = data.Marshal()
+			if err != nil{
+				e := fmt.Sprintf("Failed to marshal configmap: %v", err)
+				log.Printf(e)
+				http.Error(w, e, 400)
+				return
+			}
+
+			configDir := filepath.Join(fetcher.sharedConfigPath, config.Namespace)
+			err = os.MkdirAll(configDir, 0777)
+			if err != nil{
+				e := fmt.Sprintf("Failed to create directory %v: %v", configDir, err)
+				log.Printf(e)
+				http.Error(w, e, 500)
+				return
+			}
+
+			configPath := filepath.Join(configDir, config.Name)
+			err = ioutil.WriteFile(configPath, body, 0600)
+			if err != nil{
+				e := fmt.Sprintf("Failed to write file %v: %v", configPath, err)
+				log.Printf(e)
+				http.Error(w, e, 500)
+				return
+
+			}
+
+		}
 	}
 
 	log.Printf("Completed fetch request")

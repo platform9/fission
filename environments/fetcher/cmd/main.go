@@ -19,7 +19,31 @@ func main() {
 			}
 		}
 	}
-	fetcher := fetcher.MakeFetcher(dir)
+
+	secret_dir := os.Args[2]
+	if _, err := os.Stat(secret_dir); err != nil {
+		if os.IsNotExist(err) {
+			err = os.MkdirAll(secret_dir, os.ModeDir|0700)
+			if err != nil {
+				log.Fatalf("Error creating directory: %v", err)
+			}
+		}
+	}
+
+
+	config_dir := os.Args[3]
+	if _, err := os.Stat(config_dir); err != nil {
+		if os.IsNotExist(err) {
+			err = os.MkdirAll(config_dir, os.ModeDir|0700)
+			if err != nil {
+				log.Fatalf("Error creating directory: %v", err)
+			}
+		}
+	}
+
+
+
+	fetcher := fetcher.MakeFetcher(dir, secret_dir, config_dir)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", fetcher.FetchHandler)
 	mux.HandleFunc("/upload", fetcher.UploadHandler)

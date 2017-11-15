@@ -66,6 +66,16 @@ type (
 		Name      string `json:"name"`
 	}
 
+	SecretReference struct {
+		Namespace string `json:"namespace"`
+		Name      string `json:"name"`
+	}
+
+	ConfigMapReference struct {
+		Namespace string `json:"namespace"`
+		Name      string `json:"name"`
+	}
+
 	BuildStatus string
 
 	PackageSpec struct {
@@ -111,6 +121,9 @@ type (
 
 		// Reference to a package containing deployment and optionally the source
 		Package FunctionPackageRef `json:"package"`
+
+		SecretList []SecretReference `json:"secretList"`
+		ConfigMapList []ConfigMapReference `json:"configMapList"`
 	}
 
 	FunctionReferenceType string

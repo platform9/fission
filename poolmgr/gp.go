@@ -68,6 +68,8 @@ type (
 		labelsForPool          map[string]string
 		requestChannel         chan *choosePodRequest
 		sharedMountPath        string // used by generic pool when creating env deployment to specify the share volume path for fetcher & env
+		sharedSecretPath       string
+		sharedCfgMapPath       string
 	}
 
 	// serialize the choosing of pods so that choices don't conflict
@@ -133,6 +135,8 @@ func MakeGenericPool(
 		fetcherImage:     fetcherImage,
 		useSvc:           false,       // defaults off -- svc takes a second or more to become routable, slowing cold start
 		sharedMountPath:  "/userfunc", // change this may break v1 compatibility, since most of the v1 environments have hard-coded "/userfunc" in loading path
+		sharedSecretPath: "/secrets",
+		sharedCfgMapPath: "/config",
 	}
 
 	gp.runtimeImagePullPolicy = getImagePullPolicy(runtimeImagePullPolicy)
@@ -342,6 +346,8 @@ func (gp *GenericPool) specializePod(pod *apiv1.Pod, metadata *metav1.ObjectMeta
 			Name:      fn.Spec.Package.PackageRef.Name,
 		},
 		Filename: targetFilename,
+		SecretList: fn.Spec.SecretList,
+		ConfigMapList: fn.Spec.ConfigMapList,
 	})
 	if err != nil {
 		return err
@@ -430,6 +436,20 @@ func (gp *GenericPool) createPool() error {
 								EmptyDir: &apiv1.EmptyDirVolumeSource{},
 							},
 						},
+						
+						{
+							Name: "secrets",
+							VolumeSource: apiv1.VolumeSource{
+								EmptyDir: &apiv1.EmptyDirVolumeSource{},
+							},
+						},
+						
+						{
+							Name: "config",
+							VolumeSource: apiv1.VolumeSource{
+								EmptyDir: &apiv1.EmptyDirVolumeSource{},
+							},
+						},
 					},
 					Containers: []apiv1.Container{
 						{
@@ -441,6 +461,16 @@ func (gp *GenericPool) createPool() error {
 								{
 									Name:      "userfunc",
 									MountPath: gp.sharedMountPath,
+								},
+
+								{
+									Name: "secrets",
+									MountPath: gp.sharedSecretPath,
+								},
+								
+								{
+									Name: "config",
+									MountPath: gp.sharedCfgMapPath,
 								},
 							},
 						},
@@ -454,8 +484,18 @@ func (gp *GenericPool) createPool() error {
 									Name:      "userfunc",
 									MountPath: gp.sharedMountPath,
 								},
+								
+								{
+									Name: "secrets",
+									MountPath: gp.sharedSecretPath,
+								},
+
+								{
+									Name: "config",
+									MountPath: gp.sharedCfgMapPath,
+								},
 							},
-							Command: []string{"/fetcher", gp.sharedMountPath},
+							Command: []string{"/fetcher", gp.sharedMountPath, gp.sharedSecretPath, gp.sharedCfgMapPath},
 						},
 					},
 					ServiceAccountName: "fission-fetcher",

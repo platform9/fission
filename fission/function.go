@@ -196,6 +196,22 @@ func fnCreate(c *cli.Context) error {
 		fatal("Need --env argument.")
 	}
 
+	secretName := c.String("secret")
+	cfgMapName := c.String("configmap")
+	
+	secretNameSpace := c.String("secretns")
+	cfgMapNameSpace := c.String("configmapns")
+
+	if len(secretNameSpace) == 0 {
+		secretNameSpace = metav1.NamespaceDefault
+	}
+
+	if len(cfgMapNameSpace) == 0 {
+		cfgMapNameSpace = metav1.NamespaceDefault
+	}
+
+	fmt.Println("secret: %s cfg: %s", secretName, cfgMapName)
+
 	srcArchiveName := c.String("src")
 	deployArchiveName := c.String("code")
 	if len(deployArchiveName) == 0 {
@@ -228,6 +244,16 @@ func fnCreate(c *cli.Context) error {
 					Name:            pkgMetadata.Name,
 					ResourceVersion: pkgMetadata.ResourceVersion,
 				},
+			},
+
+			SecretList: []fission.SecretReference{
+				{Name:      secretName,
+				Namespace:  secretNameSpace,},
+			},
+
+			ConfigMapList: []fission.ConfigMapReference{
+				{Name:      cfgMapName,
+				Namespace:  cfgMapNameSpace,},
 			},
 		},
 	}
@@ -352,6 +378,71 @@ func fnUpdate(c *cli.Context) error {
 	entrypoint := c.String("entrypoint")
 	if len(entrypoint) > 0 {
 		function.Spec.Package.FunctionName = entrypoint
+	}
+
+	secretName := c.String("secret")
+	secretNameSpace := c.String("secretns")
+
+	//require user to input both secret and secretnamespace together
+	if len(secretName) == 0 || len(secretNameSpace) == 0 {
+		if len(secretNameSpace) > 0 || len(secretName) > 0 {
+			fatal("Need both secret and secret namespace for update")
+
+		}
+	}
+	secretExists := false
+	if len(secretName) > 0  {
+
+		for i := range function.Spec.SecretList {
+			if function.Spec.SecretList[i].Name == secretName{
+				//update secretNamespace
+				function.Spec.SecretList[i].Namespace = secretNameSpace
+				secretExists = true
+			}
+			break
+		}
+
+		if !secretExists {
+			
+			newSecret := fission.SecretReference{
+				Name:       secretName,
+				Namespace:  secretNameSpace,
+			}
+			function.Spec.SecretList = append(function.Spec.SecretList, newSecret)
+		}
+	}
+
+	cfgMapName := c.String("configmap")
+	cfgMapNameSpace := c.String("configmapns")
+
+	//require user to input both configmap and configmap namespace together
+	if len(cfgMapName) == 0 || len(cfgMapNameSpace) == 0 {
+		if len(cfgMapNameSpace) > 0 || len(cfgMapName) > 0 {
+			fatal("Need both configmap and cfgmap namespace for update")
+
+		}
+	}
+
+	cfgMapExists := false
+	if len(cfgMapName) > 0  {
+
+		for i := range function.Spec.ConfigMapList {
+			if function.Spec.ConfigMapList[i].Name == cfgMapName{
+				//update secretNamespace
+				function.Spec.ConfigMapList[i].Namespace = cfgMapNameSpace
+				cfgMapExists = true
+			}
+			break
+		}
+
+		if !cfgMapExists {
+			
+			newCfgMap := fission.ConfigMapReference{
+				Name:       cfgMapName,
+				Namespace:  cfgMapNameSpace,
+			}
+			function.Spec.ConfigMapList = append(function.Spec.ConfigMapList, newCfgMap)
+		}
 	}
 
 	pkg, err := client.PackageGet(&metav1.ObjectMeta{

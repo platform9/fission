@@ -51,12 +51,16 @@ func main() {
 	fnHeaderFlag := cli.StringSliceFlag{Name: "header, H", Usage: "request headers"}
 	fnEntryPointFlag := cli.StringFlag{Name: "entrypoint", Usage: "entry point for environment v2 to load with"}
 	fnBuildCmdFlag := cli.StringFlag{Name: "buildcmd", Usage: "build command for builder to run with"}
+	fnSecretFlag := cli.StringFlag{Name: "secret", Usage: "function access to secret"}
+	fnSecretnsFlag := cli.StringFlag{Name: "secretns", Usage: "namespace of secret"}
+	fnCfgMapFlag := cli.StringFlag{Name: "configmap", Usage: "function access to configmap"}
+	fnCfgMapnsFlag := cli.StringFlag{Name: "configmapns", Usage: "namespace of configmap"}
 
 	fnSubcommands := []cli.Command{
-		{Name: "create", Usage: "Create new function (and optionally, an HTTP route to it)", Flags: []cli.Flag{fnNameFlag, fnEnvNameFlag, fnCodeFlag, fnPackageFlag, fnSrcArchiveFlag, fnDeployArchiveFlag, fnEntryPointFlag, fnBuildCmdFlag, htUrlFlag, htMethodFlag}, Action: fnCreate},
+		{Name: "create", Usage: "Create new function (and optionally, an HTTP route to it)", Flags: []cli.Flag{fnNameFlag, fnEnvNameFlag, fnCodeFlag, fnPackageFlag, fnSrcArchiveFlag, fnDeployArchiveFlag, fnEntryPointFlag, fnBuildCmdFlag, htUrlFlag, htMethodFlag, fnCfgMapFlag, fnSecretFlag, fnSecretnsFlag, fnCfgMapnsFlag}, Action: fnCreate},
 		{Name: "get", Usage: "Get function source code", Flags: []cli.Flag{fnNameFlag}, Action: fnGet},
 		{Name: "getmeta", Usage: "Get function metadata", Flags: []cli.Flag{fnNameFlag}, Action: fnGetMeta},
-		{Name: "update", Usage: "Update function source code", Flags: []cli.Flag{fnNameFlag, fnEnvNameFlag, fnCodeFlag, fnPackageFlag, fnSrcArchiveFlag, fnDeployArchiveFlag, fnEntryPointFlag, fnBuildCmdFlag}, Action: fnUpdate},
+		{Name: "update", Usage: "Update function source code", Flags: []cli.Flag{fnNameFlag, fnEnvNameFlag, fnCodeFlag, fnPackageFlag, fnSrcArchiveFlag, fnDeployArchiveFlag, fnEntryPointFlag, fnBuildCmdFlag, fnCfgMapFlag, fnCfgMapnsFlag, fnSecretFlag, fnSecretnsFlag}, Action: fnUpdate},
 		{Name: "delete", Usage: "Delete function", Flags: []cli.Flag{fnNameFlag}, Action: fnDelete},
 		{Name: "list", Usage: "List all functions", Flags: []cli.Flag{}, Action: fnList},
 		{Name: "logs", Usage: "Display function logs", Flags: []cli.Flag{fnNameFlag, fnPodFlag, fnFollowFlag, fnDetailFlag, fnLogDBTypeFlag}, Action: fnLogs},
