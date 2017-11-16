@@ -254,6 +254,7 @@ func (fetcher *Fetcher) FetchHandler(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			data, err := fetcher.kubeClient.CoreV1().Secrets(secret.Namespace).Get(secret.Name, metav1.GetOptions{})
+
 			
 			if err != nil{
 				e := fmt.Sprintf("Failed to get secret from kubeapi: %v", err)
@@ -262,15 +263,8 @@ func (fetcher *Fetcher) FetchHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			body, err = data.Marshal()
-			if err != nil{
-				e := fmt.Sprintf("Failed to marshal secret: %v", err)
-				log.Printf(e)
-				http.Error(w, e, 400)
-				return
-			}
-
-			secretDir := filepath.Join(fetcher.sharedSecretPath, secret.Namespace)
+			secretPath := secret.Namespace + "/" + secret.Name
+			secretDir := filepath.Join(fetcher.sharedSecretPath, secretPath)
 			err = os.MkdirAll(secretDir, 0777)
 			if err != nil{
 				e := fmt.Sprintf("Failed to create directory %v: %v", secretDir, err)
@@ -279,14 +273,17 @@ func (fetcher *Fetcher) FetchHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
+			for key, val := range data.Data {
+
+				secretFilePath := filepath.Join(secretDir, key)
+				err = ioutil.WriteFile(secretFilePath, val, 0600)
+					if err != nil{
+						e := fmt.Sprintf("Failed to write file %v: %v", secretPath, err)
+						log.Printf(e)
+						http.Error(w, e, 500)
+						return
+					}
 			
-			secretPath := filepath.Join(secretDir, secret.Name)
-			err = ioutil.WriteFile(secretPath, body, 0600)
-			if err != nil{
-				e := fmt.Sprintf("Failed to write file %v: %v", secretPath, err)
-				log.Printf(e)
-				http.Error(w, e, 500)
-				return
 
 			}
 
