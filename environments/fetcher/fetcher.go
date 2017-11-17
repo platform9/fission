@@ -28,11 +28,11 @@ type (
 	FetchRequestType int
 
 	FetchRequest struct {
-		FetchType     FetchRequestType  `json:"fetchType"`
-		Package       metav1.ObjectMeta `json:"package"`
-		Url           string            `json:"url"`
-		StorageSvcUrl string            `json:"storagesvcurl"`
-		Filename      string            `json:"filename"`
+		FetchType     FetchRequestType             `json:"fetchType"`
+		Package       metav1.ObjectMeta            `json:"package"`
+		Url           string                       `json:"url"`
+		StorageSvcUrl string                       `json:"storagesvcurl"`
+		Filename      string                       `json:"filename"`
 		SecretList    []fission.SecretReference    `json:"secretList"`
 		ConfigMapList []fission.ConfigMapReference `json:"configMapList"`
 	}
@@ -56,7 +56,7 @@ type (
 		sharedSecretPath string
 		sharedConfigPath string
 		fissionClient    *crd.FissionClient
-		kubeClient *kubernetes.Clientset
+		kubeClient       *kubernetes.Clientset
 	}
 )
 
@@ -76,7 +76,7 @@ func MakeFetcher(sharedVolumePath string, sharedSecretPath string, sharedConfigP
 		sharedSecretPath: sharedSecretPath,
 		sharedConfigPath: sharedConfigPath,
 		fissionClient:    fissionClient,
-		kubeClient: kubeClient,
+		kubeClient:       kubeClient,
 	}
 }
 
@@ -255,8 +255,7 @@ func (fetcher *Fetcher) FetchHandler(w http.ResponseWriter, r *http.Request) {
 			}
 			data, err := fetcher.kubeClient.CoreV1().Secrets(secret.Namespace).Get(secret.Name, metav1.GetOptions{})
 
-			
-			if err != nil{
+			if err != nil {
 				e := fmt.Sprintf("Failed to get secret from kubeapi: %v", err)
 				log.Printf(e)
 				http.Error(w, e, 400)
@@ -266,7 +265,7 @@ func (fetcher *Fetcher) FetchHandler(w http.ResponseWriter, r *http.Request) {
 			secretPath := secret.Namespace + "/" + secret.Name
 			secretDir := filepath.Join(fetcher.sharedSecretPath, secretPath)
 			err = os.MkdirAll(secretDir, 0777)
-			if err != nil{
+			if err != nil {
 				e := fmt.Sprintf("Failed to create directory %v: %v", secretDir, err)
 				log.Printf(e)
 				http.Error(w, e, 500)
@@ -277,18 +276,16 @@ func (fetcher *Fetcher) FetchHandler(w http.ResponseWriter, r *http.Request) {
 
 				secretFilePath := filepath.Join(secretDir, key)
 				err = ioutil.WriteFile(secretFilePath, val, 0600)
-					if err != nil{
-						e := fmt.Sprintf("Failed to write file %v: %v", secretPath, err)
-						log.Printf(e)
-						http.Error(w, e, 500)
-						return
-					}
-			
+				if err != nil {
+					e := fmt.Sprintf("Failed to write file %v: %v", secretPath, err)
+					log.Printf(e)
+					http.Error(w, e, 500)
+					return
+				}
 
 			}
 		}
 	}
-
 
 	if len(req.ConfigMapList) > 0 {
 		log.Println("writing configMaps to file")
@@ -299,7 +296,7 @@ func (fetcher *Fetcher) FetchHandler(w http.ResponseWriter, r *http.Request) {
 			}
 			data, err := fetcher.kubeClient.CoreV1().ConfigMaps(config.Namespace).Get(config.Name, metav1.GetOptions{})
 
-			if err != nil{
+			if err != nil {
 				e := fmt.Sprintf("Failed to get configmap from kubeapi: %v", err)
 				log.Printf(e)
 				http.Error(w, e, 400)
@@ -309,7 +306,7 @@ func (fetcher *Fetcher) FetchHandler(w http.ResponseWriter, r *http.Request) {
 			configPath := config.Namespace + "/" + config.Name
 			configDir := filepath.Join(fetcher.sharedConfigPath, configPath)
 			err = os.MkdirAll(configDir, 0777)
-			if err != nil{
+			if err != nil {
 				e := fmt.Sprintf("Failed to create directory %v: %v", configDir, err)
 				log.Printf(e)
 				http.Error(w, e, 500)
@@ -319,13 +316,13 @@ func (fetcher *Fetcher) FetchHandler(w http.ResponseWriter, r *http.Request) {
 			for key, val := range data.Data {
 				configFilePath := filepath.Join(configDir, key)
 				err = ioutil.WriteFile(configFilePath, []byte(val), 0600)
-					if err != nil {
-						e := fmt.Sprintf("Failed to write file %v: %v", configPath, err)
-						log.Printf(e)
-						http.Error(w, e, 500)
-						return
+				if err != nil {
+					e := fmt.Sprintf("Failed to write file %v: %v", configPath, err)
+					log.Printf(e)
+					http.Error(w, e, 500)
+					return
 
-					}
+				}
 			}
 		}
 	}

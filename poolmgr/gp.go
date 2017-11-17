@@ -345,8 +345,8 @@ func (gp *GenericPool) specializePod(pod *apiv1.Pod, metadata *metav1.ObjectMeta
 			Namespace: fn.Spec.Package.PackageRef.Namespace,
 			Name:      fn.Spec.Package.PackageRef.Name,
 		},
-		Filename: targetFilename,
-		SecretList: fn.Spec.SecretList,
+		Filename:      targetFilename,
+		SecretList:    fn.Spec.SecretList,
 		ConfigMapList: fn.Spec.ConfigMapList,
 	})
 	if err != nil {
@@ -436,14 +436,14 @@ func (gp *GenericPool) createPool() error {
 								EmptyDir: &apiv1.EmptyDirVolumeSource{},
 							},
 						},
-						
+
 						{
 							Name: "secrets",
 							VolumeSource: apiv1.VolumeSource{
 								EmptyDir: &apiv1.EmptyDirVolumeSource{},
 							},
 						},
-						
+
 						{
 							Name: "config",
 							VolumeSource: apiv1.VolumeSource{
@@ -464,12 +464,12 @@ func (gp *GenericPool) createPool() error {
 								},
 
 								{
-									Name: "secrets",
+									Name:      "secrets",
 									MountPath: gp.sharedSecretPath,
 								},
-								
+
 								{
-									Name: "config",
+									Name:      "config",
 									MountPath: gp.sharedCfgMapPath,
 								},
 							},
@@ -484,14 +484,14 @@ func (gp *GenericPool) createPool() error {
 									Name:      "userfunc",
 									MountPath: gp.sharedMountPath,
 								},
-								
+
 								{
-									Name: "secrets",
+									Name:      "secrets",
 									MountPath: gp.sharedSecretPath,
 								},
 
 								{
-									Name: "config",
+									Name:      "config",
 									MountPath: gp.sharedCfgMapPath,
 								},
 							},

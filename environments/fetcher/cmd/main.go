@@ -30,7 +30,6 @@ func main() {
 		}
 	}
 
-
 	config_dir := os.Args[3]
 	if _, err := os.Stat(config_dir); err != nil {
 		if os.IsNotExist(err) {
@@ -40,8 +39,6 @@ func main() {
 			}
 		}
 	}
-
-
 
 	fetcher := fetcher.MakeFetcher(dir, secret_dir, config_dir)
 	mux := http.NewServeMux()

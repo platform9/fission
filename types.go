@@ -122,7 +122,7 @@ type (
 		// Reference to a package containing deployment and optionally the source
 		Package FunctionPackageRef `json:"package"`
 
-		SecretList []SecretReference `json:"secretList"`
+		SecretList    []SecretReference    `json:"secretList"`
 		ConfigMapList []ConfigMapReference `json:"configMapList"`
 	}
 
