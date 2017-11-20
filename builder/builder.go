@@ -181,14 +181,16 @@ func (builder *Builder) build(command string, srcPkgPath string, deployPkgPath s
 	}
 
 	if err := scanner.Err(); err != nil {
-		fmt.Println(err)
-		return "", errors.New(fmt.Sprintf("Error reading cmd output: %v", err.Error()))
+		msg := errors.New(fmt.Sprintf("Error reading cmd output: %v", err.Error()))
+		fmt.Println(msg)
+		return "", msg
 	}
 
 	err = cmd.Wait()
 	if err != nil {
-		fmt.Println(err)
-		return "", errors.New(fmt.Sprintf("Error waiting for cmd '%v': %v", command, err.Error()))
+		msg := errors.New(fmt.Sprintf("Error waiting for cmd '%v': %v", command, err.Error()))
+		fmt.Println(msg)
+		return "", msg
 	}
 	fmt.Println("==================\n")
 
