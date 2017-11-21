@@ -19,12 +19,12 @@ package logdb
 import (
 	"encoding/json"
 	"fmt"
-	"sort"
 	"log"
 	"net/http"
 	"net/url"
-	"strings"
+	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	influxdbClient "github.com/influxdata/influxdb/client/v2"
@@ -81,7 +81,7 @@ func (influx InfluxDB) GetLogs(filter LogFilter) ([]LogEntry, error) {
 		queryCmd = "select * from \"log\" where \"funcuid\" = $funcuid AND \"pod\" = $pod AND \"time\" > $time ORDER BY time ASC"
 		parameters["pod"] = filter.Pod
 	} else {
-		queryCmd = "select * from \"log\" where \"funcuid\" = $funcuid" 
+		queryCmd = "select * from \"log\" where \"funcuid\" = $funcuid"
 	}
 
 	query := influxdbClient.NewQueryWithParameters(queryCmd, INFLUXDB_DATABASE, "", parameters)
@@ -97,7 +97,7 @@ func (influx InfluxDB) GetLogs(filter LogFilter) ([]LogEntry, error) {
 				if err != nil {
 					log.Fatal(err)
 				}
-				seqNum, err := strconv.Atoi(row[1].(string)) 
+				seqNum, err := strconv.Atoi(row[1].(string))
 				if err != nil {
 					return logEntries, err
 				}
@@ -111,16 +111,16 @@ func (influx InfluxDB) GetLogs(filter LogFilter) ([]LogEntry, error) {
 					Namespace: row[14].(string),                           //kubernetes_namespace_name
 					Pod:       row[15].(string),                           //kubernetes_pod_name
 					Stream:    row[18].(string),                           //stream
-					Sequence:  seqNum,							           //sequence tag
+					Sequence:  seqNum,                                     //sequence tag
 				})
 			}
 		}
-	}	
+	}
 	sort.Slice(logEntries, func(i, j int) bool {
 
 		if logEntries[i].Timestamp.Before(logEntries[j].Timestamp) {
 			return true
-		} 
+		}
 		if logEntries[j].Timestamp.Before(logEntries[i].Timestamp) {
 			return false
 		}
