@@ -477,7 +477,7 @@ func fnLogs(c *cli.Context) error {
 						fmt.Printf("Timestamp: %s\nNamespace: %s\nFunction Name: %s\nFunction ID: %s\nPod: %s\nContainer: %s\nStream: %s\nLog: %s\n---\n",
 							logEntry.Timestamp, logEntry.Namespace, logEntry.FuncName, logEntry.FuncUid, logEntry.Pod, logEntry.Container, logEntry.Stream, logEntry.Message)
 					} else {
-						fmt.Printf("[%s] %s\n", logEntry.Timestamp, logEntry.Message)
+						fmt.Printf("[%s] #%v %s\n", logEntry.Timestamp, logEntry.Sequence, logEntry.Message)
 					}
 					t = logEntry.Timestamp
 				}
