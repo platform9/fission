@@ -433,7 +433,6 @@ func fnLogs(c *cli.Context) error {
 		fatal("Need name of function, use --name")
 	}
 
-
 	dbType := c.String("dbtype")
 	if len(dbType) == 0 {
 		dbType = logdb.INFLUXDB
@@ -469,10 +468,10 @@ func fnLogs(c *cli.Context) error {
 			select {
 			case <-requestChan:
 				logFilter := logdb.LogFilter{
-					Pod:      fnPod,
-					Function: f.Metadata.Name,
-					FuncUid:  string(f.Metadata.UID),
-					Since:    t,
+					Pod:         fnPod,
+					Function:    f.Metadata.Name,
+					FuncUid:     string(f.Metadata.UID),
+					Since:       t,
 					RecordLimit: recordLimit,
 				}
 				logEntries, err := logDB.GetLogs(logFilter)

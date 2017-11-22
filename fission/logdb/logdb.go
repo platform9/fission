@@ -32,10 +32,10 @@ type LogDatabase interface {
 }
 
 type LogFilter struct {
-	Pod      string
-	Function string
-	FuncUid  string
-	Since    time.Time
+	Pod         string
+	Function    string
+	FuncUid     string
+	Since       time.Time
 	RecordLimit string
 }
 
