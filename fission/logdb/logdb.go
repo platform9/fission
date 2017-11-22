@@ -36,6 +36,7 @@ type LogFilter struct {
 	Function string
 	FuncUid  string
 	Since    time.Time
+	RecordLimit string
 }
 
 type LogEntry struct {

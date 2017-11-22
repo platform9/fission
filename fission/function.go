@@ -433,6 +433,7 @@ func fnLogs(c *cli.Context) error {
 		fatal("Need name of function, use --name")
 	}
 
+
 	dbType := c.String("dbtype")
 	if len(dbType) == 0 {
 		dbType = logdb.INFLUXDB
@@ -442,6 +443,11 @@ func fnLogs(c *cli.Context) error {
 	m := &metav1.ObjectMeta{
 		Name:      fnName,
 		Namespace: metav1.NamespaceDefault,
+	}
+
+	recordLimit := c.String("recordcount")
+	if len(recordLimit) == 0 {
+		recordLimit = "1000"
 	}
 
 	f, err := client.FunctionGet(m)
@@ -467,6 +473,7 @@ func fnLogs(c *cli.Context) error {
 					Function: f.Metadata.Name,
 					FuncUid:  string(f.Metadata.UID),
 					Since:    t,
+					RecordLimit: recordLimit,
 				}
 				logEntries, err := logDB.GetLogs(logFilter)
 				if err != nil {
@@ -477,7 +484,7 @@ func fnLogs(c *cli.Context) error {
 						fmt.Printf("Timestamp: %s\nNamespace: %s\nFunction Name: %s\nFunction ID: %s\nPod: %s\nContainer: %s\nStream: %s\nLog: %s\n---\n",
 							logEntry.Timestamp, logEntry.Namespace, logEntry.FuncName, logEntry.FuncUid, logEntry.Pod, logEntry.Container, logEntry.Stream, logEntry.Message)
 					} else {
-						fmt.Printf("[%s] #%v %s\n", logEntry.Timestamp, logEntry.Sequence, logEntry.Message)
+						fmt.Printf("[%s] %s\n", logEntry.Timestamp, logEntry.Message)
 					}
 					t = logEntry.Timestamp
 				}
