@@ -19,6 +19,7 @@ package controller
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -29,13 +30,21 @@ import (
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/pkg/api"
-	"k8s.io/client-go/pkg/api/v1"
+	apiv1 "k8s.io/client-go/pkg/api/v1"
 	restclient "k8s.io/client-go/rest"
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
 )
+
+func (a *API) getIstioServiceLabels(fnName string) map[string]string {
+	return map[string]string{
+		"functionName": fnName,
+	}
+}
 
 func (a *API) FunctionApiList(w http.ResponseWriter, r *http.Request) {
 	funcs, err := a.fissionClient.Functions(metav1.NamespaceAll).List(metav1.ListOptions{})
@@ -83,6 +92,49 @@ func (a *API) FunctionApiCreate(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		a.respondWithError(w, err)
 		return
+	}
+
+	if a.useIstio {
+		// create a same name service for function
+		// since istio only allows the traffic to service
+
+		sel := map[string]string{
+			"functionName": fnew.Metadata.Name,
+			"functionUid":  string(fnew.Metadata.UID),
+		}
+
+		// service for accepting user traffic
+		svc := apiv1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "fission-function",
+				Name:      fmt.Sprintf("istio-%v", f.Metadata.Name),
+				Labels:    a.getIstioServiceLabels(f.Metadata.Name),
+			},
+			Spec: apiv1.ServiceSpec{
+				Type: apiv1.ServiceTypeClusterIP,
+				Ports: []apiv1.ServicePort{
+					{
+						Name:       "http-fetch",
+						Protocol:   apiv1.ProtocolTCP,
+						Port:       8000,
+						TargetPort: intstr.FromInt(8000),
+					},
+					{
+						Name:       "http-specialize",
+						Protocol:   apiv1.ProtocolTCP,
+						Port:       8888,
+						TargetPort: intstr.FromInt(8888),
+					},
+				},
+				Selector: sel,
+				//ClusterIP: apiv1.ClusterIPNone,
+			},
+		}
+		_, err = a.kubernetesClient.CoreV1().Services(a.functionNamespace).Create(&svc)
+		if err != nil {
+			a.respondWithError(w, err)
+			return
+		}
 	}
 
 	w.WriteHeader(http.StatusCreated)
@@ -162,6 +214,20 @@ func (a *API) FunctionApiDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if a.useIstio {
+		// delete all istio services belong to the function
+		sel := a.getIstioServiceLabels(name)
+		svcList, err := a.kubernetesClient.CoreV1().Services(a.functionNamespace).List(metav1.ListOptions{
+			LabelSelector: labels.Set(sel).AsSelector().String(),
+		})
+		for _, svc := range svcList.Items {
+			err = a.kubernetesClient.CoreV1().Services(a.functionNamespace).Delete(svc.ObjectMeta.Name, &metav1.DeleteOptions{})
+			// log error and continue
+			log.Printf("Failed to delete service %v: %v", svc.ObjectMeta.Name, err)
+			continue
+		}
+	}
+
 	a.respondWithSuccess(w, []byte(""))
 }
 
@@ -219,7 +285,7 @@ func (a *API) FunctionPodLogs(w http.ResponseWriter, r *http.Request) {
 
 	// Get function Pods first
 	selector := "functionName=" + fnName
-	podList, err := a.kubernetesClient.Core().Pods(ns).List(metav1.ListOptions{LabelSelector: selector})
+	podList, err := a.kubernetesClient.CoreV1().Pods(ns).List(metav1.ListOptions{LabelSelector: selector})
 	if err != nil {
 		a.respondWithError(w, err)
 		return
@@ -233,10 +299,10 @@ func (a *API) FunctionPodLogs(w http.ResponseWriter, r *http.Request) {
 		return itime.After(jtime)
 	})
 
-	podLogOpts := v1.PodLogOptions{Container: envName} // Only the env container, not fetcher
+	podLogOpts := apiv1.PodLogOptions{Container: envName} // Only the env container, not fetcher
 	var podLogsReq *restclient.Request
 	if len(pods) > 0 {
-		podLogsReq = a.kubernetesClient.Core().Pods(ns).GetLogs(pods[0].ObjectMeta.Name, &podLogOpts)
+		podLogsReq = a.kubernetesClient.CoreV1().Pods(ns).GetLogs(pods[0].ObjectMeta.Name, &podLogOpts)
 	} else {
 		a.respondWithError(w, errors.New("No active pods found"))
 		return

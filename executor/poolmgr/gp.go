@@ -28,10 +28,12 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/dchest/uniuri"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -60,7 +62,8 @@ type (
 		idlePodReapTime        time.Duration                 // pods unused for idlePodReapTime are deleted
 		fsCache                *fscache.FunctionServiceCache // cache funcSvc's by function, address and podname
 		useSvc                 bool                          // create k8s service for specialized pods
-		poolInstanceId         string                        // small random string to uniquify pod names
+		useIstio               bool
+		poolInstanceId         string // small random string to uniquify pod names
 		fetcherImage           string
 		fetcherImagePullPolicy apiv1.PullPolicy
 		runtimeImagePullPolicy apiv1.PullPolicy // pull policy for generic pool to created env deployment
@@ -120,6 +123,16 @@ func MakeGenericPool(
 		runtimeImagePullPolicy = "IfNotPresent"
 	}
 
+	var enableIstio bool
+
+	if len(os.Getenv("ENABLE_ISTIO")) > 0 {
+		istio, err := strconv.ParseBool(os.Getenv("ENABLE_ISTIO"))
+		if err != nil {
+			log.Println("Failed to parse ENABLE_ISTIO")
+		}
+		enableIstio = istio
+	}
+
 	// TODO: in general we need to provide the user a way to configure pools.  Initial
 	// replicas, autoscaling params, various timeouts, etc.
 	gp := &GenericPool{
@@ -135,7 +148,8 @@ func MakeGenericPool(
 		poolInstanceId:   uniuri.NewLen(8),
 		instanceId:       instanceId,
 		fetcherImage:     fetcherImage,
-		useSvc:           false,       // defaults off -- svc takes a second or more to become routable, slowing cold start
+		useSvc:           false, // defaults off -- svc takes a second or more to become routable, slowing cold start
+		useIstio:         enableIstio,
 		sharedMountPath:  "/userfunc", // change this may break v1 compatibility, since most of the v1 environments have hard-coded "/userfunc" in loading path
 		sharedSecretPath: "/secrets",
 		sharedCfgMapPath: "/configs",
@@ -280,7 +294,11 @@ func (gp *GenericPool) scheduleDeletePod(name string) {
 		// cleaned up.  (We need a better solutions for both those things; log
 		// aggregation and storage will help.)
 		log.Printf("Error in pod '%v', scheduling cleanup", name)
-		time.Sleep(5 * time.Minute)
+		// Ignore sleep here if istio feature is enabled, function pod
+		// will be deleted after 6 mins (terminationGracePeriodSeconds).
+		if !gp.useIstio {
+			time.Sleep(5 * time.Minute)
+		}
 		gp.kubernetesClient.CoreV1().Pods(gp.namespace).Delete(name, nil)
 	}()
 }
@@ -339,10 +357,14 @@ func (gp *GenericPool) specializePod(pod *apiv1.Pod, metadata *metav1.ObjectMeta
 	if len(podIP) == 0 {
 		return errors.New("Pod has no IP")
 	}
+	// specialize pod with service
+	if gp.useIstio {
+		podIP = fmt.Sprintf("istio-%v.%v", metadata.Name, gp.namespace)
+	}
 
 	// tell fetcher to get the function.
 	fetcherUrl := gp.getFetcherUrl(podIP)
-	log.Printf("[%v] calling fetcher to copy function", metadata.Name)
+	log.Printf("[%v] calling fetcher to copy function with fetcher url: %v", metadata.Name, fetcherUrl)
 
 	fn, err := gp.fissionClient.
 		Functions(metadata.Namespace).
@@ -394,6 +416,7 @@ func (gp *GenericPool) specializePod(pod *apiv1.Pod, metadata *metav1.ObjectMeta
 		var resp2 *http.Response
 		if gp.env.Spec.Version == 2 {
 			specializeUrl := gp.getSpecializeUrl(podIP, 2)
+			log.Printf("specialize url: %v", specializeUrl)
 			resp2, err = http.Post(specializeUrl, "application/json", bytes.NewReader(body))
 		} else {
 			specializeUrl := gp.getSpecializeUrl(podIP, 1)
@@ -439,127 +462,392 @@ func (gp *GenericPool) createPool() error {
 		return err
 	}
 
-	deployment := &v1beta1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   poolDeploymentName,
-			Labels: gp.labelsForPool,
-		},
-		Spec: v1beta1.DeploymentSpec{
-			Replicas: &gp.replicas,
-			Selector: &metav1.LabelSelector{
-				MatchLabels: gp.labelsForPool,
-			},
-			Template: apiv1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: gp.labelsForPool,
+	var deployment *v1beta1.Deployment
+
+	if gp.useIstio {
+		privileged := true
+		readOnlyRootFilesystem := false
+		optional := false
+		var runAsUser int64 = 1337
+		// Use long terminationGracePeriodSeconds for connection draining in case that
+		// pod still runs user functions.
+		var gracePeriod int64 = 6 * 60
+
+		// TODO use istio initializer in future
+		// so far, it's not able to enable both RBAC and initializer features on alpha GKE.
+		// Hard-code the istio sidecar as a workaround.
+		deployment = &v1beta1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					"sidecar.istio.io/status": "injected-version-sebastienvas@ee792364cfc2-0.2.10-f27f2803f59994367c1cca47467c362b1702d605",
 				},
-				Spec: apiv1.PodSpec{
-					Volumes: []apiv1.Volume{
-						{
-							Name: "userfunc",
-							VolumeSource: apiv1.VolumeSource{
-								EmptyDir: &apiv1.EmptyDirVolumeSource{},
-							},
+				Name:   poolDeploymentName,
+				Labels: gp.labelsForPool,
+			},
+			Spec: v1beta1.DeploymentSpec{
+				Replicas: &gp.replicas,
+				Selector: &metav1.LabelSelector{
+					MatchLabels: gp.labelsForPool,
+				},
+				Template: apiv1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{
+							"sidecar.istio.io/status": "injected-version-sebastienvas@ee792364cfc2-0.2.10-f27f2803f59994367c1cca47467c362b1702d605",
 						},
-
-						{
-							Name: "secrets",
-							VolumeSource: apiv1.VolumeSource{
-								EmptyDir: &apiv1.EmptyDirVolumeSource{},
-							},
-						},
-
-						{
-							Name: "config",
-							VolumeSource: apiv1.VolumeSource{
-								EmptyDir: &apiv1.EmptyDirVolumeSource{},
-							},
-						},
+						Labels: gp.labelsForPool,
 					},
-					Containers: []apiv1.Container{
-						{
-							Name:                   gp.env.Metadata.Name,
-							Image:                  gp.env.Spec.Runtime.Image,
-							ImagePullPolicy:        gp.runtimeImagePullPolicy,
-							TerminationMessagePath: "/dev/termination-log",
-							VolumeMounts: []apiv1.VolumeMount{
-								{
-									Name:      "userfunc",
-									MountPath: gp.sharedMountPath,
-								},
-
-								{
-									Name:      "secrets",
-									MountPath: gp.sharedSecretPath,
-								},
-
-								{
-									Name:      "config",
-									MountPath: gp.sharedCfgMapPath,
+					Spec: apiv1.PodSpec{
+						Volumes: []apiv1.Volume{
+							{
+								Name: "userfunc",
+								VolumeSource: apiv1.VolumeSource{
+									EmptyDir: &apiv1.EmptyDirVolumeSource{},
 								},
 							},
-							Resources: gp.env.Spec.Resources,
-						},
-						{
-							Name:                   "fetcher",
-							Image:                  gp.fetcherImage,
-							ImagePullPolicy:        gp.fetcherImagePullPolicy,
-							TerminationMessagePath: "/dev/termination-log",
-							VolumeMounts: []apiv1.VolumeMount{
-								{
-									Name:      "userfunc",
-									MountPath: gp.sharedMountPath,
-								},
-
-								{
-									Name:      "secrets",
-									MountPath: gp.sharedSecretPath,
-								},
-
-								{
-									Name:      "config",
-									MountPath: gp.sharedCfgMapPath,
+							{
+								Name: "secrets",
+								VolumeSource: apiv1.VolumeSource{
+									EmptyDir: &apiv1.EmptyDirVolumeSource{},
 								},
 							},
-							Resources: fetcherResources,
-							Command: []string{"/fetcher",
-								"-secret-dir", gp.sharedSecretPath,
-								"-cfgmap-dir", gp.sharedCfgMapPath,
-								gp.sharedMountPath},
-							ReadinessProbe: &apiv1.Probe{
-								InitialDelaySeconds: 1,
-								PeriodSeconds:       1,
-								FailureThreshold:    30,
-								Handler: apiv1.Handler{
-									HTTPGet: &apiv1.HTTPGetAction{
-										Path: "/healthz",
-										Port: intstr.IntOrString{
-											Type:   intstr.Int,
-											IntVal: 8000,
+
+							{
+								Name: "config",
+								VolumeSource: apiv1.VolumeSource{
+									EmptyDir: &apiv1.EmptyDirVolumeSource{},
+								},
+							},
+							{
+								Name: "istio-envoy",
+								VolumeSource: apiv1.VolumeSource{
+									EmptyDir: &apiv1.EmptyDirVolumeSource{
+										Medium: "Memory",
+										SizeLimit: resource.Quantity{
+											Format: "0",
 										},
 									},
 								},
 							},
-							LivenessProbe: &apiv1.Probe{
-								InitialDelaySeconds: 35,
-								PeriodSeconds:       5,
-								Handler: apiv1.Handler{
-									HTTPGet: &apiv1.HTTPGetAction{
-										Path: "/healthz",
-										Port: intstr.IntOrString{
-											Type:   intstr.Int,
-											IntVal: 8000,
+							{
+								Name: "istio-certs",
+								VolumeSource: apiv1.VolumeSource{
+									Secret: &apiv1.SecretVolumeSource{
+										SecretName: "istio.fission-fetcher",
+										Optional:   &optional,
+									},
+								},
+							},
+						},
+						Containers: []apiv1.Container{
+							{
+								Name:                   gp.env.Metadata.Name,
+								Image:                  gp.env.Spec.Runtime.Image,
+								ImagePullPolicy:        gp.runtimeImagePullPolicy,
+								TerminationMessagePath: "/dev/termination-log",
+								VolumeMounts: []apiv1.VolumeMount{
+									{
+										Name:      "userfunc",
+										MountPath: gp.sharedMountPath,
+									},
+									{
+										Name:      "secrets",
+										MountPath: gp.sharedSecretPath,
+									},
+									{
+										Name:      "config",
+										MountPath: gp.sharedCfgMapPath,
+									},
+								},
+								Command: []string{"/fetcher",
+									"-secret-dir", gp.sharedSecretPath,
+									"-cfgmap-dir", gp.sharedCfgMapPath,
+									gp.sharedMountPath},
+								// Pod is removed from endpoints list for service when it's
+								// state became "Termination". We used preStop hook as the
+								// workaround for connection draining since pod maybe shutdown
+								// before grace period expires.
+								// https://kubernetes.io/docs/concepts/workloads/pods/pod/#termination-of-pods
+								// https://github.com/kubernetes/kubernetes/issues/47576#issuecomment-308900172
+								Lifecycle: &apiv1.Lifecycle{
+									PreStop: &apiv1.Handler{
+										Exec: &apiv1.ExecAction{
+											Command: []string{
+												"sleep",
+												"360",
+											},
+										},
+									},
+								},
+								Resources: gp.env.Spec.Resources,
+							},
+							{
+								Name:                   "fetcher",
+								Image:                  gp.fetcherImage,
+								ImagePullPolicy:        gp.fetcherImagePullPolicy,
+								TerminationMessagePath: "/dev/termination-log",
+								VolumeMounts: []apiv1.VolumeMount{
+									{
+										Name:      "userfunc",
+										MountPath: gp.sharedMountPath,
+									},
+									{
+										Name:      "secrets",
+										MountPath: gp.sharedSecretPath,
+									},
+									{
+										Name:      "config",
+										MountPath: gp.sharedCfgMapPath,
+									},
+								},
+								Command: []string{"/fetcher",
+									"-secret-dir", gp.sharedSecretPath,
+									"-cfgmap-dir", gp.sharedCfgMapPath,
+									gp.sharedMountPath},
+							},
+							{
+								Name:                   "istio-proxy",
+								Image:                  "docker.io/istio/proxy_debug:0.2.10",
+								ImagePullPolicy:        gp.runtimeImagePullPolicy,
+								TerminationMessagePath: "/dev/termination-log",
+								Args: []string{
+									"proxy",
+									"sidecar",
+									"-v",
+									"2",
+									"--configPath",
+									"/etc/istio/proxy",
+									"--binaryPath",
+									"/usr/local/bin/envoy",
+									"--serviceCluster",
+									"istio-proxy",
+									"--drainDuration",
+									"45s",
+									"--parentShutdownDuration",
+									"1m0s",
+									"--discoveryAddress",
+									"istio-pilot.istio-system:8080",
+									"--discoveryRefreshDelay",
+									"1s",
+									"--zipkinAddress",
+									"zipkin.istio-system:9411",
+									"--connectTimeout",
+									"10s",
+									"--statsdUdpAddress",
+									"istio-mixer.istio-system:9125",
+									"--proxyAdminPort",
+									"15000",
+								},
+								Env: []apiv1.EnvVar{
+									{
+										Name: "POD_NAME",
+										ValueFrom: &apiv1.EnvVarSource{
+											FieldRef: &apiv1.ObjectFieldSelector{
+												FieldPath: "metadata.name",
+											},
+										},
+									},
+									{
+										Name: "POD_NAMESPACE",
+										ValueFrom: &apiv1.EnvVarSource{
+											FieldRef: &apiv1.ObjectFieldSelector{
+												FieldPath: "metadata.namespace",
+											},
+										},
+									},
+									{
+										Name: "INSTANCE_IP",
+										ValueFrom: &apiv1.EnvVarSource{
+											FieldRef: &apiv1.ObjectFieldSelector{
+												FieldPath: "status.podIP",
+											},
+										},
+									},
+								},
+								SecurityContext: &apiv1.SecurityContext{
+									Privileged:             &privileged,
+									ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
+									RunAsUser:              &runAsUser,
+								},
+								VolumeMounts: []apiv1.VolumeMount{
+									{
+										Name:      "istio-envoy",
+										MountPath: "/etc/istio/proxy",
+									},
+									{
+										Name:      "istio-certs",
+										MountPath: "/etc/certs/",
+										ReadOnly:  true,
+									},
+								},
+							},
+						},
+						ServiceAccountName: "fission-fetcher",
+						InitContainers: []apiv1.Container{
+							{
+								Name:            "istio-init",
+								Image:           "docker.io/istio/proxy_init:0.2.10",
+								ImagePullPolicy: gp.runtimeImagePullPolicy,
+								Args: []string{
+									"-p",
+									"15001",
+									"-u",
+									"1337",
+								},
+								SecurityContext: &apiv1.SecurityContext{
+									Privileged: &privileged,
+									Capabilities: &apiv1.Capabilities{
+										Add: []apiv1.Capability{
+											"NET_ADMIN",
+										},
+									},
+								},
+							},
+							{
+								Name:            "enable-core-dump",
+								Image:           "alpine",
+								ImagePullPolicy: gp.runtimeImagePullPolicy,
+								Command: []string{
+									"/bin/sh",
+								},
+								Args: []string{
+									"-c",
+									"sysctl -w kernel.core_pattern=/etc/istio/proxy/core.%e.%p.%t && ulimit -c unlimited",
+								},
+								SecurityContext: &apiv1.SecurityContext{
+									Privileged: &privileged,
+								},
+							},
+						},
+						// TerminationGracePeriodSeconds should be equal to the
+						// sleep time of preStop to make sure that SIGTERM is sent
+						// to pod after 6 mins.
+						TerminationGracePeriodSeconds: &gracePeriod,
+					},
+				},
+			},
+		}
+	} else {
+		deployment = &v1beta1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   poolDeploymentName,
+				Labels: gp.labelsForPool,
+			},
+			Spec: v1beta1.DeploymentSpec{
+				Replicas: &gp.replicas,
+				Selector: &metav1.LabelSelector{
+					MatchLabels: gp.labelsForPool,
+				},
+				Template: apiv1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: gp.labelsForPool,
+					},
+					Spec: apiv1.PodSpec{
+						Volumes: []apiv1.Volume{
+							{
+								Name: "userfunc",
+								VolumeSource: apiv1.VolumeSource{
+									EmptyDir: &apiv1.EmptyDirVolumeSource{},
+								},
+							},
+							{
+								Name: "secrets",
+								VolumeSource: apiv1.VolumeSource{
+									EmptyDir: &apiv1.EmptyDirVolumeSource{},
+								},
+							},
+
+							{
+								Name: "config",
+								VolumeSource: apiv1.VolumeSource{
+									EmptyDir: &apiv1.EmptyDirVolumeSource{},
+								},
+							},
+						},
+						ServiceAccountName: "fission-fetcher",
+						Containers: []apiv1.Container{
+							{
+								Name:                   gp.env.Metadata.Name,
+								Image:                  gp.env.Spec.Runtime.Image,
+								ImagePullPolicy:        gp.runtimeImagePullPolicy,
+								TerminationMessagePath: "/dev/termination-log",
+								VolumeMounts: []apiv1.VolumeMount{
+									{
+										Name:      "userfunc",
+										MountPath: gp.sharedMountPath,
+									},
+									{
+										Name:      "secrets",
+										MountPath: gp.sharedSecretPath,
+									},
+
+									{
+										Name:      "config",
+										MountPath: gp.sharedCfgMapPath,
+									},
+								},
+								Resources: fetcherResources,
+							},
+							{
+								Name:                   "fetcher",
+								Image:                  gp.fetcherImage,
+								ImagePullPolicy:        gp.fetcherImagePullPolicy,
+								TerminationMessagePath: "/dev/termination-log",
+								VolumeMounts: []apiv1.VolumeMount{
+									{
+										Name:      "userfunc",
+										MountPath: gp.sharedMountPath,
+									},
+
+									{
+										Name:      "secrets",
+										MountPath: gp.sharedSecretPath,
+									},
+
+									{
+										Name:      "config",
+										MountPath: gp.sharedCfgMapPath,
+									},
+								},
+								Resources: fetcherResources,
+								Command: []string{"/fetcher",
+									"-secret-dir", gp.sharedSecretPath,
+									"-cfgmap-dir", gp.sharedCfgMapPath,
+									gp.sharedMountPath},
+								ReadinessProbe: &apiv1.Probe{
+									InitialDelaySeconds: 1,
+									PeriodSeconds:       1,
+									FailureThreshold:    30,
+									Handler: apiv1.Handler{
+										HTTPGet: &apiv1.HTTPGetAction{
+											Path: "/healthz",
+											Port: intstr.IntOrString{
+												Type:   intstr.Int,
+												IntVal: 8000,
+											},
+										},
+									},
+								},
+								LivenessProbe: &apiv1.Probe{
+									InitialDelaySeconds: 35,
+									PeriodSeconds:       5,
+									Handler: apiv1.Handler{
+										HTTPGet: &apiv1.HTTPGetAction{
+											Path: "/healthz",
+											Port: intstr.IntOrString{
+												Type:   intstr.Int,
+												IntVal: 8000,
+											},
 										},
 									},
 								},
 							},
 						},
 					},
-					ServiceAccountName: "fission-fetcher",
 				},
 			},
-		},
+		}
 	}
+
 	depl, err := gp.kubernetesClient.ExtensionsV1beta1().Deployments(gp.namespace).Create(deployment)
 	if err != nil {
 		log.Printf("Error creating deployment for %s in kubernetes, err: %v", deployment.Name, err)
@@ -613,9 +901,31 @@ func (gp *GenericPool) createSvc(name string, labels map[string]string) (*apiv1.
 }
 
 func (gp *GenericPool) GetFuncSvc(m *metav1.ObjectMeta) (*fscache.FuncSvc, error) {
-
 	log.Printf("[%v] Choosing pod from pool", m.Name)
 	newLabels := gp.labelsForFunction(m)
+
+	if gp.useIstio {
+		// Istio only allows accessing pod through k8s service, and since service
+		// not always routes requests to the same pod, so we need to make sure that
+		// there is only one pod behind the service.
+		sel := map[string]string{
+			"functionName": m.Name,
+			"functionUid":  string(m.UID),
+		}
+		podList, err := gp.kubernetesClient.CoreV1().Pods(gp.namespace).List(metav1.ListOptions{
+			LabelSelector: labels.Set(sel).AsSelector().String(),
+		})
+		if err != nil {
+			return nil, err
+		}
+		// remove
+		for _, pod := range podList.Items {
+			if pod.Status.Phase == apiv1.PodRunning {
+				gp.kubernetesClient.CoreV1().Pods(gp.namespace).Delete(pod.ObjectMeta.Name, nil)
+			}
+		}
+	}
+
 	pod, err := gp.choosePod(newLabels)
 	if err != nil {
 		return nil, err
@@ -649,6 +959,8 @@ func (gp *GenericPool) GetFuncSvc(m *metav1.ObjectMeta) (*fscache.FuncSvc, error
 		// the fission router isn't in the same namespace, so return a
 		// namespace-qualified hostname
 		svcHost = fmt.Sprintf("%v.%v", svcName, gp.namespace)
+	} else if gp.useIstio {
+		svcHost = fmt.Sprintf("istio-%v.%v:8888", m.Name, gp.namespace)
 	} else {
 		log.Printf("Using pod IP for specialized pod")
 		svcHost = fmt.Sprintf("%v:8888", pod.Status.PodIP)

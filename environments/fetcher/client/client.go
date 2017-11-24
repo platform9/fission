@@ -43,6 +43,12 @@ func (c *Client) Fetch(fr *fetcher.FetchRequest) error {
 			return nil
 		}
 
+		if err == nil && resp.StatusCode != 200 {
+			resp.Body.Close()
+			time.Sleep(50 * time.Duration(2*i) * time.Millisecond)
+			continue
+		}
+
 		// Only retry for the specific case of a connection error.
 		if urlErr, ok := err.(*url.Error); ok {
 			if netErr, ok := urlErr.Err.(*net.OpError); ok {

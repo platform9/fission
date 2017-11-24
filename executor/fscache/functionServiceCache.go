@@ -163,7 +163,9 @@ func (fsc *FunctionServiceCache) Add(fsvc FuncSvc) (*FuncSvc, error) {
 				err = nil
 			}
 		}
-		log.Printf("error caching fsvc: %v", err)
+		if err != nil {
+			log.Printf("error caching fsvc: %v", err)
+		}
 		return nil, err
 	}
 	return nil, nil

@@ -17,10 +17,11 @@ limitations under the License.
 package router
 
 import (
-	"github.com/gorilla/mux"
 	"log"
 	"net/http"
 	"sync/atomic"
+
+	"github.com/gorilla/mux"
 )
 
 //
