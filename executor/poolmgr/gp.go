@@ -438,6 +438,8 @@ func (gp *GenericPool) createPool() error {
 	if err != nil {
 		return err
 	}
+	env := fission.K8sEnvVars(gp.env.Spec.Runtime.Env)
+	log.Printf("Env: %v", env)
 
 	deployment := &v1beta1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -499,6 +501,7 @@ func (gp *GenericPool) createPool() error {
 								},
 							},
 							Resources: gp.env.Spec.Resources,
+							Env:       env,
 						},
 						{
 							Name:                   "fetcher",
