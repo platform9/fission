@@ -433,6 +433,9 @@ func (gp *GenericPool) createPool() error {
 	poolDeploymentName := fmt.Sprintf("%v-%v-%v",
 		gp.env.Metadata.Name, gp.env.Metadata.UID, strings.ToLower(gp.poolInstanceId))
 
+	env := fission.K8sEnvVars(gp.env.Spec.Runtime.Env)
+	log.Printf("Env: %v", env)
+
 	deployment := &v1beta1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   poolDeploymentName,
@@ -493,6 +496,7 @@ func (gp *GenericPool) createPool() error {
 								},
 							},
 							Resources: gp.env.Spec.Resources,
+							Env: env,
 						},
 						{
 							Name:                   "fetcher",
