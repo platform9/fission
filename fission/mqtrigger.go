@@ -52,8 +52,12 @@ func mqtCreate(c *cli.Context) error {
 		mqType = fission.MessageQueueTypeNats
 	case fission.MessageQueueTypeASQ:
 		mqType = fission.MessageQueueTypeASQ
+	case fission.MessageQueueTypeKafka
+		mqType = fission.MessageQueueTypeKafka
+
 	default:
-		log.Fatal("Unknown message queue type, currently only \"nats-streaming, azure-storage-queue \" is supported")
+		log.Fatal("Unknown message queue type, currently only \"nats-streaming, azure-storage-queue, kafka \" is supported")
+
 	}
 
 	// TODO: check topic availability

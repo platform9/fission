@@ -137,8 +137,9 @@ const (
 )
 
 const (
-	MessageQueueTypeNats = fv1.MessageQueueTypeNats
-	MessageQueueTypeASQ  = fv1.MessageQueueTypeASQ
+	MessageQueueTypeNats  = fv1.MessageQueueTypeNats
+	MessageQueueTypeASQ   = fv1.MessageQueueTypeASQ
+	MessageQueueTypeKafka = fv1.MessageQueueTypeKafka
 )
 
 const (
