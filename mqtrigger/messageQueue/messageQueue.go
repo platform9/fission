@@ -22,12 +22,23 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+<<<<<<< HEAD
 
 	"github.com/fission/fission"
+=======
+>>>>>>> eb1bcf2... added support for kafka message queue
 	"github.com/fission/fission/crd"
 )
 
 const (
+<<<<<<< HEAD
+=======
+	NATS string = "nats-streaming"
+	KAFKA string = "kafka"
+)
+
+const (
+>>>>>>> eb1bcf2... added support for kafka message queue
 	ADD_TRIGGER requestType = iota
 	DELETE_TRIGGER
 	GET_ALL_TRIGGERS
@@ -86,6 +97,8 @@ func MakeMessageQueueTriggerManager(fissionClient *crd.FissionClient, routerUrl 
 		messageQueue, err = makeNatsMessageQueue(routerUrl, mqConfig)
 	case fission.MessageQueueTypeASQ:
 		messageQueue, err = newAzureStorageConnection(routerUrl, mqConfig)
+	case fission.MessageQueueTypeKafka:
+		messageQueue, err = makeKafkaMessageQueue(routerUrl, mqConfig)
 	default:
 		err = errors.New("No matched message queue type found")
 	}
@@ -221,3 +234,17 @@ func (mqt *MessageQueueTriggerManager) syncTriggers() {
 		time.Sleep(3 * time.Second)
 	}
 }
+<<<<<<< HEAD
+=======
+
+func IsTopicValid(mqType string, topic string) bool {
+	switch mqType {
+	case NATS:
+		return isTopicValidForNats(topic)
+	case KAFKA:
+		//Delegate to Kafka
+		return true; 
+	}
+	return false
+}
+>>>>>>> eb1bcf2... added support for kafka message queue
