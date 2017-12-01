@@ -151,6 +151,7 @@ func main() {
 		{Name: "delete", Usage: "Delete package", Flags: []cli.Flag{pkgNameFlag, pkgForceFlag}, Action: pkgDelete},
 	}
 
+	// upgrades, data migrations
 	upgradeFileFlag := cli.StringFlag{Name: "file", Usage: "JSON file containing all fission state"}
 	upgradeSubCommands := []cli.Command{
 		{Name: "dump", Usage: "Dump all state from a v0.1 fission installation", Flags: []cli.Flag{upgradeFileFlag}, Action: upgradeDumpState},
@@ -164,6 +165,21 @@ func main() {
 		{Name: "restore", Usage: "Restore state dumped from a pre-0.4 Fission cluster. Requires Fission 0.4, which uses Kubernetes CustomResources.", Flags: []cli.Flag{migrateFileFlag}, Action: migrateRestoreCRD},
 	}
 
+	// specs
+	specDirFlag := cli.StringFlag{Name: "specdir", Usage: "Directory to store specs, defaults to ./specs"}
+	specNameFlag := cli.StringFlag{Name: "name", Usage: "(optional) Name for the app, applied to resources as a Kubernetes annotation"}
+	specDeleteFlag := cli.StringFlag{Name: "delete", Usage: "Allow apply to delete resources that no longer exist in the specificiation"}
+	specResourceType := cli.StringFlag{Name: "resource-type", Usage: "Type of resource to save, such as a function, package, environment, httptrigger, etc."}
+	specResourceName := cli.StringFlag{Name: "resource-name", Usage: "Name of resource to save"}
+	specResourceNamespace := cli.StringFlag{Name: "resource-namespace", Usage: "Resource namespace (optional)"}
+	specSubCommands := []cli.Command{
+		{Name: "init", Usage: "Create an initial declarative app specification", Flags: []cli.Flag{specDirFlag, specNameFlag}, Action: specInit},
+		{Name: "validate", Usage: "Validate Fission app specification", Flags: []cli.Flag{specDirFlag}, Action: specValidate},
+		{Name: "apply", Usage: "Create or update Fission resources from app specification", Flags: []cli.Flag{specDirFlag, specDeleteFlag}, Action: specApply},
+		{Name: "save", Usage: "Save an existing Fission resource to the app specification", Flags: []cli.Flag{specDirFlag, specResourceType, specResourceName, specResourceNamespace}, Action: specSave},
+		{Name: "helm", Usage: "Create a helm chart from the app specification", Flags: []cli.Flag{specDirFlag}, Action: specHelm},
+	}
+
 	app.Commands = []cli.Command{
 		{Name: "function", Aliases: []string{"fn"}, Usage: "Create, update and manage functions", Subcommands: fnSubcommands},
 		{Name: "httptrigger", Aliases: []string{"ht", "route"}, Usage: "Manage HTTP triggers (routes) for functions", Subcommands: htSubcommands},
@@ -172,6 +188,7 @@ func main() {
 		{Name: "environment", Aliases: []string{"env"}, Usage: "Manage environments", Subcommands: envSubcommands},
 		{Name: "watch", Aliases: []string{"w"}, Usage: "Manage watches", Subcommands: wSubCommands},
 		{Name: "package", Aliases: []string{"pkg"}, Usage: "Manage packages", Subcommands: pkgSubCommands},
+		{Name: "spec", Aliases: []string{"specs"}, Usage: "Manage a declarative app specification", Subcommands: specSubCommands},
 		{Name: "upgrade", Aliases: []string{}, Usage: "Upgrade tool from fission v0.1", Subcommands: upgradeSubCommands},
 		{Name: "tpr2crd", Aliases: []string{}, Usage: "Migrate tool for TPR to CRD", Subcommands: migrateSubCommands},
 	}
