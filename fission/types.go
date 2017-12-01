@@ -18,7 +18,7 @@ package main
 
 // CLI spec types
 type (
-	// DeploymentConfig configures
+	// DeploymentConfig is the global configuration for a set of fission specs.
 	DeploymentConfig struct {
 		// Name is a user-friendly name for the deployment. It is also stored in
 		// all uploaded resources as an annotation.
@@ -28,36 +28,41 @@ type (
 		// used to find resources to clean up when local specs are changed.
 		UID string `json:"string"`
 
-		// Kind allows us to deserialize a DeploymentConfig in a similar way to
-		// our K8s resources. It's value should always be "DeploymentConfig".
+		// Kind should always be "DeploymentConfig".  This allows
+		// kubernetes-style YAML deserialization.
 		Kind string `json:"kind"`
 	}
 
 	// ArchiveUploadSpec specifies a set of files to be archived and uploaded.
-	// IncludeGlobs is a list of Unix shell globs to include, and ExcludeGlobs is a
-	// list of globs to exclude from the set specified by IncludeGlobs.
 	//
 	// The resulting archive can be referenced as archive://<Name> in PackageSpecs,
 	// using the name specified in the archive.  The fission spec applier will
 	// replace the archive:// URL with a real HTTP URL after uploading the file.
 	ArchiveUploadSpec struct {
-		Name         string   `json:"includeglobs"`
+		// Name is a local name that can be used to reference this archive. It
+		// must be unique; duplicate names will cause an error while handling
+		// specs.
+		Name string `json:"includeglobs"`
+
+		// RootDir specifies the root that the globs below are relative to. It
+		// is optional and defaults to the parent directory of the spec
+		// directory: for example, if the deployment config is at
+		// /path/to/project/specs/config.yaml, the RootDir is /path/to/project.
+		RootDir string `json:"root"`
+
+		// IncludeGlobs is a list of Unix shell globs to include
 		IncludeGlobs []string `json:"includeglobs"`
+
+		// ExcludeGlobs is a list of globs to exclude from the set specified by
+		// IncludeGlobs.
 		ExcludeGlobs []string `json:"excludeglobs"`
 
+		// Kind should always be "ArchiveUploadSpec". This allows
+		// kubernetes-style YAML deserialization.
 		Kind string `json:"kind"`
 	}
 
-	// // PackageUploadSpec specifies a Package and ArchiveUploadSpecs for each archive
-	// // in the package.  The ArchiveUploadSpecs are optional, but if they are
-	// // specified, they override the corresponding Archive in the PackageSpec.
-	// PackageUploadSpec struct {
-	// 	Source     ArchiveUploadSpec `json:"source"`
-	// 	Deployment ArchiveUploadSpec `json:"deployment"`
-	// 	Package    crd.Package       `json:"package"`
-	// }
-
-	// objkind is an unmarshaling hack.
+	// Objkind is an unmarshaling hack.
 	Objkind struct {
 		Kind string `json:"kind"`
 	}
