@@ -168,7 +168,7 @@ func main() {
 	// specs
 	specDirFlag := cli.StringFlag{Name: "specdir", Usage: "Directory to store specs, defaults to ./specs"}
 	specNameFlag := cli.StringFlag{Name: "name", Usage: "(optional) Name for the app, applied to resources as a Kubernetes annotation"}
-	specDeleteFlag := cli.StringFlag{Name: "delete", Usage: "Allow apply to delete resources that no longer exist in the specificiation"}
+	specDeleteFlag := cli.BoolFlag{Name: "delete", Usage: "Allow apply to delete resources that no longer exist in the specificiation"}
 	specResourceType := cli.StringFlag{Name: "resource-type", Usage: "Type of resource to save, such as a function, package, environment, httptrigger, etc."}
 	specResourceName := cli.StringFlag{Name: "resource-name", Usage: "Name of resource to save"}
 	specResourceNamespace := cli.StringFlag{Name: "resource-namespace", Usage: "Resource namespace (optional)"}

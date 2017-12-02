@@ -414,7 +414,9 @@ func apply(fclient *client.Client, specDir string, fr *FissionResources, delete 
 
 	// resolve function refs using pkgmeta
 	//...
-	_ = pkgMeta
+	for _, meta := range pkgMeta {
+
+	}
 
 	_, err = applyFunctions(fclient, fr, delete)
 	if err != nil {
@@ -444,7 +446,6 @@ func apply(fclient *client.Client, specDir string, fr *FissionResources, delete 
 // localArchiveFromSpec creates an archive on the local filesystem from the given spec,
 // and returns its path and checksum.
 func localArchiveFromSpec(specDir string, aus *ArchiveUploadSpec) (*fission.Archive, error) {
-
 	// get root dir
 	var rootDir string
 	if len(aus.RootDir) == 0 {
@@ -728,6 +729,7 @@ func applyFunctions(fclient *client.Client, fr *FissionResources, delete bool) (
 	}
 	return metadataMap, nil
 }
+
 func applyEnvironments(fclient *client.Client, fr *FissionResources, delete bool) (map[string]metav1.ObjectMeta, error) {
 	// get list
 	allObjs, err := fclient.EnvironmentList()
