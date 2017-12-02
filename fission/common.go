@@ -26,6 +26,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	uuid "github.com/satori/go.uuid"
@@ -270,4 +271,39 @@ func downloadURL(fileUrl string) (io.ReadCloser, error) {
 		return nil, fmt.Errorf("%v - HTTP response returned non 200 status", resp.StatusCode)
 	}
 	return resp.Body, nil
+}
+
+// make a kubernetes compliant name out of an arbitrary string
+func kubifyName(old string) string {
+	maxLen := 63
+
+	newName := strings.ToLower(old)
+
+	// replace disallowed chars with '-'
+	inv, err := regexp.Compile("[^-a-z0-9]")
+	checkErr(err, "compile regexp")
+	newName = string(inv.ReplaceAll([]byte(newName), []byte("-")))
+
+	// trim leading non-alphabetic
+	leadingnonalpha, err := regexp.Compile("^[^a-z]+")
+	checkErr(err, "compile regexp")
+	newName = string(leadingnonalpha.ReplaceAll([]byte(newName), []byte{}))
+
+	// trim trailing
+	trailing, err := regexp.Compile("[^a-z0-9]+$")
+	checkErr(err, "compile regexp")
+	newName = string(trailing.ReplaceAll([]byte(newName), []byte{}))
+
+	// truncate to length
+	if len(newName) > maxLen-4 {
+		newName = newName[0:(maxLen - 4)]
+	}
+
+	// if we removed everything, call this thing "default". maybe
+	// we should generate a unique name...
+	if len(newName) == 0 {
+		newName = "default"
+	}
+
+	return newName
 }
