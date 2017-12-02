@@ -16,6 +16,11 @@ limitations under the License.
 
 package main
 
+const (
+	FISSION_DEPLOYMENT_NAME_KEY = "fission-name"
+	FISSION_DEPLOYMENT_UID_KEY  = "fission-uid"
+)
+
 // CLI spec types
 type (
 	// DeploymentConfig is the global configuration for a set of fission specs.
@@ -26,7 +31,7 @@ type (
 
 		// UID uniquely identifies the deployment. It is stored as a label and
 		// used to find resources to clean up when local specs are changed.
-		UID string `json:"string"`
+		UID string `json:"uid"`
 
 		// Kind should always be "DeploymentConfig".  This allows
 		// kubernetes-style YAML deserialization.
@@ -42,20 +47,20 @@ type (
 		// Name is a local name that can be used to reference this archive. It
 		// must be unique; duplicate names will cause an error while handling
 		// specs.
-		Name string `json:"includeglobs"`
+		Name string `json:"name"`
 
 		// RootDir specifies the root that the globs below are relative to. It
 		// is optional and defaults to the parent directory of the spec
 		// directory: for example, if the deployment config is at
 		// /path/to/project/specs/config.yaml, the RootDir is /path/to/project.
-		RootDir string `json:"root"`
+		RootDir string `json:"rootdir"`
 
 		// IncludeGlobs is a list of Unix shell globs to include
-		IncludeGlobs []string `json:"includeglobs"`
+		IncludeGlobs []string `json:"include"`
 
 		// ExcludeGlobs is a list of globs to exclude from the set specified by
 		// IncludeGlobs.
-		ExcludeGlobs []string `json:"excludeglobs"`
+		ExcludeGlobs []string `json:"exclude"`
 
 		// Kind should always be "ArchiveUploadSpec". This allows
 		// kubernetes-style YAML deserialization.
