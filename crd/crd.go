@@ -18,7 +18,6 @@ package crd
 
 import (
 	"log"
-	"net"
 	"time"
 
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
@@ -46,20 +45,17 @@ func ensureCRD(clientset *apiextensionsclient.Clientset, crd *apiextensionsv1bet
 				if err != nil {
 					return err
 				}
-			} else if netErr, ok := err.(*net.OpError); ok {
-				// The requests fail to connect to k8s api server
-				// before istio-prxoy is ready to serve traffic.
-				// Retry if encounter network dial op error.
-				if netErr.Op == "dial" {
-					log.Printf("Error connecting to kubernetes api service (%v), retrying", netErr)
-					time.Sleep(200 * time.Duration(2*i) * time.Millisecond)
-					continue
-				}
+			} else {
+				// The requests fail to connect to k8s api server before
+				// istio-prxoy is ready to serve traffic. Retry again.
+				log.Printf("Error connecting to kubernetes api service (%v), retrying", err)
+				time.Sleep(500 * time.Duration(2*i) * time.Millisecond)
+				continue
 			}
-			// unknown or unexpected error
-			return err
+		} else {
+			// resource is existed already
+			break
 		}
-		break
 	}
 	return nil
 }
