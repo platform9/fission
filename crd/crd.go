@@ -17,6 +17,10 @@ limitations under the License.
 package crd
 
 import (
+	"log"
+	"net"
+	"time"
+
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -32,14 +36,30 @@ const (
 // needed. (Note that this creates the CRD type; it doesn't create any
 // _instances_ of that type.)
 func ensureCRD(clientset *apiextensionsclient.Clientset, crd *apiextensionsv1beta1.CustomResourceDefinition) error {
-	_, err := clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Get(crd.ObjectMeta.Name, metav1.GetOptions{})
-	if err != nil {
-		if errors.IsNotFound(err) {
-			_, err := clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Create(crd)
-			if err != nil {
-				return err
+	maxRetries := 5
+	for i := 0; i < maxRetries; i++ {
+		_, err := clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Get(crd.ObjectMeta.Name, metav1.GetOptions{})
+		if err != nil {
+			if errors.IsNotFound(err) {
+				// crd resource not found error
+				_, err := clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Create(crd)
+				if err != nil {
+					return err
+				}
+			} else if netErr, ok := err.(*net.OpError); ok {
+				// The requests fail to connect to k8s api server
+				// before istio-prxoy is ready to serve traffic.
+				// Retry if encounter network dial op error.
+				if netErr.Op == "dial" {
+					log.Printf("Error connecting to kubernetes api service (%v), retrying", netErr)
+					time.Sleep(200 * time.Duration(2*i) * time.Millisecond)
+					continue
+				}
 			}
+			// unknown or unexpected error
+			return err
 		}
+		break
 	}
 	return nil
 }
