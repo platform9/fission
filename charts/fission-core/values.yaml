@@ -35,6 +35,9 @@ functionNamespace: fission-function
 ## the release namespace)
 builderNamespace: fission-builder
 
+## Enable istio integration
+enableIstio: false
+
 ## Persist data to a persistent volume.
 persistence:
   enabled: true

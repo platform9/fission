@@ -129,6 +129,11 @@ spec:
         imagePullPolicy: {{ .Values.pullPolicy }}
         command: ["/fission-bundle"]
         args: ["--controllerPort", "8888"]
+        env:
+          - name: FISSION_FUNCTION_NAMESPACE
+            value: "{{ .Values.functionNamespace }}"
+          - name: ENABLE_ISTIO
+            value: "{{ .Values.enableIstio }}"
         readinessProbe:
           httpGet:
             path: "/healthz"
@@ -220,6 +225,8 @@ spec:
           value: "{{ .Values.fetcherImage }}:{{ .Values.fetcherImageTag }}"
         - name: FETCHER_IMAGE_PULL_POLICY
           value: "{{ .Values.pullPolicy }}"
+        - name: ENABLE_ISTIO
+          value: "{{ .Values.enableIstio }}"
         readinessProbe:
           httpGet:
             path: "/healthz"

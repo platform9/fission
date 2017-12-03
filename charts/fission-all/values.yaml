@@ -38,6 +38,9 @@ functionNamespace: fission-function
 ## the release namespace)
 builderNamespace: fission-builder
 
+## Enable istio integration
+enableIstio: false
+
 ## Logger config
 logger:
   influxdbAdmin: "admin"
