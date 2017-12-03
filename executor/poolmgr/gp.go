@@ -33,7 +33,6 @@ import (
 	"time"
 
 	"github.com/dchest/uniuri"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -465,22 +464,12 @@ func (gp *GenericPool) createPool() error {
 	var deployment *v1beta1.Deployment
 
 	if gp.useIstio {
-		privileged := true
-		readOnlyRootFilesystem := false
-		optional := false
-		var runAsUser int64 = 1337
 		// Use long terminationGracePeriodSeconds for connection draining in case that
 		// pod still runs user functions.
 		var gracePeriod int64 = 6 * 60
 
-		// TODO use istio initializer in future
-		// so far, it's not able to enable both RBAC and initializer features on alpha GKE.
-		// Hard-code the istio sidecar as a workaround.
 		deployment = &v1beta1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{
-				Annotations: map[string]string{
-					"sidecar.istio.io/status": "injected-version-sebastienvas@ee792364cfc2-0.2.10-f27f2803f59994367c1cca47467c362b1702d605",
-				},
 				Name:   poolDeploymentName,
 				Labels: gp.labelsForPool,
 			},
@@ -491,9 +480,6 @@ func (gp *GenericPool) createPool() error {
 				},
 				Template: apiv1.PodTemplateSpec{
 					ObjectMeta: metav1.ObjectMeta{
-						Annotations: map[string]string{
-							"sidecar.istio.io/status": "injected-version-sebastienvas@ee792364cfc2-0.2.10-f27f2803f59994367c1cca47467c362b1702d605",
-						},
 						Labels: gp.labelsForPool,
 					},
 					Spec: apiv1.PodSpec{
@@ -515,26 +501,6 @@ func (gp *GenericPool) createPool() error {
 								Name: "config",
 								VolumeSource: apiv1.VolumeSource{
 									EmptyDir: &apiv1.EmptyDirVolumeSource{},
-								},
-							},
-							{
-								Name: "istio-envoy",
-								VolumeSource: apiv1.VolumeSource{
-									EmptyDir: &apiv1.EmptyDirVolumeSource{
-										Medium: "Memory",
-										SizeLimit: resource.Quantity{
-											Format: "0",
-										},
-									},
-								},
-							},
-							{
-								Name: "istio-certs",
-								VolumeSource: apiv1.VolumeSource{
-									Secret: &apiv1.SecretVolumeSource{
-										SecretName: "istio.fission-fetcher",
-										Optional:   &optional,
-									},
 								},
 							},
 						},
@@ -603,121 +569,36 @@ func (gp *GenericPool) createPool() error {
 									"-secret-dir", gp.sharedSecretPath,
 									"-cfgmap-dir", gp.sharedCfgMapPath,
 									gp.sharedMountPath},
-							},
-							{
-								Name:                   "istio-proxy",
-								Image:                  "docker.io/istio/proxy_debug:0.2.10",
-								ImagePullPolicy:        gp.runtimeImagePullPolicy,
-								TerminationMessagePath: "/dev/termination-log",
-								Args: []string{
-									"proxy",
-									"sidecar",
-									"-v",
-									"2",
-									"--configPath",
-									"/etc/istio/proxy",
-									"--binaryPath",
-									"/usr/local/bin/envoy",
-									"--serviceCluster",
-									"istio-proxy",
-									"--drainDuration",
-									"45s",
-									"--parentShutdownDuration",
-									"1m0s",
-									"--discoveryAddress",
-									"istio-pilot.istio-system:8080",
-									"--discoveryRefreshDelay",
-									"1s",
-									"--zipkinAddress",
-									"zipkin.istio-system:9411",
-									"--connectTimeout",
-									"10s",
-									"--statsdUdpAddress",
-									"istio-mixer.istio-system:9125",
-									"--proxyAdminPort",
-									"15000",
-								},
-								Env: []apiv1.EnvVar{
-									{
-										Name: "POD_NAME",
-										ValueFrom: &apiv1.EnvVarSource{
-											FieldRef: &apiv1.ObjectFieldSelector{
-												FieldPath: "metadata.name",
-											},
-										},
-									},
-									{
-										Name: "POD_NAMESPACE",
-										ValueFrom: &apiv1.EnvVarSource{
-											FieldRef: &apiv1.ObjectFieldSelector{
-												FieldPath: "metadata.namespace",
-											},
-										},
-									},
-									{
-										Name: "INSTANCE_IP",
-										ValueFrom: &apiv1.EnvVarSource{
-											FieldRef: &apiv1.ObjectFieldSelector{
-												FieldPath: "status.podIP",
+								ReadinessProbe: &apiv1.Probe{
+									InitialDelaySeconds: 1,
+									PeriodSeconds:       1,
+									FailureThreshold:    30,
+									Handler: apiv1.Handler{
+										HTTPGet: &apiv1.HTTPGetAction{
+											Path: "/healthz",
+											Port: intstr.IntOrString{
+												Type:   intstr.Int,
+												IntVal: 8000,
 											},
 										},
 									},
 								},
-								SecurityContext: &apiv1.SecurityContext{
-									Privileged:             &privileged,
-									ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
-									RunAsUser:              &runAsUser,
-								},
-								VolumeMounts: []apiv1.VolumeMount{
-									{
-										Name:      "istio-envoy",
-										MountPath: "/etc/istio/proxy",
-									},
-									{
-										Name:      "istio-certs",
-										MountPath: "/etc/certs/",
-										ReadOnly:  true,
+								LivenessProbe: &apiv1.Probe{
+									InitialDelaySeconds: 35,
+									PeriodSeconds:       5,
+									Handler: apiv1.Handler{
+										HTTPGet: &apiv1.HTTPGetAction{
+											Path: "/healthz",
+											Port: intstr.IntOrString{
+												Type:   intstr.Int,
+												IntVal: 8000,
+											},
+										},
 									},
 								},
 							},
 						},
 						ServiceAccountName: "fission-fetcher",
-						InitContainers: []apiv1.Container{
-							{
-								Name:            "istio-init",
-								Image:           "docker.io/istio/proxy_init:0.2.10",
-								ImagePullPolicy: gp.runtimeImagePullPolicy,
-								Args: []string{
-									"-p",
-									"15001",
-									"-u",
-									"1337",
-								},
-								SecurityContext: &apiv1.SecurityContext{
-									Privileged: &privileged,
-									Capabilities: &apiv1.Capabilities{
-										Add: []apiv1.Capability{
-											"NET_ADMIN",
-										},
-									},
-								},
-							},
-							{
-								Name:            "enable-core-dump",
-								Image:           "alpine",
-								ImagePullPolicy: gp.runtimeImagePullPolicy,
-								Command: []string{
-									"/bin/sh",
-								},
-								Args: []string{
-									"-c",
-									"sysctl -w kernel.core_pattern=/etc/istio/proxy/core.%e.%p.%t && ulimit -c unlimited",
-								},
-								SecurityContext: &apiv1.SecurityContext{
-									Privileged: &privileged,
-								},
-							},
-						},
 						// TerminationGracePeriodSeconds should be equal to the
 						// sleep time of preStop to make sure that SIGTERM is sent
 						// to pod after 6 mins.
