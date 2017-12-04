@@ -49,4 +49,5 @@ import:
 - package: github.com/graymeta/stow
 - package: github.com/mholt/archiver
 - package: github.com/pkg/errors
-  
+- package: github.com/fsnotify/fsnotify
+

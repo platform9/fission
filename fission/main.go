@@ -168,6 +168,7 @@ func main() {
 	// specs
 	specDirFlag := cli.StringFlag{Name: "specdir", Usage: "Directory to store specs, defaults to ./specs"}
 	specNameFlag := cli.StringFlag{Name: "name", Usage: "(optional) Name for the app, applied to resources as a Kubernetes annotation"}
+	specWatchFlag := cli.BoolFlag{Name: "watch", Usage: "Watch local files for change, and re-apply specs as necessary"}
 	specDeleteFlag := cli.BoolFlag{Name: "delete", Usage: "Allow apply to delete resources that no longer exist in the specificiation"}
 	specResourceType := cli.StringFlag{Name: "resource-type", Usage: "Type of resource to save, such as a function, package, environment, httptrigger, etc."}
 	specResourceName := cli.StringFlag{Name: "resource-name", Usage: "Name of resource to save"}
@@ -175,7 +176,8 @@ func main() {
 	specSubCommands := []cli.Command{
 		{Name: "init", Usage: "Create an initial declarative app specification", Flags: []cli.Flag{specDirFlag, specNameFlag}, Action: specInit},
 		{Name: "validate", Usage: "Validate Fission app specification", Flags: []cli.Flag{specDirFlag}, Action: specValidate},
-		{Name: "apply", Usage: "Create or update Fission resources from app specification", Flags: []cli.Flag{specDirFlag, specDeleteFlag}, Action: specApply},
+		{Name: "apply", Usage: "Create or update Fission resources from app specification", Flags: []cli.Flag{specDirFlag, specDeleteFlag, specWatchFlag}, Action: specApply},
+		{Name: "destroy", Usage: "Delete all Fission resources in the app specification", Flags: []cli.Flag{specDirFlag}, Action: specDestroy},
 		{Name: "save", Usage: "Save an existing Fission resource to the app specification", Flags: []cli.Flag{specDirFlag, specResourceType, specResourceName, specResourceNamespace}, Action: specSave},
 		{Name: "helm", Usage: "Create a helm chart from the app specification", Flags: []cli.Flag{specDirFlag}, Action: specHelm},
 	}

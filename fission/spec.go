@@ -18,12 +18,16 @@ package main
 
 import (
 	"bytes"
+	//"encoding/json"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
+	"time"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/ghodss/yaml"
 	"github.com/mholt/archiver"
 	"github.com/pkg/errors"
@@ -53,6 +57,13 @@ type (
 
 		sourceMap SourceMap
 	}
+
+	resourceApplyStatus struct {
+		created int
+		updated int
+		deleted int
+	}
+
 	SourceMap struct {
 		// xxx
 	}
@@ -289,6 +300,11 @@ func readSpecs(specDir string) (*FissionResources, error) {
 	return &fr, nil
 }
 
+func ignoreFile(path string) bool {
+	return (strings.Contains(path, "/.#") || // editor autosave files
+		strings.HasSuffix(path, "~")) // editor backups, usually
+}
+
 // specApply compares the specs in the spec/config/ directory to the
 // deployed resources on the cluster, and reconciles the differences
 // by creating, updating or deleting resources on the cluster.
@@ -300,6 +316,172 @@ func readSpecs(specDir string) (*FissionResources, error) {
 // they can retry their apply command once they're back online.
 func specApply(c *cli.Context) error {
 	fclient := getClient(c.GlobalString("server"))
+	specDir := getSpecDir(c)
+
+	deleteResources := c.Bool("delete")
+	watchResources := c.Bool("watch")
+
+	var watcher *fsnotify.Watcher
+	if watchResources {
+		var err error
+		watcher, err = fsnotify.NewWatcher()
+		checkErr(err, "create file watcher")
+
+		// add watches
+		rootDir := filepath.Clean(specDir + "/..")
+		err = filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
+			checkErr(err, "scan project files")
+
+			if ignoreFile(path) {
+				return nil
+			}
+			err = watcher.Add(path)
+			checkErr(err, fmt.Sprintf("watch path %v", path))
+			return nil
+		})
+		checkErr(err, "scan files to watch")
+	}
+
+	for {
+		// read everything
+		fr, err := readSpecs(specDir)
+		checkErr(err, "read specs")
+
+		fmt.Printf("Specification has: %v archives, %v functions, %v environments, %v HTTP triggers\n",
+			len(fr.archiveUploadSpecs), len(fr.functions), len(fr.environments), len(fr.httpTriggers))
+
+		pkgMeta, as, err := apply(fclient, specDir, fr, deleteResources)
+		checkErr(err, "apply specs")
+		printApplyStatus(as)
+
+		if !watchResources {
+			break
+		} else {
+			// watch package builds
+			ctx, pkgWatchCancel := context.WithCancel(context.Background())
+			go watchPackageBuildStatus(ctx, fclient, pkgMeta)
+
+			// listen for file watch events
+			fmt.Println("Watching files for changes...")
+
+		waitloop:
+			for {
+				select {
+				case e := <-watcher.Events:
+					if ignoreFile(e.Name) || (e.Op&fsnotify.Chmod == fsnotify.Chmod) {
+						continue waitloop
+					}
+
+					fmt.Printf("Noticed a file change, reapplying specs...\n")
+
+					// stop watching package status: we're going to reapply, so
+					// we no longer care about old packages.  Builds that
+					// finish after this cancel and before the next
+					// watchPackageBuildStatus call will be printed in the next
+					// watchPackageBuildStatus call.
+					pkgWatchCancel()
+
+					// Wait a bit for things to settle down in case a bunch of
+					// files changed.
+					time.Sleep(500 * time.Millisecond)
+				drainloop:
+					for {
+						select {
+						case _ = <-watcher.Events:
+							time.Sleep(200 * time.Millisecond)
+							continue
+						default:
+							break drainloop
+						}
+					}
+					break waitloop
+				case err := <-watcher.Errors:
+					checkErr(err, "watching files")
+				}
+			}
+		}
+
+	}
+	return nil
+}
+
+func watchPackageBuildStatus(ctx context.Context, fclient *client.Client, pkgMeta map[string]metav1.ObjectMeta) {
+	for {
+		// non-blocking check if we're cancelled
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		// poll list of packages (TODO: convert to watch)
+		pkgs, err := fclient.PackageList()
+		checkErr(err, "Getting list of packages")
+
+		// find packages that (a) are in the app spec and (b) have an interesting
+		// build status (either succeeded or failed; not "none")
+		keepWaiting := false
+		buildpkgs := make([]crd.Package, 0)
+		for _, pkg := range pkgs {
+			_, ok := pkgMeta[mapKey(&pkg.Metadata)]
+			if !ok {
+				continue
+			}
+			if pkg.Status.BuildStatus == fission.BuildStatusNone {
+				continue
+			}
+			if pkg.Status.BuildStatus == fission.BuildStatusPending ||
+				pkg.Status.BuildStatus == fission.BuildStatusRunning {
+				keepWaiting = true
+			}
+			buildpkgs = append(buildpkgs, pkg)
+		}
+
+		// print package status, and error logs if any
+		// TODO: keep track of what packages we printed and don't print em again
+		for _, pkg := range buildpkgs {
+			if pkg.Status.BuildStatus == fission.BuildStatusFailed {
+				fmt.Printf("--- Build FAILED: ---\n%v\n------\n", pkg.Status.BuildLog)
+			} else if pkg.Status.BuildStatus == fission.BuildStatusSucceeded {
+				fmt.Printf("--- Build SUCCEEDED: ---\n%v\n------\n", pkg.Status.BuildLog)
+			}
+		}
+
+		// if there are no builds running, we can stop polling
+		if !keepWaiting {
+			return
+		}
+		time.Sleep(time.Second)
+	}
+}
+
+func printApplyStatus(applyStatus map[string]resourceApplyStatus) {
+	somethingChanged := false
+	for typ, ras := range applyStatus {
+		msgs := make([]string, 0)
+		if ras.created > 0 {
+			somethingChanged = true
+			msgs = append(msgs, fmt.Sprintf("%v %v created", ras.created, typ))
+		}
+		if ras.updated > 0 {
+			somethingChanged = true
+			msgs = append(msgs, fmt.Sprintf("%v %v updated", ras.updated, typ))
+		}
+		if ras.deleted > 0 {
+			somethingChanged = true
+			msgs = append(msgs, fmt.Sprintf("%v %v deleted", ras.deleted, typ))
+		}
+		if len(msgs) > 0 {
+			fmt.Printf("%v.\n", strings.Join(msgs, ", "))
+		}
+	}
+	if !somethingChanged {
+		fmt.Println("Everything up to date.")
+	}
+}
+
+func specDestroy(c *cli.Context) error {
+	fclient := getClient(c.GlobalString("server"))
 
 	// get specdir
 	specDir := getSpecDir(c)
@@ -308,13 +490,13 @@ func specApply(c *cli.Context) error {
 	fr, err := readSpecs(specDir)
 	checkErr(err, "read specs")
 
-	deleteResources := c.Bool("delete")
+	// set desired state to nothing, but keep the UID so "apply" can find it
+	emptyFr := FissionResources{}
+	emptyFr.deploymentConfig = fr.deploymentConfig
 
-	fmt.Printf("Specification has: %v archives, %v functions, %v environments, %v HTTP triggers\n",
-		len(fr.archiveUploadSpecs), len(fr.functions), len(fr.environments), len(fr.httpTriggers))
-
-	err = apply(fclient, specDir, fr, deleteResources)
-	checkErr(err, "apply specs")
+	// "apply" the empty state
+	_, as, err := apply(fclient, specDir, &emptyFr, true)
+	_ = as
 	return nil
 }
 
@@ -370,19 +552,17 @@ func applyArchives(fclient *client.Client, specDir string, fr *FissionResources)
 	}
 
 	// resolve references to urls in packages to be applied
-	for _, pkg := range fr.packages {
-		for _, ar := range []fission.Archive{pkg.Spec.Source, pkg.Spec.Deployment} {
-			if ar.Type == fission.ArchiveTypeUrl {
-				if strings.HasPrefix(ar.URL, ARCHIVE_URL_PREFIX) {
-					availableAr, ok := archiveFiles[ar.URL]
-					if !ok {
-						return fmt.Errorf("Unknown archive name %v", strings.TrimPrefix(ar.URL, ARCHIVE_URL_PREFIX))
-					}
-					ar.Type = availableAr.Type
-					ar.Literal = availableAr.Literal
-					ar.URL = availableAr.URL
-					ar.Checksum = availableAr.Checksum
+	for i, _ := range fr.packages {
+		for _, ar := range []*fission.Archive{&fr.packages[i].Spec.Source, &fr.packages[i].Spec.Deployment} {
+			if strings.HasPrefix(ar.URL, ARCHIVE_URL_PREFIX) {
+				availableAr, ok := archiveFiles[ar.URL]
+				if !ok {
+					return fmt.Errorf("Unknown archive name %v", strings.TrimPrefix(ar.URL, ARCHIVE_URL_PREFIX))
 				}
+				ar.Type = availableAr.Type
+				ar.Literal = availableAr.Literal
+				ar.URL = availableAr.URL
+				ar.Checksum = availableAr.Checksum
 			}
 		}
 	}
@@ -390,57 +570,79 @@ func applyArchives(fclient *client.Client, specDir string, fr *FissionResources)
 }
 
 // apply applies the given set of fission resources.
-func apply(fclient *client.Client, specDir string, fr *FissionResources, delete bool) error {
+func apply(fclient *client.Client, specDir string, fr *FissionResources, delete bool) (map[string]metav1.ObjectMeta, map[string]resourceApplyStatus, error) {
+
+	applyStatus := make(map[string]resourceApplyStatus)
+
 	// upload archives that need to be uploaded. Changes archive references in fr.packages.
 	err := applyArchives(fclient, specDir, fr)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 
-	// idempotent apply: create/edit/do nothing
-	// for each resource type:
-	//   get list of specs
-	//   get list of resources
-	//   reconcile
+	_, ras, err := applyEnvironments(fclient, fr, delete)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "environment apply failed")
+	}
+	applyStatus["environments"] = *ras
 
-	_, err = applyEnvironments(fclient, fr, delete)
+	pkgMeta, ras, err := applyPackages(fclient, fr, delete)
 	if err != nil {
-		return errors.Wrap(err, "environment apply failed")
+		return nil, nil, errors.Wrap(err, "package apply failed")
 	}
-	pkgMeta, err := applyPackages(fclient, fr, delete)
-	if err != nil {
-		return errors.Wrap(err, "package apply failed")
-	}
+	applyStatus["package"] = *ras
 
-	// resolve function refs using pkgmeta
-	//...
-	for _, meta := range pkgMeta {
-
-	}
-
-	_, err = applyFunctions(fclient, fr, delete)
-	if err != nil {
-		return errors.Wrap(err, "function apply failed")
-	}
-
-	_, err = applyHTTPTriggers(fclient, fr, delete)
-	if err != nil {
-		return errors.Wrap(err, "HTTPTrigger apply failed")
-	}
-	_, err = applyKubernetesWatchTriggers(fclient, fr, delete)
-	if err != nil {
-		return errors.Wrap(err, "KubernetesWatchTrigger apply failed")
-	}
-	_, err = applyTimeTriggers(fclient, fr, delete)
-	if err != nil {
-		return errors.Wrap(err, "TimeTrigger apply failed")
-	}
-	_, err = applyMessageQueueTriggers(fclient, fr, delete)
-	if err != nil {
-		return errors.Wrap(err, "MessageQueueTrigger apply failed")
+	// Each reference to a package from a function must contain the resource version
+	// of the package. This ensures that various caches can invalidate themselves
+	// when the package changes.
+	for i, f := range fr.functions {
+		k := mapKey(&metav1.ObjectMeta{
+			Namespace: f.Spec.Package.PackageRef.Namespace,
+			Name:      f.Spec.Package.PackageRef.Name,
+		})
+		m, ok := pkgMeta[k]
+		if !ok {
+			// the function references a package that doesn't exist in the
+			// spec. It may exist outside the spec, but we're going to treat
+			// that as an error, so that we encourage self-contained specs.
+			// Is there a good use case for non-self contained specs?
+			return nil, nil, fmt.Errorf("Function %v/%v references package %v/%v, which doesn't exist in the specs",
+				f.Metadata.Namespace, f.Metadata.Name, f.Spec.Package.PackageRef.Namespace, f.Spec.Package.PackageRef.Name)
+		}
+		fr.functions[i].Spec.Package.PackageRef.ResourceVersion = m.ResourceVersion
 	}
 
-	return nil
+	_, ras, err = applyFunctions(fclient, fr, delete)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "function apply failed")
+	}
+	applyStatus["functions"] = *ras
+
+	_, ras, err = applyHTTPTriggers(fclient, fr, delete)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "HTTPTrigger apply failed")
+	}
+	applyStatus["HTTPTriggers"] = *ras
+
+	_, ras, err = applyKubernetesWatchTriggers(fclient, fr, delete)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "KubernetesWatchTrigger apply failed")
+	}
+	applyStatus["KubernetesWatchTriggers"] = *ras
+
+	_, ras, err = applyTimeTriggers(fclient, fr, delete)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "TimeTrigger apply failed")
+	}
+	applyStatus["TimeTriggers"] = *ras
+
+	_, ras, err = applyMessageQueueTriggers(fclient, fr, delete)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "MessageQueueTrigger apply failed")
+	}
+	applyStatus["MessageQueueTriggers"] = *ras
+
+	return pkgMeta, applyStatus, nil
 }
 
 // localArchiveFromSpec creates an archive on the local filesystem from the given spec,
@@ -552,11 +754,11 @@ func hasDeploymentConfig(m *metav1.ObjectMeta, fr *FissionResources) bool {
 	return false
 }
 
-func applyPackages(fclient *client.Client, fr *FissionResources, delete bool) (map[string]metav1.ObjectMeta, error) {
+func applyPackages(fclient *client.Client, fr *FissionResources, delete bool) (map[string]metav1.ObjectMeta, *resourceApplyStatus, error) {
 	// get list
 	allObjs, err := fclient.PackageList()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// filter
@@ -577,9 +779,7 @@ func applyPackages(fclient *client.Client, fr *FissionResources, delete bool) (m
 	// desired set. used to compute the set to delete.
 	desired := make(map[string]bool)
 
-	numCreated := 0
-	numUpdated := 0
-	numDeleted := 0
+	var ras resourceApplyStatus
 
 	// create or update desired state
 	for _, o := range fr.packages {
@@ -598,11 +798,12 @@ func applyPackages(fclient *client.Client, fr *FissionResources, delete bool) (m
 				metadataMap[mapKey(&o.Metadata)] = existingObj.Metadata
 			} else {
 				// update
+				o.Metadata.ResourceVersion = existingObj.Metadata.ResourceVersion
 				newmeta, err := fclient.PackageUpdate(&o)
 				if err != nil {
-					return nil, err
+					return nil, nil, err
 				}
-				numUpdated++
+				ras.updated++
 				// keep track of metadata in case we need to create a reference to it
 				metadataMap[mapKey(&o.Metadata)] = *newmeta
 			}
@@ -610,9 +811,9 @@ func applyPackages(fclient *client.Client, fr *FissionResources, delete bool) (m
 			// create
 			newmeta, err := fclient.PackageCreate(&o)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
-			numCreated++
+			ras.created++
 			metadataMap[mapKey(&o.Metadata)] = *newmeta
 		}
 	}
@@ -625,27 +826,22 @@ func applyPackages(fclient *client.Client, fr *FissionResources, delete bool) (m
 			if !wanted {
 				err := fclient.PackageDelete(&o.Metadata)
 				if err != nil {
-					return nil, err
+					return nil, nil, err
 				}
-				numDeleted++
+				ras.deleted++
 				fmt.Printf("Deleted %v %v/%v\n", o.TypeMeta.Kind, o.Metadata.Namespace, o.Metadata.Name)
 			}
 		}
 	}
 
-	if numCreated != 0 || numUpdated != 0 || numDeleted != 0 {
-		fmt.Printf("%v: %v created, %v updated, %v deleted\n", "Packages", numCreated, numUpdated, numDeleted)
-	} else {
-		fmt.Printf("%v: no changes needed\n", "Packages")
-	}
-	return metadataMap, nil
+	return metadataMap, &ras, nil
 }
 
-func applyFunctions(fclient *client.Client, fr *FissionResources, delete bool) (map[string]metav1.ObjectMeta, error) {
+func applyFunctions(fclient *client.Client, fr *FissionResources, delete bool) (map[string]metav1.ObjectMeta, *resourceApplyStatus, error) {
 	// get list
 	allObjs, err := fclient.FunctionList()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// filter
@@ -666,9 +862,7 @@ func applyFunctions(fclient *client.Client, fr *FissionResources, delete bool) (
 	// desired set. used to compute the set to delete.
 	desired := make(map[string]bool)
 
-	numCreated := 0
-	numUpdated := 0
-	numDeleted := 0
+	var ras resourceApplyStatus
 
 	// create or update desired state
 	for _, o := range fr.functions {
@@ -687,11 +881,12 @@ func applyFunctions(fclient *client.Client, fr *FissionResources, delete bool) (
 				metadataMap[mapKey(&o.Metadata)] = existingObj.Metadata
 			} else {
 				// update
+				o.Metadata.ResourceVersion = existingObj.Metadata.ResourceVersion
 				newmeta, err := fclient.FunctionUpdate(&o)
 				if err != nil {
-					return nil, err
+					return nil, nil, err
 				}
-				numUpdated++
+				ras.updated++
 				// keep track of metadata in case we need to create a reference to it
 				metadataMap[mapKey(&o.Metadata)] = *newmeta
 			}
@@ -699,9 +894,9 @@ func applyFunctions(fclient *client.Client, fr *FissionResources, delete bool) (
 			// create
 			newmeta, err := fclient.FunctionCreate(&o)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
-			numCreated++
+			ras.created++
 			metadataMap[mapKey(&o.Metadata)] = *newmeta
 		}
 	}
@@ -714,27 +909,22 @@ func applyFunctions(fclient *client.Client, fr *FissionResources, delete bool) (
 			if !wanted {
 				err := fclient.FunctionDelete(&o.Metadata)
 				if err != nil {
-					return nil, err
+					return nil, nil, err
 				}
-				numDeleted++
+				ras.deleted++
 				fmt.Printf("Deleted %v %v/%v\n", o.TypeMeta.Kind, o.Metadata.Namespace, o.Metadata.Name)
 			}
 		}
 	}
 
-	if numCreated != 0 || numUpdated != 0 || numDeleted != 0 {
-		fmt.Printf("%v: %v created, %v updated, %v deleted\n", "Functions", numCreated, numUpdated, numDeleted)
-	} else {
-		fmt.Printf("%v: no changes needed\n", "Functions")
-	}
-	return metadataMap, nil
+	return metadataMap, &ras, nil
 }
 
-func applyEnvironments(fclient *client.Client, fr *FissionResources, delete bool) (map[string]metav1.ObjectMeta, error) {
+func applyEnvironments(fclient *client.Client, fr *FissionResources, delete bool) (map[string]metav1.ObjectMeta, *resourceApplyStatus, error) {
 	// get list
 	allObjs, err := fclient.EnvironmentList()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// filter
@@ -755,9 +945,7 @@ func applyEnvironments(fclient *client.Client, fr *FissionResources, delete bool
 	// desired set. used to compute the set to delete.
 	desired := make(map[string]bool)
 
-	numCreated := 0
-	numUpdated := 0
-	numDeleted := 0
+	var ras resourceApplyStatus
 
 	// create or update desired state
 	for _, o := range fr.environments {
@@ -776,11 +964,12 @@ func applyEnvironments(fclient *client.Client, fr *FissionResources, delete bool
 				metadataMap[mapKey(&o.Metadata)] = existingObj.Metadata
 			} else {
 				// update
+				o.Metadata.ResourceVersion = existingObj.Metadata.ResourceVersion
 				newmeta, err := fclient.EnvironmentUpdate(&o)
 				if err != nil {
-					return nil, err
+					return nil, nil, err
 				}
-				numUpdated++
+				ras.updated++
 				// keep track of metadata in case we need to create a reference to it
 				metadataMap[mapKey(&o.Metadata)] = *newmeta
 			}
@@ -788,9 +977,9 @@ func applyEnvironments(fclient *client.Client, fr *FissionResources, delete bool
 			// create
 			newmeta, err := fclient.EnvironmentCreate(&o)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
-			numCreated++
+			ras.created++
 			metadataMap[mapKey(&o.Metadata)] = *newmeta
 		}
 	}
@@ -803,27 +992,22 @@ func applyEnvironments(fclient *client.Client, fr *FissionResources, delete bool
 			if !wanted {
 				err := fclient.EnvironmentDelete(&o.Metadata)
 				if err != nil {
-					return nil, err
+					return nil, nil, err
 				}
-				numDeleted++
+				ras.deleted++
 				fmt.Printf("Deleted %v %v/%v\n", o.TypeMeta.Kind, o.Metadata.Namespace, o.Metadata.Name)
 			}
 		}
 	}
 
-	if numCreated != 0 || numUpdated != 0 || numDeleted != 0 {
-		fmt.Printf("%v: %v created, %v updated, %v deleted\n", "Environments", numCreated, numUpdated, numDeleted)
-	} else {
-		fmt.Printf("%v: no changes needed\n", "Environments")
-	}
-	return metadataMap, nil
+	return metadataMap, &ras, nil
 }
 
-func applyHTTPTriggers(fclient *client.Client, fr *FissionResources, delete bool) (map[string]metav1.ObjectMeta, error) {
+func applyHTTPTriggers(fclient *client.Client, fr *FissionResources, delete bool) (map[string]metav1.ObjectMeta, *resourceApplyStatus, error) {
 	// get list
 	allObjs, err := fclient.HTTPTriggerList()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// filter
@@ -844,9 +1028,7 @@ func applyHTTPTriggers(fclient *client.Client, fr *FissionResources, delete bool
 	// desired set. used to compute the set to delete.
 	desired := make(map[string]bool)
 
-	numCreated := 0
-	numUpdated := 0
-	numDeleted := 0
+	var ras resourceApplyStatus
 
 	// create or update desired state
 	for _, o := range fr.httpTriggers {
@@ -865,11 +1047,12 @@ func applyHTTPTriggers(fclient *client.Client, fr *FissionResources, delete bool
 				metadataMap[mapKey(&o.Metadata)] = existingObj.Metadata
 			} else {
 				// update
+				o.Metadata.ResourceVersion = existingObj.Metadata.ResourceVersion
 				newmeta, err := fclient.HTTPTriggerUpdate(&o)
 				if err != nil {
-					return nil, err
+					return nil, nil, err
 				}
-				numUpdated++
+				ras.updated++
 				// keep track of metadata in case we need to create a reference to it
 				metadataMap[mapKey(&o.Metadata)] = *newmeta
 			}
@@ -877,9 +1060,9 @@ func applyHTTPTriggers(fclient *client.Client, fr *FissionResources, delete bool
 			// create
 			newmeta, err := fclient.HTTPTriggerCreate(&o)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
-			numCreated++
+			ras.created++
 			metadataMap[mapKey(&o.Metadata)] = *newmeta
 		}
 	}
@@ -892,27 +1075,22 @@ func applyHTTPTriggers(fclient *client.Client, fr *FissionResources, delete bool
 			if !wanted {
 				err := fclient.HTTPTriggerDelete(&o.Metadata)
 				if err != nil {
-					return nil, err
+					return nil, nil, err
 				}
-				numDeleted++
+				ras.deleted++
 				fmt.Printf("Deleted %v %v/%v\n", o.TypeMeta.Kind, o.Metadata.Namespace, o.Metadata.Name)
 			}
 		}
 	}
 
-	if numCreated != 0 || numUpdated != 0 || numDeleted != 0 {
-		fmt.Printf("%v: %v created, %v updated, %v deleted\n", "HTTPTriggers", numCreated, numUpdated, numDeleted)
-	} else {
-		fmt.Printf("%v: no changes needed\n", "HTTPTriggers")
-	}
-	return metadataMap, nil
+	return metadataMap, &ras, nil
 }
 
-func applyKubernetesWatchTriggers(fclient *client.Client, fr *FissionResources, delete bool) (map[string]metav1.ObjectMeta, error) {
+func applyKubernetesWatchTriggers(fclient *client.Client, fr *FissionResources, delete bool) (map[string]metav1.ObjectMeta, *resourceApplyStatus, error) {
 	// get list
 	allObjs, err := fclient.WatchList()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// filter
@@ -933,9 +1111,7 @@ func applyKubernetesWatchTriggers(fclient *client.Client, fr *FissionResources, 
 	// desired set. used to compute the set to delete.
 	desired := make(map[string]bool)
 
-	numCreated := 0
-	numUpdated := 0
-	numDeleted := 0
+	var ras resourceApplyStatus
 
 	// create or update desired state
 	for _, o := range fr.kubernetesWatchTriggers {
@@ -954,11 +1130,12 @@ func applyKubernetesWatchTriggers(fclient *client.Client, fr *FissionResources, 
 				metadataMap[mapKey(&o.Metadata)] = existingObj.Metadata
 			} else {
 				// update
+				o.Metadata.ResourceVersion = existingObj.Metadata.ResourceVersion
 				newmeta, err := fclient.WatchUpdate(&o)
 				if err != nil {
-					return nil, err
+					return nil, nil, err
 				}
-				numUpdated++
+				ras.updated++
 				// keep track of metadata in case we need to create a reference to it
 				metadataMap[mapKey(&o.Metadata)] = *newmeta
 			}
@@ -966,9 +1143,9 @@ func applyKubernetesWatchTriggers(fclient *client.Client, fr *FissionResources, 
 			// create
 			newmeta, err := fclient.WatchCreate(&o)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
-			numCreated++
+			ras.created++
 			metadataMap[mapKey(&o.Metadata)] = *newmeta
 		}
 	}
@@ -981,27 +1158,22 @@ func applyKubernetesWatchTriggers(fclient *client.Client, fr *FissionResources, 
 			if !wanted {
 				err := fclient.WatchDelete(&o.Metadata)
 				if err != nil {
-					return nil, err
+					return nil, nil, err
 				}
-				numDeleted++
+				ras.deleted++
 				fmt.Printf("Deleted %v %v/%v\n", o.TypeMeta.Kind, o.Metadata.Namespace, o.Metadata.Name)
 			}
 		}
 	}
 
-	if numCreated != 0 || numUpdated != 0 || numDeleted != 0 {
-		fmt.Printf("%v: %v created, %v updated, %v deleted\n", "KubernetesWatchTriggers", numCreated, numUpdated, numDeleted)
-	} else {
-		fmt.Printf("%v: no changes needed\n", "KubernetesWatchTriggers")
-	}
-	return metadataMap, nil
+	return metadataMap, &ras, nil
 }
 
-func applyTimeTriggers(fclient *client.Client, fr *FissionResources, delete bool) (map[string]metav1.ObjectMeta, error) {
+func applyTimeTriggers(fclient *client.Client, fr *FissionResources, delete bool) (map[string]metav1.ObjectMeta, *resourceApplyStatus, error) {
 	// get list
 	allObjs, err := fclient.TimeTriggerList()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// filter
@@ -1022,9 +1194,7 @@ func applyTimeTriggers(fclient *client.Client, fr *FissionResources, delete bool
 	// desired set. used to compute the set to delete.
 	desired := make(map[string]bool)
 
-	numCreated := 0
-	numUpdated := 0
-	numDeleted := 0
+	var ras resourceApplyStatus
 
 	// create or update desired state
 	for _, o := range fr.timeTriggers {
@@ -1043,11 +1213,12 @@ func applyTimeTriggers(fclient *client.Client, fr *FissionResources, delete bool
 				metadataMap[mapKey(&o.Metadata)] = existingObj.Metadata
 			} else {
 				// update
+				o.Metadata.ResourceVersion = existingObj.Metadata.ResourceVersion
 				newmeta, err := fclient.TimeTriggerUpdate(&o)
 				if err != nil {
-					return nil, err
+					return nil, nil, err
 				}
-				numUpdated++
+				ras.updated++
 				// keep track of metadata in case we need to create a reference to it
 				metadataMap[mapKey(&o.Metadata)] = *newmeta
 			}
@@ -1055,9 +1226,9 @@ func applyTimeTriggers(fclient *client.Client, fr *FissionResources, delete bool
 			// create
 			newmeta, err := fclient.TimeTriggerCreate(&o)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
-			numCreated++
+			ras.created++
 			metadataMap[mapKey(&o.Metadata)] = *newmeta
 		}
 	}
@@ -1070,27 +1241,22 @@ func applyTimeTriggers(fclient *client.Client, fr *FissionResources, delete bool
 			if !wanted {
 				err := fclient.TimeTriggerDelete(&o.Metadata)
 				if err != nil {
-					return nil, err
+					return nil, nil, err
 				}
-				numDeleted++
+				ras.deleted++
 				fmt.Printf("Deleted %v %v/%v\n", o.TypeMeta.Kind, o.Metadata.Namespace, o.Metadata.Name)
 			}
 		}
 	}
 
-	if numCreated != 0 || numUpdated != 0 || numDeleted != 0 {
-		fmt.Printf("%v: %v created, %v updated, %v deleted\n", "TimeTriggers", numCreated, numUpdated, numDeleted)
-	} else {
-		fmt.Printf("%v: no changes needed\n", "TimeTriggers")
-	}
-	return metadataMap, nil
+	return metadataMap, &ras, nil
 }
 
-func applyMessageQueueTriggers(fclient *client.Client, fr *FissionResources, delete bool) (map[string]metav1.ObjectMeta, error) {
+func applyMessageQueueTriggers(fclient *client.Client, fr *FissionResources, delete bool) (map[string]metav1.ObjectMeta, *resourceApplyStatus, error) {
 	// get list
 	allObjs, err := fclient.MessageQueueTriggerList("")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// filter
@@ -1111,9 +1277,7 @@ func applyMessageQueueTriggers(fclient *client.Client, fr *FissionResources, del
 	// desired set. used to compute the set to delete.
 	desired := make(map[string]bool)
 
-	numCreated := 0
-	numUpdated := 0
-	numDeleted := 0
+	var ras resourceApplyStatus
 
 	// create or update desired state
 	for _, o := range fr.messageQueueTriggers {
@@ -1132,11 +1296,12 @@ func applyMessageQueueTriggers(fclient *client.Client, fr *FissionResources, del
 				metadataMap[mapKey(&o.Metadata)] = existingObj.Metadata
 			} else {
 				// update
+				o.Metadata.ResourceVersion = existingObj.Metadata.ResourceVersion
 				newmeta, err := fclient.MessageQueueTriggerUpdate(&o)
 				if err != nil {
-					return nil, err
+					return nil, nil, err
 				}
-				numUpdated++
+				ras.updated++
 				// keep track of metadata in case we need to create a reference to it
 				metadataMap[mapKey(&o.Metadata)] = *newmeta
 			}
@@ -1144,9 +1309,9 @@ func applyMessageQueueTriggers(fclient *client.Client, fr *FissionResources, del
 			// create
 			newmeta, err := fclient.MessageQueueTriggerCreate(&o)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
-			numCreated++
+			ras.created++
 			metadataMap[mapKey(&o.Metadata)] = *newmeta
 		}
 	}
@@ -1159,18 +1324,13 @@ func applyMessageQueueTriggers(fclient *client.Client, fr *FissionResources, del
 			if !wanted {
 				err := fclient.MessageQueueTriggerDelete(&o.Metadata)
 				if err != nil {
-					return nil, err
+					return nil, nil, err
 				}
-				numDeleted++
+				ras.deleted++
 				fmt.Printf("Deleted %v %v/%v\n", o.TypeMeta.Kind, o.Metadata.Namespace, o.Metadata.Name)
 			}
 		}
 	}
 
-	if numCreated != 0 || numUpdated != 0 || numDeleted != 0 {
-		fmt.Printf("%v: %v created, %v updated, %v deleted\n", "MessageQueueTriggers", numCreated, numUpdated, numDeleted)
-	} else {
-		fmt.Printf("%v: no changes needed\n", "MessageQueueTriggers")
-	}
-	return metadataMap, nil
+	return metadataMap, &ras, nil
 }

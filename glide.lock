@@ -1,5 +1,5 @@
-hash: b83691898dc51e8fc08b5f6450bb4b4ef01c8e8d871049d035ed059b4e4670e5
-updated: 2017-12-01T17:43:24.367377538-08:00
+hash: 93c80adbba10750a7fca4536f93880f152527a8f04eedf40a8ea8cbadeb88779
+updated: 2017-12-02T21:38:02.116016618-08:00
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -46,6 +46,8 @@ imports:
   - log
 - name: github.com/emicklei/go-restful-swagger12
   version: dcef7f55730566d41eae5db10e7d6981829720f6
+- name: github.com/fsnotify/fsnotify
+  version: 4da3e2cfbabc9f751898f250b49f2439785783a1
 - name: github.com/ghodss/yaml
   version: 73d445a93680fa1a78ae23a5839bad48f32ba1ee
 - name: github.com/go-openapi/analysis
