@@ -552,7 +552,7 @@ func applyArchives(fclient *client.Client, specDir string, fr *FissionResources)
 	}
 
 	// resolve references to urls in packages to be applied
-	for i, _ := range fr.packages {
+	for i := range fr.packages {
 		for _, ar := range []*fission.Archive{&fr.packages[i].Spec.Source, &fr.packages[i].Spec.Deployment} {
 			if strings.HasPrefix(ar.URL, ARCHIVE_URL_PREFIX) {
 				availableAr, ok := archiveFiles[ar.URL]
