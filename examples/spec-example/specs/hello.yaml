@@ -1,0 +1,32 @@
+apiVersion: fission.io/v1
+kind: Function
+metadata:
+  name: hello
+  namespace: default
+spec:
+  environment:
+    name: python3
+    namespace: default
+  package:
+    packageref:
+      name: hello-pkg
+      namespace: default
+
+---
+apiVersion: fission.io/v1
+kind: Package
+metadata:
+  name: hello-pkg
+  namespace: default
+spec:
+  deployment:
+    url: archive://hello-archive
+  environment:
+    name: python3
+    namespace: default
+
+---
+kind: ArchiveUploadSpec
+name: hello-archive
+include:
+  - hello/hello.py
