@@ -1,0 +1,37 @@
+apiVersion: fission.io/v1
+kind: Function
+metadata:
+  name: hello-go
+  namespace: default
+spec:
+  environment:
+    name: go
+    namespace: default
+  package:
+    packageref:
+      name: hello-go-pkg
+      namespace: default
+    functionName: Handler
+
+---
+apiVersion: fission.io/v1
+kind: Package
+metadata:
+  name: hello-go-pkg
+  namespace: default
+spec:
+  source:
+    url: archive://hello-go-archive
+  buildcmd: ./build.sh
+  environment:
+    name: go
+    namespace: default
+status:
+  buildstatus: pending
+
+---
+kind: ArchiveUploadSpec
+name: hello-go-archive
+include:
+  - hello.go
+  - build.sh
