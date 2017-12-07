@@ -32,6 +32,9 @@ func main() {
 		cli.StringFlag{Name: "server", Usage: "Fission server URL", EnvVar: "FISSION_URL"},
 	}
 
+	// flag to save functions etc as specs
+	specSaveFlag := cli.BoolFlag{Name: "spec", Usage: "Save this resource to the spec directory instead of creating it"}
+
 	// trigger method and url flags (used in function and route CLIs)
 	htMethodFlag := cli.StringFlag{Name: "method", Usage: "HTTP Method: GET|POST|PUT|DELETE|HEAD; defaults to GET"}
 	htUrlFlag := cli.StringFlag{Name: "url", Usage: "URL pattern (See gorilla/mux supported patterns)"}
@@ -56,7 +59,7 @@ func main() {
 	fnForceFlag := cli.BoolFlag{Name: "force", Usage: "Force update a package even if it is used by one or more functions"}
 
 	fnSubcommands := []cli.Command{
-		{Name: "create", Usage: "Create new function (and optionally, an HTTP route to it)", Flags: []cli.Flag{fnNameFlag, fnEnvNameFlag, fnCodeFlag, fnPackageFlag, fnSrcArchiveFlag, fnDeployArchiveFlag, fnEntryPointFlag, fnBuildCmdFlag, fnPkgNameFlag, htUrlFlag, htMethodFlag}, Action: fnCreate},
+		{Name: "create", Usage: "Create new function (and optionally, an HTTP route to it)", Flags: []cli.Flag{fnNameFlag, fnEnvNameFlag, fnCodeFlag, fnPackageFlag, fnSrcArchiveFlag, fnDeployArchiveFlag, fnEntryPointFlag, fnBuildCmdFlag, specSaveFlag, fnPkgNameFlag, htUrlFlag, htMethodFlag}, Action: fnCreate},
 		{Name: "get", Usage: "Get function source code", Flags: []cli.Flag{fnNameFlag}, Action: fnGet},
 		{Name: "getmeta", Usage: "Get function metadata", Flags: []cli.Flag{fnNameFlag}, Action: fnGetMeta},
 		{Name: "update", Usage: "Update function", Flags: []cli.Flag{fnNameFlag, fnEnvNameFlag, fnCodeFlag, fnPackageFlag, fnSrcArchiveFlag, fnDeployArchiveFlag, fnEntryPointFlag, fnPkgNameFlag, fnBuildCmdFlag, fnForceFlag}, Action: fnUpdate},
@@ -170,15 +173,15 @@ func main() {
 	specNameFlag := cli.StringFlag{Name: "name", Usage: "(optional) Name for the app, applied to resources as a Kubernetes annotation"}
 	specWatchFlag := cli.BoolFlag{Name: "watch", Usage: "Watch local files for change, and re-apply specs as necessary"}
 	specDeleteFlag := cli.BoolFlag{Name: "delete", Usage: "Allow apply to delete resources that no longer exist in the specification"}
-	specResourceType := cli.StringFlag{Name: "resource-type", Usage: "Type of resource to save, such as a function, package, environment, httptrigger, etc."}
-	specResourceName := cli.StringFlag{Name: "resource-name", Usage: "Name of resource to save"}
-	specResourceNamespace := cli.StringFlag{Name: "resource-namespace", Usage: "Resource namespace (optional)"}
+	//specResourceType := cli.StringFlag{Name: "resource-type", Usage: "Type of resource to save, such as a function, package, environment, httptrigger, etc."}
+	//specResourceName := cli.StringFlag{Name: "resource-name", Usage: "Name of resource to save"}
+	//specResourceNamespace := cli.StringFlag{Name: "resource-namespace", Usage: "Resource namespace (optional)"}
 	specSubCommands := []cli.Command{
 		{Name: "init", Usage: "Create an initial declarative app specification", Flags: []cli.Flag{specDirFlag, specNameFlag}, Action: specInit},
 		{Name: "validate", Usage: "Validate Fission app specification", Flags: []cli.Flag{specDirFlag}, Action: specValidate},
 		{Name: "apply", Usage: "Create, update, or delete Fission resources from app specification", Flags: []cli.Flag{specDirFlag, specDeleteFlag, specWatchFlag}, Action: specApply},
 		{Name: "destroy", Usage: "Delete all Fission resources in the app specification", Flags: []cli.Flag{specDirFlag}, Action: specDestroy},
-		{Name: "save", Usage: "Save an existing Fission resource to the app specification", Flags: []cli.Flag{specDirFlag, specResourceType, specResourceName, specResourceNamespace}, Action: specSave},
+		//{Name: "save", Usage: "Save an existing Fission resource to the app specification", Flags: []cli.Flag{specDirFlag, specResourceType, specResourceName, specResourceNamespace}, Action: specSave},
 		{Name: "helm", Usage: "Create a helm chart from the app specification", Flags: []cli.Flag{specDirFlag}, Action: specHelm},
 	}
 

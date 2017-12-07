@@ -44,6 +44,10 @@ type (
 	// using the name specified in the archive.  The fission spec applier will
 	// replace the archive:// URL with a real HTTP URL after uploading the file.
 	ArchiveUploadSpec struct {
+		// Kind should always be "ArchiveUploadSpec". This allows
+		// kubernetes-style YAML deserialization.
+		Kind string `json:"kind"`
+
 		// Name is a local name that can be used to reference this archive. It
 		// must be unique; duplicate names will cause an error while handling
 		// specs.
@@ -53,18 +57,14 @@ type (
 		// is optional and defaults to the parent directory of the spec
 		// directory: for example, if the deployment config is at
 		// /path/to/project/specs/config.yaml, the RootDir is /path/to/project.
-		RootDir string `json:"rootdir"`
+		RootDir string `json:"rootdir,omitempty"`
 
 		// IncludeGlobs is a list of Unix shell globs to include
-		IncludeGlobs []string `json:"include"`
+		IncludeGlobs []string `json:"include,omitempty"`
 
 		// ExcludeGlobs is a list of globs to exclude from the set specified by
 		// IncludeGlobs.
-		ExcludeGlobs []string `json:"exclude"`
-
-		// Kind should always be "ArchiveUploadSpec". This allows
-		// kubernetes-style YAML deserialization.
-		Kind string `json:"kind"`
+		ExcludeGlobs []string `json:"exclude,omitempty"`
 	}
 
 	// Objkind is an unmarshaling hack.

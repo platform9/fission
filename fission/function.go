@@ -76,6 +76,14 @@ func fnCreate(c *cli.Context) error {
 		fatal("Need --name argument.")
 	}
 
+	// user wants a spec, create a yaml file with package and function
+	spec := false
+	specFile := ""
+	if c.Bool("spec") {
+		spec = true
+		specFile = fmt.Sprintf("%v.yaml", fnName)
+	}
+
 	fnList, err := client.FunctionList()
 	checkErr(err, "get function list")
 	// check function existence before creating package
@@ -119,7 +127,7 @@ func fnCreate(c *cli.Context) error {
 		buildcmd := c.String("buildcmd")
 
 		// create new package
-		pkgMetadata = createPackage(client, envName, srcArchiveName, deployArchiveName, buildcmd)
+		pkgMetadata = createPackage(client, envName, srcArchiveName, deployArchiveName, buildcmd, specFile)
 	}
 
 	function := &crd.Function{
@@ -141,6 +149,13 @@ func fnCreate(c *cli.Context) error {
 				},
 			},
 		},
+	}
+
+	// if we're writing a spec, don't create the function
+	if spec {
+		err = specSave(*function, specFile)
+		checkErr(err, "create function spec")
+		return nil
 	}
 
 	_, err = client.FunctionCreate(function)

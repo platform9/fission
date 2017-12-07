@@ -18,7 +18,6 @@ package main
 
 import (
 	"bytes"
-	//"encoding/json"
 	"context"
 	"fmt"
 	"os"
@@ -443,7 +442,10 @@ func watchPackageBuildStatus(ctx context.Context, fclient *client.Client, pkgMet
 			if pkg.Status.BuildStatus == fission.BuildStatusFailed {
 				fmt.Printf("--- Build FAILED: ---\n%v\n------\n", pkg.Status.BuildLog)
 			} else if pkg.Status.BuildStatus == fission.BuildStatusSucceeded {
-				fmt.Printf("--- Build SUCCEEDED: ---\n%v\n------\n", pkg.Status.BuildLog)
+				fmt.Printf("--- Build SUCCEEDED ---\n")
+				if len(pkg.Status.BuildLog) > 0 {
+					fmt.Printf("%v\n------\n", pkg.Status.BuildLog)
+				}
 			}
 		}
 
@@ -546,7 +548,7 @@ func applyArchives(fclient *client.Client, specDir string, fr *FissionResources)
 		} else {
 			// doesn't exist, upload
 			fmt.Printf("uploading archive %v\n", name)
-			uploadedAr := createArchive(fclient, ar.URL)
+			uploadedAr := createArchive(fclient, ar.URL, "")
 			archiveFiles[name] = *uploadedAr
 		}
 	}
@@ -717,12 +719,6 @@ func localArchiveFromSpec(specDir string, aus *ArchiveUploadSpec) (*fission.Arch
 		}, nil
 
 	}
-}
-
-// specSave downloads a resource and writes it to the spec directory
-func specSave(c *cli.Context) error {
-	// save a function/trigger/package into the spec directory
-	return nil
 }
 
 // specHelm creates a helm chart from a spec directory and a
@@ -1333,4 +1329,65 @@ func applyMessageQueueTriggers(fclient *client.Client, fr *FissionResources, del
 	}
 
 	return metadataMap, &ras, nil
+}
+
+// called from `fission function create --spec`
+func specSave(resource interface{}, specFile string) error {
+	specDir := "specs"
+
+	// verify
+	if _, err := os.Stat(filepath.Join(specDir, "fission-config.yaml")); os.IsNotExist(err) {
+		return errors.Wrap(err, "Couldn't find specs, run `fission spec init` first")
+	}
+
+	// make sure we're writing a known type
+	var data []byte
+	var err error
+	switch typedres := resource.(type) {
+	case ArchiveUploadSpec:
+		typedres.Kind = "ArchiveUploadSpec"
+		data, err = yaml.Marshal(typedres)
+	case crd.Package:
+		typedres.TypeMeta.APIVersion = "fission.io/v1"
+		typedres.TypeMeta.Kind = "Package"
+		data, err = yaml.Marshal(typedres)
+	case crd.Function:
+		typedres.TypeMeta.APIVersion = "fission.io/v1"
+		typedres.TypeMeta.Kind = "Function"
+		data, err = yaml.Marshal(typedres)
+	default:
+		return fmt.Errorf("can't save resource %#v", resource)
+	}
+	if err != nil {
+		return errors.Wrap(err, "Couldn't marshal YAML")
+	}
+
+	filename := filepath.Join(specDir, specFile)
+	// check if the file is new
+	newFile := false
+	if _, err := os.Stat(filename); os.IsNotExist(err) {
+		newFile = true
+	}
+
+	// open spec file to append or write
+	f, err := os.OpenFile(filename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+	if err != nil {
+		return errors.Wrap(err, "couldn't create spec file")
+	}
+	defer f.Close()
+
+	// if we're appending, add a yaml document separator
+	if !newFile {
+		_, err = f.Write([]byte("\n---\n"))
+		if err != nil {
+			return errors.Wrap(err, "couldn't write to spec file")
+		}
+	}
+
+	// write our resource
+	_, err = f.Write(data)
+	if err != nil {
+		return errors.Wrap(err, "couldn't write to spec file")
+	}
+	return nil
 }

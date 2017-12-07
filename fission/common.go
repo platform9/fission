@@ -25,10 +25,12 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
 
+	"github.com/dchest/uniuri"
 	uuid "github.com/satori/go.uuid"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -125,12 +127,29 @@ func fileChecksum(fileName string) (*fission.Checksum, error) {
 }
 
 // upload a file and return a fission.Archive
-func createArchive(client *client.Client, fileName string) *fission.Archive {
+func createArchive(client *client.Client, fileName string, specFile string) *fission.Archive {
 	var archive fission.Archive
 
 	// fetch archive from arbitrary url if fileName is a url
 	if strings.HasPrefix(fileName, "http://") || strings.HasPrefix(fileName, "https://") {
 		fileName = downloadToTempFile(fileName)
+	}
+
+	if len(specFile) > 0 {
+		// create an ArchiveUploadSpec and reference it from the archive
+		aus := &ArchiveUploadSpec{
+			Name:         kubifyName(path.Base(fileName)),
+			IncludeGlobs: []string{fileName},
+		}
+		// save the uploadspec
+		err := specSave(*aus, specFile)
+		checkErr(err, fmt.Sprintf("write spec file %v", specFile))
+		// create the archive
+		ar := &fission.Archive{
+			Type: fission.ArchiveTypeUrl,
+			URL:  fmt.Sprintf("%v%v", ARCHIVE_URL_PREFIX, aus.Name),
+		}
+		return ar
 	}
 
 	if fileSize(fileName) < fission.ArchiveLiteralSizeLimit {
@@ -158,7 +177,7 @@ func createArchive(client *client.Client, fileName string) *fission.Archive {
 	return &archive
 }
 
-func createPackage(client *client.Client, envName, srcArchiveName, deployArchiveName, buildcmd string) *metav1.ObjectMeta {
+func createPackage(client *client.Client, envName, srcArchiveName, deployArchiveName, buildcmd string, specFile string) *metav1.ObjectMeta {
 	pkgSpec := fission.PackageSpec{
 		Environment: fission.EnvironmentReference{
 			Namespace: metav1.NamespaceDefault,
@@ -167,20 +186,28 @@ func createPackage(client *client.Client, envName, srcArchiveName, deployArchive
 	}
 	var pkgStatus fission.BuildStatus = fission.BuildStatusSucceeded
 
+	var pkgName string
 	if len(deployArchiveName) > 0 {
-		pkgSpec.Deployment = *createArchive(client, deployArchiveName)
+		if len(specFile) > 0 { // we should do this in all cases, i think
+			pkgStatus = fission.BuildStatusNone
+		}
+		pkgSpec.Deployment = *createArchive(client, deployArchiveName, specFile)
+		pkgName = kubifyName(fmt.Sprintf("%v-%v", path.Base(deployArchiveName), uniuri.NewLen(4)))
 	}
 	if len(srcArchiveName) > 0 {
-		pkgSpec.Source = *createArchive(client, srcArchiveName)
+		pkgSpec.Source = *createArchive(client, srcArchiveName, specFile)
 		// set pending status to package
 		pkgStatus = fission.BuildStatusPending
+		pkgName = kubifyName(fmt.Sprintf("%v-%v", path.Base(srcArchiveName), uniuri.NewLen(4)))
 	}
 
 	if len(buildcmd) > 0 {
 		pkgSpec.BuildCommand = buildcmd
 	}
 
-	pkgName := strings.ToLower(uuid.NewV4().String())
+	if len(pkgName) == 0 {
+		pkgName = strings.ToLower(uuid.NewV4().String())
+	}
 	pkg := &crd.Package{
 		Metadata: metav1.ObjectMeta{
 			Name:      pkgName,
@@ -191,9 +218,16 @@ func createPackage(client *client.Client, envName, srcArchiveName, deployArchive
 			BuildStatus: pkgStatus,
 		},
 	}
-	pkgMetadata, err := client.PackageCreate(pkg)
-	checkErr(err, "create package")
-	return pkgMetadata
+
+	if len(specFile) > 0 {
+		err := specSave(*pkg, specFile)
+		checkErr(err, "save package spec")
+		return &pkg.Metadata
+	} else {
+		pkgMetadata, err := client.PackageCreate(pkg)
+		checkErr(err, "create package")
+		return pkgMetadata
+	}
 }
 
 func getContents(filePath string) []byte {

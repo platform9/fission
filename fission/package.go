@@ -76,7 +76,7 @@ func pkgCreate(c *cli.Context) error {
 		fatal("Need --src to specify source archive, or use --deploy to specify deployment archive.")
 	}
 
-	meta := createPackage(client, envName, srcArchiveName, deployArchiveName, buildcmd)
+	meta := createPackage(client, envName, srcArchiveName, deployArchiveName, buildcmd, "")
 	fmt.Printf("Package '%v' created\n", meta.GetName())
 
 	return nil
@@ -146,13 +146,13 @@ func updatePackage(client *client.Client, pkg *crd.Package, envName,
 	}
 
 	if len(srcArchiveName) > 0 {
-		srcArchiveMetadata = createArchive(client, srcArchiveName)
+		srcArchiveMetadata = createArchive(client, srcArchiveName, "")
 		pkg.Spec.Source = *srcArchiveMetadata
 		needToBuild = true
 	}
 
 	if len(deployArchiveName) > 0 {
-		deployArchiveMetadata = createArchive(client, deployArchiveName)
+		deployArchiveMetadata = createArchive(client, deployArchiveName, "")
 		pkg.Spec.Deployment = *deployArchiveMetadata
 	}
 
