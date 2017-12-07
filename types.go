@@ -34,8 +34,8 @@ type (
 	// "sha256" is the only currently supported one. Sum is hex
 	// encoded.
 	Checksum struct {
-		Type ChecksumType `json:"type"`
-		Sum  string       `json:"sum"`
+		Type ChecksumType `json:"type,omitempty"`
+		Sum  string       `json:"sum,omitempty"`
 	}
 
 	// ArchiveType is either literal or URL, indicating whether
@@ -47,18 +47,18 @@ type (
 	// binary files.
 	Archive struct {
 		// Type defines how the package is specified: literal or URL.
-		Type ArchiveType `json:"type"`
+		Type ArchiveType `json:"type,omitempty"`
 
 		// Literal contents of the package. Can be used for
 		// encoding packages below TODO (256KB?) size.
-		Literal []byte `json:"literal"`
+		Literal []byte `json:"literal,omitempty"`
 
 		// URL references a package.
-		URL string `json:"url"`
+		URL string `json:"url,omitempty"`
 
 		// Checksum ensures the integrity of packages
 		// refereced by URL. Ignored for literals.
-		Checksum Checksum `json:"checksum"`
+		Checksum Checksum `json:"checksum,omitempty"`
 	}
 
 	EnvironmentReference struct {
@@ -70,14 +70,14 @@ type (
 
 	PackageSpec struct {
 		Environment  EnvironmentReference `json:"environment"`
-		Source       Archive              `json:"source"`
-		Deployment   Archive              `json:"deployment"`
-		BuildCommand string               `json:"buildcmd"`
+		Source       Archive              `json:"source,omitempty"`
+		Deployment   Archive              `json:"deployment,omitempty"`
+		BuildCommand string               `json:"buildcmd,omitempty"`
 		// In the future, we can have a debug build here too
 	}
 	PackageStatus struct {
-		BuildStatus BuildStatus `json:"buildstatus"`
-		BuildLog    string      `json:"buildlog"` // output of the build (errors etc)
+		BuildStatus BuildStatus `json:"buildstatus,omitempty"`
+		BuildLog    string      `json:"buildlog,omitempty"` // output of the build (errors etc)
 	}
 
 	PackageRef struct {
@@ -86,7 +86,7 @@ type (
 
 		// Including resource version in the reference forces the function to be updated on
 		// package update, making it possible to cache the function based on its metadata.
-		ResourceVersion string `json:"resourceversion"`
+		ResourceVersion string `json:"resourceversion,omitempty"`
 	}
 	FunctionPackageRef struct {
 		PackageRef PackageRef `json:"packageref"`
@@ -99,7 +99,7 @@ type (
 		// build and runtime environments.
 		//
 		// This is optional: if unspecified, the environment has a default name.
-		FunctionName string `json:"functionName"`
+		FunctionName string `json:"functionName,omitempty"`
 	}
 
 	// FunctionSpec describes the contents of the function.
@@ -152,10 +152,10 @@ type (
 	}
 	Builder struct {
 		// Image for containing the language runtime.
-		Image string `json:"image"`
+		Image string `json:"image,omitempty"`
 
 		// (Optional) Default build command to run for this build environment.
-		Command string `json:"command"`
+		Command string `json:"command,omitempty"`
 	}
 	EnvironmentSpec struct {
 		// Environment API version
@@ -169,11 +169,11 @@ type (
 
 		// Optional, but strongly encouraged. Used to populate
 		// links from UI, CLI, etc.
-		DocumentationURL string `json:"documentationurl"`
+		DocumentationURL string `json:"documentationurl,omitempty"`
 
 		// Optional
 		// Defaults to 'Single'
-		AllowedFunctionsPerContainer AllowedFunctionsPerContainer `json:"allowedFunctionsPerContainer"`
+		AllowedFunctionsPerContainer AllowedFunctionsPerContainer `json:"allowedFunctionsPerContainer,omitempty"`
 	}
 
 	AllowedFunctionsPerContainer string
