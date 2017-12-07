@@ -22,7 +22,7 @@ metadata:
 spec:
   source:
     url: archive://hello-go-archive
-  buildcmd: ./build.sh
+  buildcmd: build
   environment:
     name: go
     namespace: default
