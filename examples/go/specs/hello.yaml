@@ -1,6 +1,33 @@
+include:
+- hello.go
+kind: ArchiveUploadSpec
+name: hello-go
+
+---
+apiVersion: fission.io/v1
+kind: Package
+metadata:
+  creationTimestamp: null
+  name: hello-go-9s6r
+  namespace: default
+spec:
+  deployment:
+    checksum: {}
+  environment:
+    name: go
+    namespace: default
+  source:
+    checksum: {}
+    type: url
+    url: archive://hello-go
+status:
+  buildstatus: pending
+
+---
 apiVersion: fission.io/v1
 kind: Function
 metadata:
+  creationTimestamp: null
   name: hello-go
   namespace: default
 spec:
@@ -8,30 +35,7 @@ spec:
     name: go
     namespace: default
   package:
-    packageref:
-      name: hello-go-pkg
-      namespace: default
     functionName: Handler
-
----
-apiVersion: fission.io/v1
-kind: Package
-metadata:
-  name: hello-go-pkg
-  namespace: default
-spec:
-  source:
-    url: archive://hello-go-archive
-  buildcmd: build
-  environment:
-    name: go
-    namespace: default
-status:
-  buildstatus: pending
-
----
-kind: ArchiveUploadSpec
-name: hello-go-archive
-include:
-  - hello.go
-  - build.sh
+    packageref:
+      name: hello-go-9s6r
+      namespace: default
