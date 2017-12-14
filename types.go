@@ -18,7 +18,7 @@ package fission
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/pkg/api/v1"
+	apiv1 "k8s.io/client-go/pkg/api/v1"
 )
 
 type (
@@ -133,7 +133,7 @@ type (
 		ConfigMaps []ConfigMapReference `json:"configmaps"`
 
 		// cpu and memory resources as per K8S standards
-		Resources v1.ResourceRequirements `json:"resources"`
+		Resources apiv1.ResourceRequirements `json:"resources"`
 
 		// InvokeStrategy is a set of controls which affect how function executes
 		InvokeStrategy InvokeStrategy
@@ -211,7 +211,7 @@ type (
 
 		// Optional
 		// Environment variables to be set in environment
-		Env []EnvVar `json:"env"`
+		Env []apiv1.EnvVar `json:"env"`
 	}
 	Builder struct {
 		// Image for containing the language runtime.
@@ -222,7 +222,7 @@ type (
 
 		// Optional
 		// Environment variables to be set in environment
-		Env []EnvVar `json:"env"`
+		Env []apiv1.EnvVar `json:"env"`
 	}
 	EnvironmentSpec struct {
 		// Environment API version
@@ -242,14 +242,10 @@ type (
 		AllowedFunctionsPerContainer AllowedFunctionsPerContainer `json:"allowedFunctionsPerContainer,omitempty"`
 
 		// Request and limit resources for the environment
-		Resources v1.ResourceRequirements `json:"resources"`
+		Resources apiv1.ResourceRequirements `json:"resources"`
 
 		// The initial pool size for environment
 		Poolsize int `json:"poolsize,omitempty"`
-	}
-	EnvVar struct {
-		Name  string `json:"name"`
-		Value string `json:"value"`
 	}
 
 	AllowedFunctionsPerContainer string
