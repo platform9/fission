@@ -106,6 +106,19 @@ func fnCreate(c *cli.Context) error {
 			fatal("Need --env argument.")
 		}
 
+		// examine existence of given environment
+		_, err := client.EnvironmentGet(&metav1.ObjectMeta{
+			Namespace: metav1.NamespaceDefault,
+			Name:      envName,
+		})
+		if err != nil {
+			if e, ok := err.(fission.Error); ok && e.Code == fission.ErrorNotFound {
+				fmt.Printf("Environment \"%v\" is not existed, please create it before accessing the function.\n", envName)
+			} else {
+				checkErr(err, "execute retrieving environment information")
+			}
+		}
+
 		srcArchiveName := c.String("src")
 		deployArchiveName := c.String("code")
 		if len(deployArchiveName) == 0 {
