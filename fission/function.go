@@ -113,7 +113,7 @@ func fnCreate(c *cli.Context) error {
 		})
 		if err != nil {
 			if e, ok := err.(fission.Error); ok && e.Code == fission.ErrorNotFound {
-				fmt.Printf("Environment \"%v\" does not exist. Please create it before accessing the function.\n", envName)
+				fmt.Printf("Environment \"%v\" does not exist. Without the environment the function cannot be executed!\n", envName)
 			} else {
 				checkErr(err, "execute retrieving environment information")
 			}
