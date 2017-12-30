@@ -70,3 +70,7 @@ import:
 - package: github.com/dustin/go-humanize
 - package: github.com/golang/protobuf/proto
   version: v1.1.0
+- package: github.com/bsm/sarama-cluster
+  version: ^2.1.11
+- package: github.com/Shopify/sarama
+  version: ^1.15.0

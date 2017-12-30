@@ -340,7 +340,7 @@ metadata:
     svc: influxdb
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
 spec:
-  type: ClusterIP 
+  type: ClusterIP
   ports:
   - port: 8086
     targetPort: 8086
@@ -528,6 +528,8 @@ spec:
 #        args: ["proxy", "--port", "8001", "--address", "127.0.0.1"]
 #      serviceAccount: fission-svc
 
+
+{{- if .Values.messagequeues.nats.enabled }}
 ---
 {{- if eq .Values.messageQueue.type "nats-streaming" }}
 apiVersion: extensions/v1beta1
@@ -547,10 +549,11 @@ spec:
       - name: nats-streaming
         image: nats-streaming
         args: [
-          "--cluster_id", "{{ .Values.nats.clusterID }}",
-          "--auth", "{{ .Values.nats.authToken }}",
+          "--cluster_id", "{{ .Values.messagequeues.nats.clusterID }}",
+          "--auth", "{{ .Values.messagequeues.nats.authToken }}",
           "--max_channels", "0"
         ]
+
         ports:
         - containerPort: 4222
           hostPort: 4222
@@ -561,7 +564,7 @@ spec:
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  name: mqtrigger
+  name: mqtrigger-nats-streaming
   labels:
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
 spec:
@@ -570,6 +573,7 @@ spec:
     metadata:
       labels:
         svc: mqtrigger
+        messagequeue: nats-streaming
     spec:
       containers:
       - name: mqtrigger
@@ -582,6 +586,7 @@ spec:
           value: {{ .Values.messageQueue.type }}
         {{- if eq .Values.messageQueue.type "nats-streaming" }}
         - name: MESSAGE_QUEUE_URL
+<<<<<<< HEAD
           value: nats://{{ .Values.nats.authToken }}@nats-streaming:4222
         {{- else if eq .Values.messageQueue.type "azure-storage-queue" }}
         - name: AZURE_STORAGE_ACCOUNT_NAME
@@ -592,8 +597,40 @@ spec:
               name: azure-storage-account-key
               key: key
         {{- end }}
+=======
+          value: nats://{{ .Values.messagequeues.nats.authToken }}@nats-streaming:4222
+>>>>>>> f67af9f... Implement Kafka support based on work of @puneetguptanitj
       serviceAccount: fission-svc
-
+{{- end }}
+{{- if .Values.messagequeues.kafka.enabled }}
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: mqtrigger-kafka
+  labels:
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        svc: mqtrigger
+        messagequeue: kafka
+    spec:
+      containers:
+      - name: mqtrigger
+        image: "{{ .Values.image }}:{{ .Values.imageTag }}"
+        imagePullPolicy: {{ .Values.pullPolicy }}
+        command: ["/fission-bundle"]
+        args: ["--mqt"]
+        env:
+        - name: MESSAGE_QUEUE_TYPE
+          value: kafka
+        - name: MESSAGE_QUEUE_URL
+          value: "{{.Values.messagequeues.kafka.brokers}}"
+      serviceAccount: fission-svc
+{{- end }}
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment

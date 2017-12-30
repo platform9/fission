@@ -20,25 +20,19 @@ import (
 	"errors"
 	"time"
 
+	"github.com/fission/fission/crd"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-<<<<<<< HEAD
-
-	"github.com/fission/fission"
-=======
->>>>>>> eb1bcf2... added support for kafka message queue
 	"github.com/fission/fission/crd"
 )
 
+
 const (
-<<<<<<< HEAD
-=======
-	NATS string = "nats-streaming"
+	NATS  string = "nats-streaming"
 	KAFKA string = "kafka"
 )
 
 const (
->>>>>>> eb1bcf2... added support for kafka message queue
 	ADD_TRIGGER requestType = iota
 	DELETE_TRIGGER
 	GET_ALL_TRIGGERS
@@ -242,8 +236,7 @@ func IsTopicValid(mqType string, topic string) bool {
 	case NATS:
 		return isTopicValidForNats(topic)
 	case KAFKA:
-		//Delegate to Kafka
-		return true; 
+		return isTopicValidForKafka(topic)
 	}
 	return false
 }
