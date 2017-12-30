@@ -1,5 +1,9 @@
 hash: b26f975bf145378e939db833fa4b6a142fa04b884463d8173622b30f95191d42
 updated: 2018-08-13T13:12:57.58715-07:00
+=======
+hash: 1f595f5cdf8dc629d9046f82869cb77811dac21ce5f58e4f81e89d21181f6c34
+updated: 2018-05-24T22:39:34.860206+08:00
+>>>>>>> Implement Kafka support based on work of @puneetguptanitj
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -21,6 +25,8 @@ imports:
   version: 3ac7bf7a47d159a033b107610db8a1b6575507a4
   subpackages:
   - quantile
+- name: github.com/bsm/sarama-cluster
+  version: 24016d206c730276dfb58f802999066f2f4bfeaa
 - name: github.com/coreos/etcd
   version: f87b566248bb0713a56dc55bc545aa5aad17ace0
   subpackages:
@@ -51,6 +57,8 @@ imports:
   version: 9f541cc9db5d55bce703bd99987c9d5cb8eea45e
 - name: github.com/fsnotify/fsnotify
   version: c2828203cd70a50dcccfb2761f8b1f8ceef9a8e9
+- name: github.com/fsnotify/fsnotify
+  version: 4da3e2cfbabc9f751898f250b49f2439785783a1
 - name: github.com/ghodss/yaml
   version: 73d445a93680fa1a78ae23a5839bad48f32ba1ee
 - name: github.com/gogo/protobuf
@@ -158,31 +166,13 @@ imports:
   version: 6b9367c9ff401dbc54fabce3fb8d972e799b702d
   subpackages:
   - internal/xxh32
-- name: github.com/pkg/errors
-  version: 816c9085562cd7ee03e7f8188a1cfd942858cded
-- name: github.com/prometheus/client_golang
-  version: c5b7fccd204277076155f10851dad72b76a49317
-  subpackages:
-  - prometheus
-  - prometheus/promhttp
-- name: github.com/prometheus/client_model
-  version: fa8ad6fec33561be4280a8f0514318c79d7f6cb6
-  subpackages:
-  - go
-- name: github.com/prometheus/common
-  version: 13ba4ddd0caa9c28ca7b7bffe1dfa9ed8d5ef207
-  subpackages:
-  - expfmt
-  - internal/bitbucket.org/ww/goautoneg
-  - model
-- name: github.com/prometheus/procfs
-  version: 65c1f6f8f0fc1e2185eb9863a3bc751496404259
-  subpackages:
-  - xfs
 - name: github.com/robfig/cron
   version: b41be1df696709bb6395fe435af20370037c0b4c
 - name: github.com/satori/go.uuid
   version: f58768cc1a7a7e77a3bd49e98cdd21419399b6a3
+  version: 879c5887cd475cd7864858769793b2ceb0d44feb
+- name: github.com/Shopify/sarama
+  version: 3b1b38866a79f06deddf0487d5c27ba0697ccd65
 - name: github.com/sirupsen/logrus
   version: 68cec9f21fbf3ea8d8f98c044bc6ce05f17b267a
 - name: github.com/spf13/pflag
