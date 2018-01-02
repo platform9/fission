@@ -518,8 +518,9 @@ func specDestroy(c *cli.Context) error {
 	emptyFr.deploymentConfig = fr.deploymentConfig
 
 	// "apply" the empty state
-	_, as, err := apply(fclient, specDir, &emptyFr, true)
-	_ = as
+	_, _, err = apply(fclient, specDir, &emptyFr, true)
+	checkErr(err, "delete resources")
+
 	return nil
 }
 
