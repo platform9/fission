@@ -173,9 +173,6 @@ func main() {
 	specNameFlag := cli.StringFlag{Name: "name", Usage: "(optional) Name for the app, applied to resources as a Kubernetes annotation"}
 	specWatchFlag := cli.BoolFlag{Name: "watch", Usage: "Watch local files for change, and re-apply specs as necessary"}
 	specDeleteFlag := cli.BoolFlag{Name: "delete", Usage: "Allow apply to delete resources that no longer exist in the specification"}
-	//specResourceType := cli.StringFlag{Name: "resource-type", Usage: "Type of resource to save, such as a function, package, environment, httptrigger, etc."}
-	//specResourceName := cli.StringFlag{Name: "resource-name", Usage: "Name of resource to save"}
-	//specResourceNamespace := cli.StringFlag{Name: "resource-namespace", Usage: "Resource namespace (optional)"}
 	specSubCommands := []cli.Command{
 		{Name: "init", Usage: "Create an initial declarative app specification", Flags: []cli.Flag{specDirFlag, specNameFlag}, Action: specInit},
 		{Name: "validate", Usage: "Validate Fission app specification", Flags: []cli.Flag{specDirFlag}, Action: specValidate},
