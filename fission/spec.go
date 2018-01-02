@@ -779,7 +779,7 @@ func applyPackages(fclient *client.Client, fr *FissionResources, delete bool) (m
 	}
 
 	// filter
-	objs := make([]crd.Package, 1)
+	objs := make([]crd.Package, 0)
 	for _, o := range allObjs {
 		if hasDeploymentConfig(&o.Metadata, fr) {
 			objs = append(objs, o)
@@ -873,7 +873,7 @@ func applyFunctions(fclient *client.Client, fr *FissionResources, delete bool) (
 	}
 
 	// filter
-	objs := make([]crd.Function, 1)
+	objs := make([]crd.Function, 0)
 	for _, o := range allObjs {
 		if hasDeploymentConfig(&o.Metadata, fr) {
 			objs = append(objs, o)
@@ -956,7 +956,7 @@ func applyEnvironments(fclient *client.Client, fr *FissionResources, delete bool
 	}
 
 	// filter
-	objs := make([]crd.Environment, 1)
+	objs := make([]crd.Environment, 0)
 	for _, o := range allObjs {
 		if hasDeploymentConfig(&o.Metadata, fr) {
 			objs = append(objs, o)
@@ -1039,7 +1039,7 @@ func applyHTTPTriggers(fclient *client.Client, fr *FissionResources, delete bool
 	}
 
 	// filter
-	objs := make([]crd.HTTPTrigger, 1)
+	objs := make([]crd.HTTPTrigger, 0)
 	for _, o := range allObjs {
 		if hasDeploymentConfig(&o.Metadata, fr) {
 			objs = append(objs, o)
@@ -1122,7 +1122,7 @@ func applyKubernetesWatchTriggers(fclient *client.Client, fr *FissionResources, 
 	}
 
 	// filter
-	objs := make([]crd.KubernetesWatchTrigger, 1)
+	objs := make([]crd.KubernetesWatchTrigger, 0)
 	for _, o := range allObjs {
 		if hasDeploymentConfig(&o.Metadata, fr) {
 			objs = append(objs, o)
@@ -1205,7 +1205,7 @@ func applyTimeTriggers(fclient *client.Client, fr *FissionResources, delete bool
 	}
 
 	// filter
-	objs := make([]crd.TimeTrigger, 1)
+	objs := make([]crd.TimeTrigger, 0)
 	for _, o := range allObjs {
 		if hasDeploymentConfig(&o.Metadata, fr) {
 			objs = append(objs, o)
@@ -1288,7 +1288,7 @@ func applyMessageQueueTriggers(fclient *client.Client, fr *FissionResources, del
 	}
 
 	// filter
-	objs := make([]crd.MessageQueueTrigger, 1)
+	objs := make([]crd.MessageQueueTrigger, 0)
 	for _, o := range allObjs {
 		if hasDeploymentConfig(&o.Metadata, fr) {
 			objs = append(objs, o)
