@@ -309,6 +309,7 @@ func downloadURL(fileUrl string) (io.ReadCloser, error) {
 
 // make a kubernetes compliant name out of an arbitrary string
 func kubifyName(old string) string {
+	// Kubernetes maximum name length (for some names; others can be 253 chars)
 	maxLen := 63
 
 	newName := strings.ToLower(old)
@@ -329,8 +330,8 @@ func kubifyName(old string) string {
 	newName = string(trailing.ReplaceAll([]byte(newName), []byte{}))
 
 	// truncate to length
-	if len(newName) > maxLen-4 {
-		newName = newName[0:(maxLen - 4)]
+	if len(newName) > maxLen {
+		newName = newName[0:maxLen]
 	}
 
 	// if we removed everything, call this thing "default". maybe
