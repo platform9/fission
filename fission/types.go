@@ -23,8 +23,12 @@ const (
 
 // CLI spec types
 type (
-	// DeploymentConfig is the global configuration for a set of fission specs.
+	// DeploymentConfig is the global configuration for a set of Fission specs.
 	DeploymentConfig struct {
+		// TypeMeta describes the type of this object. It is inlined. The Kind
+		// field should always be "DeploymentConfig".
+		TypeMeta `json:",inline"`
+
 		// Name is a user-friendly name for the deployment. It is also stored in
 		// all uploaded resources as an annotation.
 		Name string `json:"name"`
@@ -32,10 +36,6 @@ type (
 		// UID uniquely identifies the deployment. It is stored as a label and
 		// used to find resources to clean up when local specs are changed.
 		UID string `json:"uid"`
-
-		// Kind should always be "DeploymentConfig".  This allows
-		// kubernetes-style YAML deserialization.
-		Kind string `json:"kind"`
 	}
 
 	// ArchiveUploadSpec specifies a set of files to be archived and uploaded.
@@ -44,9 +44,9 @@ type (
 	// using the name specified in the archive.  The fission spec applier will
 	// replace the archive:// URL with a real HTTP URL after uploading the file.
 	ArchiveUploadSpec struct {
-		// Kind should always be "ArchiveUploadSpec". This allows
-		// kubernetes-style YAML deserialization.
-		Kind string `json:"kind"`
+		// TypeMeta describes the type of this object. It is inlined. The Kind
+		// field should always be "ArchiveUploadSpec".
+		TypeMeta `json:",inline"`
 
 		// Name is a local name that can be used to reference this archive. It
 		// must be unique; duplicate names will cause an error while handling
@@ -67,8 +67,11 @@ type (
 		ExcludeGlobs []string `json:"exclude,omitempty"`
 	}
 
-	// Objkind is an unmarshaling hack.
-	Objkind struct {
-		Kind string `json:"kind"`
+	// TypeMeta is the same as Kubernetes' TypeMeta, and allows us to version and
+	// unmarshal local-only objects (like ArchiveUploadSpec) the same way that
+	// Kubernetes does.
+	TypeMeta struct {
+		Kind       string `json:"kind,omitempty"`
+		APIVersion string `json:"apiVersion,omitempty"`
 	}
 )
