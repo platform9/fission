@@ -1,6 +1,8 @@
 ## Fission Documentation
 
- * [Installation guide](install)
+- [Fission Installation guide](install)
 
- * [Upgrade guide for v0.3 to v0.4](upgrade-from-v0.3)
- 
+- [Fission Workflows Installation guide](install-workflows)
+
+- [Upgrade guide for v0.3 to v0.4](upgrade-from-v0.3)
+
