@@ -38,34 +38,37 @@ func (c *Client) Fetch(fr *fetcher.FetchRequest) error {
 	for i := 0; i < maxRetries; i++ {
 		resp, err = http.Post(c.url, "application/json", bytes.NewReader(body))
 
-		if err == nil && resp.StatusCode == 200 {
-			defer resp.Body.Close()
-			return nil
+		if err != nil {
+			// Only retry for the specific case of a connection error.
+			if urlErr, ok := err.(*url.Error); ok {
+				if netErr, ok := urlErr.Err.(*net.OpError); ok {
+					if netErr.Op == "dial" {
+						if i < maxRetries-1 {
+							time.Sleep(50 * time.Duration(2*i) * time.Millisecond)
+							continue
+						}
+					}
+				}
+			} else {
+				break
+			}
 		}
 
-		if err == nil && resp.StatusCode != 200 {
-			resp.Body.Close()
+		// get error when received http code other than 200
+		err = fission.MakeErrorFromHTTP(resp)
+		if err != nil {
 			time.Sleep(50 * time.Duration(2*i) * time.Millisecond)
 			continue
 		}
 
-		// Only retry for the specific case of a connection error.
-		if urlErr, ok := err.(*url.Error); ok {
-			if netErr, ok := urlErr.Err.(*net.OpError); ok {
-				if netErr.Op == "dial" {
-					if i < maxRetries-1 {
-						time.Sleep(50 * time.Duration(2*i) * time.Millisecond)
-						continue
-					}
-				}
-			}
-		}
+		// Success
+		return nil
 	}
 
-	if err == nil {
-		err = fission.MakeErrorFromHTTP(resp)
+	if err != nil {
+		log.Printf("Failed to fetch: %v", err)
 	}
-	log.Printf("Failed to fetch: %v", err)
+
 	return err
 }
 
