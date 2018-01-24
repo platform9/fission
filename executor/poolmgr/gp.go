@@ -122,7 +122,7 @@ func MakeGenericPool(
 		runtimeImagePullPolicy = "IfNotPresent"
 	}
 
-	var enableIstio bool
+	enableIstio := false
 
 	if len(os.Getenv("ENABLE_ISTIO")) > 0 {
 		istio, err := strconv.ParseBool(os.Getenv("ENABLE_ISTIO"))
@@ -147,8 +147,8 @@ func MakeGenericPool(
 		poolInstanceId:   uniuri.NewLen(8),
 		instanceId:       instanceId,
 		fetcherImage:     fetcherImage,
-		useSvc:           false, // defaults off -- svc takes a second or more to become routable, slowing cold start
-		useIstio:         enableIstio,
+		useSvc:           false,       // defaults off -- svc takes a second or more to become routable, slowing cold start
+		useIstio:         enableIstio, // defaults off -- istio integration requires pod relabeling and it takes a second or more to become routable, slowing cold start
 		sharedMountPath:  "/userfunc", // change this may break v1 compatibility, since most of the v1 environments have hard-coded "/userfunc" in loading path
 		sharedSecretPath: "/secrets",
 		sharedCfgMapPath: "/configs",

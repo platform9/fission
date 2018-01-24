@@ -38,6 +38,7 @@ func ensureCRD(clientset *apiextensionsclient.Clientset, crd *apiextensionsv1bet
 	maxRetries := 5
 	for i := 0; i < maxRetries; i++ {
 		_, err := clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Get(crd.ObjectMeta.Name, metav1.GetOptions{})
+
 		if err != nil {
 			if errors.IsNotFound(err) {
 				// crd resource not found error
@@ -52,10 +53,10 @@ func ensureCRD(clientset *apiextensionsclient.Clientset, crd *apiextensionsv1bet
 				time.Sleep(500 * time.Duration(2*i) * time.Millisecond)
 				continue
 			}
-		} else {
-			// resource is existed already
-			break
 		}
+
+		// resource already exists
+		break
 	}
 	return nil
 }
