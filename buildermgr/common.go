@@ -41,7 +41,7 @@ import (
 // 4. Return upload response and build logs.
 // *. Return build logs and error if any one of steps above failed.
 func buildPackage(fissionClient *crd.FissionClient, builderNamespace string,
-	storageSvcUrl string, pkg *crd.Package) (uploadResp *fetcher.UploadResponse, buildLogs string, err error) {
+	storageSvcUrl string, pkg *crd.Package, useIstio bool) (uploadResp *fetcher.UploadResponse, buildLogs string, err error) {
 
 	env, err := fissionClient.Environments(metav1.NamespaceDefault).Get(pkg.Spec.Environment.Name)
 	if err != nil {
@@ -52,7 +52,7 @@ func buildPackage(fissionClient *crd.FissionClient, builderNamespace string,
 
 	svcName := fmt.Sprintf("%v-%v.%v", env.Metadata.Name, env.Metadata.ResourceVersion, builderNamespace)
 	srcPkgFilename := fmt.Sprintf("%v-%v", pkg.Metadata.Name, strings.ToLower(uniuri.NewLen(6)))
-	fetcherC := fetcherClient.MakeClient(fmt.Sprintf("http://%v:8000", svcName))
+	fetcherC := fetcherClient.MakeClient(fmt.Sprintf("http://%v:8000", svcName), useIstio)
 	builderC := builderClient.MakeClient(fmt.Sprintf("http://%v:8001", svcName))
 
 	fetchReq := &fetcher.FetchRequest{

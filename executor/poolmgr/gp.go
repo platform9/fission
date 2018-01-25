@@ -380,7 +380,7 @@ func (gp *GenericPool) specializePod(pod *apiv1.Pod, metadata *metav1.ObjectMeta
 		targetFilename = string(fn.Metadata.UID)
 	}
 
-	err = fetcherClient.MakeClient(fetcherUrl).Fetch(&fetcher.FetchRequest{
+	err = fetcherClient.MakeClient(fetcherUrl, gp.useIstio).Fetch(&fetcher.FetchRequest{
 		FetchType: fetcher.FETCH_DEPLOYMENT,
 		Package: metav1.ObjectMeta{
 			Namespace: fn.Spec.Package.PackageRef.Namespace,
@@ -422,33 +422,42 @@ func (gp *GenericPool) specializePod(pod *apiv1.Pod, metadata *metav1.ObjectMeta
 			resp2, err = http.Post(specializeUrl, "text/plain", bytes.NewReader([]byte{}))
 		}
 
-		if err != nil {
-			// Only retry for the specific case of a connection error.
-			if urlErr, ok := err.(*url.Error); ok {
-				if netErr, ok := urlErr.Err.(*net.OpError); ok {
-					if netErr.Op == "dial" {
-						if i < maxRetries-1 {
-							time.Sleep(500 * time.Duration(2*i) * time.Millisecond)
-							log.Printf("Error connecting to pod (%v), retrying", netErr)
-							continue
-						}
-					}
-				}
-			} else {
-				break
-			}
-		}
-
-		// get error when received http code other than 200
-		err = fission.MakeErrorFromHTTP(resp2)
-
-		if err == nil {
+		if err == nil && resp2.StatusCode < 300 {
 			// Success
+			resp2.Body.Close()
 			return nil
 		}
 
-		log.Printf("Failed to specialize pod: %v", err)
+		retry := false
 
+		// Only retry for the specific case of a connection error.
+		if urlErr, ok := err.(*url.Error); ok {
+			if netErr, ok := urlErr.Err.(*net.OpError); ok {
+				if netErr.Op == "dial" {
+					if i < maxRetries-1 {
+						retry = true
+					}
+				}
+			}
+		}
+
+		// Receive response with non-200 http code
+		if err == nil {
+			err = fission.MakeErrorFromHTTP(resp2)
+			// The istio-proxy block all http requests until it's ready
+			// to serve traffic. Retry if istio feature is enabled.
+			if gp.useIstio {
+				retry = true
+			}
+		}
+
+		if retry {
+			time.Sleep(500 * time.Duration(2*i) * time.Millisecond)
+			log.Printf("Error connecting to pod (%v), retrying", err)
+			continue
+		}
+
+		log.Printf("Failed to specialize pod: %v", err)
 		return err
 	}
 

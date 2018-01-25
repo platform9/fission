@@ -18,12 +18,24 @@ package buildermgr
 
 import (
 	"log"
+	"os"
+	"strconv"
 
 	"github.com/fission/fission/crd"
 )
 
 // Start the buildermgr service.
 func Start(storageSvcUrl string, envBuilderNamespace string) error {
+
+	useIstio := false
+	if len(os.Getenv("ENABLE_ISTIO")) > 0 {
+		istio, err := strconv.ParseBool(os.Getenv("ENABLE_ISTIO"))
+		if err != nil {
+			log.Println("Failed to parse ENABLE_ISTIO")
+		}
+		useIstio = istio
+	}
+
 	fissionClient, kubernetesClient, _, err := crd.MakeFissionClient()
 	if err != nil {
 		log.Printf("Failed to get kubernetes client: %v", err)
@@ -33,7 +45,8 @@ func Start(storageSvcUrl string, envBuilderNamespace string) error {
 	envWatcher := makeEnvironmentWatcher(fissionClient, kubernetesClient, envBuilderNamespace)
 	go envWatcher.watchEnvironments()
 
-	pkgWatcher := makePackageWatcher(fissionClient, kubernetesClient.CoreV1().RESTClient(), envBuilderNamespace, storageSvcUrl)
+	pkgWatcher := makePackageWatcher(fissionClient, kubernetesClient.CoreV1().RESTClient(),
+		envBuilderNamespace, storageSvcUrl, useIstio)
 	go pkgWatcher.watchPackages()
 
 	select {}
