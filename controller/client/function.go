@@ -124,8 +124,14 @@ func (c *Client) FunctionDelete(m *metav1.ObjectMeta) error {
 	return c.delete(relativeUrl)
 }
 
-func (c *Client) FunctionList() ([]crd.Function, error) {
-	resp, err := http.Get(c.url("functions"))
+func (c *Client) FunctionList(labelSelector map[string]string) ([]crd.Function, error) {
+	var relativeUrl string
+	if labelSelector != nil {
+		relativeUrl = fmt.Sprintf("functions?labelSelector=%v", labelSelector)
+	} else {
+		relativeUrl = fmt.Sprintf("functions")
+	}
+	resp, err := http.Get(c.url(relativeUrl))
 	if err != nil {
 		return nil, err
 	}

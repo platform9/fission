@@ -45,7 +45,7 @@ type (
 func migrateDumpTPRResource(client *client.Client, filename string) {
 	pkgs, err := client.PackageList()
 	checkErr(err, "dump packages")
-	fns, err := client.FunctionList()
+	fns, err := client.FunctionList(nil)
 	checkErr(err, "dump functions")
 	httpTriggers, err := client.HTTPTriggerList()
 	checkErr(err, "dump http triggers")

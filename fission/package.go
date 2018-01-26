@@ -33,8 +33,8 @@ import (
 	"github.com/fission/fission/crd"
 )
 
-func getFunctionsByPackage(client *client.Client, pkgName string) ([]crd.Function, error) {
-	fnList, err := client.FunctionList()
+func getFunctionsByPackage(client *client.Client, pkgName string, labelSelector map[string]string) ([]crd.Function, error) {
+	fnList, err := client.FunctionList(labelSelector)
 	if err != nil {
 		return nil, err
 	}
@@ -47,6 +47,7 @@ func getFunctionsByPackage(client *client.Client, pkgName string) ([]crd.Functio
 	return fns, nil
 }
 
+// TODO :Come back to this.
 // downloadStoragesvcURL downloads and return archive content with given storage service url
 func downloadStoragesvcURL(client *client.Client, fileUrl string) io.ReadCloser {
 	u, err := url.ParseRequestURI(fileUrl)
@@ -107,7 +108,7 @@ func pkgUpdate(c *cli.Context) error {
 	})
 	checkErr(err, "get package")
 
-	fnList, err := getFunctionsByPackage(client, pkg.Metadata.Name)
+	fnList, err := getFunctionsByPackage(client, pkg.Metadata.Name, nil)
 	checkErr(err, "get function list")
 
 	if !force && len(fnList) > 1 {
@@ -288,6 +289,14 @@ func pkgList(c *cli.Context) error {
 	return nil
 }
 
+
+func deletePackage(client *client.Client, pkgName string) error {
+	return client.PackageDelete(&metav1.ObjectMeta{
+		Namespace: metav1.NamespaceDefault,
+		Name:      pkgName,
+	})
+}
+
 func pkgDelete(c *cli.Context) error {
 	client := getClient(c.GlobalString("server"))
 
@@ -305,16 +314,13 @@ func pkgDelete(c *cli.Context) error {
 	})
 	checkErr(err, "find package")
 
-	fnList, err := getFunctionsByPackage(client, pkgName)
+	fnList, err := getFunctionsByPackage(client, pkgName, nil)
 
 	if !force && len(fnList) > 0 {
 		fatal("Package is used by at least one function, use -f to force delete")
 	}
 
-	err = client.PackageDelete(&metav1.ObjectMeta{
-		Namespace: metav1.NamespaceDefault,
-		Name:      pkgName,
-	})
+	err = deletePackage(client, pkgName)
 	if err != nil {
 		return err
 	}

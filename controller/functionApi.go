@@ -38,7 +38,14 @@ import (
 )
 
 func (a *API) FunctionApiList(w http.ResponseWriter, r *http.Request) {
-	funcs, err := a.fissionClient.Functions(metav1.NamespaceAll).List(metav1.ListOptions{})
+	vars := mux.Vars(r)
+	labelSelector := vars["labelSelector"]
+	options := metav1.ListOptions{}
+	if labelSelector != "" {
+		options.LabelSelector = labelSelector
+	}
+
+	funcs, err := a.fissionClient.Functions(metav1.NamespaceAll).List(options)
 	if err != nil {
 		a.respondWithError(w, err)
 		return

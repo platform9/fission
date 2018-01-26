@@ -76,7 +76,7 @@ func fnCreate(c *cli.Context) error {
 		fatal("Need --name argument.")
 	}
 
-	fnList, err := client.FunctionList()
+	fnList, err := client.FunctionList(nil)
 	checkErr(err, "get function list")
 	// check function existence before creating package
 	for _, fn := range fnList {
@@ -122,10 +122,16 @@ func fnCreate(c *cli.Context) error {
 		pkgMetadata = createPackage(client, envName, srcArchiveName, deployArchiveName, buildcmd)
 	}
 
+	// labels for grouping functions based on environment and packages
+	labels := make(map[string]string)
+	labels["package"] = pkgMetadata.Name
+	labels["environment"] = envName
+
 	function := &crd.Function{
 		Metadata: metav1.ObjectMeta{
 			Name:      fnName,
 			Namespace: metav1.NamespaceDefault,
+			Labels: labels,
 		},
 		Spec: fission.FunctionSpec{
 			Environment: fission.EnvironmentReference{
@@ -260,12 +266,20 @@ func fnUpdate(c *cli.Context) error {
 	buildcmd := c.String("buildcmd")
 	force := c.Bool("force")
 
+	// get existing labels on the function. If not present, then create it.
+	labels := function.Metadata.Labels
+	if labels == nil {
+		labels = make(map[string]string)
+	}
+
 	if len(envName) == 0 && len(deployArchiveName) == 0 && len(srcArchiveName) == 0 && len(pkgName) == 0 &&
 		len(entrypoint) == 0 && len(buildcmd) == 0 {
 		fatal("Need --env or --deploy or --src or --pkg or --entrypoint or --buildcmd argument.")
 	}
 
 	if len(envName) > 0 {
+		// TODO also update env label on the function
+		labels["environment"] = envName
 		function.Spec.Environment.Name = envName
 	}
 
@@ -285,10 +299,13 @@ func fnUpdate(c *cli.Context) error {
 
 	pkgMetadata := &pkg.Metadata
 
-	if len(deployArchiveName) != 0 || len(srcArchiveName) != 0 || len(buildcmd) != 0 || len(envName) != 0 {
-		fnList, err := getFunctionsByPackage(client, pkg.Metadata.Name)
-		checkErr(err, "get function list")
+	// TODO : Modify this to use labels. need to handle a case of older release functions which dont have a label, then go through all
+	labelSelector := make(map[string]string)
+	labelSelector["package"] = pkgMetadata.Name
+	fnList, err := getFunctionsByPackage(client, pkg.Metadata.Name, labelSelector)
+	checkErr(err, "get function list")
 
+	if len(deployArchiveName) != 0 || len(srcArchiveName) != 0 || len(buildcmd) != 0 || len(envName) != 0 {
 		if !force && len(fnList) > 1 {
 			fatal("Package is used by multiple functions, use --force to force update")
 		}
@@ -307,7 +324,20 @@ func fnUpdate(c *cli.Context) error {
 				checkErr(err, "update function")
 			}
 		}
+	} else if len(pkgName) != 0 {
+		// this case when function wants to update package reference to an entirely different package.
+		// we dont want to leak packages that are not referenced anymore
+		if len(fnList) == 0 {
+			deletePackage(client, pkgName)
+			checkErr(err, fmt.Sprintf("error deleting package: %v referenced earlier by this function", pkgName))
+		}
+
+		// update the package label on function, pointing it to new package
+		labels["package"] = pkgMetadata.Namespace
 	}
+
+	// Finally assign the labels to function object
+	function.Metadata.Labels = labels
 
 	// update function spec with new package metadata
 	function.Spec.Package.PackageRef = fission.PackageRef{
@@ -346,7 +376,7 @@ func fnDelete(c *cli.Context) error {
 func fnList(c *cli.Context) error {
 	client := getClient(c.GlobalString("server"))
 
-	fns, err := client.FunctionList()
+	fns, err := client.FunctionList(nil)
 	checkErr(err, "list functions")
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
