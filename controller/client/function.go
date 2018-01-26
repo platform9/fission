@@ -25,6 +25,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission/crd"
+	"k8s.io/apimachinery/pkg/labels"
+	"net/url"
 )
 
 func (c *Client) FunctionCreate(f *crd.Function) (*metav1.ObjectMeta, error) {
@@ -127,10 +129,16 @@ func (c *Client) FunctionDelete(m *metav1.ObjectMeta) error {
 func (c *Client) FunctionList(labelSelector map[string]string) ([]crd.Function, error) {
 	var relativeUrl string
 	if labelSelector != nil {
-		relativeUrl = fmt.Sprintf("functions?labelSelector=%v", labelSelector)
+		fmt.Println("LabelSelector is not nil")
+		t := url.QueryEscape(labels.Set(labelSelector).AsSelector().String())
+		fmt.Println("Printing t string after url.Url : %s", t)
+		relativeUrl = fmt.Sprintf("functions?labelSelector=%s", t)
 	} else {
-		relativeUrl = fmt.Sprintf("functions")
+		relativeUrl = "functions"
 	}
+
+	// TODO : Remove after testing
+	fmt.Printf("Inside FunctionList, relativeUrl : %s", relativeUrl)
 	resp, err := http.Get(c.url(relativeUrl))
 	if err != nil {
 		return nil, err
@@ -148,5 +156,7 @@ func (c *Client) FunctionList(labelSelector map[string]string) ([]crd.Function, 
 		return nil, err
 	}
 
+	// TODO : Remove after testing
+	fmt.Printf("Inside FunctionList, response returned, len(funs):%d", len(funcs))
 	return funcs, nil
 }

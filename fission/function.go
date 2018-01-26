@@ -278,7 +278,6 @@ func fnUpdate(c *cli.Context) error {
 	}
 
 	if len(envName) > 0 {
-		// TODO also update env label on the function
 		labels["environment"] = envName
 		function.Spec.Environment.Name = envName
 	}
@@ -299,10 +298,10 @@ func fnUpdate(c *cli.Context) error {
 
 	pkgMetadata := &pkg.Metadata
 
-	// TODO : Modify this to use labels. need to handle a case of older release functions which dont have a label, then go through all
+	// TODO : need to handle a case of older release functions which dont have a label, then go through all
 	labelSelector := make(map[string]string)
-	labelSelector["package"] = pkgMetadata.Name
-	fnList, err := getFunctionsByPackage(client, pkg.Metadata.Name, labelSelector)
+	labelSelector["package"] = function.Spec.Package.PackageRef.Name
+	fnList, err := getFunctionsByPackage(client, labelSelector)
 	checkErr(err, "get function list")
 
 	if len(deployArchiveName) != 0 || len(srcArchiveName) != 0 || len(buildcmd) != 0 || len(envName) != 0 {
@@ -326,14 +325,14 @@ func fnUpdate(c *cli.Context) error {
 		}
 	} else if len(pkgName) != 0 {
 		// this case when function wants to update package reference to an entirely different package.
-		// we dont want to leak packages that are not referenced anymore
+		// we don't want to leak packages that are not referenced anymore
 		if len(fnList) == 0 {
 			deletePackage(client, pkgName)
 			checkErr(err, fmt.Sprintf("error deleting package: %v referenced earlier by this function", pkgName))
 		}
 
 		// update the package label on function, pointing it to new package
-		labels["package"] = pkgMetadata.Namespace
+		labels["package"] = pkgMetadata.Name
 	}
 
 	// Finally assign the labels to function object
@@ -373,6 +372,7 @@ func fnDelete(c *cli.Context) error {
 	return err
 }
 
+// TODO : May be allow user to give a label selector option
 func fnList(c *cli.Context) error {
 	client := getClient(c.GlobalString("server"))
 

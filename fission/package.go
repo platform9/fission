@@ -33,18 +33,13 @@ import (
 	"github.com/fission/fission/crd"
 )
 
-func getFunctionsByPackage(client *client.Client, pkgName string, labelSelector map[string]string) ([]crd.Function, error) {
+func getFunctionsByPackage(client *client.Client, labelSelector map[string]string) ([]crd.Function, error) {
+	fmt.Println("Getting function list with labelSelector : %s", labelSelector)
 	fnList, err := client.FunctionList(labelSelector)
 	if err != nil {
 		return nil, err
 	}
-	fns := []crd.Function{}
-	for _, fn := range fnList {
-		if fn.Spec.Package.PackageRef.Name == pkgName {
-			fns = append(fns, fn)
-		}
-	}
-	return fns, nil
+	return fnList, nil
 }
 
 // TODO :Come back to this.
@@ -108,7 +103,9 @@ func pkgUpdate(c *cli.Context) error {
 	})
 	checkErr(err, "get package")
 
-	fnList, err := getFunctionsByPackage(client, pkg.Metadata.Name, nil)
+	labelSelector := make(map[string]string)
+	labelSelector["package"] = pkgName
+	fnList, err := getFunctionsByPackage(client, labelSelector)
 	checkErr(err, "get function list")
 
 	if !force && len(fnList) > 1 {
@@ -314,7 +311,9 @@ func pkgDelete(c *cli.Context) error {
 	})
 	checkErr(err, "find package")
 
-	fnList, err := getFunctionsByPackage(client, pkgName, nil)
+	labelSelector := make(map[string]string)
+	labelSelector["package"] = pkgName
+	fnList, err := getFunctionsByPackage(client, labelSelector)
 
 	if !force && len(fnList) > 0 {
 		fatal("Package is used by at least one function, use -f to force delete")
