@@ -17,11 +17,8 @@ limitations under the License.
 package main
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -29,12 +26,8 @@ import (
 	"strings"
 
 	uuid "github.com/satori/go.uuid"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/fission/fission"
 	"github.com/fission/fission/controller/client"
-	"github.com/fission/fission/crd"
-	storageSvcClient "github.com/fission/fission/storagesvc/client"
 )
 
 func fatal(msg string) {
@@ -104,89 +97,6 @@ func fileSize(filePath string) int64 {
 	return info.Size()
 }
 
-// upload a file and return a fission.Archive
-func createArchive(client *client.Client, fileName string) *fission.Archive {
-	var archive fission.Archive
-
-	// fetch archive from arbitrary url if fileName is a url
-	if strings.HasPrefix(fileName, "http://") || strings.HasPrefix(fileName, "https://") {
-		fileName = downloadToTempFile(fileName)
-	}
-
-	if fileSize(fileName) < fission.ArchiveLiteralSizeLimit {
-		contents := getContents(fileName)
-		archive.Type = fission.ArchiveTypeLiteral
-		archive.Literal = contents
-	} else {
-		u := strings.TrimSuffix(client.Url, "/") + "/proxy/storage"
-		ssClient := storageSvcClient.MakeClient(u)
-
-		// TODO add a progress bar
-		id, err := ssClient.Upload(fileName, nil)
-		checkErr(err, fmt.Sprintf("upload file %v", fileName))
-
-		archiveUrl := ssClient.GetUrl(id)
-
-		archive.Type = fission.ArchiveTypeUrl
-		archive.URL = archiveUrl
-
-		f, err := os.Open(fileName)
-		if err != nil {
-			checkErr(err, fmt.Sprintf("find file %v", fileName))
-		}
-		defer f.Close()
-
-		h := sha256.New()
-		if _, err := io.Copy(h, f); err != nil {
-			checkErr(err, fmt.Sprintf("calculate checksum for file %v", fileName))
-		}
-
-		archive.Checksum = fission.Checksum{
-			Type: fission.ChecksumTypeSHA256,
-			Sum:  hex.EncodeToString(h.Sum(nil)),
-		}
-	}
-	return &archive
-}
-
-func createPackage(client *client.Client, envName, srcArchiveName, deployArchiveName, buildcmd string) *metav1.ObjectMeta {
-	pkgSpec := fission.PackageSpec{
-		Environment: fission.EnvironmentReference{
-			Namespace: metav1.NamespaceDefault,
-			Name:      envName,
-		},
-	}
-	var pkgStatus fission.BuildStatus = fission.BuildStatusSucceeded
-
-	if len(deployArchiveName) > 0 {
-		pkgSpec.Deployment = *createArchive(client, deployArchiveName)
-	}
-	if len(srcArchiveName) > 0 {
-		pkgSpec.Source = *createArchive(client, srcArchiveName)
-		// set pending status to package
-		pkgStatus = fission.BuildStatusPending
-	}
-
-	if len(buildcmd) > 0 {
-		pkgSpec.BuildCommand = buildcmd
-	}
-
-	pkgName := strings.ToLower(uuid.NewV4().String())
-	pkg := &crd.Package{
-		Metadata: metav1.ObjectMeta{
-			Name:      pkgName,
-			Namespace: metav1.NamespaceDefault,
-		},
-		Spec: pkgSpec,
-		Status: fission.PackageStatus{
-			BuildStatus: pkgStatus,
-		},
-	}
-	pkgMetadata, err := client.PackageCreate(pkg)
-	checkErr(err, "create package")
-	return pkgMetadata
-}
-
 func getContents(filePath string) []byte {
 	var code []byte
 	var err error
@@ -203,63 +113,4 @@ func getTempDir() (string, error) {
 	return tmpPath, err
 }
 
-func writeArchiveToFile(fileName string, reader io.Reader) error {
-	tmpDir, err := getTempDir()
-	if err != nil {
-		return err
-	}
 
-	path := filepath.Join(tmpDir, fileName+".tmp")
-	w, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	_, err = io.Copy(w, reader)
-	if err != nil {
-		return err
-	}
-	err = os.Chmod(path, 0644)
-	if err != nil {
-		return err
-	}
-
-	err = os.Rename(path, fileName)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// downloadToTempFile fetches archive file from arbitrary url
-// and write it to temp file for further usage
-func downloadToTempFile(fileUrl string) string {
-	reader, err := downloadURL(fileUrl)
-	defer reader.Close()
-	checkErr(err, fmt.Sprintf("download from url: %v", fileUrl))
-
-	tmpDir, err := getTempDir()
-	checkErr(err, "create temp directory")
-
-	tmpFilename := uuid.NewV4().String()
-	destination := filepath.Join(tmpDir, tmpFilename)
-	err = os.Mkdir(tmpDir, 0744)
-	checkErr(err, "create temp directory")
-
-	err = writeArchiveToFile(destination, reader)
-	checkErr(err, "write archive to file")
-
-	return destination
-}
-
-// downloadURL downloads file from given url
-func downloadURL(fileUrl string) (io.ReadCloser, error) {
-	resp, err := http.Get(fileUrl)
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%v - HTTP response returned non 200 status", resp.StatusCode)
-	}
-	return resp.Body, nil
-}

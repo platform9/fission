@@ -20,12 +20,12 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"net/url"
 	"os"
 	"strings"
 	"text/tabwriter"
 
 	"github.com/urfave/cli"
+	uuid "github.com/satori/go.uuid"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission"
@@ -34,7 +34,6 @@ import (
 )
 
 func getFunctionsByPackage(client *client.Client, labelSelector map[string]string) ([]crd.Function, error) {
-	fmt.Println("Getting function list with labelSelector : %s", labelSelector)
 	fnList, err := client.FunctionList(labelSelector)
 	if err != nil {
 		return nil, err
@@ -42,18 +41,42 @@ func getFunctionsByPackage(client *client.Client, labelSelector map[string]strin
 	return fnList, nil
 }
 
-// TODO :Come back to this.
-// downloadStoragesvcURL downloads and return archive content with given storage service url
-func downloadStoragesvcURL(client *client.Client, fileUrl string) io.ReadCloser {
-	u, err := url.ParseRequestURI(fileUrl)
-	if err != nil {
-		return nil
+func createPackage(client *client.Client, envName, srcArchiveName, deployArchiveName, buildcmd string) *metav1.ObjectMeta {
+	pkgSpec := fission.PackageSpec{
+		Environment: fission.EnvironmentReference{
+			Namespace: metav1.NamespaceDefault,
+			Name:      envName,
+		},
 	}
-	// replace in-cluster storage service host with controller server url
-	fileDownloadUrl := strings.TrimSuffix(client.Url, "/") + "/proxy/storage" + u.RequestURI()
-	reader, err := downloadURL(fileDownloadUrl)
-	checkErr(err, fmt.Sprintf("download from storage service url: %v", fileUrl))
-	return reader
+	var pkgStatus fission.BuildStatus = fission.BuildStatusSucceeded
+
+	if len(deployArchiveName) > 0 {
+		pkgSpec.Deployment = *createArchive(client, deployArchiveName)
+	}
+	if len(srcArchiveName) > 0 {
+		pkgSpec.Source = *createArchive(client, srcArchiveName)
+		// set pending status to package
+		pkgStatus = fission.BuildStatusPending
+	}
+
+	if len(buildcmd) > 0 {
+		pkgSpec.BuildCommand = buildcmd
+	}
+
+	pkgName := strings.ToLower(uuid.NewV4().String())
+	pkg := &crd.Package{
+		Metadata: metav1.ObjectMeta{
+			Name:      pkgName,
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: pkgSpec,
+		Status: fission.PackageStatus{
+			BuildStatus: pkgStatus,
+		},
+	}
+	pkgMetadata, err := client.PackageCreate(pkg)
+	checkErr(err, "create package")
+	return pkgMetadata
 }
 
 func pkgCreate(c *cli.Context) error {
@@ -267,25 +290,66 @@ func pkgInfo(c *cli.Context) error {
 	return nil
 }
 
-func pkgList(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
+func isOrphanPackage(client *client.Client, pkgName string) bool {
+	labelSelector := make(map[string]string)
+	labelSelector["package"] = pkgName
+	fnList, err := getFunctionsByPackage(client, labelSelector)
+	checkErr(err, fmt.Sprintf("Error getting functions using package :%s", pkgName))
+	if len(fnList) == 0 {
+		return true
+	}
+	return false
+}
 
+func deleteOrphanPkgs(client *client.Client) error {
 	pkgList, err := client.PackageList()
 	if err != nil {
 		return err
 	}
 
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
-	fmt.Fprintf(w, "%v\t%v\t%v\n", "NAME", "BUILD_STATUS", "ENV")
+	// label functions first.
+	labelFunctions(client)
+
+	// range through all packages and find out the ones not referenced by any function
 	for _, pkg := range pkgList {
-		fmt.Fprintf(w, "%v\t%v\t%v\n", pkg.Metadata.Name,
+		if isOrphanPackage(client, pkg.Metadata.Name) {
+			deletePackage(client, pkg.Metadata.Name)
+		}
+	}
+	return nil
+}
+
+func pkgList(c *cli.Context) error {
+	client := getClient(c.GlobalString("server"))
+
+	// Adding an option for the user to list all orphan packages.
+	listOrphans := c.Bool("orphan")
+
+	pkgList, err := client.PackageList()
+	if err != nil {
+		checkErr(err, "Error listing packages")
+	}
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
+	fmt.Fprintf(w, "%v\t%v\t%v\n", "NAME", "", "ENV")
+
+	if listOrphans {
+		// Take this opportunity to label all functions. There may be a few functions created in older fission releases not having label.
+		labelFunctions(client)
+		for _, pkg := range pkgList {
+			if isOrphanPackage(client, pkg.Metadata.Name) {
+				fmt.Fprintf(w, "%v\t%v\t%v\n", pkg.Metadata.Name, pkg.Status.BuildStatus, pkg.Spec.Environment.Name)
+			}
+		}
+	} else {
+		for _, pkg := range pkgList {
+			fmt.Fprintf(w, "%v\t%v\t%v\n", pkg.Metadata.Name,
 			pkg.Status.BuildStatus, pkg.Spec.Environment.Name)
+		}
 	}
 	w.Flush()
 
 	return nil
 }
-
 
 func deletePackage(client *client.Client, pkgName string) error {
 	return client.PackageDelete(&metav1.ObjectMeta{
@@ -297,34 +361,42 @@ func deletePackage(client *client.Client, pkgName string) error {
 func pkgDelete(c *cli.Context) error {
 	client := getClient(c.GlobalString("server"))
 
+	deleteOrphans := c.Bool("orphan")
 	pkgName := c.String("name")
-	if len(pkgName) == 0 {
-		fmt.Println("Need --name argument.")
+
+	if len(pkgName) == 0 && !deleteOrphans{
+		fmt.Println("Need --name argument or --orphan flag")
 		return nil
 	}
 
-	force := c.Bool("f")
+	if len(pkgName) != 0 {
+		force := c.Bool("f")
 
-	_, err := client.PackageGet(&metav1.ObjectMeta{
-		Namespace: metav1.NamespaceDefault,
-		Name:      pkgName,
-	})
-	checkErr(err, "find package")
+		_, err := client.PackageGet(&metav1.ObjectMeta{
+			Namespace: metav1.NamespaceDefault,
+			Name:      pkgName,
+		})
+		checkErr(err, "find package")
 
-	labelSelector := make(map[string]string)
-	labelSelector["package"] = pkgName
-	fnList, err := getFunctionsByPackage(client, labelSelector)
+		labelSelector := make(map[string]string)
+		labelSelector["package"] = pkgName
+		fnList, err := getFunctionsByPackage(client, labelSelector)
 
-	if !force && len(fnList) > 0 {
-		fatal("Package is used by at least one function, use -f to force delete")
+		if !force && len(fnList) > 0 {
+			fatal("Package is used by at least one function, use -f to force delete")
+		}
+
+		// TODO : Do we need to also update functions that were referring to the deleted package.
+		err = deletePackage(client, pkgName)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("Package '%v' deleted\n", pkgName)
+	} else {
+		err := deleteOrphanPkgs(client)
+		checkErr(err, "error deleting orphan packages")
+		fmt.Println("Orphan packages deleted")
 	}
-
-	err = deletePackage(client, pkgName)
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf("Package '%v' deleted\n", pkgName)
 
 	return nil
 }

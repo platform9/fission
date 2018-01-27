@@ -34,6 +34,7 @@ import (
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
 	"github.com/fission/fission/fission/logdb"
+	"github.com/fission/fission/controller/client"
 )
 
 func printPodLogs(c *cli.Context) error {
@@ -324,9 +325,9 @@ func fnUpdate(c *cli.Context) error {
 			}
 		}
 	} else if len(pkgName) != 0 {
-		// this case when function wants to update package reference to an entirely different package.
-		// we don't want to leak packages that are not referenced anymore
-		if len(fnList) == 0 {
+		// this case when user wants to update package reference in the function to an entirely different package.
+		// we don't want to leak the pkg referenced earlier by this function, if not used by any other function
+		if len(fnList) == 1 {
 			deletePackage(client, pkgName)
 			checkErr(err, fmt.Sprintf("error deleting package: %v referenced earlier by this function", pkgName))
 		}
@@ -541,5 +542,26 @@ func fnTest(c *cli.Context) error {
 		fnLogs(c)
 	}
 
+	return nil
+}
+
+func labelFunctions(client *client.Client) error {
+	fmt.Println("Trying to label all functions")
+	fns, err := client.FunctionList(nil)
+	checkErr(err, "list functions")
+
+	for _, fn := range fns {
+		// ignore the update for current function here, it will be updated later.
+		labels := fn.Metadata.Labels
+		if labels == nil {
+			fmt.Printf("Label nil for function:%s, so updating labels for function\n", fn.Metadata.Name)
+			labels = make(map[string]string)
+			labels["package"] = fn.Spec.Package.PackageRef.Name
+			labels["environment"] = fn.Spec.Environment.Name
+			fn.Metadata.Labels = labels
+			_, err := client.FunctionUpdate(&fn)
+			checkErr(err, "failed to update labels on function")
+		}
+	}
 	return nil
 }

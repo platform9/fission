@@ -129,9 +129,7 @@ func (c *Client) FunctionDelete(m *metav1.ObjectMeta) error {
 func (c *Client) FunctionList(labelSelector map[string]string) ([]crd.Function, error) {
 	var relativeUrl string
 	if labelSelector != nil {
-		fmt.Println("LabelSelector is not nil")
 		t := url.QueryEscape(labels.Set(labelSelector).AsSelector().String())
-		fmt.Println("Printing t string after url.Url : %s", t)
 		relativeUrl = fmt.Sprintf("functions?labelSelector=%s", t)
 	} else {
 		relativeUrl = "functions"
@@ -157,6 +155,6 @@ func (c *Client) FunctionList(labelSelector map[string]string) ([]crd.Function, 
 	}
 
 	// TODO : Remove after testing
-	fmt.Printf("Inside FunctionList, response returned, len(funs):%d", len(funcs))
+	fmt.Printf("Inside FunctionList, response returned, len(funs):%d\n", len(funcs))
 	return funcs, nil
 }

@@ -141,14 +141,15 @@ func main() {
 	pkgDeployArchiveFlag := cli.StringFlag{Name: "deployarchive, deploy", Usage: "Local path or URL for binary archive"}
 	pkgBuildCmdFlag := cli.StringFlag{Name: "buildcmd", Usage: "Build command for builder to run with"}
 	pkgOutputFlag := cli.StringFlag{Name: "output, o", Usage: "Output filename to save archive content"}
+	pkgOrphanFlag := cli.BoolFlag{Name: "orphan", Usage:"List all orphan packages"}
 	pkgSubCommands := []cli.Command{
 		{Name: "create", Usage: "Create new package", Flags: []cli.Flag{pkgEnvironmentFlag, pkgSrcArchiveFlag, pkgDeployArchiveFlag, pkgBuildCmdFlag}, Action: pkgCreate},
 		{Name: "update", Usage: "Update package", Flags: []cli.Flag{pkgNameFlag, pkgEnvironmentFlag, pkgSrcArchiveFlag, pkgDeployArchiveFlag, pkgBuildCmdFlag, pkgForceFlag}, Action: pkgUpdate},
 		{Name: "getsrc", Usage: "Get source archive content", Flags: []cli.Flag{pkgNameFlag, pkgOutputFlag}, Action: pkgSourceGet},
 		{Name: "getdeploy", Usage: "Get deployment archive content", Flags: []cli.Flag{pkgNameFlag, pkgOutputFlag}, Action: pkgDeployGet},
 		{Name: "info", Usage: "Show package information", Flags: []cli.Flag{pkgNameFlag}, Action: pkgInfo},
-		{Name: "list", Usage: "List all packages", Flags: []cli.Flag{}, Action: pkgList},
-		{Name: "delete", Usage: "Delete package", Flags: []cli.Flag{pkgNameFlag, pkgForceFlag}, Action: pkgDelete},
+		{Name: "list", Usage: "List all packages", Flags: []cli.Flag{pkgOrphanFlag}, Action: pkgList},
+		{Name: "delete", Usage: "Delete package", Flags: []cli.Flag{pkgNameFlag, pkgForceFlag, pkgOrphanFlag}, Action: pkgDelete},
 	}
 
 	upgradeFileFlag := cli.StringFlag{Name: "file", Usage: "JSON file containing all fission state"}
