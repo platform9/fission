@@ -37,14 +37,15 @@ Accordingly, instead of fission code getting all functions and then filtering ou
     ```
     The fission cli executes the same code as above, in addition, issuing a delete request to each of those orphan packages.
     
- ## Backward compatibility
+## Backward compatibility
 1.  Functions created with older releases of fission will not have these labels. So, in a scenario where two functions created with and without labels share a package, then, 
     getting all functions using the same package with label selectors will give wrong results.
     To get around this issue, we must let the users know to first perform an update on all existing functions with the following cli (this just updates function objects with labels)
     and then do a helm upgrade to the new release. (// TBD : I do not know if this is a good idea, but couldn't think of a better approach.)
     ```bash
-    $ fission function update --labels
+    $ fission function update --label
     ```
+    // TODO. I cant decide if it should be --label or --labels. Similarly for point 3 and 4 above, can't decide between --orphan and --orphans.
 
 2.  Even if the user forget to update labels before an upgrade, if the user executes either of `fission package list --orphan` or `fission package delete --orphan`,
     fission cli takes that as an opportunity to label all functions before listing or deleting orphan packages. This is needed because the function to list all orphans 

@@ -24,8 +24,8 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/urfave/cli"
 	uuid "github.com/satori/go.uuid"
+	"github.com/urfave/cli"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission"
@@ -307,13 +307,19 @@ func deleteOrphanPkgs(client *client.Client) error {
 		return err
 	}
 
-	// label functions first.
-	labelFunctions(client)
+	// label functions first
+	err = labelFunctions(client)
+	if err != nil {
+		return err
+	}
 
 	// range through all packages and find out the ones not referenced by any function
 	for _, pkg := range pkgList {
 		if isOrphanPackage(client, pkg.Metadata.Name) {
-			deletePackage(client, pkg.Metadata.Name)
+			err = deletePackage(client, pkg.Metadata.Name)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -326,15 +332,15 @@ func pkgList(c *cli.Context) error {
 	listOrphans := c.Bool("orphan")
 
 	pkgList, err := client.PackageList()
-	if err != nil {
-		checkErr(err, "Error listing packages")
-	}
+	checkErr(err, "Error listing packages")
+
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
-	fmt.Fprintf(w, "%v\t%v\t%v\n", "NAME", "", "ENV")
+	fmt.Fprintf(w, "%v\t%v\t%v\n", "NAME", "BUILD_STATUS", "ENV")
 
 	if listOrphans {
 		// Take this opportunity to label all functions. There may be a few functions created in older fission releases not having label.
-		labelFunctions(client)
+		err = labelFunctions(client)
+		checkErr(err, "Error labeling functions")
 		for _, pkg := range pkgList {
 			if isOrphanPackage(client, pkg.Metadata.Name) {
 				fmt.Fprintf(w, "%v\t%v\t%v\n", pkg.Metadata.Name, pkg.Status.BuildStatus, pkg.Spec.Environment.Name)
@@ -343,7 +349,7 @@ func pkgList(c *cli.Context) error {
 	} else {
 		for _, pkg := range pkgList {
 			fmt.Fprintf(w, "%v\t%v\t%v\n", pkg.Metadata.Name,
-			pkg.Status.BuildStatus, pkg.Spec.Environment.Name)
+				pkg.Status.BuildStatus, pkg.Spec.Environment.Name)
 		}
 	}
 	w.Flush()
@@ -364,7 +370,7 @@ func pkgDelete(c *cli.Context) error {
 	deleteOrphans := c.Bool("orphan")
 	pkgName := c.String("name")
 
-	if len(pkgName) == 0 && !deleteOrphans{
+	if len(pkgName) == 0 && !deleteOrphans {
 		fmt.Println("Need --name argument or --orphan flag")
 		return nil
 	}
@@ -386,13 +392,12 @@ func pkgDelete(c *cli.Context) error {
 			fatal("Package is used by at least one function, use -f to force delete")
 		}
 
-		// TODO : Do we need to also update functions that were referring to the deleted package.
 		err = deletePackage(client, pkgName)
 		if err != nil {
 			return err
 		}
 		fmt.Printf("Package '%v' deleted\n", pkgName)
-	} else {
+	} else if deleteOrphans {
 		err := deleteOrphanPkgs(client)
 		checkErr(err, "error deleting orphan packages")
 		fmt.Println("Orphan packages deleted")

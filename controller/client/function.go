@@ -135,8 +135,6 @@ func (c *Client) FunctionList(labelSelector map[string]string) ([]crd.Function, 
 		relativeUrl = "functions"
 	}
 
-	// TODO : Remove after testing
-	fmt.Printf("Inside FunctionList, relativeUrl : %s", relativeUrl)
 	resp, err := http.Get(c.url(relativeUrl))
 	if err != nil {
 		return nil, err
@@ -154,7 +152,5 @@ func (c *Client) FunctionList(labelSelector map[string]string) ([]crd.Function, 
 		return nil, err
 	}
 
-	// TODO : Remove after testing
-	fmt.Printf("Inside FunctionList, response returned, len(funs):%d\n", len(funcs))
 	return funcs, nil
 }

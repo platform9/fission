@@ -35,17 +35,13 @@ import (
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
-	"fmt"
 )
 
 func (a *API) FunctionApiList(w http.ResponseWriter, r *http.Request) {
 	labelSelectors, _ := r.URL.Query()["labelSelector"]
 	options := metav1.ListOptions{}
 	if len(labelSelectors) > 0 {
-		fmt.Printf("labelSelector: %s\n", labelSelectors[0])
 		options.LabelSelector = labelSelectors[0]
-	} else {
-		fmt.Println("label selector  empty")
 	}
 
 	funcs, err := a.fissionClient.Functions(metav1.NamespaceAll).List(options)
