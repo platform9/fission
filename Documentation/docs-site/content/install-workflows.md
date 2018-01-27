@@ -7,7 +7,7 @@ draft: false
 
 ### Prerequisites
 
-Fission Workflows requires the following components to be installed on your host machine:
+Fission Workflows requires the following components to be installed on your local machine:
 
 - [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 - [helm](https://github.com/kubernetes/helm)
@@ -18,24 +18,19 @@ If you don't have a Kubernetes cluster, [here's a quick guide to set one up](../
 It also requires a [Fission](https://github.com/fission/fission) deployment to be present on your Kubernetes cluster. 
 If you do not have a Fission deployment, follow [Fission's installation guide](../install).
 
-**(Note that Fission Workflows requires Fission 0.4.1 or higher, with the NATS component installed!)**
+**(Note that Fission Workflows 0.2.0 requires Fission 0.4.1 or higher, with the NATS component installed!)**
 
 ### Installing Fission Workflows
 
 Fission Workflows is an add-on to Fission. You can install both
 Fission and Fission Workflows using helm charts.
 
-Assuming you have your Kubernetes cluster set up, run the following commands:
+Assuming you have your Kubernetes cluster set up with a functioning deployment of Fission 0.4.1 or higher, run the following commands:
 
 ```bash
-# Add the Fission charts repo
+# If you haven't already, add the Fission charts repo
 helm repo add fission-charts https://fission.github.io/fission-charts/
 helm repo update
-
-# Install Fission 
-# This assumes that you do not have a Fission deployment yet, and are installing on a standard Minikube deployment.
-# Otherwise see http://fission.io/docs/0.4.0/install/ for more detailed instructions
-helm install --wait -n fission-all --namespace fission --set serviceType=NodePort --set analytics=false fission-charts/fission-all --version 0.4.1
 
 # Install Fission Workflows
 helm install --wait -n fission-workflows fission-charts/fission-workflows --version 0.2.0
@@ -44,7 +39,8 @@ helm install --wait -n fission-workflows fission-charts/fission-workflows --vers
 ### Creating your first workflow
 
 After installing Fission and Workflows, you're all set to run a simple
-test workflow. Clone this repository, and from its root directory, run:
+test workflow.
+With the following code snippet you will be able to deploy and run a small workflow example:
 
 ```bash
 # Fetch the required files, alternatively you could clone the fission-workflow repo
@@ -56,14 +52,14 @@ curl https://raw.githubusercontent.com/fission/fission-workflows/0.2.0/examples/
 # Add binary environment and create two test functions on your Fission setup:
 #
 fission env create --name binary --image fission/binary-env
-fission function create --name whalesay --env binary --deploy examples/whales/whalesay.sh
-fission function create --name fortune --env binary --deploy examples/whales/fortune.sh
+fission function create --name whalesay --env binary --deploy ./whalesay.sh
+fission function create --name fortune --env binary --deploy ./fortune.sh
 
 #
 # Create a workflow that uses those two functions. A workflow is just
 # a function that uses the "workflow" environment.
 #
-fission function create --name fortunewhale --env workflow --src examples/whales/fortunewhale.wf.yaml
+fission function create --name fortunewhale --env workflow --src ./fortunewhale.wf.yaml
 
 #
 # Map an HTTP GET to your new workflow function:
@@ -79,13 +75,11 @@ curl ${FISSION_ROUTER}/fortunewhale
 This last command, the invocation of the workflow, should return a whale saying something wise 
 
 ```
- _______________________________________ 
-/ A billion here, a couple of billion   \
-| there -- first thing you know it adds |
-| up to be real money.                  |
-|                                       |
-\ -- Senator Everett McKinley Dirksen   /
- --------------------------------------- 
+ ______________________________________
+/ Anthony's Law of Force:              \
+|                                      |
+\ Don't force it; get a larger hammer. /
+ --------------------------------------
     \
      \
       \
@@ -103,7 +97,7 @@ So what happened here?
 Let's see what the workflow consists of (for example by running `cat fortunewhale.wf.yaml`): 
 
 ```yaml
-# This whale shows of a basic workflow that combines both Fission Functions (fortune, whalesay) and internal functions (noop)
+# This whale shows off a basic workflow that combines both Fission Functions (fortune, whalesay) and internal functions (noop)
 apiVersion: 1
 output: WhaleWithFortune
 tasks:
@@ -123,11 +117,11 @@ tasks:
 ```
 
 What you see is the [YAML](http://yaml.org/)-based workflow definition of the `fortunewhale` workflow.
-A workflow consists out of multiple tasks, which are steps that it needs to complete.
-Each task consists out of a unique identifier, such as `GenerateFortune`, a reference to a (Fission) function in the `run` field.
+A workflow consists of multiple tasks, which are steps that it needs to complete.
+Each task has a unique identifier, such as `GenerateFortune`, a reference to a Fission function in the `run` field.
 Optionally, it can contain `inputs` which allows you to specify inputs to the task, 
 as well as contain `requires` which allows you to specify which tasks need to complete before this task can start.
-Finally, at the top you will find the `output` field, which allows you to reference the task of which the output should used as the output of the workflow.
+Finally, at the top you will find the `output` field, which specifies the task whose output is used as the workflow's output. 
 
 In this case, the `fortunewhale` workflow consists out of a sequence of 3 tasks:
 ```
