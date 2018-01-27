@@ -112,5 +112,3 @@ func getTempDir() (string, error) {
 	err := os.Mkdir(tmpPath, 0744)
 	return tmpPath, err
 }
-
-

@@ -338,7 +338,7 @@ func fnUpdate(c *cli.Context) error {
 		if len(fnList) == 1 {
 			err = deletePackage(client, pkgName)
 			checkErr(err, fmt.Sprintf("error deleting package: %v referenced earlier by this function", pkgName))
-			fmt.Sprintf("Deleted package :%s referenced earlier by this functions", pkgName)
+			fmt.Printf("Deleted package :%s referenced earlier by this functions\n", pkgName)
 		}
 
 		// update the package label on function, pointing it to new package
@@ -555,7 +555,9 @@ func fnTest(c *cli.Context) error {
 
 func labelFunctions(client *client.Client) error {
 	fns, err := client.FunctionList(nil)
-	return err
+	if err != nil {
+		return err
+	}
 
 	for _, fn := range fns {
 		labels := fn.Metadata.Labels
@@ -565,7 +567,9 @@ func labelFunctions(client *client.Client) error {
 			labels["environment"] = fn.Spec.Environment.Name
 			fn.Metadata.Labels = labels
 			_, err := client.FunctionUpdate(&fn)
-			return err
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
