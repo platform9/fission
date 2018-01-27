@@ -209,8 +209,8 @@ type (
 		// default 8888.
 		FunctionEndpointPort int32 `json:"functionendpointport"`
 
-		// Optional
-		// Environment variables to be set in environment
+		// Env is a list of environment variables to be set
+		// in the runtime environment. (optional)
 		Env []apiv1.EnvVar `json:"env"`
 	}
 	Builder struct {
@@ -220,8 +220,8 @@ type (
 		// (Optional) Default build command to run for this build environment.
 		Command string `json:"command,omitempty"`
 
-		// Optional
-		// Environment variables to be set in environment
+		// Env is a list of environment variables to be set
+		// in the build environment. (optional)
 		Env []apiv1.EnvVar `json:"env"`
 	}
 	EnvironmentSpec struct {
