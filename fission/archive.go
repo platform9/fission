@@ -34,7 +34,6 @@ import (
 	storageSvcClient "github.com/fission/fission/storagesvc/client"
 )
 
-// TODO :Come back to this.
 // downloadStoragesvcURL downloads and return archive content with given storage service url
 func downloadStoragesvcURL(client *client.Client, fileUrl string) io.ReadCloser {
 	u, err := url.ParseRequestURI(fileUrl)

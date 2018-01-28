@@ -21,12 +21,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission/crd"
 	"k8s.io/apimachinery/pkg/labels"
-	"net/url"
 )
 
 func (c *Client) FunctionCreate(f *crd.Function) (*metav1.ObjectMeta, error) {
