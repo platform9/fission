@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -10,6 +11,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/fission/fission"
 )
 
 const (
@@ -31,11 +34,34 @@ func (bs *BinaryServer) SpecializeHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	_, err := os.Stat(bs.fetchedCodePath)
+	request := fission.FunctionLoadRequest{}
+
+	codePath := bs.fetchedCodePath
+	err := json.NewDecoder(r.Body).Decode(&request)
+	switch {
+	case err == io.EOF:
+	case err != nil:
+		panic(err)
+	}
+
+	if request.FilePath != "" {
+		fileStat, err := os.Stat(request.FilePath)
+		if err != nil {
+			panic(err)
+		}
+
+		codePath = request.FilePath
+		switch mode := fileStat.Mode(); {
+		case mode.IsDir():
+			codePath = filepath.Join(request.FilePath, request.FunctionName)
+		}
+	}
+
+	_, err = os.Stat(codePath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte(bs.fetchedCodePath + ": not found"))
+			w.Write([]byte(codePath + ": not found"))
 			return
 		} else {
 			panic(err)
@@ -45,7 +71,7 @@ func (bs *BinaryServer) SpecializeHandler(w http.ResponseWriter, r *http.Request
 	// Future: Check if executable is correct architecture/executable.
 
 	// Copy the executable to ensure that file is executable and immutable.
-	userFunc, err := ioutil.ReadFile(bs.fetchedCodePath)
+	userFunc, err := ioutil.ReadFile(codePath)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("Failed to read executable."))
@@ -125,6 +151,7 @@ func main() {
 	server := &BinaryServer{*codePath, absInternalCodePath}
 	http.HandleFunc("/", server.InvocationHandler)
 	http.HandleFunc("/specialize", server.SpecializeHandler)
+	http.HandleFunc("/v2/specialize", server.SpecializeHandler)
 
 	fmt.Println("Listening on 8888 ...")
 	err = http.ListenAndServe(":8888", nil)

@@ -36,11 +36,6 @@ All output that is provided to the server over the STDOUT will be transformed in
 
 
 ## Compiling
-In order to build the Dockerfile, the server needs to be compiled to the right architecture.
-
-```bash
-sh ./build.sh
-```
 
 Build the Dockerfile:
 ```bash
