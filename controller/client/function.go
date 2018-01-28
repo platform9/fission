@@ -23,8 +23,8 @@ import (
 	"net/http"
 	"net/url"
 
-	"k8s.io/apimachinery/pkg/labels"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 
 	"github.com/fission/fission/crd"
 )

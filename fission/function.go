@@ -336,9 +336,9 @@ func fnUpdate(c *cli.Context) error {
 		// this case when user wants to update package reference in the function to an entirely different package.
 		// we don't want to leak the pkg referenced earlier by this function, if not used by any other function
 		if len(fnList) == 1 {
-			err = deletePackage(client, pkgName)
-			checkErr(err, fmt.Sprintf("error deleting package: %v referenced earlier by this function", pkgName))
-			fmt.Printf("Deleted package :%s referenced earlier by this functions\n", pkgName)
+			err = deletePackage(client, function.Spec.Package.PackageRef.Name)
+			checkErr(err, fmt.Sprintf("error deleting package: %v referenced earlier by this function", function.Spec.Package.PackageRef.Name))
+			fmt.Printf("Deleted package %s referenced earlier by this functions\n", function.Spec.Package.PackageRef.Name)
 		}
 
 		// update the package label on function, pointing it to new package

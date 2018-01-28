@@ -88,8 +88,8 @@ pkgName=$(fission package create --deploy demo-deploy-pkg.zip --env python| cut 
 
 echo "Updating function " $fn
 fission fn update --name $fn --pkg $pkgName --entrypoint "hello.main"
-ret_status=`kubectl get package $oldPkgName 2>&1 | grep "not found"`
-if [ $ret_status ]; then
+response=`fission package info --name $oldPkgName| wc -l| tr -d ' '`
+if [ $response -gt 0 ]; then
     echo "Package $oldPkgName should have been deleted from kubernetes"
     exit 1
 fi
