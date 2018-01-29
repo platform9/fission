@@ -18,6 +18,8 @@ package fission
 
 import (
 	"fmt"
+	"io"
+	"net"
 	"os"
 	"os/signal"
 	"runtime/debug"
@@ -39,4 +41,12 @@ func SetupStackTraceHandler() {
 		debug.PrintStack()
 		os.Exit(1)
 	}()
+}
+
+func IsNetworkError(err error) bool {
+	if err == io.EOF {
+		return true
+	}
+	_, ok := err.(net.Error)
+	return ok
 }

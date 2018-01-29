@@ -30,6 +30,7 @@ import (
 	apiv1 "k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/pkg/apis/extensions/v1beta1"
 
+	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
 )
 
@@ -129,6 +130,11 @@ func (envw *environmentWatcher) watchEnvironments() {
 			ResourceVersion: rv,
 		})
 		if err != nil {
+			if fission.IsNetworkError(err) {
+				log.Printf("Encounter network error, retry again later: %v", err)
+				time.Sleep(5 * time.Second)
+				continue
+			}
 			log.Fatalf("Error watching environment list: %v", err)
 		}
 
@@ -154,6 +160,10 @@ func (envw *environmentWatcher) watchEnvironments() {
 func (envw *environmentWatcher) sync() {
 	envList, err := envw.fissionClient.Environments(metav1.NamespaceAll).List(metav1.ListOptions{})
 	if err != nil {
+		if fission.IsNetworkError(err) {
+			log.Printf("Error syncing environment CRD resources due to network error: %v", err)
+			return
+		}
 		log.Fatalf("Error syncing environment CRD resources: %v", err)
 	}
 

@@ -22,6 +22,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
 )
 
@@ -45,6 +46,11 @@ func (ws *TimerSync) syncSvc() {
 	for {
 		triggers, err := ws.fissionClient.TimeTriggers(metav1.NamespaceAll).List(metav1.ListOptions{})
 		if err != nil {
+			if fission.IsNetworkError(err) {
+				log.Printf("Encounter network error, retry again: %v", err)
+				time.Sleep(5 * time.Second)
+				continue
+			}
 			log.Fatalf("Failed get time trigger list: %v", err)
 		}
 		ws.timer.Sync(triggers.Items)

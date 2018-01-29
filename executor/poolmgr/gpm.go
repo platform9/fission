@@ -151,11 +151,14 @@ func (gpm *GenericPoolManager) CleanupPools(envs []crd.Environment) {
 func (gpm *GenericPoolManager) eagerPoolCreator() {
 	pollSleep := time.Duration(2 * time.Second)
 	for {
-		time.Sleep(pollSleep)
-
 		// get list of envs from controller
 		envs, err := gpm.fissionClient.Environments(metav1.NamespaceAll).List(metav1.ListOptions{})
 		if err != nil {
+			if fission.IsNetworkError(err) {
+				log.Printf("Encounter network error, retry again: %v", err)
+				time.Sleep(5 * time.Second)
+				continue
+			}
 			log.Fatalf("Failed to get environment list: %v", err)
 		}
 
@@ -176,6 +179,7 @@ func (gpm *GenericPoolManager) eagerPoolCreator() {
 
 		// Clean up pools whose env was deleted
 		gpm.CleanupPools(envs.Items)
+		time.Sleep(pollSleep)
 	}
 }
 
