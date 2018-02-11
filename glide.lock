@@ -1,5 +1,5 @@
-hash: 03ac7555eb1f5745e82abe42a07828ffcaac3785a77e7f37a596f30db8189e7f
-updated: 2018-02-08T22:40:25.586979477-08:00
+hash: 3b15246c5a7ca26271ef45e705c92351c786cfbf8ca1c093026b458e527ceefa
+updated: 2018-02-10T19:04:05.240303+01:00
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -18,7 +18,7 @@ imports:
   - autorest/azure
   - autorest/date
 - name: github.com/coreos/etcd
-  version: 6a265731e10a5137b991c1aa3a83ecefdd149d50
+  version: 9c6d93056575da4da94382f473b0ecfcd9c1443b
   subpackages:
   - client
 - name: github.com/davecgh/go-spew
@@ -51,7 +51,7 @@ imports:
 - name: github.com/emicklei/go-restful-swagger12
   version: dcef7f55730566d41eae5db10e7d6981829720f6
 - name: github.com/fsnotify/fsnotify
-  version: 4da3e2cfbabc9f751898f250b49f2439785783a1
+  version: c2828203cd70a50dcccfb2761f8b1f8ceef9a8e9
 - name: github.com/ghodss/yaml
   version: 73d445a93680fa1a78ae23a5839bad48f32ba1ee
 - name: github.com/go-openapi/analysis
@@ -100,7 +100,7 @@ imports:
 - name: github.com/howeyc/gopass
   version: bf9dde6d0d2c004a008c27aaee91170c786f6db8
 - name: github.com/imdario/mergo
-  version: 6633656539c1639d9d78127b7d47c622b5d7b6dc
+  version: 163f41321a19dd09362d4c63cc2489db2015f1f4
 - name: github.com/influxdata/influxdb
   version: b7bb7e8359642b6e071735b50ae41f5eb343fd42
   subpackages:
@@ -129,7 +129,7 @@ imports:
   subpackages:
   - pb
 - name: github.com/nats-io/nats-streaming-server
-  version: 6fdcdfbb2589e68692a68fd5b64b1b7e7c54bf05
+  version: 33414c6f2179201f7fda8743ba89d07184e3fa77
   subpackages:
   - spb
   - util
@@ -144,7 +144,7 @@ imports:
   subpackages:
   - xxHash32
 - name: github.com/pkg/errors
-  version: f15c970de5b76fac0b59abb32d62c17cc7bed265
+  version: 30136e27e2ac8d167177e8a583aa4c3fea5be833
 - name: github.com/PuerkitoBio/purell
   version: 8a290539e2e8629dbc4e6bad948158f790ec31f4
 - name: github.com/PuerkitoBio/urlesc
@@ -233,7 +233,7 @@ imports:
 - name: k8s.io/api
   version: 4b8fc5be9b77d91bbb6525d18591c43699a2b4e5
 - name: k8s.io/apiextensions-apiserver
-  version: 0965a40c0530e110459750a7fcb9cfa4910fb944
+  version: fcd622fe88a4a6efcb5aea9e94ee87324ac1b036
   subpackages:
   - pkg/apis/apiextensions
   - pkg/apis/apiextensions/v1beta1
@@ -241,7 +241,7 @@ imports:
   - pkg/client/clientset/clientset/scheme
   - pkg/client/clientset/clientset/typed/apiextensions/v1beta1
 - name: k8s.io/apimachinery
-  version: 80184f5f100c67bfcda6b8a848e0243fe4bc2772
+  version: 8ab5f3d8a330c2e9baaf84e39042db8d49034ae2
   subpackages:
   - pkg/api/equality
   - pkg/api/errors

@@ -22,7 +22,7 @@ minikube, you'll need to set the proper environment variables with
 
 ```
   # Get dependencies
-  $ glide install
+  $ glide install -v
 
   # Build fission server and an image
   $ pushd fission-bundle
@@ -41,7 +41,7 @@ minikube and its built-in docker daemon:
 Next, install fission with this image on your kubernetes cluster using the helm chart:
 
 ```
-  $ helm install --set "image=minikube/fission-bundle,pullPolicy=IfNotPresent,analytics=false" charts/fission-all
+  $ helm install --set "image=minikube/fission-bundle,imageTag=latest,pullPolicy=IfNotPresent,analytics=false" charts/fission-all
 ```
 
 And if you're changing the CLI too, you can build it with:

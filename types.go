@@ -209,9 +209,15 @@ type (
 		// default 8888.
 		FunctionEndpointPort int32 `json:"functionendpointport"`
 
-		// Env is a list of environment variables to be set
-		// in the runtime environment. (optional)
-		Env []apiv1.EnvVar `json:"env"`
+		// Container allows the modification of the deployed runtime
+		// container using the Kubernetes Container spec. Fission overrides
+		// the following fields:
+		// - Name
+		// - Image; set to the Runtime.Image
+		// - TerminationMessagePath
+		// - ImagePullPolicy
+		// (optional)
+		Container *apiv1.Container `json:"container,omitempty"`
 	}
 	Builder struct {
 		// Image for containing the language runtime.
@@ -220,9 +226,17 @@ type (
 		// (Optional) Default build command to run for this build environment.
 		Command string `json:"command,omitempty"`
 
-		// Env is a list of environment variables to be set
-		// in the build environment. (optional)
-		Env []apiv1.EnvVar `json:"env"`
+		// Container allows the modification of the deployed builder
+		// container using the Kubernetes Container spec. Fission overrides
+		// the following fields:
+		// - Name
+		// - Image; set to the Builder.Image
+		// - Command; set to the Builder.Command
+		// - TerminationMessagePath
+		// - ImagePullPolicy
+		// - ReadinessProbe
+		// (optional)
+		Container *apiv1.Container `json:"container,omitempty"`
 	}
 	EnvironmentSpec struct {
 		// Environment API version

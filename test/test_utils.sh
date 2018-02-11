@@ -425,28 +425,34 @@ run_all_tests() {
 
     for file in $test_files
     do
-	testname=${file#$ROOT/test/tests}
-	testpath=$file
+    run_test ${file}
+    done
+}
 
-	if grep "^#test:disabled" $file
+run_test() {
+    file=$1
+
+    test_name=${file#${ROOT}/test/tests}
+	test_path=${file}
+
+	if grep "^#test:disabled" ${file}
 	then
-	    report_test_skipped $testname
-	    echo ------- Skipped $testname -------
+	    report_test_skipped ${test_name}
+	    echo ------- Skipped ${test_name} -------
 	else
-	    echo ------- Running $testname -------
-	    pushd $(dirname $testpath)
-	    if $testpath
+	    echo ------- Running ${test_name} -------
+	    pushd $(dirname ${test_path})
+	    if ${test_path}
 	    then
-		echo SUCCESS: $testname
-		report_test_passed $testname
+		echo [SUCCESS]: ${test_name}
+		report_test_passed ${test_name}
 	    else
-		echo FAILED: $testname
+		echo [FAILED]: ${test_name}
 		export FAILURES=$(($FAILURES+1))
-		report_test_failed $testname
+		report_test_failed ${test_name}
 	    fi
 	    popd
 	fi
-    done
 }
 
 install_and_test() {
