@@ -211,7 +211,7 @@ type (
 
 		// Env is a list of environment variables to be set
 		// in the runtime environment. (optional)
-		Env []apiv1.EnvVar `json:"env"`
+		Container *apiv1.Container `json:"container"`
 	}
 	Builder struct {
 		// Image for containing the language runtime.
@@ -222,7 +222,7 @@ type (
 
 		// Env is a list of environment variables to be set
 		// in the build environment. (optional)
-		Env []apiv1.EnvVar `json:"env"`
+		Container *apiv1.Container `json:"container"`
 	}
 	EnvironmentSpec struct {
 		// Environment API version

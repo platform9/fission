@@ -30,6 +30,7 @@ import (
 	apiv1 "k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/pkg/apis/extensions/v1beta1"
 
+	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
 )
 
@@ -448,7 +449,7 @@ func (envw *environmentWatcher) createBuilderDeployment(env *crd.Environment) (*
 						},
 					},
 					Containers: []apiv1.Container{
-						{
+						fission.MergeContainerSpecs(env.Spec.Builder.Container, &apiv1.Container{
 							Name:                   "builder",
 							Image:                  env.Spec.Builder.Image,
 							ImagePullPolicy:        apiv1.PullAlways,
@@ -473,8 +474,7 @@ func (envw *environmentWatcher) createBuilderDeployment(env *crd.Environment) (*
 									},
 								},
 							},
-							Env: env.Spec.Builder.Env,
-						},
+						}),
 						{
 							Name:                   "fetcher",
 							Image:                  envw.fetcherImage,
@@ -503,7 +503,6 @@ func (envw *environmentWatcher) createBuilderDeployment(env *crd.Environment) (*
 									},
 								},
 							},
-							Env: env.Spec.Builder.Env,
 						},
 					},
 					ServiceAccountName: "fission-builder",

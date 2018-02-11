@@ -58,3 +58,5 @@ import:
   version: ~1.2.1
 - package: github.com/davecgh/go-spew
   version: ~1.1.0
+- package: github.com/imdario/mergo
+  version: ~0.3.2

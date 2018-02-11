@@ -18,6 +18,8 @@ package fission
 
 import (
 	"fmt"
+	"github.com/imdario/mergo"
+	apiv1 "k8s.io/client-go/pkg/api/v1"
 	"os"
 	"os/signal"
 	"runtime/debug"
@@ -39,4 +41,19 @@ func SetupStackTraceHandler() {
 		debug.PrintStack()
 		os.Exit(1)
 	}()
+}
+
+func MergeContainerSpecs(specs ...*apiv1.Container) apiv1.Container {
+	result := &apiv1.Container{}
+	for _, spec := range specs {
+		if spec == nil {
+			continue
+		}
+
+		err := mergo.Merge(result, spec)
+		if err != nil {
+			panic(err)
+		}
+	}
+	return *result
 }
