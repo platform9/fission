@@ -692,9 +692,28 @@ func (gp *GenericPool) GetFuncSvc(m *metav1.ObjectMeta) (*fscache.FuncSvc, error
 	newLabels := gp.labelsForFunction(m)
 
 	if gp.useIstio {
-		// Istio only allows accessing pod through k8s service, and since service
-		// not always routes requests to the same pod, so we need to make sure that
-		// there is only one pod behind the service.
+		// Istio only allows accessing pod through k8s service, and requests come to
+		// service are not always being routed to the same pod. For example:
+
+		// If there is only one pod (podA) behind the service svcX.
+
+		// svcX -> podA
+
+		// All requests (specialize request & function access requests)
+		// will be routed to podA without any problem.
+
+		// If podA and podB are behind svcX.
+
+		// svcX -> podA (specialized)
+		//      -> podB (non-specialized)
+
+		// The specialize request may be routed to podA and the function access
+		// requests may go to podB. In this case, the function cannot be served
+		// properly.
+
+		// To prevent such problem, we need to delete old versions function pods
+		// and make sure that there is only one pod behind the service
+
 		sel := map[string]string{
 			"functionName": m.Name,
 			"functionUid":  string(m.UID),
@@ -705,11 +724,11 @@ func (gp *GenericPool) GetFuncSvc(m *metav1.ObjectMeta) (*fscache.FuncSvc, error
 		if err != nil {
 			return nil, err
 		}
-		// remove
+
+		// Remove old versions function pods
 		for _, pod := range podList.Items {
-			if pod.Status.Phase == apiv1.PodRunning {
-				gp.kubernetesClient.CoreV1().Pods(gp.namespace).Delete(pod.ObjectMeta.Name, nil)
-			}
+			// Delete pod no matter what status it is
+			gp.kubernetesClient.CoreV1().Pods(gp.namespace).Delete(pod.ObjectMeta.Name, nil)
 		}
 	}
 
