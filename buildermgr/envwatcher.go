@@ -158,29 +158,36 @@ func (envw *environmentWatcher) watchEnvironments() {
 }
 
 func (envw *environmentWatcher) sync() {
-	envList, err := envw.fissionClient.Environments(metav1.NamespaceAll).List(metav1.ListOptions{})
-	if err != nil {
-		if fission.IsNetworkError(err) {
-			log.Printf("Error syncing environment CRD resources due to network error: %v", err)
-			return
-		}
-		log.Fatalf("Error syncing environment CRD resources: %v", err)
-	}
-
-	// Create environment builders for all environments
-	for i := range envList.Items {
-		env := envList.Items[i]
-
-		if env.Spec.Version == 1 || // builder is not supported with v1 interface
-			len(env.Spec.Builder.Image) == 0 { // ignore env without builder image
-			continue
-		}
-		_, err := envw.getEnvBuilder(&env)
+	maxRetries := 10
+	for i := 0; i < maxRetries; i++ {
+		envList, err := envw.fissionClient.Environments(metav1.NamespaceAll).List(metav1.ListOptions{})
 		if err != nil {
-			log.Printf("Error creating builder for %v: %v", env.Metadata.Name, err)
+			if fission.IsNetworkError(err) {
+				log.Printf("Error syncing environment CRD resources due to network error, retrying later: %v", err)
+				time.Sleep(50 * time.Duration(2*i) * time.Millisecond)
+				continue
+			}
+			log.Fatalf("Error syncing environment CRD resources: %v", err)
 		}
+
+		// Create environment builders for all environments
+		for i := range envList.Items {
+			env := envList.Items[i]
+
+			if env.Spec.Version == 1 || // builder is not supported with v1 interface
+				len(env.Spec.Builder.Image) == 0 { // ignore env without builder image
+				continue
+			}
+			_, err := envw.getEnvBuilder(&env)
+			if err != nil {
+				log.Printf("Error creating builder for %v: %v", env.Metadata.Name, err)
+			}
+		}
+
+		// Remove environment builders no longer needed
+		envw.cleanupEnvBuilders(envList.Items)
+		break
 	}
-	envw.cleanupEnvBuilders(envList.Items)
 }
 
 func (envw *environmentWatcher) service() {
