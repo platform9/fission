@@ -18,7 +18,6 @@ package fission
 
 import (
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"os/signal"
@@ -43,10 +42,8 @@ func SetupStackTraceHandler() {
 	}()
 }
 
+// IsNetworkError returns true if an error is a network error, and false otherwise.
 func IsNetworkError(err error) bool {
-	if err == io.EOF {
-		return true
-	}
 	_, ok := err.(net.Error)
 	return ok
 }

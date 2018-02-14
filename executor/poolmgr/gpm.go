@@ -155,7 +155,7 @@ func (gpm *GenericPoolManager) eagerPoolCreator() {
 		envs, err := gpm.fissionClient.Environments(metav1.NamespaceAll).List(metav1.ListOptions{})
 		if err != nil {
 			if fission.IsNetworkError(err) {
-				log.Printf("Encounter network error, retry again: %v", err)
+				log.Printf("Encountered network error, retrying: %v", err)
 				time.Sleep(5 * time.Second)
 				continue
 			}

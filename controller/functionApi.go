@@ -106,7 +106,7 @@ func (a *API) FunctionApiCreate(w http.ResponseWriter, r *http.Request) {
 		// service for accepting user traffic
 		svc := apiv1.Service{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "fission-function",
+				Namespace: a.functionNamespace,
 				Name:      fmt.Sprintf("istio-%v", f.Metadata.Name),
 				Labels:    a.getIstioServiceLabels(f.Metadata.Name),
 			},
@@ -127,7 +127,6 @@ func (a *API) FunctionApiCreate(w http.ResponseWriter, r *http.Request) {
 					},
 				},
 				Selector: sel,
-				//ClusterIP: apiv1.ClusterIPNone,
 			},
 		}
 		_, err = a.kubernetesClient.CoreV1().Services(a.functionNamespace).Create(&svc)

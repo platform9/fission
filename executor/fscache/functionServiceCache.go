@@ -162,7 +162,8 @@ func (fsc *FunctionServiceCache) Add(fsvc FuncSvc) (*FuncSvc, error) {
 			if fe.Code == fission.ErrorNameExists {
 				err = nil
 			}
-		} else {
+		}
+		if err != nil {
 			log.Printf("error caching fsvc: %v", err)
 		}
 		return nil, err

@@ -28,10 +28,11 @@ import (
 func Start(storageSvcUrl string, envBuilderNamespace string) error {
 
 	useIstio := false
-	if len(os.Getenv("ENABLE_ISTIO")) > 0 {
-		istio, err := strconv.ParseBool(os.Getenv("ENABLE_ISTIO"))
+	enableIstio := os.Getenv("ENABLE_ISTIO")
+	if len(enableIstio) > 0 {
+		istio, err := strconv.ParseBool(enableIstio)
 		if err != nil {
-			log.Println("Failed to parse ENABLE_ISTIO")
+			log.Println("Failed to parse ENABLE_ISTIO, defaults to false")
 		}
 		useIstio = istio
 	}

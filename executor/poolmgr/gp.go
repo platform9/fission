@@ -480,7 +480,7 @@ func (gp *GenericPool) createPool() error {
 	if gp.useIstio {
 		// Use long terminationGracePeriodSeconds for connection draining in case that
 		// pod still runs user functions.
-		var gracePeriod int64 = 6 * 60
+		var gracePeriodSeconds int64 = 6 * 60
 
 		deployment = &v1beta1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{
@@ -553,7 +553,7 @@ func (gp *GenericPool) createPool() error {
 										Exec: &apiv1.ExecAction{
 											Command: []string{
 												"sleep",
-												"360",
+												fmt.Sprintf("%v", gracePeriodSeconds),
 											},
 										},
 									},
@@ -616,7 +616,7 @@ func (gp *GenericPool) createPool() error {
 						// TerminationGracePeriodSeconds should be equal to the
 						// sleep time of preStop to make sure that SIGTERM is sent
 						// to pod after 6 mins.
-						TerminationGracePeriodSeconds: &gracePeriod,
+						TerminationGracePeriodSeconds: &gracePeriodSeconds,
 					},
 				},
 			},

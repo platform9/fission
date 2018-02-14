@@ -131,7 +131,7 @@ func (envw *environmentWatcher) watchEnvironments() {
 		})
 		if err != nil {
 			if fission.IsNetworkError(err) {
-				log.Printf("Encounter network error, retry again later: %v", err)
+				log.Printf("Encounter network error, retrying later: %v", err)
 				time.Sleep(5 * time.Second)
 				continue
 			}
