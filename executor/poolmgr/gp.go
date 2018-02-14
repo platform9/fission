@@ -475,272 +475,164 @@ func (gp *GenericPool) createPool() error {
 		return err
 	}
 
-	var deployment *v1beta1.Deployment
+	// Use long terminationGracePeriodSeconds for connection draining in case that
+	// pod still runs user functions.
+	var gracePeriodSeconds int64 = 6 * 60
 
-	if gp.useIstio {
-		// Use long terminationGracePeriodSeconds for connection draining in case that
-		// pod still runs user functions.
-		var gracePeriodSeconds int64 = 6 * 60
-
-		deployment = &v1beta1.Deployment{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   poolDeploymentName,
-				Labels: gp.labelsForPool,
+	deployment := &v1beta1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   poolDeploymentName,
+			Labels: gp.labelsForPool,
+		},
+		Spec: v1beta1.DeploymentSpec{
+			Replicas: &gp.replicas,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: gp.labelsForPool,
 			},
-			Spec: v1beta1.DeploymentSpec{
-				Replicas: &gp.replicas,
-				Selector: &metav1.LabelSelector{
-					MatchLabels: gp.labelsForPool,
+			Template: apiv1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: gp.labelsForPool,
 				},
-				Template: apiv1.PodTemplateSpec{
-					ObjectMeta: metav1.ObjectMeta{
-						Labels: gp.labelsForPool,
-					},
-					Spec: apiv1.PodSpec{
-						Volumes: []apiv1.Volume{
-							{
-								Name: "userfunc",
-								VolumeSource: apiv1.VolumeSource{
-									EmptyDir: &apiv1.EmptyDirVolumeSource{},
-								},
-							},
-							{
-								Name: "secrets",
-								VolumeSource: apiv1.VolumeSource{
-									EmptyDir: &apiv1.EmptyDirVolumeSource{},
-								},
-							},
-
-							{
-								Name: "config",
-								VolumeSource: apiv1.VolumeSource{
-									EmptyDir: &apiv1.EmptyDirVolumeSource{},
-								},
+				Spec: apiv1.PodSpec{
+					Volumes: []apiv1.Volume{
+						{
+							Name: "userfunc",
+							VolumeSource: apiv1.VolumeSource{
+								EmptyDir: &apiv1.EmptyDirVolumeSource{},
 							},
 						},
-						Containers: []apiv1.Container{
-							{
-								Name:                   gp.env.Metadata.Name,
-								Image:                  gp.env.Spec.Runtime.Image,
-								ImagePullPolicy:        gp.runtimeImagePullPolicy,
-								TerminationMessagePath: "/dev/termination-log",
-								VolumeMounts: []apiv1.VolumeMount{
-									{
-										Name:      "userfunc",
-										MountPath: gp.sharedMountPath,
-									},
-									{
-										Name:      "secrets",
-										MountPath: gp.sharedSecretPath,
-									},
-									{
-										Name:      "config",
-										MountPath: gp.sharedCfgMapPath,
-									},
-								},
-								Command: []string{"/fetcher",
-									"-secret-dir", gp.sharedSecretPath,
-									"-cfgmap-dir", gp.sharedCfgMapPath,
-									gp.sharedMountPath},
-								// Pod is removed from endpoints list for service when it's
-								// state became "Termination". We used preStop hook as the
-								// workaround for connection draining since pod maybe shutdown
-								// before grace period expires.
-								// https://kubernetes.io/docs/concepts/workloads/pods/pod/#termination-of-pods
-								// https://github.com/kubernetes/kubernetes/issues/47576#issuecomment-308900172
-								Lifecycle: &apiv1.Lifecycle{
-									PreStop: &apiv1.Handler{
-										Exec: &apiv1.ExecAction{
-											Command: []string{
-												"sleep",
-												fmt.Sprintf("%v", gracePeriodSeconds),
-											},
-										},
-									},
-								},
-								Resources: gp.env.Spec.Resources,
+						{
+							Name: "secrets",
+							VolumeSource: apiv1.VolumeSource{
+								EmptyDir: &apiv1.EmptyDirVolumeSource{},
 							},
-							{
-								Name:                   "fetcher",
-								Image:                  gp.fetcherImage,
-								ImagePullPolicy:        gp.fetcherImagePullPolicy,
-								TerminationMessagePath: "/dev/termination-log",
-								VolumeMounts: []apiv1.VolumeMount{
-									{
-										Name:      "userfunc",
-										MountPath: gp.sharedMountPath,
-									},
-									{
-										Name:      "secrets",
-										MountPath: gp.sharedSecretPath,
-									},
-									{
-										Name:      "config",
-										MountPath: gp.sharedCfgMapPath,
-									},
+						},
+
+						{
+							Name: "config",
+							VolumeSource: apiv1.VolumeSource{
+								EmptyDir: &apiv1.EmptyDirVolumeSource{},
+							},
+						},
+					},
+					Containers: []apiv1.Container{
+						{
+							Name:                   gp.env.Metadata.Name,
+							Image:                  gp.env.Spec.Runtime.Image,
+							ImagePullPolicy:        gp.runtimeImagePullPolicy,
+							TerminationMessagePath: "/dev/termination-log",
+							VolumeMounts: []apiv1.VolumeMount{
+								{
+									Name:      "userfunc",
+									MountPath: gp.sharedMountPath,
 								},
-								Command: []string{"/fetcher",
-									"-secret-dir", gp.sharedSecretPath,
-									"-cfgmap-dir", gp.sharedCfgMapPath,
-									gp.sharedMountPath},
-								ReadinessProbe: &apiv1.Probe{
-									InitialDelaySeconds: 1,
-									PeriodSeconds:       1,
-									FailureThreshold:    30,
-									Handler: apiv1.Handler{
-										HTTPGet: &apiv1.HTTPGetAction{
-											Path: "/healthz",
-											Port: intstr.IntOrString{
-												Type:   intstr.Int,
-												IntVal: 8000,
-											},
-										},
-									},
+								{
+									Name:      "secrets",
+									MountPath: gp.sharedSecretPath,
 								},
-								LivenessProbe: &apiv1.Probe{
-									InitialDelaySeconds: 35,
-									PeriodSeconds:       5,
-									Handler: apiv1.Handler{
-										HTTPGet: &apiv1.HTTPGetAction{
-											Path: "/healthz",
-											Port: intstr.IntOrString{
-												Type:   intstr.Int,
-												IntVal: 8000,
-											},
+
+								{
+									Name:      "config",
+									MountPath: gp.sharedCfgMapPath,
+								},
+							},
+							Resources: fetcherResources,
+							// Pod is removed from endpoints list for service when it's
+							// state became "Termination". We used preStop hook as the
+							// workaround for connection draining since pod maybe shutdown
+							// before grace period expires.
+							// https://kubernetes.io/docs/concepts/workloads/pods/pod/#termination-of-pods
+							// https://github.com/kubernetes/kubernetes/issues/47576#issuecomment-308900172
+							Lifecycle: &apiv1.Lifecycle{
+								PreStop: &apiv1.Handler{
+									Exec: &apiv1.ExecAction{
+										Command: []string{
+											"sleep",
+											fmt.Sprintf("%v", gracePeriodSeconds),
 										},
 									},
 								},
 							},
 						},
-						ServiceAccountName: "fission-fetcher",
-						// TerminationGracePeriodSeconds should be equal to the
-						// sleep time of preStop to make sure that SIGTERM is sent
-						// to pod after 6 mins.
-						TerminationGracePeriodSeconds: &gracePeriodSeconds,
-					},
-				},
-			},
-		}
-	} else {
-		deployment = &v1beta1.Deployment{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   poolDeploymentName,
-				Labels: gp.labelsForPool,
-			},
-			Spec: v1beta1.DeploymentSpec{
-				Replicas: &gp.replicas,
-				Selector: &metav1.LabelSelector{
-					MatchLabels: gp.labelsForPool,
-				},
-				Template: apiv1.PodTemplateSpec{
-					ObjectMeta: metav1.ObjectMeta{
-						Labels: gp.labelsForPool,
-					},
-					Spec: apiv1.PodSpec{
-						Volumes: []apiv1.Volume{
-							{
-								Name: "userfunc",
-								VolumeSource: apiv1.VolumeSource{
-									EmptyDir: &apiv1.EmptyDirVolumeSource{},
+						{
+							Name:                   "fetcher",
+							Image:                  gp.fetcherImage,
+							ImagePullPolicy:        gp.fetcherImagePullPolicy,
+							TerminationMessagePath: "/dev/termination-log",
+							VolumeMounts: []apiv1.VolumeMount{
+								{
+									Name:      "userfunc",
+									MountPath: gp.sharedMountPath,
+								},
+
+								{
+									Name:      "secrets",
+									MountPath: gp.sharedSecretPath,
+								},
+
+								{
+									Name:      "config",
+									MountPath: gp.sharedCfgMapPath,
 								},
 							},
-							{
-								Name: "secrets",
-								VolumeSource: apiv1.VolumeSource{
-									EmptyDir: &apiv1.EmptyDirVolumeSource{},
-								},
-							},
-
-							{
-								Name: "config",
-								VolumeSource: apiv1.VolumeSource{
-									EmptyDir: &apiv1.EmptyDirVolumeSource{},
-								},
-							},
-						},
-						ServiceAccountName: "fission-fetcher",
-						Containers: []apiv1.Container{
-							{
-								Name:                   gp.env.Metadata.Name,
-								Image:                  gp.env.Spec.Runtime.Image,
-								ImagePullPolicy:        gp.runtimeImagePullPolicy,
-								TerminationMessagePath: "/dev/termination-log",
-								VolumeMounts: []apiv1.VolumeMount{
-									{
-										Name:      "userfunc",
-										MountPath: gp.sharedMountPath,
-									},
-									{
-										Name:      "secrets",
-										MountPath: gp.sharedSecretPath,
-									},
-
-									{
-										Name:      "config",
-										MountPath: gp.sharedCfgMapPath,
-									},
-								},
-								Resources: fetcherResources,
-							},
-							{
-								Name:                   "fetcher",
-								Image:                  gp.fetcherImage,
-								ImagePullPolicy:        gp.fetcherImagePullPolicy,
-								TerminationMessagePath: "/dev/termination-log",
-								VolumeMounts: []apiv1.VolumeMount{
-									{
-										Name:      "userfunc",
-										MountPath: gp.sharedMountPath,
-									},
-
-									{
-										Name:      "secrets",
-										MountPath: gp.sharedSecretPath,
-									},
-
-									{
-										Name:      "config",
-										MountPath: gp.sharedCfgMapPath,
-									},
-								},
-								Resources: fetcherResources,
-								Command: []string{"/fetcher",
-									"-secret-dir", gp.sharedSecretPath,
-									"-cfgmap-dir", gp.sharedCfgMapPath,
-									gp.sharedMountPath},
-								ReadinessProbe: &apiv1.Probe{
-									InitialDelaySeconds: 1,
-									PeriodSeconds:       1,
-									FailureThreshold:    30,
-									Handler: apiv1.Handler{
-										HTTPGet: &apiv1.HTTPGetAction{
-											Path: "/healthz",
-											Port: intstr.IntOrString{
-												Type:   intstr.Int,
-												IntVal: 8000,
-											},
+							Resources: fetcherResources,
+							Command: []string{"/fetcher",
+								"-secret-dir", gp.sharedSecretPath,
+								"-cfgmap-dir", gp.sharedCfgMapPath,
+								gp.sharedMountPath},
+							// Pod is removed from endpoints list for service when it's
+							// state became "Termination". We used preStop hook as the
+							// workaround for connection draining since pod maybe shutdown
+							// before grace period expires.
+							// https://kubernetes.io/docs/concepts/workloads/pods/pod/#termination-of-pods
+							// https://github.com/kubernetes/kubernetes/issues/47576#issuecomment-308900172
+							Lifecycle: &apiv1.Lifecycle{
+								PreStop: &apiv1.Handler{
+									Exec: &apiv1.ExecAction{
+										Command: []string{
+											"sleep",
+											fmt.Sprintf("%v", gracePeriodSeconds),
 										},
 									},
 								},
-								LivenessProbe: &apiv1.Probe{
-									InitialDelaySeconds: 35,
-									PeriodSeconds:       5,
-									Handler: apiv1.Handler{
-										HTTPGet: &apiv1.HTTPGetAction{
-											Path: "/healthz",
-											Port: intstr.IntOrString{
-												Type:   intstr.Int,
-												IntVal: 8000,
-											},
+							},
+							ReadinessProbe: &apiv1.Probe{
+								InitialDelaySeconds: 1,
+								PeriodSeconds:       1,
+								FailureThreshold:    30,
+								Handler: apiv1.Handler{
+									HTTPGet: &apiv1.HTTPGetAction{
+										Path: "/healthz",
+										Port: intstr.IntOrString{
+											Type:   intstr.Int,
+											IntVal: 8000,
+										},
+									},
+								},
+							},
+							LivenessProbe: &apiv1.Probe{
+								InitialDelaySeconds: 35,
+								PeriodSeconds:       5,
+								Handler: apiv1.Handler{
+									HTTPGet: &apiv1.HTTPGetAction{
+										Path: "/healthz",
+										Port: intstr.IntOrString{
+											Type:   intstr.Int,
+											IntVal: 8000,
 										},
 									},
 								},
 							},
 						},
 					},
+					ServiceAccountName: "fission-fetcher",
+					// TerminationGracePeriodSeconds should be equal to the
+					// sleep time of preStop to make sure that SIGTERM is sent
+					// to pod after 6 mins.
+					TerminationGracePeriodSeconds: &gracePeriodSeconds,
 				},
 			},
-		}
+		},
 	}
 
 	depl, err := gp.kubernetesClient.ExtensionsV1beta1().Deployments(gp.namespace).Create(deployment)
