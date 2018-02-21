@@ -26,6 +26,8 @@ import (
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
 	"github.com/fission/fission/executor/fscache"
+	"github.com/pkg/errors"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
@@ -74,7 +76,6 @@ type (
 const (
 	FnCreate requestType = iota
 	FnDelete
-	FnUpdate
 )
 
 func MakeNewDeploy(
@@ -141,7 +142,9 @@ func (deploy *NewDeploy) initFuncController() (k8sCache.Store, k8sCache.Controll
 			deploy.deleteFunction(fn)
 		},
 		UpdateFunc: func(newObj interface{}, oldObj interface{}) {
-			//TBD
+			oldFn := oldObj.(*crd.Function)
+			newFn := newObj.(*crd.Function)
+			deploy.fnUpdate(oldFn, newFn)
 		},
 	})
 	return store, controller
@@ -158,8 +161,6 @@ func (deploy *NewDeploy) service() {
 				fSvc:  fsvc,
 			}
 			continue
-		case FnUpdate:
-			// TBD
 		case FnDelete:
 			_, err := deploy.fnDelete(req.fn)
 			req.responseChannel <- &fnResponse{
@@ -167,6 +168,7 @@ func (deploy *NewDeploy) service() {
 				fSvc:  nil,
 			}
 			continue
+			// Update needs two inputs and will be called directly by controller
 		}
 	}
 }
@@ -264,8 +266,8 @@ func (deploy *NewDeploy) fnCreate(fn *crd.Function) (*fscache.FuncSvc, error) {
 
 	hpa, err := deploy.createOrGetHpa(objName, &fn.Spec.InvokeStrategy.ExecutionStrategy, depl)
 	if err != nil {
-		log.Printf("Error creating the HPA %v: %v", objName, err)
-		return fsvc, err
+		log.Printf("error creating the HPA %v: %v", objName, err)
+		return fsvc, errors.Wrap(err, "error creating HorizontalPodAutoscaler")
 	}
 
 	kubeObjRefs := []api.ObjectReference{
@@ -311,6 +313,95 @@ func (deploy *NewDeploy) fnCreate(fn *crd.Function) (*fscache.FuncSvc, error) {
 		return fsvc, err
 	}
 	return fsvc, nil
+}
+
+func (deploy *NewDeploy) fnUpdate(oldFn *crd.Function, newFn *crd.Function) {
+
+	if oldFn.Metadata.ResourceVersion == newFn.Metadata.ResourceVersion {
+		return
+	}
+
+	if oldFn.Spec.InvokeStrategy != newFn.Spec.InvokeStrategy {
+
+		if newFn.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType != fission.ExecutorTypeNewdeploy {
+			deploy.fnDelete(newFn)
+		}
+
+		deployment, err := deploy.getDeployment(newFn)
+		if err != nil {
+			log.Printf("error getting deployment: %v", err)
+		}
+
+		hpa, err := deploy.getHpa(newFn)
+		if err != nil {
+			log.Printf("error getting HPA: %v", err)
+		}
+
+		if newFn.Spec.InvokeStrategy.ExecutionStrategy.MinScale != oldFn.Spec.InvokeStrategy.ExecutionStrategy.MinScale {
+			replicas := int32(newFn.Spec.InvokeStrategy.ExecutionStrategy.MinScale)
+			deployment.Spec.Replicas = &replicas
+			hpa.Spec.MinReplicas = &replicas
+		}
+
+		if newFn.Spec.InvokeStrategy.ExecutionStrategy.MaxScale != oldFn.Spec.InvokeStrategy.ExecutionStrategy.MaxScale {
+			hpa.Spec.MaxReplicas = int32(newFn.Spec.InvokeStrategy.ExecutionStrategy.MaxScale)
+		}
+
+		if newFn.Spec.InvokeStrategy.ExecutionStrategy.TargetCPUPercent != oldFn.Spec.InvokeStrategy.ExecutionStrategy.TargetCPUPercent {
+			targetCpupercent := int32(newFn.Spec.InvokeStrategy.ExecutionStrategy.TargetCPUPercent)
+			hpa.Spec.TargetCPUUtilizationPercentage = &targetCpupercent
+		}
+
+		err = deploy.updateDeployment(deployment)
+		if err != nil {
+			log.Printf("error deleting deployment: %v", err)
+		}
+
+		err = deploy.updateHpa(hpa)
+		if err != nil {
+			log.Printf("error deleting HPA: %v", err)
+		}
+	}
+
+	changed := false
+
+	fmt.Println("PackageSame=", oldFn.Spec.Package.PackageRef != newFn.Spec.Package.PackageRef)
+	fmt.Println("EnvSame=", oldFn.Spec.Environment != newFn.Spec.Environment)
+
+	if oldFn.Spec.Package.PackageRef != newFn.Spec.Package.PackageRef ||
+		oldFn.Spec.Environment != newFn.Spec.Environment {
+		changed = true
+	}
+
+	// If length of slice has changed
+	if len(oldFn.Spec.Secrets) != len(newFn.Spec.Secrets) {
+		changed = true
+	} else {
+		for i, newSecret := range newFn.Spec.Secrets {
+			if newSecret != oldFn.Spec.Secrets[i] {
+				changed = true
+				break
+			}
+		}
+	}
+	if len(oldFn.Spec.ConfigMaps) != len(newFn.Spec.ConfigMaps) {
+		changed = true
+	} else {
+		for i, newConfig := range newFn.Spec.ConfigMaps {
+			if newConfig != oldFn.Spec.ConfigMaps[i] {
+				changed = true
+				break
+			}
+		}
+	}
+
+	if changed == true {
+		err := deploy.deletePods(newFn)
+		if err != nil {
+			log.Printf("error deleting pods: %v", err)
+		}
+		return
+	}
 }
 
 func (deploy *NewDeploy) fnDelete(fn *crd.Function) (*fscache.FuncSvc, error) {
