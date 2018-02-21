@@ -60,12 +60,16 @@ func (c *Client) Fetch(fr *fetcher.FetchRequest) error {
 
 		if err == nil {
 			err = fission.MakeErrorFromHTTP(resp)
-			if c.useIstio {
-				retry = true
-			}
 		}
 
-		if retry {
+		// https://istio.io/docs/concepts/traffic-management/pilot.html
+		// Istio Pilot convert routing rules to Envoy-specific configurations,
+		// then propagates them to Envoy(istio-proxy) sidecars.
+		// Requests to the endpoints that are not ready to serve traffic will
+		// be rejected by Envoy before the requests go out of the pod. So retry
+		// here until Pilot updates its service discovery cache and new configs
+		// are propagated.
+		if retry || c.useIstio {
 			time.Sleep(50 * time.Duration(2*i) * time.Millisecond)
 			log.Printf("Error fetching package (%v), retrying", err)
 			continue

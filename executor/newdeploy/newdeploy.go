@@ -19,6 +19,7 @@ package newdeploy
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"path/filepath"
 	"strconv"
@@ -55,6 +56,9 @@ func (deploy *NewDeploy) createOrGetDeployment(fn *crd.Function, env *crd.Enviro
 	}
 	targetFilename := "user"
 	userfunc := "userfunc"
+	secrets := "secrets"
+	config := "config"
+	var gracePeriodSeconds int64 = 6 * 60
 
 	existingDepl, err := deploy.kubernetesClient.ExtensionsV1beta1().Deployments(deploy.namespace).Get(deployName, metav1.GetOptions{})
 	if err == nil && existingDepl.Status.ReadyReplicas >= replicas {
@@ -83,6 +87,7 @@ func (deploy *NewDeploy) createOrGetDeployment(fn *crd.Function, env *crd.Enviro
 		if err != nil {
 			return nil, err
 		}
+
 		loadPayload, err := json.Marshal(loadReq)
 		if err != nil {
 			return nil, err
@@ -92,6 +97,10 @@ func (deploy *NewDeploy) createOrGetDeployment(fn *crd.Function, env *crd.Enviro
 		if err != nil {
 			log.Printf("Error while parsing fetcher resources: %v", err)
 			return nil, err
+		}
+
+		podAnnotation := map[string]string{
+			"sidecar.istio.io/inject": strconv.FormatBool(env.Spec.AllowedAccessExternalNetwork),
 		}
 
 		deployment := &v1beta1.Deployment{
@@ -106,7 +115,8 @@ func (deploy *NewDeploy) createOrGetDeployment(fn *crd.Function, env *crd.Enviro
 				},
 				Template: apiv1.PodTemplateSpec{
 					ObjectMeta: metav1.ObjectMeta{
-						Labels: deployLabels,
+						Labels:      deployLabels,
+						Annotations: podAnnotation,
 					},
 					Spec: apiv1.PodSpec{
 						Volumes: []apiv1.Volume{
@@ -128,8 +138,27 @@ func (deploy *NewDeploy) createOrGetDeployment(fn *crd.Function, env *crd.Enviro
 										Name:      userfunc,
 										MountPath: deploy.sharedMountPath,
 									},
+									{
+										Name:      secrets,
+										MountPath: deploy.sharedSecretPath,
+									},
+
+									{
+										Name:      config,
+										MountPath: deploy.sharedCfgMapPath,
+									},
 								},
 								Resources: env.Spec.Resources,
+								Lifecycle: &apiv1.Lifecycle{
+									PreStop: &apiv1.Handler{
+										Exec: &apiv1.ExecAction{
+											Command: []string{
+												"sleep",
+												fmt.Sprintf("%v", gracePeriodSeconds),
+											},
+										},
+									},
+								},
 							},
 							{
 								Name:                   "fetcher",
@@ -141,6 +170,14 @@ func (deploy *NewDeploy) createOrGetDeployment(fn *crd.Function, env *crd.Enviro
 										Name:      userfunc,
 										MountPath: deploy.sharedMountPath,
 									},
+									{
+										Name:      secrets,
+										MountPath: deploy.sharedSecretPath,
+									},
+									{
+										Name:      config,
+										MountPath: deploy.sharedCfgMapPath,
+									},
 								},
 								Command: []string{"/fetcher", "-specialize-on-startup",
 									"-fetch-request", string(fetchPayload),
@@ -148,6 +185,16 @@ func (deploy *NewDeploy) createOrGetDeployment(fn *crd.Function, env *crd.Enviro
 									"-secret-dir", deploy.sharedSecretPath,
 									"-cfgmap-dir", deploy.sharedCfgMapPath,
 									deploy.sharedMountPath},
+								Lifecycle: &apiv1.Lifecycle{
+									PreStop: &apiv1.Handler{
+										Exec: &apiv1.ExecAction{
+											Command: []string{
+												"sleep",
+												fmt.Sprintf("%v", gracePeriodSeconds),
+											},
+										},
+									},
+								},
 								Env: []apiv1.EnvVar{
 									{
 										Name:  envVersion,
@@ -165,9 +212,23 @@ func (deploy *NewDeploy) createOrGetDeployment(fn *crd.Function, env *crd.Enviro
 									InitialDelaySeconds: 1,
 									PeriodSeconds:       1,
 								},
+								LivenessProbe: &apiv1.Probe{
+									InitialDelaySeconds: 35,
+									PeriodSeconds:       5,
+									Handler: apiv1.Handler{
+										HTTPGet: &apiv1.HTTPGetAction{
+											Path: "/healthz",
+											Port: intstr.IntOrString{
+												Type:   intstr.Int,
+												IntVal: 8000,
+											},
+										},
+									},
+								},
 							},
 						},
-						ServiceAccountName: "fission-fetcher",
+						ServiceAccountName:            "fission-fetcher",
+						TerminationGracePeriodSeconds: &gracePeriodSeconds,
 					},
 				},
 			},

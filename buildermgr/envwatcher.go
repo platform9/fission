@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -440,6 +441,11 @@ func (envw *environmentWatcher) createBuilderDeployment(env *crd.Environment) (*
 	name := envw.getCacheKey(env.Metadata.Name, env.Metadata.ResourceVersion)
 	sel := envw.getLabels(env.Metadata.Name, env.Metadata.ResourceVersion)
 	var replicas int32 = 1
+
+	podAnnotation := map[string]string{
+		"sidecar.istio.io/inject": strconv.FormatBool(env.Spec.AllowedAccessExternalNetwork),
+	}
+
 	deployment := &v1beta1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: envw.builderNamespace,
@@ -453,7 +459,8 @@ func (envw *environmentWatcher) createBuilderDeployment(env *crd.Environment) (*
 			},
 			Template: apiv1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: sel,
+					Labels:      sel,
+					Annotations: podAnnotation,
 				},
 				Spec: apiv1.PodSpec{
 					Volumes: []apiv1.Volume{

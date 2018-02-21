@@ -54,6 +54,7 @@ func envCreate(c *cli.Context) error {
 	envVersion := c.Int("version")
 	envBuilderImg := c.String("builder")
 	envBuildCmd := c.String("buildcmd")
+	envExternalNetwork := c.Bool("externalnetwork")
 
 	if len(envBuilderImg) > 0 {
 		envVersion = 2
@@ -84,8 +85,9 @@ func envCreate(c *cli.Context) error {
 				Image:   envBuilderImg,
 				Command: envBuildCmd,
 			},
-			Poolsize:  poolsize,
-			Resources: resourceReq,
+			Poolsize:                     poolsize,
+			Resources:                    resourceReq,
+			AllowedAccessExternalNetwork: envExternalNetwork,
 		},
 	}
 
@@ -130,6 +132,7 @@ func envUpdate(c *cli.Context) error {
 	envImg := c.String("image")
 	envBuilderImg := c.String("builder")
 	envBuildCmd := c.String("buildcmd")
+	envExternalNetwork := c.Bool("externalnetwork")
 
 	if len(envImg) == 0 && len(envBuilderImg) == 0 && len(envBuildCmd) == 0 {
 		fatal("Need --image to specify env image, or use --builder to specify env builder, or use --buildcmd to specify new build command.")
@@ -158,6 +161,10 @@ func envUpdate(c *cli.Context) error {
 
 	if c.IsSet("poolsize") {
 		env.Spec.Poolsize = c.Int("poolsize")
+	}
+
+	if envExternalNetwork {
+		env.Spec.AllowedAccessExternalNetwork = envExternalNetwork
 	}
 
 	_, err = client.EnvironmentUpdate(env)
