@@ -127,6 +127,18 @@ func (deploy *NewDeploy) createOrGetDeployment(fn *crd.Function, env *crd.Enviro
 									EmptyDir: &apiv1.EmptyDirVolumeSource{},
 								},
 							},
+							{
+								Name: secrets,
+								VolumeSource: apiv1.VolumeSource{
+									EmptyDir: &apiv1.EmptyDirVolumeSource{},
+								},
+							},
+							{
+								Name: config,
+								VolumeSource: apiv1.VolumeSource{
+									EmptyDir: &apiv1.EmptyDirVolumeSource{},
+								},
+							},
 						},
 						Containers: []apiv1.Container{
 							{
@@ -143,7 +155,6 @@ func (deploy *NewDeploy) createOrGetDeployment(fn *crd.Function, env *crd.Enviro
 										Name:      secrets,
 										MountPath: deploy.sharedSecretPath,
 									},
-
 									{
 										Name:      config,
 										MountPath: deploy.sharedCfgMapPath,
