@@ -358,7 +358,8 @@ func (gp *GenericPool) specializePod(pod *apiv1.Pod, metadata *metav1.ObjectMeta
 	}
 	// specialize pod with service
 	if gp.useIstio {
-		podIP = fmt.Sprintf("istio-%v.%v", metadata.Name, gp.namespace)
+		svc := fission.GetFunctionIstioServiceName(metadata.Name, metadata.Namespace)
+		podIP = fmt.Sprintf("%v.%v", svc, gp.namespace)
 	}
 
 	// tell fetcher to get the function.
@@ -766,7 +767,8 @@ func (gp *GenericPool) GetFuncSvc(m *metav1.ObjectMeta) (*fscache.FuncSvc, error
 		// namespace-qualified hostname
 		svcHost = fmt.Sprintf("%v.%v", svcName, gp.namespace)
 	} else if gp.useIstio {
-		svcHost = fmt.Sprintf("istio-%v.%v:8888", m.Name, gp.namespace)
+		svc := fission.GetFunctionIstioServiceName(m.Name, m.Namespace)
+		svcHost = fmt.Sprintf("%v.%v:8888", svc, gp.namespace)
 	} else {
 		log.Printf("Using pod IP for specialized pod")
 		svcHost = fmt.Sprintf("%v:8888", pod.Status.PodIP)

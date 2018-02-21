@@ -47,3 +47,8 @@ func IsNetworkError(err error) bool {
 	_, ok := err.(net.Error)
 	return ok
 }
+
+// GetFunctionIstioServiceName return service name of function for istio feature
+func GetFunctionIstioServiceName(fnName, fnNamespace string) string {
+	return fmt.Sprintf("istio-%v-%v", fnName, fnNamespace)
+}

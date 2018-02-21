@@ -19,7 +19,6 @@ package controller
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -94,7 +93,14 @@ func (a *API) FunctionApiCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if a.useIstio {
+	// Since istio only allows accessing pod through k8s service,
+	// for the functions with executor type "poolmgr" we need to
+	// create a service for sending requests to pod in pool.
+	// Functions with executor type "Newdeploy" is specialized at
+	// pod starts. In this case, just ignore such functions.
+	fnExecutorType := f.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType
+
+	if a.useIstio && fnExecutorType == fission.ExecutorTypePoolmgr {
 		// create a same name service for function
 		// since istio only allows the traffic to service
 
@@ -107,12 +113,14 @@ func (a *API) FunctionApiCreate(w http.ResponseWriter, r *http.Request) {
 		svc := apiv1.Service{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: a.functionNamespace,
-				Name:      fmt.Sprintf("istio-%v", f.Metadata.Name),
+				Name:      fission.GetFunctionIstioServiceName(f.Metadata.Name, f.Metadata.Namespace),
 				Labels:    a.getIstioServiceLabels(f.Metadata.Name),
 			},
 			Spec: apiv1.ServiceSpec{
 				Type: apiv1.ServiceTypeClusterIP,
 				Ports: []apiv1.ServicePort{
+					// Service port name must follow the rules list in
+					// https://istio.io/docs/setup/kubernetes/sidecar-injection.html
 					{
 						Name:       "http-fetch",
 						Protocol:   apiv1.ProtocolTCP,

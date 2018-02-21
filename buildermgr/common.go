@@ -90,7 +90,7 @@ func buildPackage(fissionClient *crd.FissionClient, builderNamespace string,
 			buildLogs = buildResp.BuildLogs
 		}
 		buildLogs += fmt.Sprintf("%v\n", e)
-		return nil, buildResp.BuildLogs, fission.MakeError(http.StatusInternalServerError, e)
+		return nil, buildLogs, fission.MakeError(http.StatusInternalServerError, e)
 	}
 
 	log.Printf("Build succeed, source package: %v, deployment package: %v", srcPkgFilename, buildResp.ArtifactFilename)
