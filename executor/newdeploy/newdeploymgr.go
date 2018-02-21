@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/fission/fission"
@@ -50,6 +51,7 @@ type (
 		sharedMountPath        string
 		sharedSecretPath       string
 		sharedCfgMapPath       string
+		useIstio               bool
 
 		fsCache        *fscache.FunctionServiceCache // cache funcSvc's by function, address and podname
 		requestChannel chan *fnRequest
@@ -97,6 +99,15 @@ func MakeNewDeploy(
 		fetcherImagePullPolicy = "IfNotPresent"
 	}
 
+	enableIstio := false
+	if len(os.Getenv("ENABLE_ISTIO")) > 0 {
+		istio, err := strconv.ParseBool(os.Getenv("ENABLE_ISTIO"))
+		if err != nil {
+			log.Println("Failed to parse ENABLE_ISTIO")
+		}
+		enableIstio = istio
+	}
+
 	nd := &NewDeploy{
 		fissionClient:    fissionClient,
 		kubernetesClient: kubernetesClient,
@@ -111,6 +122,7 @@ func MakeNewDeploy(
 		sharedMountPath:        "/userfunc",
 		sharedSecretPath:       "/secrets",
 		sharedCfgMapPath:       "/configs",
+		useIstio:               enableIstio,
 
 		requestChannel: make(chan *fnRequest),
 	}

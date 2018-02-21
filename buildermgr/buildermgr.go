@@ -43,7 +43,7 @@ func Start(storageSvcUrl string, envBuilderNamespace string) error {
 		return err
 	}
 
-	envWatcher := makeEnvironmentWatcher(fissionClient, kubernetesClient, envBuilderNamespace)
+	envWatcher := makeEnvironmentWatcher(fissionClient, kubernetesClient, envBuilderNamespace, useIstio)
 	go envWatcher.watchEnvironments()
 
 	pkgWatcher := makePackageWatcher(fissionClient, kubernetesClient.CoreV1().RESTClient(),

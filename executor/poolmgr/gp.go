@@ -480,8 +480,10 @@ func (gp *GenericPool) createPool() error {
 	// pod still runs user functions.
 	var gracePeriodSeconds int64 = 6 * 60
 
-	podAnnotation := map[string]string{
-		"sidecar.istio.io/inject": strconv.FormatBool(gp.env.Spec.AllowedAccessExternalNetwork),
+	podAnnotation := make(map[string]string)
+
+	if gp.useIstio && gp.env.Spec.AllowedAccessExternalNetwork {
+		podAnnotation["sidecar.istio.io/inject"] = "false"
 	}
 
 	deployment := &v1beta1.Deployment{

@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strconv"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -72,11 +71,12 @@ type (
 		kubernetesClient       *kubernetes.Clientset
 		fetcherImage           string
 		fetcherImagePullPolicy apiv1.PullPolicy
+		useIstio               bool
 	}
 )
 
 func makeEnvironmentWatcher(fissionClient *crd.FissionClient,
-	kubernetesClient *kubernetes.Clientset, builderNamespace string) *environmentWatcher {
+	kubernetesClient *kubernetes.Clientset, builderNamespace string, useIstio bool) *environmentWatcher {
 
 	fetcherImage := os.Getenv("FETCHER_IMAGE")
 	if len(fetcherImage) == 0 {
@@ -106,6 +106,7 @@ func makeEnvironmentWatcher(fissionClient *crd.FissionClient,
 		kubernetesClient:       kubernetesClient,
 		fetcherImage:           fetcherImage,
 		fetcherImagePullPolicy: pullPolicy,
+		useIstio:               useIstio,
 	}
 
 	go envWatcher.service()
@@ -442,8 +443,9 @@ func (envw *environmentWatcher) createBuilderDeployment(env *crd.Environment) (*
 	sel := envw.getLabels(env.Metadata.Name, env.Metadata.ResourceVersion)
 	var replicas int32 = 1
 
-	podAnnotation := map[string]string{
-		"sidecar.istio.io/inject": strconv.FormatBool(env.Spec.AllowedAccessExternalNetwork),
+	podAnnotation := make(map[string]string)
+	if envw.useIstio && env.Spec.AllowedAccessExternalNetwork {
+		podAnnotation["sidecar.istio.io/inject"] = "false"
 	}
 
 	deployment := &v1beta1.Deployment{

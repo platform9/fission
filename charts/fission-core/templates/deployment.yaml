@@ -6,6 +6,9 @@ metadata:
   labels:
     name: fission-function
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    {{- if .Values.enableIstio }}
+    istio-injection: enabled
+    {{- end }}
 
 ---
 apiVersion: v1
@@ -15,6 +18,9 @@ metadata:
   labels:
     name: fission-builder
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    {{- if .Values.enableIstio }}
+    istio-injection: enabled
+    {{- end }}
 
 ---
 apiVersion: v1
@@ -267,6 +273,8 @@ spec:
           value: "{{ .Values.fetcherImage }}:{{ .Values.fetcherImageTag }}"
         - name: FETCHER_IMAGE_PULL_POLICY
           value: "{{ .Values.pullPolicy }}"
+        - name: ENABLE_ISTIO
+          value: "{{ .Values.enableIstio }}"
       serviceAccount: fission-svc
 
 ---

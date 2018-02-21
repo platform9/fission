@@ -99,8 +99,9 @@ func (deploy *NewDeploy) createOrGetDeployment(fn *crd.Function, env *crd.Enviro
 			return nil, err
 		}
 
-		podAnnotation := map[string]string{
-			"sidecar.istio.io/inject": strconv.FormatBool(env.Spec.AllowedAccessExternalNetwork),
+		podAnnotation := make(map[string]string)
+		if deploy.useIstio && env.Spec.AllowedAccessExternalNetwork {
+			podAnnotation["sidecar.istio.io/inject"] = "false"
 		}
 
 		deployment := &v1beta1.Deployment{
