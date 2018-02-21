@@ -62,7 +62,7 @@ func envCreate(c *cli.Context) error {
 		}
 	}
 
-	resourceReq := getResourceReq(c.Int("mincpu"), c.Int("maxcpu"), c.Int("minmemory"), c.Int("maxmemory"))
+	resourceReq := getResourceReq(c)
 
 	// Environment API interface version is not specified and
 	// builder image is empty, set default interface version
@@ -205,48 +205,54 @@ func envList(c *cli.Context) error {
 	return nil
 }
 
-func getResourceReq(mincpu int, maxcpu int, minmem int, maxmem int) v1.ResourceRequirements {
+func getResourceReq(c *cli.Context) v1.ResourceRequirements {
+	if c.IsSet("mincpu") || c.IsSet("maxcpu") || c.IsSet("minmemory") || c.IsSet("maxmemory") {
+		mincpu := c.Int("mincpu")
+		maxcpu := c.Int("maxcpu")
+		minmem := c.Int("minmemory")
+		maxmem := c.Int("maxmemory")
 
-	requestResources := make(map[v1.ResourceName]resource.Quantity)
+		requestResources := make(map[v1.ResourceName]resource.Quantity)
 
-	if mincpu != 0 {
-		cpuRequest, err := resource.ParseQuantity(strconv.Itoa(mincpu) + "m")
-		if err != nil {
-			fatal("Failed to parse mincpu")
+		if mincpu != 0 {
+			cpuRequest, err := resource.ParseQuantity(strconv.Itoa(mincpu) + "m")
+			if err != nil {
+				fatal("Failed to parse mincpu")
+			}
+			requestResources[v1.ResourceCPU] = cpuRequest
 		}
-		requestResources[v1.ResourceCPU] = cpuRequest
-	}
 
-	if minmem != 0 {
-		memRequest, err := resource.ParseQuantity(strconv.Itoa(minmem) + "Mi")
-		if err != nil {
-			fatal("Failed to parse minmemory")
+		if minmem != 0 {
+			memRequest, err := resource.ParseQuantity(strconv.Itoa(minmem) + "Mi")
+			if err != nil {
+				fatal("Failed to parse minmemory")
+			}
+			requestResources[v1.ResourceMemory] = memRequest
 		}
-		requestResources[v1.ResourceMemory] = memRequest
-	}
 
-	limitResources := make(map[v1.ResourceName]resource.Quantity)
+		limitResources := make(map[v1.ResourceName]resource.Quantity)
 
-	if maxcpu != 0 {
-		cpuLimit, err := resource.ParseQuantity(strconv.Itoa(maxcpu) + "m")
-		if err != nil {
-			fatal("Failed to parse maxcpu")
+		if maxcpu != 0 {
+			cpuLimit, err := resource.ParseQuantity(strconv.Itoa(maxcpu) + "m")
+			if err != nil {
+				fatal("Failed to parse maxcpu")
+			}
+			limitResources[v1.ResourceCPU] = cpuLimit
 		}
-		limitResources[v1.ResourceCPU] = cpuLimit
-	}
 
-	if maxmem != 0 {
-		memLimit, err := resource.ParseQuantity(strconv.Itoa(maxmem) + "Mi")
-		if err != nil {
-			fatal("Failed to parse maxmemory")
+		if maxmem != 0 {
+			memLimit, err := resource.ParseQuantity(strconv.Itoa(maxmem) + "Mi")
+			if err != nil {
+				fatal("Failed to parse maxmemory")
+			}
+			limitResources[v1.ResourceMemory] = memLimit
 		}
-		limitResources[v1.ResourceMemory] = memLimit
-	}
 
-	resources := v1.ResourceRequirements{
-		Requests: requestResources,
-		Limits:   limitResources,
+		resources := v1.ResourceRequirements{
+			Requests: requestResources,
+			Limits:   limitResources,
+		}
+		return resources
 	}
-
-	return resources
+	return v1.ResourceRequirements{}
 }

@@ -100,6 +100,19 @@ func getInvokeStrategy(minScale int, maxScale int, executorType string, targetcp
 	return strategy
 }
 
+func getTargetCPU(c *cli.Context) int {
+	var targetCPU int
+	if c.IsSet("targetcpu") {
+		targetCPU = c.Int("targetcpu")
+		if targetCPU <= 0 || targetCPU > 100 {
+			fatal("TargetCPU must be a value between 1 - 100")
+		}
+	} else {
+		targetCPU = 80
+	}
+	return targetCPU
+}
+
 func fnCreate(c *cli.Context) error {
 	client := getClient(c.GlobalString("server"))
 
@@ -194,19 +207,12 @@ func fnCreate(c *cli.Context) error {
 	}
 
 	//TODO Warn user about resources at fn level overriding the env resources
-	resourceReq := getResourceReq(c.Int("mincpu"), c.Int("maxcpu"), c.Int("minmemory"), c.Int("maxmemory"))
-
-	var targetCPU int
-	if c.IsSet("targetcpu") {
-		targetCPU = c.Int("targetcpu")
-		if targetCPU <= 0 || targetCPU > 100 {
-			fatal("TargetCPU must be a value between 1 - 100")
-		}
-	} else {
-		targetCPU = 80
+	if c.IsSet("mincpu") || c.IsSet("maxcpu") || c.IsSet("minmemory") || c.IsSet("maxmemory") {
+		warn("Resources specified for function will override the once specified for environment")
 	}
+	resourceReq := getResourceReq(c)
 
-	invokeStrategy := getInvokeStrategy(c.Int("minscale"), c.Int("maxscale"), c.String("executortype"), targetCPU)
+	invokeStrategy := getInvokeStrategy(c.Int("minscale"), c.Int("maxscale"), c.String("executortype"), getTargetCPU(c))
 
 	function := &crd.Function{
 		Metadata: metav1.ObjectMeta{
@@ -373,6 +379,37 @@ func fnUpdate(c *cli.Context) error {
 	entrypoint := c.String("entrypoint")
 	buildcmd := c.String("buildcmd")
 	force := c.Bool("force")
+	secretName := c.String("secret")
+	cfgMapName := c.String("configmap")
+
+	secretNameSpace := c.String("secretNamespace")
+	cfgMapNameSpace := c.String("configmapNamespace")
+
+	if len(secretName) > 0 {
+		if len(secretNameSpace) == 0 {
+			secretNameSpace = metav1.NamespaceDefault
+		}
+		newSecret := fission.SecretReference{
+			Name:      secretName,
+			Namespace: secretNameSpace,
+		}
+		function.Spec.Secrets = append(function.Spec.Secrets, newSecret)
+	}
+	if len(cfgMapName) > 0 {
+		if len(cfgMapNameSpace) == 0 {
+			cfgMapNameSpace = metav1.NamespaceDefault
+		}
+		newConfig := fission.ConfigMapReference{
+			Name:      cfgMapName,
+			Namespace: cfgMapNameSpace,
+		}
+		function.Spec.ConfigMaps = append(function.Spec.ConfigMaps, newConfig)
+	}
+
+	pkg, err := client.PackageGet(&metav1.ObjectMeta{
+		Namespace: metav1.NamespaceDefault,
+		Name:      pkgName,
+	})
 
 	if len(envName) == 0 && len(deployArchiveName) == 0 && len(srcArchiveName) == 0 && len(pkgName) == 0 &&
 		len(entrypoint) == 0 && len(buildcmd) == 0 {
@@ -390,7 +427,7 @@ func fnUpdate(c *cli.Context) error {
 		pkgName = function.Spec.Package.PackageRef.Name
 	}
 
-	pkg, err := client.PackageGet(&metav1.ObjectMeta{
+	pkg, err = client.PackageGet(&metav1.ObjectMeta{
 		Namespace: metav1.NamespaceDefault,
 		Name:      pkgName,
 	})
@@ -427,6 +464,45 @@ func fnUpdate(c *cli.Context) error {
 		Namespace:       pkgMetadata.Namespace,
 		Name:            pkgMetadata.Name,
 		ResourceVersion: pkgMetadata.ResourceVersion,
+	}
+
+	if c.IsSet("mincpu") || c.IsSet("maxcpu") || c.IsSet("minmemory") || c.IsSet("maxmemory") {
+		warn("Resources specified for function will override the once specified for environment")
+	}
+	function.Spec.Resources = getResourceReq(c)
+
+	function.Spec.InvokeStrategy.ExecutionStrategy.TargetCPUPercent = getTargetCPU(c)
+
+	if c.IsSet("minscale") {
+		minscale := c.Int("minscale")
+		if c.IsSet("maxscale") && minscale > c.Int("maxscale") ||
+			minscale > function.Spec.InvokeStrategy.ExecutionStrategy.MaxScale {
+			fatal("Minscale can not be greater than maxscale")
+		}
+		function.Spec.InvokeStrategy.ExecutionStrategy.MinScale = minscale
+	}
+
+	if c.IsSet("maxscale") {
+		maxscale := c.Int("maxscale")
+		if maxscale < function.Spec.InvokeStrategy.ExecutionStrategy.MinScale {
+			fatal("Function's minscale can not be greater than --maxscale")
+		}
+		function.Spec.InvokeStrategy.ExecutionStrategy.MaxScale = maxscale
+	}
+
+	if c.String("executortype") != "" {
+		var fnExecutor fission.ExecutorType
+		switch c.String("executortype") {
+		case "":
+			fnExecutor = fission.ExecutorTypePoolmgr
+		case fission.ExecutorTypePoolmgr:
+			fnExecutor = fission.ExecutorTypePoolmgr
+		case fission.ExecutorTypeNewdeploy:
+			fnExecutor = fission.ExecutorTypeNewdeploy
+		default:
+			fatal("Executor type must be one of 'poolmgr' or 'newdeploy', defaults to 'poolmgr'")
+		}
+		function.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType = fnExecutor
 	}
 
 	_, err = client.FunctionUpdate(function)

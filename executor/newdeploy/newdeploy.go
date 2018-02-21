@@ -231,7 +231,6 @@ func (deploy *NewDeploy) deletePods(fn *crd.Function) error {
 		if err != nil {
 			return err
 		}
-
 		for _, pod := range pods.Items {
 			if pod.Status.Phase != v1.PodRunning {
 				continue

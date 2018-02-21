@@ -141,7 +141,7 @@ func (deploy *NewDeploy) initFuncController() (k8sCache.Store, k8sCache.Controll
 			fn := obj.(*crd.Function)
 			deploy.deleteFunction(fn)
 		},
-		UpdateFunc: func(newObj interface{}, oldObj interface{}) {
+		UpdateFunc: func(oldObj interface{}, newObj interface{}) {
 			oldFn := oldObj.(*crd.Function)
 			newFn := newObj.(*crd.Function)
 			deploy.fnUpdate(oldFn, newFn)
@@ -324,6 +324,7 @@ func (deploy *NewDeploy) fnUpdate(oldFn *crd.Function, newFn *crd.Function) {
 	if oldFn.Spec.InvokeStrategy != newFn.Spec.InvokeStrategy {
 
 		if newFn.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType != fission.ExecutorTypeNewdeploy {
+			log.Printf("function does not use new deployment executor, deleting resources: %v", newFn)
 			deploy.fnDelete(newFn)
 		}
 
@@ -354,26 +355,23 @@ func (deploy *NewDeploy) fnUpdate(oldFn *crd.Function, newFn *crd.Function) {
 
 		err = deploy.updateDeployment(deployment)
 		if err != nil {
-			log.Printf("error deleting deployment: %v", err)
+			log.Printf("error updating deployment: %v", err)
 		}
 
 		err = deploy.updateHpa(hpa)
 		if err != nil {
-			log.Printf("error deleting HPA: %v", err)
+			log.Printf("error updating HPA: %v", err)
 		}
 	}
 
 	changed := false
-
-	fmt.Println("PackageSame=", oldFn.Spec.Package.PackageRef != newFn.Spec.Package.PackageRef)
-	fmt.Println("EnvSame=", oldFn.Spec.Environment != newFn.Spec.Environment)
 
 	if oldFn.Spec.Package.PackageRef != newFn.Spec.Package.PackageRef ||
 		oldFn.Spec.Environment != newFn.Spec.Environment {
 		changed = true
 	}
 
-	// If length of slice has changed
+	// If length of slice has changed then no need to check individual elements
 	if len(oldFn.Spec.Secrets) != len(newFn.Spec.Secrets) {
 		changed = true
 	} else {
