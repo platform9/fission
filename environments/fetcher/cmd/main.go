@@ -128,15 +128,6 @@ func specializePod(f *fetcher.Fetcher, fetchPayload *string, loadPayload *string
 		if err == nil && resp.StatusCode < 300 {
 			// Success
 			resp.Body.Close()
-			//On Success creates a file which is used as a readiness probe by Kubernetes for this container/pod
-			file, err := os.OpenFile("/tmp/ready", os.O_RDONLY|os.O_CREATE, 0666)
-			if err != nil {
-				log.Fatalf("Error creating readiness file: %v", err)
-			}
-			err = file.Close()
-			if err != nil {
-				log.Fatalf("Error closing readiness file: %v", err)
-			}
 			break
 		}
 

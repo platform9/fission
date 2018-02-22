@@ -216,13 +216,18 @@ func (deploy *NewDeploy) createOrGetDeployment(fn *crd.Function, env *crd.Enviro
 								// TBD Use smaller default resources, for now needed to make HPA work
 								Resources: fetcherResources,
 								ReadinessProbe: &apiv1.Probe{
-									Handler: apiv1.Handler{
-										Exec: &apiv1.ExecAction{
-											Command: []string{"cat", "/tmp/ready"},
-										},
-									},
 									InitialDelaySeconds: 1,
 									PeriodSeconds:       1,
+									FailureThreshold:    30,
+									Handler: apiv1.Handler{
+										HTTPGet: &apiv1.HTTPGetAction{
+											Path: "/healthz",
+											Port: intstr.IntOrString{
+												Type:   intstr.Int,
+												IntVal: 8000,
+											},
+										},
+									},
 								},
 								LivenessProbe: &apiv1.Probe{
 									InitialDelaySeconds: 35,
