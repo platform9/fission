@@ -242,14 +242,7 @@ func (deploy *NewDeploy) fnCreate(fn *crd.Function) (*fscache.FuncSvc, error) {
 
 	objName := deploy.getObjName(fn)
 
-	deployLabels := map[string]string{
-		"environmentName":                 env.Metadata.Name,
-		"environmentUid":                  string(env.Metadata.UID),
-		"functionName":                    fn.Metadata.Name,
-		"functionUid":                     string(fn.Metadata.UID),
-		fission.EXECUTOR_INSTANCEID_LABEL: deploy.instanceID,
-		"executorType":                    fission.ExecutorTypeNewdeploy,
-	}
+	deployLabels := deploy.getDeployLabels(fn, env)
 
 	depl, err := deploy.createOrGetDeployment(fn, env, objName, deployLabels)
 	if err != nil {
@@ -317,7 +310,8 @@ func (deploy *NewDeploy) fnCreate(fn *crd.Function) (*fscache.FuncSvc, error) {
 
 func (deploy *NewDeploy) fnUpdate(oldFn *crd.Function, newFn *crd.Function) {
 
-	if oldFn.Metadata.ResourceVersion == newFn.Metadata.ResourceVersion {
+	if oldFn.Metadata.ResourceVersion == newFn.Metadata.ResourceVersion ||
+		oldFn.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType == fission.ExecutorTypePoolmgr {
 		return
 	}
 
@@ -325,7 +319,9 @@ func (deploy *NewDeploy) fnUpdate(oldFn *crd.Function, newFn *crd.Function) {
 
 		if newFn.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType != fission.ExecutorTypeNewdeploy {
 			log.Printf("function does not use new deployment executor, deleting resources: %v", newFn)
-			deploy.fnDelete(newFn)
+			// IMP - pass the oldFn, as the new/modified function is not in cache
+			deploy.fnDelete(oldFn)
+			return
 		}
 
 		deployment, err := deploy.getDeployment(newFn)
@@ -364,6 +360,27 @@ func (deploy *NewDeploy) fnUpdate(oldFn *crd.Function, newFn *crd.Function) {
 		}
 	}
 
+	env, err := deploy.fissionClient.Environments(newFn.Spec.Environment.Namespace).
+		Get(newFn.Spec.Environment.Name)
+	if err != nil {
+		log.Printf("failed to get environment for function update: %v", err)
+	}
+
+	if oldFn.Spec.Environment != newFn.Spec.Environment {
+		deployment, err := deploy.getDeployment(newFn)
+		if err != nil {
+			log.Printf("failed to get deployment while updating environment: %v", err)
+		}
+		//TBD Assuming first image to be environment, is there a better way?
+		deployment.Spec.Template.Spec.Containers[0].Image = env.Spec.Runtime.Image
+		// TBD This does not account for changes in builder image & resource requirements
+
+		err = deploy.updateDeployment(deployment)
+		if err != nil {
+			log.Printf("failed to update deployment while updating environment: %v", err)
+		}
+	}
+
 	changed := false
 
 	if oldFn.Spec.Package.PackageRef != newFn.Spec.Package.PackageRef ||
@@ -394,9 +411,15 @@ func (deploy *NewDeploy) fnUpdate(oldFn *crd.Function, newFn *crd.Function) {
 	}
 
 	if changed == true {
-		err := deploy.deletePods(newFn)
+		deployName := deploy.getObjName(oldFn)
+		deployLabels := deploy.getDeployLabels(oldFn, env)
+		newDeployment, err := deploy.getDeploymentSpec(newFn, env, deployName, deployLabels)
 		if err != nil {
-			log.Printf("error deleting pods: %v", err)
+			log.Printf("failed to get new deployment spec while updating function: %v", err)
+		}
+		err = deploy.updateDeployment(newDeployment)
+		if err != nil {
+			log.Printf("failed to update deployment while updating function: %v", err)
 		}
 		return
 	}
@@ -410,12 +433,13 @@ func (deploy *NewDeploy) fnDelete(fn *crd.Function) (*fscache.FuncSvc, error) {
 	if err != nil {
 		log.Printf("fsvc not fonud in cache: %v", fn.Metadata)
 		delError = err
-	} else {
-		_, err = deploy.fsCache.DeleteOld(fsvc, time.Second*0)
-		if err != nil {
-			log.Printf("Error deleting the function from cache: %v", fsvc)
-			delError = err
-		}
+		return nil, err
+	}
+
+	_, err = deploy.fsCache.DeleteOld(fsvc, time.Second*0)
+	if err != nil {
+		log.Printf("Error deleting the function from cache: %v", fsvc)
+		delError = err
 	}
 	objName := fsvc.Name
 
@@ -447,4 +471,15 @@ func (deploy *NewDeploy) getObjName(fn *crd.Function) string {
 	return fmt.Sprintf("%v-%v",
 		fn.Metadata.Name,
 		deploy.instanceID)
+}
+
+func (deploy *NewDeploy) getDeployLabels(fn *crd.Function, env *crd.Environment) map[string]string {
+	return map[string]string{
+		"environmentName":                 env.Metadata.Name,
+		"environmentUid":                  string(env.Metadata.UID),
+		"functionName":                    fn.Metadata.Name,
+		"functionUid":                     string(fn.Metadata.UID),
+		fission.EXECUTOR_INSTANCEID_LABEL: deploy.instanceID,
+		"executorType":                    fission.ExecutorTypeNewdeploy,
+	}
 }

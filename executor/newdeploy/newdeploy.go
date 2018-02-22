@@ -55,8 +55,6 @@ func (deploy *NewDeploy) createOrGetDeployment(fn *crd.Function, env *crd.Enviro
 	if replicas == 0 {
 		replicas = 1
 	}
-	targetFilename := "user"
-	userfunc := "userfunc"
 
 	existingDepl, err := deploy.kubernetesClient.ExtensionsV1beta1().Deployments(deploy.namespace).Get(deployName, metav1.GetOptions{})
 	if err == nil && existingDepl.Status.ReadyReplicas >= replicas {
@@ -64,116 +62,11 @@ func (deploy *NewDeploy) createOrGetDeployment(fn *crd.Function, env *crd.Enviro
 	}
 
 	if err != nil && k8s_err.IsNotFound(err) {
-		fetchReq := &fetcher.FetchRequest{
-			FetchType: fetcher.FETCH_DEPLOYMENT,
-			Package: metav1.ObjectMeta{
-				Namespace: fn.Spec.Package.PackageRef.Namespace,
-				Name:      fn.Spec.Package.PackageRef.Name,
-			},
-			Filename:   targetFilename,
-			Secrets:    fn.Spec.Secrets,
-			ConfigMaps: fn.Spec.ConfigMaps,
-		}
-
-		loadReq := fission.FunctionLoadRequest{
-			FilePath:         filepath.Join(deploy.sharedMountPath, targetFilename),
-			FunctionName:     fn.Spec.Package.FunctionName,
-			FunctionMetadata: &fn.Metadata,
-		}
-
-		fetchPayload, err := json.Marshal(fetchReq)
-		if err != nil {
-			return nil, err
-		}
-		loadPayload, err := json.Marshal(loadReq)
+		deployment, err := deploy.getDeploymentSpec(fn, env, deployName, deployLabels)
 		if err != nil {
 			return nil, err
 		}
 
-		fetcherResources, err := util.GetFetcherResources()
-		if err != nil {
-			log.Printf("Error while parsing fetcher resources: %v", err)
-			return nil, err
-		}
-
-		deployment := &v1beta1.Deployment{
-			ObjectMeta: metav1.ObjectMeta{
-				Labels: deployLabels,
-				Name:   deployName,
-			},
-			Spec: v1beta1.DeploymentSpec{
-				Replicas: &replicas,
-				Selector: &metav1.LabelSelector{
-					MatchLabels: deployLabels,
-				},
-				Template: apiv1.PodTemplateSpec{
-					ObjectMeta: metav1.ObjectMeta{
-						Labels: deployLabels,
-					},
-					Spec: apiv1.PodSpec{
-						Volumes: []apiv1.Volume{
-							{
-								Name: userfunc,
-								VolumeSource: apiv1.VolumeSource{
-									EmptyDir: &apiv1.EmptyDirVolumeSource{},
-								},
-							},
-						},
-						Containers: []apiv1.Container{
-							{
-								Name:                   fn.Metadata.Name,
-								Image:                  env.Spec.Runtime.Image,
-								ImagePullPolicy:        apiv1.PullIfNotPresent,
-								TerminationMessagePath: "/dev/termination-log",
-								VolumeMounts: []apiv1.VolumeMount{
-									{
-										Name:      userfunc,
-										MountPath: deploy.sharedMountPath,
-									},
-								},
-								Resources: env.Spec.Resources,
-							},
-							{
-								Name:                   "fetcher",
-								Image:                  deploy.fetcherImg,
-								ImagePullPolicy:        deploy.fetcherImagePullPolicy,
-								TerminationMessagePath: "/dev/termination-log",
-								VolumeMounts: []apiv1.VolumeMount{
-									{
-										Name:      userfunc,
-										MountPath: deploy.sharedMountPath,
-									},
-								},
-								Command: []string{"/fetcher", "-specialize-on-startup",
-									"-fetch-request", string(fetchPayload),
-									"-load-request", string(loadPayload),
-									"-secret-dir", deploy.sharedSecretPath,
-									"-cfgmap-dir", deploy.sharedCfgMapPath,
-									deploy.sharedMountPath},
-								Env: []apiv1.EnvVar{
-									{
-										Name:  envVersion,
-										Value: strconv.Itoa(env.Spec.Version),
-									},
-								},
-								// TBD Use smaller default resources, for now needed to make HPA work
-								Resources: fetcherResources,
-								ReadinessProbe: &apiv1.Probe{
-									Handler: apiv1.Handler{
-										Exec: &apiv1.ExecAction{
-											Command: []string{"cat", "/tmp/ready"},
-										},
-									},
-									InitialDelaySeconds: 1,
-									PeriodSeconds:       1,
-								},
-							},
-						},
-						ServiceAccountName: "fission-fetcher",
-					},
-				},
-			},
-		}
 		depl, err := deploy.kubernetesClient.ExtensionsV1beta1().Deployments(deploy.namespace).Create(deployment)
 		if err != nil {
 			log.Printf("Error while creating deployment: %v", err)
@@ -217,6 +110,129 @@ func (deploy *NewDeploy) deleteDeployment(ns string, name string) error {
 		return err
 	}
 	return nil
+}
+
+func (deploy *NewDeploy) getDeploymentSpec(fn *crd.Function, env *crd.Environment,
+	deployName string, deployLabels map[string]string) (*v1beta1.Deployment, error) {
+
+	replicas := int32(fn.Spec.InvokeStrategy.ExecutionStrategy.MinScale)
+	if replicas == 0 {
+		replicas = 1
+	}
+	targetFilename := "user"
+	userfunc := "userfunc"
+
+	fetchReq := &fetcher.FetchRequest{
+		FetchType: fetcher.FETCH_DEPLOYMENT,
+		Package: metav1.ObjectMeta{
+			Namespace: fn.Spec.Package.PackageRef.Namespace,
+			Name:      fn.Spec.Package.PackageRef.Name,
+		},
+		Filename:   targetFilename,
+		Secrets:    fn.Spec.Secrets,
+		ConfigMaps: fn.Spec.ConfigMaps,
+	}
+
+	loadReq := fission.FunctionLoadRequest{
+		FilePath:         filepath.Join(deploy.sharedMountPath, targetFilename),
+		FunctionName:     fn.Spec.Package.FunctionName,
+		FunctionMetadata: &fn.Metadata,
+	}
+
+	fetchPayload, err := json.Marshal(fetchReq)
+	if err != nil {
+		return nil, err
+	}
+	loadPayload, err := json.Marshal(loadReq)
+	if err != nil {
+		return nil, err
+	}
+
+	fetcherResources, err := util.GetFetcherResources()
+	if err != nil {
+		log.Printf("Error while parsing fetcher resources: %v", err)
+		return nil, err
+	}
+
+	deployment := &v1beta1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: deployLabels,
+			Name:   deployName,
+		},
+		Spec: v1beta1.DeploymentSpec{
+			Replicas: &replicas,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: deployLabels,
+			},
+			Template: apiv1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: deployLabels,
+				},
+				Spec: apiv1.PodSpec{
+					Volumes: []apiv1.Volume{
+						{
+							Name: userfunc,
+							VolumeSource: apiv1.VolumeSource{
+								EmptyDir: &apiv1.EmptyDirVolumeSource{},
+							},
+						},
+					},
+					Containers: []apiv1.Container{
+						{
+							Name:                   fn.Metadata.Name,
+							Image:                  env.Spec.Runtime.Image,
+							ImagePullPolicy:        apiv1.PullIfNotPresent,
+							TerminationMessagePath: "/dev/termination-log",
+							VolumeMounts: []apiv1.VolumeMount{
+								{
+									Name:      userfunc,
+									MountPath: deploy.sharedMountPath,
+								},
+							},
+							Resources: env.Spec.Resources,
+						},
+						{
+							Name:                   "fetcher",
+							Image:                  deploy.fetcherImg,
+							ImagePullPolicy:        deploy.fetcherImagePullPolicy,
+							TerminationMessagePath: "/dev/termination-log",
+							VolumeMounts: []apiv1.VolumeMount{
+								{
+									Name:      userfunc,
+									MountPath: deploy.sharedMountPath,
+								},
+							},
+							Command: []string{"/fetcher", "-specialize-on-startup",
+								"-fetch-request", string(fetchPayload),
+								"-load-request", string(loadPayload),
+								"-secret-dir", deploy.sharedSecretPath,
+								"-cfgmap-dir", deploy.sharedCfgMapPath,
+								deploy.sharedMountPath},
+							Env: []apiv1.EnvVar{
+								{
+									Name:  envVersion,
+									Value: strconv.Itoa(env.Spec.Version),
+								},
+							},
+							Resources: fetcherResources,
+							ReadinessProbe: &apiv1.Probe{
+								Handler: apiv1.Handler{
+									Exec: &apiv1.ExecAction{
+										Command: []string{"cat", "/tmp/ready"},
+									},
+								},
+								InitialDelaySeconds: 1,
+								PeriodSeconds:       1,
+							},
+						},
+					},
+					ServiceAccountName: "fission-fetcher",
+				},
+			},
+		},
+	}
+
+	return deployment, nil
 }
 
 func (deploy *NewDeploy) deletePods(fn *crd.Function) error {
