@@ -84,6 +84,7 @@ main() {
     update_archive
     update_fn $fn_name
     test_fn $fn_name "fission"
+    log "Update function for new deployment executor passed"
 }
 
 main
