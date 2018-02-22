@@ -26,9 +26,7 @@ import (
 
 	k8s_err "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/client-go/pkg/api/v1"
 	apiv1 "k8s.io/client-go/pkg/api/v1"
 	asv1 "k8s.io/client-go/pkg/apis/autoscaling/v1"
 	"k8s.io/client-go/pkg/apis/extensions/v1beta1"
@@ -233,32 +231,6 @@ func (deploy *NewDeploy) getDeploymentSpec(fn *crd.Function, env *crd.Environmen
 	}
 
 	return deployment, nil
-}
-
-func (deploy *NewDeploy) deletePods(fn *crd.Function) error {
-	objName := deploy.getObjName(fn)
-	existingDepl, err := deploy.kubernetesClient.ExtensionsV1beta1().Deployments(deploy.namespace).Get(objName, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-
-	if existingDepl != nil {
-		pods, err := deploy.kubernetesClient.CoreV1().Pods(deploy.namespace).List(metav1.ListOptions{LabelSelector: labels.Set(existingDepl.Labels).AsSelector().String()})
-		if err != nil {
-			return err
-		}
-		for _, pod := range pods.Items {
-			if pod.Status.Phase != v1.PodRunning {
-				continue
-			}
-			deploy.kubernetesClient.CoreV1().Pods(deploy.namespace).Delete(pod.Name, &metav1.DeleteOptions{})
-			if err != nil {
-				log.Printf("error while deleting pod: %v", pod)
-			}
-		}
-	}
-
-	return nil
 }
 
 func (deploy *NewDeploy) createOrGetHpa(hpaName string, execStrategy *fission.ExecutionStrategy, depl *v1beta1.Deployment) (*asv1.HorizontalPodAutoscaler, error) {
