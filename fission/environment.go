@@ -163,9 +163,7 @@ func envUpdate(c *cli.Context) error {
 		env.Spec.Poolsize = c.Int("poolsize")
 	}
 
-	if envExternalNetwork {
-		env.Spec.AllowedAccessExternalNetwork = envExternalNetwork
-	}
+	env.Spec.AllowedAccessExternalNetwork = envExternalNetwork
 
 	_, err = client.EnvironmentUpdate(env)
 	checkErr(err, "update environment")
