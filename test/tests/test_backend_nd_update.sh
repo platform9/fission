@@ -25,12 +25,12 @@ create_archive() {
 
 create_env() {
     log "Creating environment"
-    fission env create --name python --image fission/python-env:latest --builder fission/python-builder:latest --mincpu 40 --maxcpu 80 --minmemory 64 --maxmemory 128 --poolsize 2
+    fission env create --name $1 --image fission/python-env:latest --builder fission/python-builder:latest --mincpu 40 --maxcpu 80 --minmemory 64 --maxmemory 128 --poolsize 2
 }
 
 create_fn() {
     log "Creating functiom"
-    fission fn create --name $1 --env python --deploy test-deploy-pkg.zip --entrypoint "hello.main" --executortype newdeploy --minscale 1 --maxscale 4 --targetcpu 50
+    fission fn create --name $1 --env $2 --deploy test-deploy-pkg.zip --entrypoint "hello.main" --executortype newdeploy --minscale 1 --maxscale 4 --targetcpu 50
 }
 
 create_route() {
@@ -48,8 +48,8 @@ update_archive() {
 }
 
 update_fn() {
-    "Updating function with updated package"
-    fission fn update --name $1 --env python --deploy test-deploy-pkg.zip --entrypoint "hello.main"
+    log "Updating function with updated package"
+    fission fn update --name $1 --env $2 --deploy test-deploy-pkg.zip --entrypoint "hello.main" --executortype newdeploy --minscale 1 --maxscale 4 --targetcpu 50
 
     log "Waiting for deployment to update"
     sleep 5
@@ -74,15 +74,16 @@ main() {
     # trap
     trap cleanup EXIT
 
+    env=python-$(date +%N)
     fn_name="hellopython"
 
     create_archive
-    create_env
-    create_fn $fn_name
+    create_env $env
+    create_fn $fn_name $env
     create_route $fn_name
     test_fn $fn_name "world"
     update_archive
-    update_fn $fn_name
+    update_fn $fn_name $env
     test_fn $fn_name "fission"
     log "Update function for new deployment executor passed"
 }
