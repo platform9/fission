@@ -85,7 +85,7 @@ func (c *Client) Build(req *builder.PackageBuildRequest) (*builder.PackageBuildR
 		// be rejected by Envoy before the requests go out of the pod. So retry
 		// here until Pilot updates its service discovery cache and new configs
 		// are propagated.
-		if retry || c.useIstio {
+		if (retry || c.useIstio) && i < maxRetries-1 {
 			time.Sleep(50 * time.Duration(2*i) * time.Millisecond)
 			log.Printf("Error building package (%v), retrying", err)
 			continue
