@@ -23,11 +23,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/fission/fission"
-	"github.com/fission/fission/crd"
-	"github.com/fission/fission/executor/fscache"
 	"github.com/pkg/errors"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
@@ -35,6 +31,10 @@ import (
 	apiv1 "k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/rest"
 	k8sCache "k8s.io/client-go/tools/cache"
+
+	"github.com/fission/fission"
+	"github.com/fission/fission/crd"
+	"github.com/fission/fission/executor/fscache"
 )
 
 type (
@@ -318,7 +318,7 @@ func (deploy *NewDeploy) fnUpdate(oldFn *crd.Function, newFn *crd.Function) {
 	if oldFn.Spec.InvokeStrategy != newFn.Spec.InvokeStrategy {
 
 		if newFn.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType != fission.ExecutorTypeNewdeploy {
-			log.Printf("function does not use new deployment executor, deleting resources: %v", newFn)
+			log.Printf("function does not use new deployment executor anymore, deleting resources: %v", newFn)
 			// IMP - pass the oldFn, as the new/modified function is not in cache
 			deploy.fnDelete(oldFn)
 			return
@@ -326,12 +326,12 @@ func (deploy *NewDeploy) fnUpdate(oldFn *crd.Function, newFn *crd.Function) {
 
 		deployment, err := deploy.getDeployment(newFn)
 		if err != nil {
-			log.Printf("error getting deployment: %v", err)
+			log.Printf("error getting deployment while updating function: %v", err)
 		}
 
 		hpa, err := deploy.getHpa(newFn)
 		if err != nil {
-			log.Printf("error getting HPA: %v", err)
+			log.Printf("error getting HPA while updating function: %v", err)
 		}
 
 		if newFn.Spec.InvokeStrategy.ExecutionStrategy.MinScale != oldFn.Spec.InvokeStrategy.ExecutionStrategy.MinScale {
@@ -351,25 +351,25 @@ func (deploy *NewDeploy) fnUpdate(oldFn *crd.Function, newFn *crd.Function) {
 
 		err = deploy.updateDeployment(deployment)
 		if err != nil {
-			log.Printf("error updating deployment: %v", err)
+			log.Printf("error updating deployment while updating function: %v", err)
 		}
 
 		err = deploy.updateHpa(hpa)
 		if err != nil {
-			log.Printf("error updating HPA: %v", err)
+			log.Printf("error updating HPA while updating function: %v", err)
 		}
 	}
 
 	env, err := deploy.fissionClient.Environments(newFn.Spec.Environment.Namespace).
 		Get(newFn.Spec.Environment.Name)
 	if err != nil {
-		log.Printf("failed to get environment for function update: %v", err)
+		log.Printf("failed to get environment while updating function: %v", err)
 	}
 
 	if oldFn.Spec.Environment != newFn.Spec.Environment {
 		deployment, err := deploy.getDeployment(newFn)
 		if err != nil {
-			log.Printf("failed to get deployment while updating environment: %v", err)
+			log.Printf("failed to get deployment while updating function: %v", err)
 		}
 		//TBD Assuming first image to be environment, is there a better way?
 		deployment.Spec.Template.Spec.Containers[0].Image = env.Spec.Runtime.Image
@@ -377,7 +377,7 @@ func (deploy *NewDeploy) fnUpdate(oldFn *crd.Function, newFn *crd.Function) {
 
 		err = deploy.updateDeployment(deployment)
 		if err != nil {
-			log.Printf("failed to update deployment while updating environment: %v", err)
+			log.Printf("failed to update deployment while updating function: %v", err)
 		}
 	}
 
