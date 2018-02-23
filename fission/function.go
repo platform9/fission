@@ -475,7 +475,10 @@ func fnUpdate(c *cli.Context) error {
 
 	if c.IsSet("minscale") {
 		minscale := c.Int("minscale")
-		if c.IsSet("maxscale") && minscale > c.Int("maxscale") ||
+		if c.IsSet("maxscale") && minscale > c.Int("maxscale") {
+			fatal("Minscale can not be greater than maxscale")
+		}
+		if function.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType != fission.ExecutorTypePoolmgr &&
 			minscale > function.Spec.InvokeStrategy.ExecutionStrategy.MaxScale {
 			fatal("Minscale can not be greater than maxscale")
 		}
