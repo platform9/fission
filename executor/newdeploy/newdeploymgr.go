@@ -310,17 +310,33 @@ func (deploy *NewDeploy) fnCreate(fn *crd.Function) (*fscache.FuncSvc, error) {
 
 func (deploy *NewDeploy) fnUpdate(oldFn *crd.Function, newFn *crd.Function) {
 
-	if oldFn.Metadata.ResourceVersion == newFn.Metadata.ResourceVersion ||
+	if oldFn.Metadata.ResourceVersion == newFn.Metadata.ResourceVersion {
+		return
+	}
+
+	// Ignoring updates to poolmgr based functions
+	if newFn.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType == fission.ExecutorTypePoolmgr &&
 		oldFn.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType == fission.ExecutorTypePoolmgr {
 		return
 	}
 
 	if oldFn.Spec.InvokeStrategy != newFn.Spec.InvokeStrategy {
 
-		if newFn.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType != fission.ExecutorTypeNewdeploy {
+		if newFn.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType == fission.ExecutorTypePoolmgr &&
+			oldFn.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType == fission.ExecutorTypeNewdeploy {
 			log.Printf("function does not use new deployment executor anymore, deleting resources: %v", newFn)
 			// IMP - pass the oldFn, as the new/modified function is not in cache
 			deploy.fnDelete(oldFn)
+			return
+		}
+
+		if oldFn.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType == fission.ExecutorTypePoolmgr &&
+			newFn.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType == fission.ExecutorTypeNewdeploy {
+			log.Printf("function does not use new deployment executor anymore, deleting resources: %v", newFn)
+			_, err := deploy.fnCreate(newFn)
+			if err != nil {
+				log.Printf("error changing the function's type to newdeploy: %v", err)
+			}
 			return
 		}
 
@@ -413,6 +429,7 @@ func (deploy *NewDeploy) fnUpdate(oldFn *crd.Function, newFn *crd.Function) {
 	if changed == true {
 		deployName := deploy.getObjName(oldFn)
 		deployLabels := deploy.getDeployLabels(oldFn, env)
+		log.Printf("updating deployment due to function update")
 		newDeployment, err := deploy.getDeploymentSpec(newFn, env, deployName, deployLabels)
 		if err != nil {
 			log.Printf("failed to get new deployment spec while updating function: %v", err)

@@ -27,6 +27,7 @@ import (
 	k8s_err "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/pkg/api/v1"
 	apiv1 "k8s.io/client-go/pkg/api/v1"
 	asv1 "k8s.io/client-go/pkg/apis/autoscaling/v1"
 	"k8s.io/client-go/pkg/apis/extensions/v1beta1"
@@ -152,6 +153,8 @@ func (deploy *NewDeploy) getDeploymentSpec(fn *crd.Function, env *crd.Environmen
 		return nil, err
 	}
 
+	resources := deploy.getResources(env, fn)
+
 	deployment := &v1beta1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: deployLabels,
@@ -187,7 +190,7 @@ func (deploy *NewDeploy) getDeploymentSpec(fn *crd.Function, env *crd.Environmen
 									MountPath: deploy.sharedMountPath,
 								},
 							},
-							Resources: env.Spec.Resources,
+							Resources: resources,
 						},
 						{
 							Name:                   "fetcher",
@@ -231,6 +234,32 @@ func (deploy *NewDeploy) getDeploymentSpec(fn *crd.Function, env *crd.Environmen
 	}
 
 	return deployment, nil
+}
+
+func (deploy *NewDeploy) getResources(env *crd.Environment, fn *crd.Function) v1.ResourceRequirements {
+	resources := env.Spec.Resources
+	// Only override the once specified at function, rest default to values from env.
+	_, ok := fn.Spec.Resources.Requests[v1.ResourceCPU]
+	if ok {
+		resources.Requests[v1.ResourceCPU] = fn.Spec.Resources.Requests[v1.ResourceCPU]
+	}
+
+	_, ok = fn.Spec.Resources.Requests[v1.ResourceMemory]
+	if ok {
+		resources.Requests[v1.ResourceMemory] = fn.Spec.Resources.Requests[v1.ResourceMemory]
+	}
+
+	_, ok = fn.Spec.Resources.Limits[v1.ResourceCPU]
+	if ok {
+		resources.Limits[v1.ResourceCPU] = fn.Spec.Resources.Limits[v1.ResourceCPU]
+	}
+
+	_, ok = fn.Spec.Resources.Limits[v1.ResourceMemory]
+	if ok {
+		resources.Limits[v1.ResourceMemory] = fn.Spec.Resources.Limits[v1.ResourceMemory]
+	}
+
+	return resources
 }
 
 func (deploy *NewDeploy) createOrGetHpa(hpaName string, execStrategy *fission.ExecutionStrategy, depl *v1beta1.Deployment) (*asv1.HorizontalPodAutoscaler, error) {
