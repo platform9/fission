@@ -332,7 +332,7 @@ func (deploy *NewDeploy) fnUpdate(oldFn *crd.Function, newFn *crd.Function) {
 
 		if oldFn.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType == fission.ExecutorTypePoolmgr &&
 			newFn.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType == fission.ExecutorTypeNewdeploy {
-			log.Printf("function does not use new deployment executor anymore, deleting resources: %v", newFn)
+			log.Printf("function type changed to new deployment, creating resources: %v", newFn)
 			_, err := deploy.fnCreate(newFn)
 			if err != nil {
 				log.Printf("error changing the function's type to newdeploy: %v", err)
