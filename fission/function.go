@@ -379,32 +379,6 @@ func fnUpdate(c *cli.Context) error {
 	entrypoint := c.String("entrypoint")
 	buildcmd := c.String("buildcmd")
 	force := c.Bool("force")
-	secretName := c.String("secret")
-	cfgMapName := c.String("configmap")
-
-	secretNameSpace := c.String("secretNamespace")
-	cfgMapNameSpace := c.String("configmapNamespace")
-
-	if len(secretName) > 0 {
-		if len(secretNameSpace) == 0 {
-			secretNameSpace = metav1.NamespaceDefault
-		}
-		newSecret := fission.SecretReference{
-			Name:      secretName,
-			Namespace: secretNameSpace,
-		}
-		function.Spec.Secrets = append(function.Spec.Secrets, newSecret)
-	}
-	if len(cfgMapName) > 0 {
-		if len(cfgMapNameSpace) == 0 {
-			cfgMapNameSpace = metav1.NamespaceDefault
-		}
-		newConfig := fission.ConfigMapReference{
-			Name:      cfgMapName,
-			Namespace: cfgMapNameSpace,
-		}
-		function.Spec.ConfigMaps = append(function.Spec.ConfigMaps, newConfig)
-	}
 
 	pkg, err := client.PackageGet(&metav1.ObjectMeta{
 		Namespace: metav1.NamespaceDefault,
