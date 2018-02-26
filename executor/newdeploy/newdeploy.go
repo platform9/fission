@@ -56,8 +56,6 @@ func (deploy *NewDeploy) createOrGetDeployment(fn *crd.Function, env *crd.Enviro
 	}
 	targetFilename := "user"
 	userfunc := "userfunc"
-	secrets := "secrets"
-	config := "config"
 	var gracePeriodSeconds int64 = 6 * 60
 
 	existingDepl, err := deploy.kubernetesClient.ExtensionsV1beta1().Deployments(deploy.namespace).Get(deployName, metav1.GetOptions{})
@@ -127,18 +125,6 @@ func (deploy *NewDeploy) createOrGetDeployment(fn *crd.Function, env *crd.Enviro
 									EmptyDir: &apiv1.EmptyDirVolumeSource{},
 								},
 							},
-							{
-								Name: secrets,
-								VolumeSource: apiv1.VolumeSource{
-									EmptyDir: &apiv1.EmptyDirVolumeSource{},
-								},
-							},
-							{
-								Name: config,
-								VolumeSource: apiv1.VolumeSource{
-									EmptyDir: &apiv1.EmptyDirVolumeSource{},
-								},
-							},
 						},
 						Containers: []apiv1.Container{
 							{
@@ -150,14 +136,6 @@ func (deploy *NewDeploy) createOrGetDeployment(fn *crd.Function, env *crd.Enviro
 									{
 										Name:      userfunc,
 										MountPath: deploy.sharedMountPath,
-									},
-									{
-										Name:      secrets,
-										MountPath: deploy.sharedSecretPath,
-									},
-									{
-										Name:      config,
-										MountPath: deploy.sharedCfgMapPath,
 									},
 								},
 								Resources: env.Spec.Resources,
@@ -181,14 +159,6 @@ func (deploy *NewDeploy) createOrGetDeployment(fn *crd.Function, env *crd.Enviro
 									{
 										Name:      userfunc,
 										MountPath: deploy.sharedMountPath,
-									},
-									{
-										Name:      secrets,
-										MountPath: deploy.sharedSecretPath,
-									},
-									{
-										Name:      config,
-										MountPath: deploy.sharedCfgMapPath,
 									},
 								},
 								Command: []string{"/fetcher", "-specialize-on-startup",
