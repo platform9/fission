@@ -15,7 +15,7 @@
 .DEFAULT_GOAL := build
 
 IMAGE ?= fission/fission-bundle
-VERSION ?= 0.3.0
+VERSION ?= latest
 ARCH ?= amd64
 OS ?= linux
 
@@ -42,5 +42,5 @@ image-push: image
 	docker push "$(IMAGE):$(VERSION)"
 
 clean:
-	@rm -rf fission-bundle/fission-bundle
-	@rm -rf fission/fission
+	@rm -f fission-bundle/fission-bundle
+	@rm -f fission/fission

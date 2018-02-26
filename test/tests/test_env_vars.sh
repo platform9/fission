@@ -8,7 +8,7 @@ TEST_ID=$(date +%s)
 ENV=python-${TEST_ID}
 FN=foo-${TEST_ID}
 RESOURCE_NS=default # Change to test-specific namespace once we support namespaced CRDs
-FUNCTION_NS=fission-function
+FUNCTION_NS=${FUNCTION_NAMESPACE:-fission-function}
 BUILDER_NS=fission-builder
 
 # fs
@@ -78,36 +78,51 @@ metadata:
   namespace: ${RESOURCE_NS}
 spec:
   builder:
-    image: fission/python-builder
+    command: build
+    image: gcr.io/fission-ci/python-env-builder:test
     container:
       env:
       - name: TEST_BUILDER_ENV_KEY
         value: "TEST_BUILDER_ENV_VAR"
 
   runtime:
-    image: fission/python-env
+    image: fission/python-env:test
+    functionendpointport: 0
+    image: gcr.io/fission-ci/python-env:test
+    loadendpointpath: ""
+    loadendpointport: 0
     container:
       env:
       - name: TEST_RUNTIME_ENV_KEY
         value: "TEST_RUNTIME_ENV_VAR"
   version: 2
   poolsize: 1
+  resources: {}
 EOM
 explain kubectl -n ${RESOURCE_NS} apply -f ${ENV_SPEC_FILE}
 
+sleep 15
 # Wait for runtime and build env to be deployed
-sleep 10
-echo "getPodName ${FUNCTION_NS} ${ENV}"
-kubectl -n ${FUNCTION_NS} get po
 retry getPodName ${FUNCTION_NS} ${ENV} | grep '.\+'
-echo "function pod ready."
-getPodName ${BUILDER_NS} ${ENV}
+runtimePod=$(getPodName ${FUNCTION_NS} ${ENV})
+echo "function pod: ${runtimePod}."
 retry getPodName ${BUILDER_NS} ${ENV} | grep '.\+'
-echo "builder pod ready."
+buildPod=$(getPodName ${BUILDER_NS} ${ENV})
+echo "builder pod: ${buildPod}."
+
+# Ensure pods are running/ready
+log "Waiting for ${FUNCTION_NS} ${ENV} to be available..."
+echo "> kubectl -n ${FUNCTION_NS} exec ${runtimePod} -c ${ENV} env"
+retry kubectl -n ${FUNCTION_NS} exec ${runtimePod} -c ${ENV} env > /dev/null
+log "Runtime pod ready."
+
+log "Waiting for ${BUILDER_NS} ${ENV} to be available..."
+echo "> kubectl -n ${BUILDER_NS} exec ${buildPod} -c builder env"
+retry kubectl -n ${BUILDER_NS} exec ${buildPod} -c builder env > /dev/null
+log "Builder pod ready."
 
 # Check if the env is set in the runtime
 status=0
-runtimePod=$(getPodName ${FUNCTION_NS} ${ENV})
 if kubectl -n ${FUNCTION_NS} exec ${runtimePod} -c ${ENV}  env | grep TEST_RUNTIME_ENV_KEY=TEST_RUNTIME_ENV_VAR ; then
     log "Runtime env is correct."
 else
@@ -119,7 +134,6 @@ else
 fi
 
 # Check if the env is set in the builder
-buildPod=$(getPodName ${BUILDER_NS} ${ENV})
 if kubectl -n ${BUILDER_NS} exec ${buildPod} -c builder env | grep TEST_BUILDER_ENV_KEY=TEST_BUILDER_ENV_VAR ; then
     log "Builder env is correct."
 else

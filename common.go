@@ -18,12 +18,13 @@ package fission
 
 import (
 	"fmt"
-	"github.com/imdario/mergo"
-	apiv1 "k8s.io/client-go/pkg/api/v1"
 	"os"
 	"os/signal"
 	"runtime/debug"
 	"syscall"
+
+	"github.com/imdario/mergo"
+	apiv1 "k8s.io/client-go/pkg/api/v1"
 )
 
 func UrlForFunction(name string) string {

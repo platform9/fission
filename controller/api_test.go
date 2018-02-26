@@ -23,6 +23,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"reflect"
 	"testing"
 	"time"
 
@@ -32,7 +33,6 @@ import (
 	"github.com/fission/fission"
 	"github.com/fission/fission/controller/client"
 	"github.com/fission/fission/crd"
-	"reflect"
 )
 
 var g struct {
@@ -263,9 +263,9 @@ func TestWatchApi(t *testing.T) {
 
 	w, err := g.client.WatchGet(m)
 	panicIf(err)
-	assert((testWatch.Spec.Namespace == w.Spec.Namespace &&
+	assert(testWatch.Spec.Namespace == w.Spec.Namespace &&
 		testWatch.Spec.Type == w.Spec.Type &&
-		testWatch.Spec.FunctionReference == w.Spec.FunctionReference), "watch should match after reading")
+		testWatch.Spec.FunctionReference == w.Spec.FunctionReference, "watch should match after reading")
 
 	testWatch.Metadata.Name = "yyy"
 	m2, err := g.client.WatchCreate(testWatch)
