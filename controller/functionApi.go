@@ -119,16 +119,21 @@ func (a *API) FunctionApiCreate(w http.ResponseWriter, r *http.Request) {
 			Spec: apiv1.ServiceSpec{
 				Type: apiv1.ServiceTypeClusterIP,
 				Ports: []apiv1.ServicePort{
-					// Service port name must follow the rules list in
-					// https://istio.io/docs/setup/kubernetes/sidecar-injection.html
+					// Service port name should begin with a recognized prefix, or the traffic will be
+					// treated as TCP traffic. (https://istio.io/docs/setup/kubernetes/sidecar-injection.html)
+					// Originally the ports' name are similar to "http-fetch" and "http-specialize".
+					// But for istio 0.5.1, istio-proxy return unexpected 431 error with such naming.
+					// https://github.com/istio/istio/issues/928
+					// Workaround: remove prefix
+					// TODO: prepend prefix once the bug fixed
 					{
-						Name:       "http-fetch",
+						Name:       "fetch",
 						Protocol:   apiv1.ProtocolTCP,
 						Port:       8000,
 						TargetPort: intstr.FromInt(8000),
 					},
 					{
-						Name:       "http-specialize",
+						Name:       "specialize",
 						Protocol:   apiv1.ProtocolTCP,
 						Port:       8888,
 						TargetPort: intstr.FromInt(8888),
