@@ -63,7 +63,7 @@ test_fn() {
     echo $response0 | grep -i $2
 }
 
-# This test only tests one path of execution which can be easily validated from outside cluster
+# This test only tests one path of execution: updating package and checking results of function
 # There might be potential future tests where one can test changes in:
 # environment, min & max scale, secrets and configmaps etc.
 

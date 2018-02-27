@@ -206,10 +206,6 @@ func fnCreate(c *cli.Context) error {
 		pkgMetadata = createPackage(client, envName, srcArchiveName, deployArchiveName, buildcmd, specFile)
 	}
 
-	//TODO Warn user about resources at fn level overriding the env resources
-	if c.IsSet("mincpu") || c.IsSet("maxcpu") || c.IsSet("minmemory") || c.IsSet("maxmemory") {
-		warn("Resources specified for function will override the once specified for environment")
-	}
 	resourceReq := getResourceReq(c)
 
 	invokeStrategy := getInvokeStrategy(c.Int("minscale"), c.Int("maxscale"), c.String("executortype"), getTargetCPU(c))
@@ -380,11 +376,6 @@ func fnUpdate(c *cli.Context) error {
 	buildcmd := c.String("buildcmd")
 	force := c.Bool("force")
 
-	pkg, err := client.PackageGet(&metav1.ObjectMeta{
-		Namespace: metav1.NamespaceDefault,
-		Name:      pkgName,
-	})
-
 	if len(envName) == 0 && len(deployArchiveName) == 0 && len(srcArchiveName) == 0 && len(pkgName) == 0 &&
 		len(entrypoint) == 0 && len(buildcmd) == 0 {
 		fatal("Need --env or --deploy or --src or --pkg or --entrypoint or --buildcmd argument.")
@@ -401,7 +392,7 @@ func fnUpdate(c *cli.Context) error {
 		pkgName = function.Spec.Package.PackageRef.Name
 	}
 
-	pkg, err = client.PackageGet(&metav1.ObjectMeta{
+	pkg, err := client.PackageGet(&metav1.ObjectMeta{
 		Namespace: metav1.NamespaceDefault,
 		Name:      pkgName,
 	})
@@ -440,21 +431,20 @@ func fnUpdate(c *cli.Context) error {
 		ResourceVersion: pkgMetadata.ResourceVersion,
 	}
 
-	if c.IsSet("mincpu") || c.IsSet("maxcpu") || c.IsSet("minmemory") || c.IsSet("maxmemory") {
-		warn("Resources specified for function will override the once specified for environment")
-	}
 	function.Spec.Resources = getResourceReq(c)
 
 	function.Spec.InvokeStrategy.ExecutionStrategy.TargetCPUPercent = getTargetCPU(c)
 
 	if c.IsSet("minscale") {
 		minscale := c.Int("minscale")
+		maxscale := c.Int("maxscale")
 		if c.IsSet("maxscale") && minscale > c.Int("maxscale") {
-			fatal("Minscale can not be greater than maxscale")
+			fatal(fmt.Sprintf("Minscale's value %v can not be greater than maxscale value %v", minscale, maxscale))
 		}
 		if function.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType != fission.ExecutorTypePoolmgr &&
 			minscale > function.Spec.InvokeStrategy.ExecutionStrategy.MaxScale {
-			fatal("Minscale can not be greater than maxscale")
+			fatal(fmt.Sprintf("Minscale provided: %v can not be greater than maxscale of existing function: %v", minscale,
+				function.Spec.InvokeStrategy.ExecutionStrategy.MaxScale))
 		}
 		function.Spec.InvokeStrategy.ExecutionStrategy.MinScale = minscale
 	}
@@ -462,7 +452,8 @@ func fnUpdate(c *cli.Context) error {
 	if c.IsSet("maxscale") {
 		maxscale := c.Int("maxscale")
 		if maxscale < function.Spec.InvokeStrategy.ExecutionStrategy.MinScale {
-			fatal("Function's minscale can not be greater than --maxscale")
+			fatal(fmt.Sprintf("Function's minscale: %v can not be greater than maxscale provided: %v",
+				function.Spec.InvokeStrategy.ExecutionStrategy.MinScale, maxscale))
 		}
 		function.Spec.InvokeStrategy.ExecutionStrategy.MaxScale = maxscale
 	}

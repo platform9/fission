@@ -259,8 +259,7 @@ func (deploy *NewDeploy) fnCreate(fn *crd.Function) (*fscache.FuncSvc, error) {
 
 	hpa, err := deploy.createOrGetHpa(objName, &fn.Spec.InvokeStrategy.ExecutionStrategy, depl)
 	if err != nil {
-		log.Printf("error creating the HPA %v: %v", objName, err)
-		return fsvc, errors.Wrap(err, "error creating HorizontalPodAutoscaler")
+		return fsvc, errors.Wrap(err, fmt.Sprintf("error creating the HPA %v:", objName))
 	}
 
 	kubeObjRefs := []api.ObjectReference{
@@ -314,9 +313,9 @@ func (deploy *NewDeploy) fnUpdate(oldFn *crd.Function, newFn *crd.Function) {
 		return
 	}
 
-	// Ignoring updates to poolmgr based functions
-	if newFn.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType == fission.ExecutorTypePoolmgr &&
-		oldFn.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType == fission.ExecutorTypePoolmgr {
+	// Ignoring updates to functions which are not of NewDeployment type
+	if newFn.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType != fission.ExecutorTypeNewdeploy &&
+		oldFn.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType != fission.ExecutorTypeNewdeploy {
 		return
 	}
 
@@ -324,7 +323,8 @@ func (deploy *NewDeploy) fnUpdate(oldFn *crd.Function, newFn *crd.Function) {
 
 	if oldFn.Spec.InvokeStrategy != newFn.Spec.InvokeStrategy {
 
-		if newFn.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType == fission.ExecutorTypePoolmgr &&
+		// Executor type is no longer New Deployment
+		if newFn.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType != fission.ExecutorTypeNewdeploy &&
 			oldFn.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType == fission.ExecutorTypeNewdeploy {
 			log.Printf("function does not use new deployment executor anymore, deleting resources: %v", newFn)
 			// IMP - pass the oldFn, as the new/modified function is not in cache
@@ -332,19 +332,21 @@ func (deploy *NewDeploy) fnUpdate(oldFn *crd.Function, newFn *crd.Function) {
 			return
 		}
 
-		if oldFn.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType == fission.ExecutorTypePoolmgr &&
+		// Executor type changed to New Deployment from something else
+		if oldFn.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType != fission.ExecutorTypeNewdeploy &&
 			newFn.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType == fission.ExecutorTypeNewdeploy {
 			log.Printf("function type changed to new deployment, creating resources: %v", newFn)
 			_, err := deploy.fnCreate(newFn)
 			if err != nil {
-				log.Printf("error changing the function's type to newdeploy: %v", err)
+				updateStatus(fmt.Sprintf("error changing the function's type to newdeploy: %v", err))
 			}
 			return
 		}
 
 		hpa, err := deploy.getHpa(newFn)
 		if err != nil {
-			log.Printf("error getting HPA while updating function: %v", err)
+			updateStatus(fmt.Sprintf("error getting HPA while updating function: %v", err))
+			return
 		}
 
 		if newFn.Spec.InvokeStrategy.ExecutionStrategy.MinScale != oldFn.Spec.InvokeStrategy.ExecutionStrategy.MinScale {
@@ -364,7 +366,8 @@ func (deploy *NewDeploy) fnUpdate(oldFn *crd.Function, newFn *crd.Function) {
 
 		err = deploy.updateHpa(hpa)
 		if err != nil {
-			log.Printf("error updating HPA while updating function: %v", err)
+			updateStatus(fmt.Sprintf("error updating HPA while updating function: %v", err))
+			return
 		}
 	}
 
@@ -372,8 +375,7 @@ func (deploy *NewDeploy) fnUpdate(oldFn *crd.Function, newFn *crd.Function) {
 		changed = true
 	}
 
-	if oldFn.Spec.Package.PackageRef != newFn.Spec.Package.PackageRef ||
-		oldFn.Spec.Environment != newFn.Spec.Environment {
+	if oldFn.Spec.Package.PackageRef != newFn.Spec.Package.PackageRef {
 		changed = true
 	}
 
@@ -403,18 +405,21 @@ func (deploy *NewDeploy) fnUpdate(oldFn *crd.Function, newFn *crd.Function) {
 		env, err := deploy.fissionClient.Environments(newFn.Spec.Environment.Namespace).
 			Get(newFn.Spec.Environment.Name)
 		if err != nil {
-			log.Printf("failed to get environment while updating function: %v", err)
+			updateStatus(fmt.Sprintf("failed to get environment while updating function: %v", err))
+			return
 		}
 		deployName := deploy.getObjName(oldFn)
 		deployLabels := deploy.getDeployLabels(oldFn, env)
 		log.Printf("updating deployment due to function update")
 		newDeployment, err := deploy.getDeploymentSpec(newFn, env, deployName, deployLabels)
 		if err != nil {
-			log.Printf("failed to get new deployment spec while updating function: %v", err)
+			updateStatus(fmt.Sprintf("failed to get new deployment spec while updating function: %v", err))
+			return
 		}
 		err = deploy.updateDeployment(newDeployment)
 		if err != nil {
-			log.Printf("failed to update deployment while updating function: %v", err)
+			updateStatus(fmt.Sprintf("failed to update deployment while updating function: %v", err))
+			return
 		}
 		return
 	}
@@ -477,4 +482,8 @@ func (deploy *NewDeploy) getDeployLabels(fn *crd.Function, env *crd.Environment)
 		fission.EXECUTOR_INSTANCEID_LABEL: deploy.instanceID,
 		"executorType":                    fission.ExecutorTypeNewdeploy,
 	}
+}
+
+func updateStatus(message string) {
+	log.Printf(message)
 }

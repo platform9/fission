@@ -237,6 +237,8 @@ func (deploy *NewDeploy) getDeploymentSpec(fn *crd.Function, env *crd.Environmen
 	return deployment, nil
 }
 
+// getResources overrides only the resources which are overridden at function level otherwise
+// default to resources specified at environment level
 func (deploy *NewDeploy) getResources(env *crd.Environment, fn *crd.Function) v1.ResourceRequirements {
 	resources := env.Spec.Resources
 	if resources.Requests == nil {
