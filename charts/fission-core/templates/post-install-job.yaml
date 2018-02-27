@@ -22,6 +22,10 @@ spec:
       labels:
         release: {{ .Release.Name }}
         app: {{ template "name" . }}
+      annotations:
+        {{- if .Values.enableIstio }}
+        "sidecar.istio.io/inject": "false"
+        {{- end }}
     spec:
       restartPolicy: Never
       containers:
