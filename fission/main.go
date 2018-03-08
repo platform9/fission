@@ -17,9 +17,14 @@ limitations under the License.
 package main
 
 import (
+	"fmt"
+	"io/ioutil"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
+	version "github.com/fission/fission"
 	"github.com/urfave/cli"
 )
 
@@ -41,11 +46,25 @@ func getKubeConfigPath() string {
 	return kubeConfig
 }
 
+func getFissionAPIVersion(apiUrl string) string {
+	resp, err := http.Get(apiUrl)
+	if err != nil {
+		fatal(fmt.Sprintf("Error connection Fission API server: %v", err))
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fatal(fmt.Sprintf("Error parsing Fission API version: %v", err))
+	}
+	return strings.TrimRight(string(body), "\n")
+}
+
 func main() {
 	app := cli.NewApp()
 	app.Name = "fission"
 	app.Usage = "Serverless functions for Kubernetes"
-	app.Version = "0.6.0"
+	app.Version = version.Version
 
 	// fetch the FISSION_URL env variable. If not set, port-forward to controller.
 	var value string
@@ -58,6 +77,12 @@ func main() {
 		value = "http://127.0.0.1:" + localPort
 	} else {
 		value = fissionUrl
+	}
+
+	cli.VersionPrinter = func(c *cli.Context) {
+		clientVer := version.GetVersionInfo()
+		serverVer := getFissionAPIVersion(value)
+		fmt.Printf("Client Version: %v\nServer Version: %v", clientVer, serverVer)
 	}
 
 	app.Flags = []cli.Flag{
@@ -241,6 +266,7 @@ func main() {
 		{Name: "spec", Aliases: []string{"specs"}, Usage: "Manage a declarative app specification", Subcommands: specSubCommands},
 		{Name: "upgrade", Aliases: []string{}, Usage: "Upgrade tool from fission v0.1", Subcommands: upgradeSubCommands},
 		{Name: "tpr2crd", Aliases: []string{}, Usage: "Migrate tool for TPR to CRD", Subcommands: migrateSubCommands},
+		//{Name: "version", Aliases: []string{"v"}, Usage: "Print the client and server version information", Action: getVersionInfo},
 	}
 
 	app.Run(os.Args)

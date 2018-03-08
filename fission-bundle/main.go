@@ -1,12 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strconv"
 
 	"github.com/docopt/docopt-go"
 
+	"github.com/fission/fission"
 	"github.com/fission/fission/buildermgr"
 	"github.com/fission/fission/controller"
 	"github.com/fission/fission/executor"
@@ -120,6 +122,7 @@ Usage:
   fission-bundle --builderMgr [--storageSvcUrl=<url>] [--envbuilder-namespace=<namespace>]
   fission-bundle --timer [--routerUrl=<url>]
   fission-bundle --mqt   [--routerUrl=<url>]
+  fission-bundle --version
 Options:
   --controllerPort=<port>         Port that the controller should listen on.
   --routerPort=<port>             Port that the router should listen on.
@@ -135,8 +138,10 @@ Options:
   --timer                         Start Timer.
   --mqt                           Start message queue trigger.
   --builderMgr                    Start builder manager.
+  --version                       Print version information
 `
-	arguments, err := docopt.Parse(usage, nil, true, "fission-bundle", false)
+	version := fmt.Sprintf("Fission Bundle Version: %v", fission.GetVersionInfo())
+	arguments, err := docopt.Parse(usage, nil, true, version, false)
 	if err != nil {
 		log.Fatalf("Error: %v", err)
 	}
