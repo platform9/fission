@@ -71,6 +71,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", fetcher.FetchHandler)
 	mux.HandleFunc("/upload", fetcher.UploadHandler)
+	mux.HandleFunc("/version", fetcher.VersionHandler)
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})

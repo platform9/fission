@@ -90,11 +90,13 @@ push_fission_bundle_image() {
 
 build_fetcher_image() {
     version=$1
+    date=$2
+    gitcommit=$3
     tag=fission/fetcher:$version
 
     pushd $DIR/environments/fetcher/cmd
 
-    ./build.sh
+    ./build.sh $version $date $gitcommit
     docker build -t $tag .
     docker tag $tag fission/fetcher:latest
 
@@ -109,11 +111,13 @@ push_fetcher_image() {
 
 build_builder_image() {
     version=$1
+    date=$2
+    gitcommit=$3
     tag=fission/builder:$version
 
     pushd $DIR/builder/cmd
 
-    ./build.sh
+    ./build.sh $version $date $gitcommit
     docker build -t $tag .
 
     popd
@@ -263,8 +267,8 @@ build_all() {
     mkdir -p $BUILDDIR
     
     build_fission_bundle_image $version $date $gitcommit
-    build_fetcher_image $version
-    build_builder_image $version
+    build_fetcher_image $version $date $gitcommit
+    build_builder_image $version $date $gitcommit
     build_logger_image $version
     build_all_cli $version $date $gitcommit
     build_charts $version

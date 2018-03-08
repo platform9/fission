@@ -163,6 +163,11 @@ func writeSecretOrConfigMap(dataMap map[string][]byte, dirPath string) error {
 	return nil
 }
 
+func (fetcher *Fetcher) VersionHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	fmt.Fprintf(w, fission.GetVersionInfo())
+}
+
 func (fetcher *Fetcher) FetchHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "only POST is supported on this endpoint", http.StatusMethodNotAllowed)

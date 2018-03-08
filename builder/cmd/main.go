@@ -38,6 +38,7 @@ func main() {
 	builder := builder.MakeBuilder(dir)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", builder.Handler)
+	mux.HandleFunc("/version", builder.VersionHandler)
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
