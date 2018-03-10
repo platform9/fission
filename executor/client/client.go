@@ -29,6 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission"
+	"fmt"
 )
 
 type Client struct {
@@ -110,5 +111,30 @@ func (c *Client) _tapService(serviceUrlStr string) error {
 	if resp.StatusCode != 200 {
 		return fission.MakeErrorFromHTTP(resp)
 	}
+	return nil
+}
+
+func (c *Client) InvalidateCacheEntryForFunction(request *fission.CacheInvalidationRequest) error {
+	executorUrl := c.executorUrl + "/v2/invalidateCacheEntryForFunction"
+	log.Printf("Inside client InvalidateCacheEntryForFunction url : %s", executorUrl)
+
+	body, err := json.Marshal(request)
+	if err != nil {
+		log.Printf("json.Marshal errored out")
+		return err
+	}
+
+	log.Printf("http post url : %s", executorUrl)
+	resp, err := http.Post(executorUrl, "application/json", bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	log.Printf("Successfully posted request to invalidate cache entry: %s", executorUrl)
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("Error received from /v2/invalidateCacheEntryForFunction")
+	}
+
 	return nil
 }

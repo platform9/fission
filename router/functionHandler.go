@@ -29,6 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	executorClient "github.com/fission/fission/executor/client"
+	"github.com/fission/fission"
 )
 
 type functionHandler struct {
@@ -82,6 +83,53 @@ func (rrt RetryingRoundTripper) RoundTrip(req *http.Request) (*http.Response, er
 	return http.DefaultTransport.RoundTrip(req)
 }
 
+func (fh functionHandler) RoundTrip(req *http.Request) (resp *http.Response, err error) {
+	transport := http.DefaultTransport.(*http.Transport)
+
+	maxRetries := 2
+	for i := 0; i < maxRetries; i++ {
+		resp, err = transport.RoundTrip(req)
+		if err != nil {
+			log.Printf("Inside CacheInvalidatingRoundTripper RoundTrip, err: %s", err.Error())
+			if netErr, ok := err.(net.Error); ok {
+				if netOpErr, ok := netErr.(*net.OpError); ok {
+					if netOpErr.Op == "dial" {
+						// 2. invalidate router's fmap
+						err = fh.fmap.remove(fh.function)
+						if err != nil {
+							log.Println("Unable to delete function from router cache," +
+								"ignoring it for now.")
+						}
+
+						// 3. send invalidationRequest to executor.
+						invalidationReq := &fission.CacheInvalidationRequest{
+							FunctionMetadata: fh.function,
+							FunctionPodAddress: netOpErr.Addr.String(),
+						}
+						log.Println("Calling InvalidateCacheEntryForFunction")
+						err = fh.executor.InvalidateCacheEntryForFunction(invalidationReq)
+
+						// 4. retry req until err is nil or max of 2 times.
+						if err == nil {
+							// make one more transport.RoundTrip.
+							// This final call should actually result in a new env pod being specialized.
+							log.Println("Calling transport.RountTrip one final time.")
+							return transport.RoundTrip(req)
+						}
+
+					}
+				}
+			}
+			return resp, err
+		} else {
+			serviceUrl, _ := fh.fmap.lookup(fh.function)
+			go fh.tapService(serviceUrl)
+		}
+	}
+
+	return resp, nil
+}
+
 func (fh *functionHandler) tapService(serviceUrl *url.URL) {
 	if fh.executor == nil {
 		return
@@ -102,6 +150,7 @@ func (fh *functionHandler) handler(responseWriter http.ResponseWriter, request *
 	MetadataToHeaders(HEADERS_FISSION_FUNCTION_PREFIX, fh.function, request)
 
 	// cache lookup
+	isCacheHit := false
 	serviceUrl, err := fh.fmap.lookup(fh.function)
 	if err != nil {
 		// Cache miss: request the Pool Manager to make a new service.
@@ -120,9 +169,10 @@ func (fh *functionHandler) handler(responseWriter http.ResponseWriter, request *
 		// add it to the map
 		fh.fmap.assign(fh.function, serviceUrl)
 	} else {
+		isCacheHit = true
 		// if we're using our cache, asynchronously tell
 		// executor we're using this service
-		go fh.tapService(serviceUrl)
+		// go fh.tapService(serviceUrl)
 	}
 
 	// Proxy off our request to the serviceUrl, and send the response back.
@@ -154,14 +204,24 @@ func (fh *functionHandler) handler(responseWriter http.ResponseWriter, request *
 		}
 	}
 
+
+	var transport http.RoundTripper
+	if isCacheHit {
+		log.Printf("Inside isCacheHit")
+		transport = *fh
+	} else {
+		transport = RetryingRoundTripper{
+			maxRetries:    10,
+			initalTimeout: 50 * time.Millisecond,
+		}
+	}
+
+
 	// Initial requests to new k8s services sometimes seem to
 	// fail, but retries work.  So use a transport that does retries.
 	proxy := &httputil.ReverseProxy{
 		Director: director,
-		Transport: RetryingRoundTripper{
-			maxRetries:    10,
-			initalTimeout: 50 * time.Millisecond,
-		},
+		Transport: transport,
 	}
 	delay := time.Since(reqStartTime)
 	if delay > 100*time.Millisecond {

@@ -44,6 +44,7 @@ type (
 
 		requestChan chan *createFuncServiceRequest
 		fsCreateWg  map[string]*sync.WaitGroup
+		invalidateCacheRequestChan chan *invalidateCacheChanRequest
 	}
 	createFuncServiceRequest struct {
 		funcMeta *metav1.ObjectMeta
@@ -53,6 +54,15 @@ type (
 	createFuncServiceResponse struct {
 		funcSvc *fscache.FuncSvc
 		err     error
+	}
+
+	invalidateCacheChanRequest struct {
+		request fission.CacheInvalidationRequest
+		response chan *CacheInvalidationResponse
+	}
+
+	CacheInvalidationResponse struct {
+		err error
 	}
 )
 
@@ -68,6 +78,7 @@ func MakeExecutor(gpm *poolmgr.GenericPoolManager, ndm *newdeploy.NewDeploy, fis
 		fsCreateWg:  make(map[string]*sync.WaitGroup),
 	}
 	go executor.serveCreateFuncServices()
+	go executor.serveInvalidateCacheEntryRequests()
 	return executor
 }
 
@@ -119,6 +130,15 @@ func (executor *Executor) serveCreateFuncServices() {
 	}
 }
 
+func (executor *Executor) getFunctionExecutorType(meta *metav1.ObjectMeta) (string, error) {
+	fn, err := executor.fissionClient.Functions(meta.Namespace).Get(meta.Name)
+	if err != nil {
+		return "", err
+	}
+	return string(fn.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType), nil
+
+}
+
 func (executor *Executor) createServiceForFunction(meta *metav1.ObjectMeta) (*fscache.FuncSvc, error) {
 	log.Printf("[%v] No cached function service found, creating one", meta.Name)
 
@@ -129,14 +149,12 @@ func (executor *Executor) createServiceForFunction(meta *metav1.ObjectMeta) (*fs
 		return nil, err
 	}
 
-	fn, err := executor.fissionClient.
-		Functions(meta.Namespace).
-		Get(meta.Name)
+	executorType, err := executor.getFunctionExecutorType(meta)
 	if err != nil {
 		return nil, err
 	}
 
-	switch fn.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType {
+	switch executorType {
 	case fission.ExecutorTypeNewdeploy:
 		fs, err := executor.ndm.GetFuncSvc(meta)
 		return fs, err
@@ -180,6 +198,45 @@ func (executor *Executor) getFunctionEnv(m *metav1.ObjectMeta) (*crd.Environment
 	executor.functionEnv.Set(crd.CacheKey(m), env)
 
 	return env, nil
+}
+
+func (executor *Executor) serveInvalidateCacheEntryRequests() {
+	for {
+		chanReq := <-executor.invalidateCacheRequestChan
+		funcMeta := chanReq.request.FunctionMetadata
+
+		log.Printf("Received a request for invalidating cache entry for function %s", funcMeta.Name)
+
+		executorType, err := executor.getFunctionExecutorType(funcMeta)
+		if err != nil {
+			chanReq.response <- &CacheInvalidationResponse {
+					err: err,
+				}
+		}
+
+		switch executorType {
+		case fission.ExecutorTypeNewdeploy:
+			// TODO : Fill this later
+		default:
+			// for gpm, we first check if the podIP from the request is same as the podIP in the cache.
+			// if not, it means that the cache entry for this function with non-existent podIP is already removed.
+			fsvc, err := executor.fsCache.GetByFunction(funcMeta)
+			if err != nil {
+				log.Printf("Error getting function %s object", funcMeta.Name)
+				chanReq.response <- &CacheInvalidationResponse {
+					err: err,
+				}
+			}
+
+			if chanReq.request.FunctionPodAddress == fsvc.Address {
+				log.Printf("Deleting cache entry for function : %s, address : %s", fsvc.Name, fsvc.Address)
+				executor.fsCache.DeleteEntry(fsvc)
+				chanReq.response <- &CacheInvalidationResponse {
+					err: nil,
+				}
+			}
+		}
+	}
 }
 
 func dumpStackTrace() {

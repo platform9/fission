@@ -479,7 +479,8 @@ func (gp *GenericPool) createPool() error {
 
 	// Use long terminationGracePeriodSeconds for connection draining in case that
 	// pod still runs user functions.
-	var gracePeriodSeconds int64 = 6 * 60
+	// TODO : change it back before review
+	var gracePeriodSeconds int64 = 0
 
 	podAnnotation := make(map[string]string)
 

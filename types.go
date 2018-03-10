@@ -338,6 +338,15 @@ type (
 	}
 )
 
+// TODO : Verify from Soam if this is acceptable.
+// The following type is not exposed in the Fission API, rather, used by Router to send specific requests to Executor
+type (
+	CacheInvalidationRequest struct {
+		FunctionMetadata *metav1.ObjectMeta
+		FunctionPodAddress string
+	}
+)
+
 const EXECUTOR_INSTANCEID_LABEL string = "executorInstanceId"
 const POOLMGR_INSTANCEID_LABEL string = "poolmgrInstanceId"
 

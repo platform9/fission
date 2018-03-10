@@ -247,14 +247,18 @@ func (fsc *FunctionServiceCache) _touchByAddress(address string) error {
 	return nil
 }
 
+func (fsc *FunctionServiceCache) DeleteEntry(fsvc *FuncSvc) {
+	fsc.byFunction.Delete(crd.CacheKey(fsvc.Function))
+	fsc.byAddress.Delete(fsvc.Address)
+	fsc.byFunctionUID.Delete(fsvc.Function.UID)
+}
+
 func (fsc *FunctionServiceCache) DeleteOld(fsvc *FuncSvc, minAge time.Duration) (bool, error) {
 	if time.Since(fsvc.Atime) < minAge {
 		return false, nil
 	}
 
-	fsc.byFunction.Delete(crd.CacheKey(fsvc.Function))
-	fsc.byAddress.Delete(fsvc.Address)
-	fsc.byFunctionUID.Delete(fsvc.Function.UID)
+	fsc.DeleteEntry(fsvc)
 
 	return true, nil
 }
