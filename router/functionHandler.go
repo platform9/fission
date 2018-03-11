@@ -32,10 +32,21 @@ import (
 	"github.com/fission/fission"
 )
 
+type chanRequest struct {
+	request *fission.CacheInvalidationRequest
+	response chan *cacheInvalidationResponse
+}
+
+type cacheInvalidationResponse struct {
+	serviceUrl *url.URL
+	err error
+}
+
 type functionHandler struct {
 	fmap     *functionServiceMap
 	executor *executorClient.Client
 	function *metav1.ObjectMeta
+	requestChan chan *chanRequest
 }
 
 func (fh *functionHandler) getServiceForFunction() (*url.URL, error) {
@@ -106,14 +117,27 @@ func (fh functionHandler) RoundTrip(req *http.Request) (resp *http.Response, err
 							FunctionMetadata: fh.function,
 							FunctionPodAddress: netOpErr.Addr.String(),
 						}
-						log.Println("Calling InvalidateCacheEntryForFunction")
-						err = fh.executor.InvalidateCacheEntryForFunction(invalidationReq)
+						responseChan := make(chan *cacheInvalidationResponse)
+						request := &chanRequest{
+							request: invalidationReq,
+							response: responseChan,
+						}
+						//log.Println("Calling InvalidateCacheEntryForFunction")
+						//err = fh.executor.InvalidateCacheEntryForFunction(invalidationReq)
+						log.Printf("Posting a request on fh.requestChan to invalidate cache for function:%s", fh.function.Name)
+						fh.requestChan <- request
+						response := <- request.response
+						log.Printf("Received a response to invalidate cache for function:%s", fh.function.Name)
 
 						// 4. retry req until err is nil or max of 2 times.
-						if err == nil {
+						if response.err == nil {
 							// make one more transport.RoundTrip.
 							// This final call should actually result in a new env pod being specialized.
 							log.Println("Calling transport.RountTrip one final time.")
+							req.URL.Host = response.serviceUrl.Host
+							req.Host = response.serviceUrl.Host
+							fh.fmap.assign(fh.function, response.serviceUrl)
+							log.Printf("Modified request url and host. also fmap assign")
 							return transport.RoundTrip(req)
 						}
 
@@ -137,7 +161,36 @@ func (fh *functionHandler) tapService(serviceUrl *url.URL) {
 	fh.executor.TapService(serviceUrl)
 }
 
+func (fh *functionHandler) invalidateCacheService() {
+	log.Printf("starting invalidateCacheService")
+	//  TODO : Fix this for loop
+	//for {
+		log.Printf("Waiting to receive a request to invalidate cache")
+		chanRequest := <- fh.requestChan
+		log.Printf("Received a request to invalidate cache")
+		svcName, err := fh.executor.InvalidateCacheEntryForFunction(chanRequest.request)
+		if err != nil {
+			chanRequest.response <- &cacheInvalidationResponse{
+				err:err,
+			}
+		}
+		svcUrl, err := url.Parse(fmt.Sprintf("http://%v", svcName))
+		log.Printf("Succesfully parsed serviceName into url : %s", svcName)
+		if err != nil {
+			chanRequest.response <- &cacheInvalidationResponse{
+				err:err,
+			}
+		}
+		chanRequest.response <- &cacheInvalidationResponse{
+			serviceUrl: svcUrl,
+			err:err,
+		}
+	//}
+	log.Printf("exiting invalidateCacheService")
+}
+
 func (fh *functionHandler) handler(responseWriter http.ResponseWriter, request *http.Request) {
+	go fh.invalidateCacheService()
 	reqStartTime := time.Now()
 
 	// retrieve url params and add them to request header

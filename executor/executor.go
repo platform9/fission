@@ -76,6 +76,7 @@ func MakeExecutor(gpm *poolmgr.GenericPoolManager, ndm *newdeploy.NewDeploy, fis
 
 		requestChan: make(chan *createFuncServiceRequest),
 		fsCreateWg:  make(map[string]*sync.WaitGroup),
+		invalidateCacheRequestChan: make(chan *invalidateCacheChanRequest),
 	}
 	go executor.serveCreateFuncServices()
 	go executor.serveInvalidateCacheEntryRequests()

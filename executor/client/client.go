@@ -114,27 +114,32 @@ func (c *Client) _tapService(serviceUrlStr string) error {
 	return nil
 }
 
-func (c *Client) InvalidateCacheEntryForFunction(request *fission.CacheInvalidationRequest) error {
+func (c *Client) InvalidateCacheEntryForFunction(request *fission.CacheInvalidationRequest) (string, error) {
 	executorUrl := c.executorUrl + "/v2/invalidateCacheEntryForFunction"
 	log.Printf("Inside client InvalidateCacheEntryForFunction url : %s", executorUrl)
 
 	body, err := json.Marshal(request)
 	if err != nil {
 		log.Printf("json.Marshal errored out")
-		return err
+		return "", err
 	}
 
 	log.Printf("http post url : %s", executorUrl)
 	resp, err := http.Post(executorUrl, "application/json", bytes.NewReader(body))
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer resp.Body.Close()
 
 	log.Printf("Successfully posted request to invalidate cache entry: %s", executorUrl)
 	if resp.StatusCode != 200 {
-		return fmt.Errorf("Error received from /v2/invalidateCacheEntryForFunction")
+		return "", fmt.Errorf("Error received from /v2/invalidateCacheEntryForFunction")
 	}
 
-	return nil
+	svcName, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	return string(svcName), nil
 }

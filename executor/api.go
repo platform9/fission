@@ -98,6 +98,7 @@ func (executor *Executor) tapService(w http.ResponseWriter, r *http.Request) {
 }
 
 func (executor *Executor) invalidateCacheEntryForFunction(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Inside invalidateCacheEntryForFunction")
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "Failed to read request", 500)
@@ -121,7 +122,17 @@ func (executor *Executor) invalidateCacheEntryForFunction(w http.ResponseWriter,
 	if response.err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 	} else {
-		w.WriteHeader(http.StatusOK)
+		// TODO : Not sure if this is a good idea.
+		respChan := make(chan *createFuncServiceResponse)
+		executor.requestChan <- &createFuncServiceRequest{
+			funcMeta: invalidateCacheRequest.FunctionMetadata,
+			respChan: respChan,
+		}
+		resp := <-respChan
+		if resp.err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		w.Write([]byte(resp.funcSvc.Address))
 	}
 }
 
