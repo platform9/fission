@@ -97,8 +97,15 @@ func (executor *Executor) tapService(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+// invalidateCacheEntryForFunction receives the function metadata whose podIP:port has become stale and removes the
+// function entry from cache. It also makes a create function service request and finally returns the podIP:port of
+// the newly specialized pod.
+// TODO : Does it look sneaky to do both, invalidation and creation, in one single call?
+//	  The other way this can be implemented is for this function to only invalidate cache entry and send a response.
+//	  Now, when the router receives the response, it can send another http request subsequently to executor to create a new service for function.
+//	  But in the interest of time, i feel there's no need of an extra http request and response between them. more so because this is in the path of cold start.
+//	  What is your opinion?
 func (executor *Executor) invalidateCacheEntryForFunction(w http.ResponseWriter, r *http.Request) {
-	log.Printf("Inside invalidateCacheEntryForFunction")
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "Failed to read request", 500)
@@ -115,14 +122,13 @@ func (executor *Executor) invalidateCacheEntryForFunction(w http.ResponseWriter,
 
 	respChan := make(chan *CacheInvalidationResponse)
 	executor.invalidateCacheRequestChan <- &invalidateCacheChanRequest{
-		request: invalidateCacheRequest,
+		request:  invalidateCacheRequest,
 		response: respChan,
 	}
-	response := <- respChan
+	response := <-respChan
 	if response.err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 	} else {
-		// TODO : Not sure if this is a good idea.
 		respChan := make(chan *createFuncServiceResponse)
 		executor.requestChan <- &createFuncServiceRequest{
 			funcMeta: invalidateCacheRequest.FunctionMetadata,

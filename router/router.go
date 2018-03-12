@@ -88,8 +88,6 @@ func Start(port int, executorUrl string) {
 	triggers, _, fnStore := makeHTTPTriggerSet(fmap, fissionClient, executor, restClient)
 	resolver := makeFunctionReferenceResolver(fnStore)
 
-
-
 	log.Printf("Starting router at port %v\n", port)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

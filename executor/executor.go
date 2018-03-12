@@ -42,8 +42,8 @@ type (
 		fissionClient *crd.FissionClient
 		fsCache       *fscache.FunctionServiceCache
 
-		requestChan chan *createFuncServiceRequest
-		fsCreateWg  map[string]*sync.WaitGroup
+		requestChan                chan *createFuncServiceRequest
+		fsCreateWg                 map[string]*sync.WaitGroup
 		invalidateCacheRequestChan chan *invalidateCacheChanRequest
 	}
 	createFuncServiceRequest struct {
@@ -57,7 +57,7 @@ type (
 	}
 
 	invalidateCacheChanRequest struct {
-		request fission.CacheInvalidationRequest
+		request  fission.CacheInvalidationRequest
 		response chan *CacheInvalidationResponse
 	}
 
@@ -74,8 +74,8 @@ func MakeExecutor(gpm *poolmgr.GenericPoolManager, ndm *newdeploy.NewDeploy, fis
 		fissionClient: fissionClient,
 		fsCache:       fsCache,
 
-		requestChan: make(chan *createFuncServiceRequest),
-		fsCreateWg:  make(map[string]*sync.WaitGroup),
+		requestChan:                make(chan *createFuncServiceRequest),
+		fsCreateWg:                 make(map[string]*sync.WaitGroup),
 		invalidateCacheRequestChan: make(chan *invalidateCacheChanRequest),
 	}
 	go executor.serveCreateFuncServices()
@@ -201,6 +201,9 @@ func (executor *Executor) getFunctionEnv(m *metav1.ObjectMeta) (*crd.Environment
 	return env, nil
 }
 
+// serveInvalidateCacheEntryRequests is setup to listen to any cache invalidation requests.
+// On receiving a request, it first extracts the podAddress from request and checks if there is an entry in the cache for this. If yes, then remove. else, silently ignore.
+// This is needed if there is more than 1 router instance and all of them try to send invalidation requests for the same function.
 func (executor *Executor) serveInvalidateCacheEntryRequests() {
 	for {
 		chanReq := <-executor.invalidateCacheRequestChan
@@ -210,21 +213,24 @@ func (executor *Executor) serveInvalidateCacheEntryRequests() {
 
 		executorType, err := executor.getFunctionExecutorType(funcMeta)
 		if err != nil {
-			chanReq.response <- &CacheInvalidationResponse {
-					err: err,
-				}
+			chanReq.response <- &CacheInvalidationResponse{
+				err: err,
+			}
 		}
 
 		switch executorType {
 		case fission.ExecutorTypeNewdeploy:
-			// TODO : Fill this later
+			// TODO : it appears to me like I don’t have to handle this case for new deploy backend. Explanation :
+			// newdeployBacked code is creating a service for each deployment , also creating deployments with replicas set to at least one (if zero input by the user) or number specified by the user and also setting up the fetcher container to specialize on startup,
+			// I would expect that if someone deleted any function pod, the deployment will take care of spawning a new function pod and also fetcher will specialize on startup.
+			// But I want to be sure I'm not missing anything.
 		default:
 			// for gpm, we first check if the podIP from the request is same as the podIP in the cache.
 			// if not, it means that the cache entry for this function with non-existent podIP is already removed.
 			fsvc, err := executor.fsCache.GetByFunction(funcMeta)
 			if err != nil {
 				log.Printf("Error getting function %s object", funcMeta.Name)
-				chanReq.response <- &CacheInvalidationResponse {
+				chanReq.response <- &CacheInvalidationResponse{
 					err: err,
 				}
 			}
@@ -232,7 +238,7 @@ func (executor *Executor) serveInvalidateCacheEntryRequests() {
 			if chanReq.request.FunctionPodAddress == fsvc.Address {
 				log.Printf("Deleting cache entry for function : %s, address : %s", fsvc.Name, fsvc.Address)
 				executor.fsCache.DeleteEntry(fsvc)
-				chanReq.response <- &CacheInvalidationResponse {
+				chanReq.response <- &CacheInvalidationResponse{
 					err: nil,
 				}
 			}

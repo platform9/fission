@@ -28,8 +28,8 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/fission/fission"
 	"fmt"
+	"github.com/fission/fission"
 )
 
 type Client struct {

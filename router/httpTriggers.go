@@ -117,9 +117,9 @@ func (ts *HTTPTriggerSet) getRouter() *mux.Router {
 		}
 
 		fh := &functionHandler{
-			fmap:     ts.functionServiceMap,
-			function: rr.functionMetadata,
-			executor: ts.executor,
+			fmap:        ts.functionServiceMap,
+			function:    rr.functionMetadata,
+			executor:    ts.executor,
 			requestChan: make(chan *chanRequest),
 		}
 

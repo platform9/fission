@@ -28,25 +28,26 @@ import (
 	"github.com/gorilla/mux"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	executorClient "github.com/fission/fission/executor/client"
 	"github.com/fission/fission"
+	executorClient "github.com/fission/fission/executor/client"
 )
 
 type chanRequest struct {
-	request *fission.CacheInvalidationRequest
+	request  *fission.CacheInvalidationRequest
 	response chan *cacheInvalidationResponse
 }
 
 type cacheInvalidationResponse struct {
 	serviceUrl *url.URL
-	err error
+	err        error
 }
 
 type functionHandler struct {
-	fmap     *functionServiceMap
-	executor *executorClient.Client
-	function *metav1.ObjectMeta
+	fmap        *functionServiceMap
+	executor    *executorClient.Client
+	function    *metav1.ObjectMeta
 	requestChan chan *chanRequest
+	quitChan    chan bool
 }
 
 func (fh *functionHandler) getServiceForFunction() (*url.URL, error) {
@@ -94,64 +95,76 @@ func (rrt RetryingRoundTripper) RoundTrip(req *http.Request) (*http.Response, er
 	return http.DefaultTransport.RoundTrip(req)
 }
 
+// TODO : Remove all debug logs before review.
+// TODO : 1. Need clarification if starting a new goroutine to make http request to executor is the right thing to do. Does it look hacky?
+// 	  2. executor client shared between multiple function handler objects? Is this intended?
 func (fh functionHandler) RoundTrip(req *http.Request) (resp *http.Response, err error) {
+	// in order to stop the go-routine in any of the exit paths.
+	defer func() {
+		fh.quitChan <- true
+	}()
+
 	transport := http.DefaultTransport.(*http.Transport)
 
+	// TODO : Fixed this to 2 because the entry for a function is cached for just 1 minute in router. there would be no point in retrying it more times. Is this ok?
+	// 	  In any case, I'll remove the hard-coded value once I hear the opinion.
 	maxRetries := 2
 	for i := 0; i < maxRetries; i++ {
 		resp, err = transport.RoundTrip(req)
 		if err != nil {
-			log.Printf("Inside CacheInvalidatingRoundTripper RoundTrip, err: %s", err.Error())
-			if netErr, ok := err.(net.Error); ok {
-				if netOpErr, ok := netErr.(*net.OpError); ok {
-					if netOpErr.Op == "dial" {
-						// 2. invalidate router's fmap
-						err = fh.fmap.remove(fh.function)
-						if err != nil {
-							log.Println("Unable to delete function from router cache," +
-								"ignoring it for now.")
-						}
-
-						// 3. send invalidationRequest to executor.
-						invalidationReq := &fission.CacheInvalidationRequest{
-							FunctionMetadata: fh.function,
-							FunctionPodAddress: netOpErr.Addr.String(),
-						}
-						responseChan := make(chan *cacheInvalidationResponse)
-						request := &chanRequest{
-							request: invalidationReq,
-							response: responseChan,
-						}
-						//log.Println("Calling InvalidateCacheEntryForFunction")
-						//err = fh.executor.InvalidateCacheEntryForFunction(invalidationReq)
-						log.Printf("Posting a request on fh.requestChan to invalidate cache for function:%s", fh.function.Name)
-						fh.requestChan <- request
-						response := <- request.response
-						log.Printf("Received a response to invalidate cache for function:%s", fh.function.Name)
-
-						// 4. retry req until err is nil or max of 2 times.
-						if response.err == nil {
-							// make one more transport.RoundTrip.
-							// This final call should actually result in a new env pod being specialized.
-							log.Println("Calling transport.RountTrip one final time.")
-							req.URL.Host = response.serviceUrl.Host
-							req.Host = response.serviceUrl.Host
-							fh.fmap.assign(fh.function, response.serviceUrl)
-							log.Printf("Modified request url and host. also fmap assign")
-							return transport.RoundTrip(req)
-						}
-
-					}
-				}
+			netErr, ok := err.(net.Error)
+			if !ok {
+				return resp, err
 			}
-			return resp, err
+			netOpErr, ok := netErr.(*net.OpError)
+			if !ok {
+				return resp, err
+			}
+			if netOpErr.Op == "dial" {
+				// 1. invalidate router's fmap
+				err = fh.fmap.remove(fh.function)
+				if err != nil {
+					log.Println("Unable to delete function from router cache," +
+						"ignoring it for now.")
+				}
+
+				// 2. send invalidationRequest to executor.
+				// This will basically invalidate executor's fsCache and make a request to specialize a new pod
+				invalidationReq := &fission.CacheInvalidationRequest{
+					FunctionMetadata:   fh.function,
+					FunctionPodAddress: netOpErr.Addr.String(),
+				}
+				responseChan := make(chan *cacheInvalidationResponse)
+				request := &chanRequest{
+					request:  invalidationReq,
+					response: responseChan,
+				}
+
+				fh.requestChan <- request
+				response := <-request.response
+
+				// 3. retry req until err is nil or max of 2 times.
+				// The response will have the address of the newly specialized pod
+				if response.err == nil {
+					// make one more transport.RoundTrip.
+					// This final call should be against the address of newly specialized pod, so changing the request to route it accordingly.
+					req.URL.Host = response.serviceUrl.Host
+					req.Host = response.serviceUrl.Host
+					fh.fmap.assign(fh.function, response.serviceUrl)
+					return transport.RoundTrip(req)
+				}
+			} else {
+				return resp, err
+			}
 		} else {
 			serviceUrl, _ := fh.fmap.lookup(fh.function)
+			// if we're using our cache, asynchronously tell
+			// executor we're using this service
 			go fh.tapService(serviceUrl)
 		}
 	}
 
-	return resp, nil
+	return resp, err
 }
 
 func (fh *functionHandler) tapService(serviceUrl *url.URL) {
@@ -161,36 +174,40 @@ func (fh *functionHandler) tapService(serviceUrl *url.URL) {
 	fh.executor.TapService(serviceUrl)
 }
 
+// invalidateCacheService is spawned as a separate go-routine for each invocation of fh.handler.
+// It waits on the requestChan for request to invalidate cache entry for a given function. On receiving a request, it makes a http post call to executor asking it to invalidate it's cache and to specialize a new pod.
+// Once the function's route is served, it's useless to have this routine running, so it receives a signal to quit at which point it returns.
 func (fh *functionHandler) invalidateCacheService() {
-	log.Printf("starting invalidateCacheService")
-	//  TODO : Fix this for loop
-	//for {
-		log.Printf("Waiting to receive a request to invalidate cache")
-		chanRequest := <- fh.requestChan
-		log.Printf("Received a request to invalidate cache")
-		svcName, err := fh.executor.InvalidateCacheEntryForFunction(chanRequest.request)
-		if err != nil {
+	for {
+		select {
+		case <-fh.quitChan:
+			return
+
+		case chanRequest := <-fh.requestChan:
+			svcName, err := fh.executor.InvalidateCacheEntryForFunction(chanRequest.request)
+			if err != nil {
+				chanRequest.response <- &cacheInvalidationResponse{
+					err: err,
+				}
+			}
+			svcUrl, err := url.Parse(fmt.Sprintf("http://%v", svcName))
+			if err != nil {
+				chanRequest.response <- &cacheInvalidationResponse{
+					err: err,
+				}
+			}
 			chanRequest.response <- &cacheInvalidationResponse{
-				err:err,
+				serviceUrl: svcUrl,
+				err:        err,
 			}
 		}
-		svcUrl, err := url.Parse(fmt.Sprintf("http://%v", svcName))
-		log.Printf("Succesfully parsed serviceName into url : %s", svcName)
-		if err != nil {
-			chanRequest.response <- &cacheInvalidationResponse{
-				err:err,
-			}
-		}
-		chanRequest.response <- &cacheInvalidationResponse{
-			serviceUrl: svcUrl,
-			err:err,
-		}
-	//}
-	log.Printf("exiting invalidateCacheService")
+	}
 }
 
 func (fh *functionHandler) handler(responseWriter http.ResponseWriter, request *http.Request) {
+	fh.quitChan = make(chan bool)
 	go fh.invalidateCacheService()
+
 	reqStartTime := time.Now()
 
 	// retrieve url params and add them to request header
@@ -223,9 +240,6 @@ func (fh *functionHandler) handler(responseWriter http.ResponseWriter, request *
 		fh.fmap.assign(fh.function, serviceUrl)
 	} else {
 		isCacheHit = true
-		// if we're using our cache, asynchronously tell
-		// executor we're using this service
-		// go fh.tapService(serviceUrl)
 	}
 
 	// Proxy off our request to the serviceUrl, and send the response back.
@@ -257,23 +271,22 @@ func (fh *functionHandler) handler(responseWriter http.ResponseWriter, request *
 		}
 	}
 
-
 	var transport http.RoundTripper
 	if isCacheHit {
-		log.Printf("Inside isCacheHit")
+		// Use the default transport associated with this function handler object.
+		// only in case of a cache hit.
 		transport = *fh
 	} else {
+		// Initial requests to new k8s services sometimes seem to fail, but retries work.
+		// So use a transport that does retries in case of a cache miss
 		transport = RetryingRoundTripper{
 			maxRetries:    10,
 			initalTimeout: 50 * time.Millisecond,
 		}
 	}
 
-
-	// Initial requests to new k8s services sometimes seem to
-	// fail, but retries work.  So use a transport that does retries.
 	proxy := &httputil.ReverseProxy{
-		Director: director,
+		Director:  director,
 		Transport: transport,
 	}
 	delay := time.Since(reqStartTime)
