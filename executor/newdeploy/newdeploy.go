@@ -193,7 +193,7 @@ func (deploy *NewDeploy) getDeploymentSpec(fn *crd.Function, env *crd.Environmen
 						},
 					},
 					Containers: []apiv1.Container{
-						fission.MergeContainerSpecs(env.Spec.Runtime.Container, &apiv1.Container{
+						fission.MergeContainerSpecs(&apiv1.Container{
 							Name:                   fn.Metadata.Name,
 							Image:                  env.Spec.Runtime.Image,
 							ImagePullPolicy:        apiv1.PullIfNotPresent,
@@ -223,7 +223,7 @@ func (deploy *NewDeploy) getDeploymentSpec(fn *crd.Function, env *crd.Environmen
 								},
 							},
 							Resources: resources,
-						}),
+						}, env.Spec.Runtime.Container),
 						{
 							Name:                   "fetcher",
 							Image:                  deploy.fetcherImg,

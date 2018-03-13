@@ -524,7 +524,7 @@ func (gp *GenericPool) createPool() error {
 						},
 					},
 					Containers: []apiv1.Container{
-						fission.MergeContainerSpecs(gp.env.Spec.Runtime.Container, &apiv1.Container{
+						fission.MergeContainerSpecs(&apiv1.Container{
 							Name:                   gp.env.Metadata.Name,
 							Image:                  gp.env.Spec.Runtime.Image,
 							ImagePullPolicy:        gp.runtimeImagePullPolicy,
@@ -560,7 +560,7 @@ func (gp *GenericPool) createPool() error {
 									},
 								},
 							},
-						}),
+						}, gp.env.Spec.Runtime.Container),
 						{
 							Name:                   "fetcher",
 							Image:                  gp.fetcherImage,

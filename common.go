@@ -69,6 +69,10 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// MergeContainerSpecs merges container specs using a predefined order.
+//
+// The order of the arguments indicates which spec has precedence (lower index takes precedence over higher indexes).
+// Slices and maps are merged; other fields are set only if they are a zero value.
 func MergeContainerSpecs(specs ...*apiv1.Container) apiv1.Container {
 	result := &apiv1.Container{}
 	for _, spec := range specs {

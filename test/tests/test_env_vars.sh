@@ -86,18 +86,13 @@ spec:
         value: "TEST_BUILDER_ENV_VAR"
 
   runtime:
-    image: fission/python-env:test
-    functionendpointport: 0
     image: gcr.io/fission-ci/python-env:test
-    loadendpointpath: ""
-    loadendpointport: 0
     container:
       env:
       - name: TEST_RUNTIME_ENV_KEY
         value: "TEST_RUNTIME_ENV_VAR"
   version: 2
   poolsize: 1
-  resources: {}
 EOM
 explain kubectl -n ${RESOURCE_NS} apply -f ${ENV_SPEC_FILE}
 
