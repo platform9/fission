@@ -19,6 +19,7 @@ package client
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -28,57 +29,45 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"fmt"
 	"github.com/fission/fission"
 )
 
-type Client struct {
-	executorUrl string
-	tappedByUrl map[string]bool
-	requestChan chan string
-}
+type (
+	Client struct {
+		executorUrl           string
+		tappedByUrl           map[string]bool
+		tapServiceRequestChan chan string
+		getServiceRequestChan chan *CreateFuncServiceRequest
+	}
+
+	CreateFuncServiceRequest struct {
+		FuncMeta *metav1.ObjectMeta
+		RespChan chan *CreateFuncServiceResponse
+	}
+
+	CreateFuncServiceResponse struct {
+		funcSvc string
+		err     error
+	}
+)
 
 func MakeClient(executorUrl string) *Client {
 	c := &Client{
-		executorUrl: strings.TrimSuffix(executorUrl, "/"),
-		tappedByUrl: make(map[string]bool),
-		requestChan: make(chan string),
+		executorUrl:           strings.TrimSuffix(executorUrl, "/"),
+		tappedByUrl:           make(map[string]bool),
+		tapServiceRequestChan: make(chan string),
+		getServiceRequestChan: make(chan *CreateFuncServiceRequest),
 	}
-	go c.service()
+	go c.serveTapServiceRequests()
+	go c.serveGetServiceRequests()
 	return c
 }
 
-func (c *Client) GetServiceForFunction(metadata *metav1.ObjectMeta) (string, error) {
-	executorUrl := c.executorUrl + "/v2/getServiceForFunction"
-
-	body, err := json.Marshal(metadata)
-	if err != nil {
-		return "", err
-	}
-
-	resp, err := http.Post(executorUrl, "application/json", bytes.NewReader(body))
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		return "", fission.MakeErrorFromHTTP(resp)
-	}
-
-	svcName, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-
-	return string(svcName), nil
-}
-
-func (c *Client) service() {
+func (c *Client) serveTapServiceRequests() {
 	ticker := time.NewTicker(time.Second * 5)
 	for {
 		select {
-		case serviceUrl := <-c.requestChan:
+		case serviceUrl := <-c.tapServiceRequestChan:
 			c.tappedByUrl[serviceUrl] = true
 		case <-ticker.C:
 			urls := c.tappedByUrl
@@ -96,8 +85,20 @@ func (c *Client) service() {
 	}
 }
 
+func (c *Client) serveGetServiceRequests() {
+	for {
+		createFuncServiceRequest := <-c.getServiceRequestChan
+		service, err := c.PostRequestToGetFunctionService(createFuncServiceRequest.FuncMeta)
+		response := &CreateFuncServiceResponse{
+			funcSvc: service,
+			err:     err,
+		}
+		createFuncServiceRequest.RespChan <- response
+	}
+}
+
 func (c *Client) TapService(serviceUrl *url.URL) {
-	c.requestChan <- serviceUrl.String()
+	c.tapServiceRequestChan <- serviceUrl.String()
 }
 
 func (c *Client) _tapService(serviceUrlStr string) error {
@@ -114,26 +115,41 @@ func (c *Client) _tapService(serviceUrlStr string) error {
 	return nil
 }
 
-func (c *Client) InvalidateCacheEntryForFunction(request *fission.CacheInvalidationRequest) (string, error) {
-	executorUrl := c.executorUrl + "/v2/invalidateCacheEntryForFunction"
-	log.Printf("Inside client InvalidateCacheEntryForFunction url : %s", executorUrl)
+func (c *Client) GetServiceForFunction(funcMeta *metav1.ObjectMeta) (*url.URL, error) {
+	responseChan := make(chan *CreateFuncServiceResponse)
+	request := &CreateFuncServiceRequest{
+		FuncMeta: funcMeta,
+		RespChan: responseChan,
+	}
+	c.getServiceRequestChan <- request
+	response := <-request.RespChan
+	if response.err == nil {
+		svcUrl, err := url.Parse(fmt.Sprintf("http://%v", response.funcSvc))
+		if err != nil {
+			return nil, err
+		}
+		return svcUrl, nil
+	}
 
-	body, err := json.Marshal(request)
+	return nil, response.err
+}
+
+func (c *Client) PostRequestToGetFunctionService(metadata *metav1.ObjectMeta) (string, error) {
+	executorUrl := c.executorUrl + "/v2/getServiceForFunction"
+
+	body, err := json.Marshal(metadata)
 	if err != nil {
-		log.Printf("json.Marshal errored out")
 		return "", err
 	}
 
-	log.Printf("http post url : %s", executorUrl)
 	resp, err := http.Post(executorUrl, "application/json", bytes.NewReader(body))
 	if err != nil {
 		return "", err
 	}
 	defer resp.Body.Close()
 
-	log.Printf("Successfully posted request to invalidate cache entry: %s", executorUrl)
 	if resp.StatusCode != 200 {
-		return "", fmt.Errorf("Error received from /v2/invalidateCacheEntryForFunction")
+		return "", fission.MakeErrorFromHTTP(resp)
 	}
 
 	svcName, err := ioutil.ReadAll(resp.Body)

@@ -22,6 +22,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -552,4 +553,19 @@ func (deploy *NewDeploy) updateKubeObjRefRV(fsvc *fscache.FuncSvc, objKind strin
 // Current implementation only logs messages, in future it will update function status
 func updateStatus(fn *crd.Function, err error, message string) {
 	log.Printf(message, err)
+}
+
+// IsValidService does a get on the service address to ensure it's a valid service. returns true if it is, else false.
+func (deploy *NewDeploy) IsValidService(svc string) bool {
+	service := strings.Split(svc, ".")
+	if len(service) == 0 {
+		return false
+	}
+	svcObj, err := deploy.kubernetesClient.CoreV1().Services(service[1]).Get(service[0], metav1.GetOptions{})
+	if err == nil {
+		log.Printf("Valid service address : %s", svcObj.Spec.ClusterIP)
+		return true
+	}
+
+	return false
 }

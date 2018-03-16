@@ -18,10 +18,12 @@ package poolmgr
 
 import (
 	"log"
+	"strings"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/pkg/api"
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
@@ -191,4 +193,20 @@ func (gpm *GenericPoolManager) getEnvPoolsize(env *crd.Environment) int32 {
 		poolsize = int32(env.Spec.Poolsize)
 	}
 	return poolsize
+}
+
+// IsValidPod ranges through kubeObjects and extracts the pod name and namespace to perform a get on the pod.
+// if the returned pod contains the address passed as the argument, it means it's a valid pod, so returns true. else
+// returns false.
+func (gpm *GenericPoolManager) IsValidPod(kubeObjects []api.ObjectReference, podAddress string) bool {
+	for _, obj := range kubeObjects {
+		if obj.Kind == "pod" {
+			pod, err := gpm.kubernetesClient.CoreV1().Pods(obj.Namespace).Get(obj.Name, metav1.GetOptions{})
+			if err == nil && strings.Contains(podAddress, pod.Status.PodIP) {
+				log.Printf("Valid pod address : %s", podAddress)
+				return true
+			}
+		}
+	}
+	return false
 }

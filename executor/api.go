@@ -57,13 +57,27 @@ func (executor *Executor) getServiceForFunctionApi(w http.ResponseWriter, r *htt
 	w.Write([]byte(serviceName))
 }
 
+// getServiceForFunction first checks if this function's service is cached, if yes, it validates the address.
+// if it's a valid address, just returns it.
+// else, invalidates its cache entry and makes a new request to create a service for this function and finally responds
+// with new address or error.
+//
+// checking for the validity of the address causes a little more over-head than desired. but, it ensures that
+// stale addresses are not returned to the router.
+// To make it optimal, plan is to add an eager cache invalidator function that watches for pod deletion events and
+// invalidates the cache entry if the pod address was cached.
 func (executor *Executor) getServiceForFunction(m *metav1.ObjectMeta) (string, error) {
 	// Check function -> svc cache
 	log.Printf("[%v] Checking for cached function service", m.Name)
 	fsvc, err := executor.fsCache.GetByFunction(m)
 	if err == nil {
-		// Cached, return svc address
-		return fsvc.Address, nil
+		if executor.isValidAddress(fsvc) {
+			// Cached, return svc address
+			return fsvc.Address, nil
+		} else {
+			log.Printf("Deleting cache entry for invalid address : %s", fsvc.Address)
+			executor.fsCache.DeleteEntry(fsvc)
+		}
 	}
 
 	respChan := make(chan *createFuncServiceResponse)
@@ -97,51 +111,6 @@ func (executor *Executor) tapService(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// invalidateCacheEntryForFunction receives the function metadata whose podIP:port has become stale and removes the
-// function entry from cache. It also makes a create function service request and finally returns the podIP:port of
-// the newly specialized pod.
-// TODO : Does it look sneaky to do both, invalidation and creation, in one single call?
-//	  The other way this can be implemented is for this function to only invalidate cache entry and send a response.
-//	  Now, when the router receives the response, it can send another http request subsequently to executor to create a new service for function.
-//	  But in the interest of time, i feel there's no need of an extra http request and response between them. more so because this is in the path of cold start.
-//	  What is your opinion?
-func (executor *Executor) invalidateCacheEntryForFunction(w http.ResponseWriter, r *http.Request) {
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, "Failed to read request", 500)
-		return
-	}
-
-	// get function metadata
-	var invalidateCacheRequest fission.CacheInvalidationRequest
-	err = json.Unmarshal(body, &invalidateCacheRequest)
-	if err != nil {
-		http.Error(w, "Failed to parse request", 400)
-		return
-	}
-
-	respChan := make(chan *CacheInvalidationResponse)
-	executor.invalidateCacheRequestChan <- &invalidateCacheChanRequest{
-		request:  invalidateCacheRequest,
-		response: respChan,
-	}
-	response := <-respChan
-	if response.err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-	} else {
-		respChan := make(chan *createFuncServiceResponse)
-		executor.requestChan <- &createFuncServiceRequest{
-			funcMeta: invalidateCacheRequest.FunctionMetadata,
-			respChan: respChan,
-		}
-		resp := <-respChan
-		if resp.err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-		}
-		w.Write([]byte(resp.funcSvc.Address))
-	}
-}
-
 func (executor *Executor) healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
@@ -150,7 +119,6 @@ func (executor *Executor) Serve(port int) {
 	r := mux.NewRouter()
 	r.HandleFunc("/v2/getServiceForFunction", executor.getServiceForFunctionApi).Methods("POST")
 	r.HandleFunc("/v2/tapService", executor.tapService).Methods("POST")
-	r.HandleFunc("/v2/invalidateCacheEntryForFunction", executor.invalidateCacheEntryForFunction).Methods("POST")
 	r.HandleFunc("/healthz", executor.healthHandler).Methods("GET")
 	address := fmt.Sprintf(":%v", port)
 	log.Printf("starting executor at port %v", port)
