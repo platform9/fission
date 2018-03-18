@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"time"
 )
 
 func createBackendService(testResponseString string) *url.URL {
@@ -54,7 +55,13 @@ func TestFunctionProxying(t *testing.T) {
 	fmap := makeFunctionServiceMap(0)
 	fmap.assign(fn, backendURL)
 
-	fh := &functionHandler{fmap: fmap, function: fn}
+	fh := &functionHandler{fmap: fmap,
+		function: fn,
+		roundTripper: &RetryingRoundTripper{
+			initalTimeout: 50 * time.Millisecond,
+			maxRetries:    10,
+		},
+	}
 	functionHandlerServer := httptest.NewServer(http.HandlerFunc(fh.handler))
 	fhURL := functionHandlerServer.URL
 

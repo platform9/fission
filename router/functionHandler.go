@@ -91,15 +91,8 @@ func isNetDialError(err error) bool {
 // There is a plan in the future to differentiate fission failures from user bugs and we can do so by creating a custom
 // modifyResponse function which is called by the ServeHttp function of the reverseProxy.
 func (fh functionHandler) RoundTrip(req *http.Request) (resp *http.Response, roundTripErr error) {
-	reqStartTime := time.Now()
 	transport := http.DefaultTransport.(*http.Transport)
-	defer func() {
-		delay := time.Since(reqStartTime)
-		if delay > 100*time.Millisecond {
-			log.Printf("Request delay for %v: %v", fh.function.Name, delay)
-		}
-		transport.CloseIdleConnections()
-	}()
+	defer transport.CloseIdleConnections()
 
 	timeout := fh.roundTripper.initalTimeout
 	isNewService := false
@@ -107,12 +100,20 @@ func (fh functionHandler) RoundTrip(req *http.Request) (resp *http.Response, rou
 	for i := 0; i < fh.roundTripper.maxRetries; i++ {
 		if len(req.Header.Get("X-Custom-CacheMiss")) > 0 || (roundTripErr != nil && !isNewService) {
 			log.Printf("Calling getServiceForFunction for function: %s", fh.function.Name)
+			reqStartTime := time.Now()
+
 			// send a request to  executor to specialize a new pod
 			serviceUrl, err := fh.executor.GetServiceForFunction(fh.function)
 			if err != nil {
 				// We might want a specific error code or header for fission failures as opposed to
 				// user function bugs.
 				return nil, err
+			}
+
+			// measure cold start
+			delay := time.Since(reqStartTime)
+			if delay > 100*time.Millisecond {
+				log.Printf("Request delay for %v: %v", fh.function.Name, delay)
 			}
 
 			// modify the request to reflect the new service address
@@ -141,7 +142,7 @@ func (fh functionHandler) RoundTrip(req *http.Request) (resp *http.Response, rou
 			if isNewService {
 				// if it's a newly created service and transport.RoundTrip returns error,
 				// retry without invalidating cache after backing off for timeout period.
-				log.Printf("request to %s errored out. backing off for %v ms before retrying",
+				log.Printf("request to %s errored out. backing off for %v before retrying",
 					req.URL.Host, timeout)
 				timeout *= time.Duration(2)
 				time.Sleep(timeout)
@@ -171,6 +172,8 @@ func (fh functionHandler) RoundTrip(req *http.Request) (resp *http.Response, rou
 	}
 
 	// after maxRetries, if transport.RoundTrip still receives an error response, just give up and return error.
+	log.Printf("Giving up serving function : %s after retrying for %v times", fh.function.Name,
+		fh.roundTripper.maxRetries)
 	return resp, roundTripErr
 }
 
