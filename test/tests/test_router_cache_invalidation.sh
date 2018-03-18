@@ -38,10 +38,10 @@ if [ "$http_status" -ne "200" ]; then
 fi
 
 log "getting function pod"
-funcPod=`kubectl get pods -n fission-function -L functionName | grep $fn| tr -s " "| cut -d" " -f1`
+funcPod=`kubectl get pods -n $FUNCTION_NAMESPACE -L functionName | grep $fn| tr -s " "| cut -d" " -f1`
 log "funcPod : $funcPod"
 
-kubectl delete pod $funcPod -n fission-function --grace-period=0
+kubectl delete pod $funcPod -n $FUNCTION_NAMESPACE --grace-period=0
 log  "deleted function pod $funcPod"
 
 http_status=`curl -sw "%{http_code}" http://$FISSION_ROUTER/$fn -o /dev/null`
