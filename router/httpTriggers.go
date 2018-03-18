@@ -154,6 +154,10 @@ func (ts *HTTPTriggerSet) getRouter() *mux.Router {
 			fmap:     ts.functionServiceMap,
 			function: &m,
 			executor: ts.executor,
+			roundTripper: &RetryingRoundTripper{
+				initalTimeout: 50 * time.Millisecond,
+				maxRetries:    10,
+			},
 		}
 		muxRouter.HandleFunc(fission.UrlForFunction(function.Metadata.Name), fh.handler)
 	}
