@@ -119,12 +119,12 @@ func (executor *Executor) serveCreateFuncServices() {
 	}
 }
 
-func (executor *Executor) getFunctionExecutorType(meta *metav1.ObjectMeta) (string, error) {
+func (executor *Executor) getFunctionExecutorType(meta *metav1.ObjectMeta) (fission.ExecutorType, error) {
 	fn, err := executor.fissionClient.Functions(meta.Namespace).Get(meta.Name)
 	if err != nil {
 		return "", err
 	}
-	return string(fn.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType), nil
+	return fn.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType, nil
 
 }
 

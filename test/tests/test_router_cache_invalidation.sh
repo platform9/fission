@@ -2,6 +2,15 @@
 
 set -euo pipefail
 
+# 1. This test first creates a python function with a route
+# 2. Makes a curl request to the route and verifies http.StatusOK is received.
+#    This step ensures the pod address is cached in router.
+# 3. Then, finds the pod that has the function loaded and deletes the pod with grace period 0s.
+#    This step results in a stale entry in the router cache.
+# 4. Finally, makes a curl request again and waits for response http.StatusOK.
+#    This ensures that router invalidated its cache, made a request to executor to get service for function and retried
+#    the request against this new address.
+
 PYTHON_RUNTIME_IMAGE=gcr.io/fission-ci/python-env:test
 fn=python-func-$(date +%s)
 

@@ -57,10 +57,6 @@ func TestFunctionProxying(t *testing.T) {
 
 	fh := &functionHandler{fmap: fmap,
 		function: fn,
-		roundTripper: &RetryingRoundTripper{
-			initalTimeout: 50 * time.Millisecond,
-			maxRetries:    10,
-		},
 	}
 	functionHandlerServer := httptest.NewServer(http.HandlerFunc(fh.handler))
 	fhURL := functionHandlerServer.URL

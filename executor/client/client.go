@@ -19,7 +19,6 @@ package client
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -32,109 +31,23 @@ import (
 	"github.com/fission/fission"
 )
 
-type (
-	Client struct {
-		executorUrl           string
-		tappedByUrl           map[string]bool
-		tapServiceRequestChan chan string
-		getServiceRequestChan chan *CreateFuncServiceRequest
-	}
-
-	CreateFuncServiceRequest struct {
-		FuncMeta *metav1.ObjectMeta
-		RespChan chan *CreateFuncServiceResponse
-	}
-
-	CreateFuncServiceResponse struct {
-		funcSvc string
-		err     error
-	}
-)
+type Client struct {
+	executorUrl string
+	tappedByUrl map[string]bool
+	requestChan chan string
+}
 
 func MakeClient(executorUrl string) *Client {
 	c := &Client{
-		executorUrl:           strings.TrimSuffix(executorUrl, "/"),
-		tappedByUrl:           make(map[string]bool),
-		tapServiceRequestChan: make(chan string),
-		getServiceRequestChan: make(chan *CreateFuncServiceRequest),
+		executorUrl: strings.TrimSuffix(executorUrl, "/"),
+		tappedByUrl: make(map[string]bool),
+		requestChan: make(chan string),
 	}
-	go c.serveTapServiceRequests()
-	go c.serveGetServiceRequests()
+	go c.service()
 	return c
 }
 
-func (c *Client) serveTapServiceRequests() {
-	ticker := time.NewTicker(time.Second * 5)
-	for {
-		select {
-		case serviceUrl := <-c.tapServiceRequestChan:
-			c.tappedByUrl[serviceUrl] = true
-		case <-ticker.C:
-			urls := c.tappedByUrl
-			c.tappedByUrl = make(map[string]bool)
-			if len(urls) > 0 {
-				go func() {
-					for u := range c.tappedByUrl {
-						c._tapService(u)
-					}
-					log.Printf("Tapped %v services in batch", len(urls))
-				}()
-				log.Printf("Tapped %v services in batch", len(urls))
-			}
-		}
-	}
-}
-
-func (c *Client) serveGetServiceRequests() {
-	for {
-		createFuncServiceRequest := <-c.getServiceRequestChan
-		service, err := c.PostRequestToGetFunctionService(createFuncServiceRequest.FuncMeta)
-		response := &CreateFuncServiceResponse{
-			funcSvc: service,
-			err:     err,
-		}
-		createFuncServiceRequest.RespChan <- response
-	}
-}
-
-func (c *Client) TapService(serviceUrl *url.URL) {
-	c.tapServiceRequestChan <- serviceUrl.String()
-}
-
-func (c *Client) _tapService(serviceUrlStr string) error {
-	executorUrl := c.executorUrl + "/v2/tapService"
-
-	resp, err := http.Post(executorUrl, "application/octet-stream", bytes.NewReader([]byte(serviceUrlStr)))
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		return fission.MakeErrorFromHTTP(resp)
-	}
-	return nil
-}
-
-func (c *Client) GetServiceForFunction(funcMeta *metav1.ObjectMeta) (*url.URL, error) {
-	responseChan := make(chan *CreateFuncServiceResponse)
-	request := &CreateFuncServiceRequest{
-		FuncMeta: funcMeta,
-		RespChan: responseChan,
-	}
-	c.getServiceRequestChan <- request
-	response := <-request.RespChan
-	if response.err == nil {
-		svcUrl, err := url.Parse(fmt.Sprintf("http://%v", response.funcSvc))
-		if err != nil {
-			return nil, err
-		}
-		return svcUrl, nil
-	}
-
-	return nil, response.err
-}
-
-func (c *Client) PostRequestToGetFunctionService(metadata *metav1.ObjectMeta) (string, error) {
+func (c *Client) GetServiceForFunction(metadata *metav1.ObjectMeta) (string, error) {
 	executorUrl := c.executorUrl + "/v2/getServiceForFunction"
 
 	body, err := json.Marshal(metadata)
@@ -158,4 +71,44 @@ func (c *Client) PostRequestToGetFunctionService(metadata *metav1.ObjectMeta) (s
 	}
 
 	return string(svcName), nil
+}
+
+func (c *Client) service() {
+	ticker := time.NewTicker(time.Second * 5)
+	for {
+		select {
+		case serviceUrl := <-c.requestChan:
+			c.tappedByUrl[serviceUrl] = true
+		case <-ticker.C:
+			urls := c.tappedByUrl
+			c.tappedByUrl = make(map[string]bool)
+			if len(urls) > 0 {
+				go func() {
+					for u := range c.tappedByUrl {
+						c._tapService(u)
+					}
+					log.Printf("Tapped %v services in batch", len(urls))
+				}()
+				log.Printf("Tapped %v services in batch", len(urls))
+			}
+		}
+	}
+}
+
+func (c *Client) TapService(serviceUrl *url.URL) {
+	c.requestChan <- serviceUrl.String()
+}
+
+func (c *Client) _tapService(serviceUrlStr string) error {
+	executorUrl := c.executorUrl + "/v2/tapService"
+
+	resp, err := http.Post(executorUrl, "application/octet-stream", bytes.NewReader([]byte(serviceUrlStr)))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return fission.MakeErrorFromHTTP(resp)
+	}
+	return nil
 }

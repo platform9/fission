@@ -75,7 +75,7 @@ func (executor *Executor) getServiceForFunction(m *metav1.ObjectMeta) (string, e
 			// Cached, return svc address
 			return fsvc.Address, nil
 		} else {
-			log.Printf("Deleting cache entry for invalid address : %s", fsvc.Address)
+			log.Printf("[%v] Deleting cache entry for invalid address : %s", m.Name, fsvc.Address)
 			executor.fsCache.DeleteEntry(fsvc)
 		}
 	}
