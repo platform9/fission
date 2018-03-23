@@ -285,11 +285,13 @@ type (
 		FunctionReference FunctionReference `json:"functionref"`
 	}
 
+	MessageQueueType string
+
 	// MessageQueueTriggerSpec defines a binding from a topic in a
 	// message queue to a function.
 	MessageQueueTriggerSpec struct {
 		FunctionReference FunctionReference `json:"functionref"`
-		MessageQueueType  string            `json:"messageQueueType"`
+		MessageQueueType  MessageQueueType  `json:"messageQueueType"`
 		Topic             string            `json:"topic"`
 		ResponseTopic     string            `json:"respTopic,omitempty"`
 		ContentType       string            `json:"contentType"`
@@ -381,6 +383,11 @@ const (
 	SharedVolumePackages   = "packages"
 	SharedVolumeSecrets    = "secrets"
 	SharedVolumeConfigmaps = "configmaps"
+)
+
+const (
+	MessageQueueTypeNats = "nats-streaming"
+	MessageQueueTypeASQ  = "azure-storage-queue"
 )
 
 const (

@@ -75,12 +75,6 @@ func (a *API) FunctionApiCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = validateResourceName(f.Metadata.Name)
-	if err != nil {
-		a.respondWithError(w, err)
-		return
-	}
-
 	fnew, err := a.fissionClient.Functions(f.Metadata.Namespace).Create(&f)
 	if err != nil {
 		a.respondWithError(w, err)

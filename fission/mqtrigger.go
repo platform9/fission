@@ -27,7 +27,6 @@ import (
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
-	"github.com/fission/fission/mqtrigger/messageQueue"
 )
 
 func mqtCreate(c *cli.Context) error {
@@ -42,14 +41,14 @@ func mqtCreate(c *cli.Context) error {
 		fatal("Need a function name to create a trigger, use --function")
 	}
 
-	mqType := c.String("mqtype")
-	switch mqType {
+	var mqType fission.MessageQueueType
+	switch c.String("mqtype") {
 	case "":
-		mqType = messageQueue.NATS
-	case messageQueue.NATS:
-		mqType = messageQueue.NATS
-	case messageQueue.ASQ:
-		mqType = messageQueue.ASQ
+		mqType = fission.MessageQueueTypeNats
+	case fission.MessageQueueTypeNats:
+		mqType = fission.MessageQueueTypeNats
+	case fission.MessageQueueTypeASQ:
+		mqType = fission.MessageQueueTypeASQ
 	default:
 		fatal("Unknown message queue type, currently only \"nats-streaming, azure-storage-queue \" is supported")
 	}
@@ -186,9 +185,9 @@ func mqtList(c *cli.Context) error {
 	return nil
 }
 
-func checkMQTopicAvailability(mqType string, topics ...string) {
+func checkMQTopicAvailability(mqType fission.MessageQueueType, topics ...string) {
 	for _, t := range topics {
-		if len(t) > 0 && !messageQueue.IsTopicValid(mqType, t) {
+		if len(t) > 0 && !fission.IsTopicValid(mqType, t) {
 			fatal(fmt.Sprintf("Invalid topic for %s: %s", mqType, t))
 		}
 	}

@@ -22,13 +22,20 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"regexp"
 	"runtime/debug"
 	"strings"
 	"syscall"
 
 	"github.com/gorilla/handlers"
 	"github.com/imdario/mergo"
+	nsUtil "github.com/nats-io/nats-streaming-server/util"
+	"github.com/robfig/cron"
 	apiv1 "k8s.io/client-go/pkg/api/v1"
+)
+
+var (
+	validAzureQueueName = regexp.MustCompile("^[a-z0-9][a-z0-9\\-]*[a-z0-9]$")
 )
 
 func UrlForFunction(name string) string {
@@ -86,4 +93,19 @@ func MergeContainerSpecs(specs ...*apiv1.Container) apiv1.Container {
 		}
 	}
 	return *result
+}
+
+func IsTopicValid(mqType MessageQueueType, topic string) bool {
+	switch mqType {
+	case MessageQueueTypeNats:
+		return nsUtil.IsChannelNameValid(topic, false)
+	case MessageQueueTypeASQ:
+		return len(topic) >= 3 && len(topic) <= 63 && validAzureQueueName.MatchString(topic)
+	}
+	return false
+}
+
+func IsValidCronSpec(spec string) error {
+	_, err := cron.Parse(spec)
+	return err
 }

@@ -24,10 +24,15 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
 )
 
 func (c *Client) PackageCreate(f *crd.Package) (*metav1.ObjectMeta, error) {
+	errs := f.Validate()
+	if len(errs) > 0 {
+		return nil, fission.AggregateValidationErrors("Package", errs)
+	}
 
 	reqbody, err := json.Marshal(f)
 	if err != nil {
@@ -79,6 +84,11 @@ func (c *Client) PackageGet(m *metav1.ObjectMeta) (*crd.Package, error) {
 }
 
 func (c *Client) PackageUpdate(f *crd.Package) (*metav1.ObjectMeta, error) {
+	errs := f.Validate()
+	if len(errs) > 0 {
+		return nil, fission.AggregateValidationErrors("Package", errs)
+	}
+
 	reqbody, err := json.Marshal(f)
 	if err != nil {
 		return nil, err

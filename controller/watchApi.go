@@ -58,12 +58,6 @@ func (a *API) WatchApiCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = validateResourceName(watch.Metadata.Name)
-	if err != nil {
-		a.respondWithError(w, err)
-		return
-	}
-
 	// TODO check for duplicate watches
 
 	wnew, err := a.fissionClient.KubernetesWatchTriggers(watch.Metadata.Namespace).Create(&watch)

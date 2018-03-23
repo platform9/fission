@@ -17,9 +17,6 @@ limitations under the License.
 package controller
 
 import (
-	"errors"
-	"regexp"
-
 	"github.com/fission/fission/crd"
 )
 
@@ -29,12 +26,4 @@ func makeCRDBackedAPI() (*API, error) {
 		return nil, err
 	}
 	return &API{fissionClient: fissionClient, kubernetesClient: kubernetesClient}, nil
-}
-
-func validateResourceName(name string) error {
-	re := regexp.MustCompile(`[a-z0-9]([-a-z0-9]*[a-z0-9])?`)
-	if len(re.FindString(name)) != len(name) {
-		return errors.New("Name must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character (e.g. 'my-name',  or '123-abc', regex used for validation is '[a-z0-9]([-a-z0-9]*[a-z0-9])?'")
-	}
-	return nil
 }

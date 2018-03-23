@@ -60,12 +60,6 @@ func (a *API) EnvironmentApiCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = validateResourceName(env.Metadata.Name)
-	if err != nil {
-		a.respondWithError(w, err)
-		return
-	}
-
 	enew, err := a.fissionClient.Environments(env.Metadata.Namespace).Create(&env)
 	if err != nil {
 		a.respondWithError(w, err)

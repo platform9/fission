@@ -24,10 +24,15 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
 )
 
 func (c *Client) FunctionCreate(f *crd.Function) (*metav1.ObjectMeta, error) {
+	errs := f.Validate()
+	if len(errs) > 0 {
+		return nil, fission.AggregateValidationErrors("Function", errs)
+	}
 
 	reqbody, err := json.Marshal(f)
 	if err != nil {
@@ -93,6 +98,11 @@ func (c *Client) FunctionGetRawDeployment(m *metav1.ObjectMeta) ([]byte, error) 
 }
 
 func (c *Client) FunctionUpdate(f *crd.Function) (*metav1.ObjectMeta, error) {
+	errs := f.Validate()
+	if len(errs) > 0 {
+		return nil, fission.AggregateValidationErrors("Function", errs)
+	}
+
 	reqbody, err := json.Marshal(f)
 	if err != nil {
 		return nil, err

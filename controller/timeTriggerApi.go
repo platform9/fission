@@ -59,12 +59,6 @@ func (a *API) TimeTriggerApiCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = validateResourceName(t.Metadata.Name)
-	if err != nil {
-		a.respondWithError(w, err)
-		return
-	}
-
 	// validate
 	_, err = cron.Parse(t.Spec.Cron)
 	if err != nil {

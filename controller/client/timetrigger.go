@@ -24,10 +24,16 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
 )
 
 func (c *Client) TimeTriggerCreate(t *crd.TimeTrigger) (*metav1.ObjectMeta, error) {
+	errs := t.Validate()
+	if len(errs) > 0 {
+		return nil, fission.AggregateValidationErrors("TimeTrigger", errs)
+	}
+
 	reqbody, err := json.Marshal(t)
 	if err != nil {
 		return nil, err
@@ -78,6 +84,11 @@ func (c *Client) TimeTriggerGet(m *metav1.ObjectMeta) (*crd.TimeTrigger, error) 
 }
 
 func (c *Client) TimeTriggerUpdate(t *crd.TimeTrigger) (*metav1.ObjectMeta, error) {
+	errs := t.Validate()
+	if len(errs) > 0 {
+		return nil, fission.AggregateValidationErrors("TimeTrigger", errs)
+	}
+
 	reqbody, err := json.Marshal(t)
 	if err != nil {
 		return nil, err

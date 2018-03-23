@@ -27,7 +27,6 @@ import (
 	"github.com/fission/fission"
 	"github.com/fission/fission/controller/client"
 	"github.com/fission/fission/crd"
-	"github.com/fission/fission/mqtrigger/messageQueue"
 )
 
 type (
@@ -55,7 +54,7 @@ func migrateDumpTPRResource(client *client.Client, filename string) {
 	checkErr(err, "dump watches")
 	timeTriggers, err := client.TimeTriggerList()
 	checkErr(err, "dump time triggers")
-	mqTriggers, err := client.MessageQueueTriggerList(messageQueue.NATS)
+	mqTriggers, err := client.MessageQueueTriggerList(fission.MessageQueueTypeNats)
 	checkErr(err, "dump message queue triggers")
 
 	tprResource := TPRResource{

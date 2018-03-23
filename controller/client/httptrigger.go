@@ -24,10 +24,16 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
 )
 
 func (c *Client) HTTPTriggerCreate(t *crd.HTTPTrigger) (*metav1.ObjectMeta, error) {
+	errs := t.Validate()
+	if len(errs) > 0 {
+		return nil, fission.AggregateValidationErrors("HTTPTrigger", errs)
+	}
+
 	reqbody, err := json.Marshal(t)
 	if err != nil {
 		return nil, err
@@ -78,6 +84,11 @@ func (c *Client) HTTPTriggerGet(m *metav1.ObjectMeta) (*crd.HTTPTrigger, error) 
 }
 
 func (c *Client) HTTPTriggerUpdate(t *crd.HTTPTrigger) (*metav1.ObjectMeta, error) {
+	errs := t.Validate()
+	if len(errs) > 0 {
+		return nil, fission.AggregateValidationErrors("HTTPTrigger", errs)
+	}
+
 	reqbody, err := json.Marshal(t)
 	if err != nil {
 		return nil, err

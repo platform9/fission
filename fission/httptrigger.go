@@ -63,6 +63,7 @@ func checkFunctionExistence(fissionClient *client.Client, fnName string) {
 		Name:      fnName,
 		Namespace: metav1.NamespaceDefault,
 	}
+
 	_, err := fissionClient.FunctionGet(meta)
 	if err != nil {
 		fmt.Printf("function '%v' does not exist, use 'fission function create --name %v ...' to create the function\n", fnName, fnName)

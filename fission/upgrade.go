@@ -360,7 +360,7 @@ func upgradeRestoreState(c *cli.Context) error {
 			Metadata: *crdMetadataFromV1Metadata(&t.Metadata, v1state.NameChanges),
 			Spec: fission.MessageQueueTriggerSpec{
 				FunctionReference: *functionRefFromV1Metadata(&t.Function, v1state.NameChanges),
-				MessageQueueType:  t.MessageQueueType,
+				MessageQueueType:  fission.MessageQueueTypeNats, // only NATS is supported at that time (v1 types)
 				Topic:             t.Topic,
 				ResponseTopic:     t.ResponseTopic,
 			},
