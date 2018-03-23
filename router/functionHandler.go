@@ -28,6 +28,7 @@ import (
 	"github.com/gorilla/mux"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/fission/fission"
 	executorClient "github.com/fission/fission/executor/client"
 )
 
@@ -42,21 +43,6 @@ type RetryingRoundTripper struct {
 	maxRetries     int
 	initialTimeout time.Duration
 	funcHandler    *functionHandler
-}
-
-func isNetDialError(err error) bool {
-	netErr, ok := err.(net.Error)
-	if !ok {
-		return false
-	}
-	netOpErr, ok := netErr.(*net.OpError)
-	if !ok {
-		return false
-	}
-	if netOpErr.Op == "dial" {
-		return true
-	}
-	return false
 }
 
 // RoundTrip is a custom transport with retries for http requests that forwards the request to the right serviceUrl, obtained
@@ -131,12 +117,14 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 		// this service url may have come from the cache lookup or from executor response
 		req.URL.Scheme = serviceUrl.Scheme
 		req.URL.Host = serviceUrl.Host
+
 		// To keep the function run container simple, it
 		// doesn't do any routing.  In the future if we have
 		// multiple functions per container, we could use the
 		// function metadata here.
 		// leave the query string intact (req.URL.RawQuery)
 		req.URL.Path = "/"
+
 		// Overwrite request host with internal host,
 		// or request will be blocked in some situations
 		// (e.g. istio-proxy)
@@ -160,13 +148,13 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 		}
 
 		// if transport.RoundTrip returns a non-network dial error, then relay it back to user
-		if !isNetDialError(err) {
+		if !fission.IsNetworkDialError(err) {
 			return resp, err
 		}
 
 		// means its a newly created service and it returned a network dial error.
 		// just retry after backing off for timeout period.
-		if isNetDialError(err) && serviceUrlFromExecutor {
+		if serviceUrlFromExecutor {
 			log.Printf("request to %s errored out. backing off for %v before retrying",
 				req.URL.Host, timeout)
 			timeout *= time.Duration(2)

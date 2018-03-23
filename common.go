@@ -87,3 +87,19 @@ func MergeContainerSpecs(specs ...*apiv1.Container) apiv1.Container {
 	}
 	return *result
 }
+
+// IsNetworkDialError returns true if its a network dial error
+func IsNetworkDialError(err error) bool {
+	netErr, ok := err.(net.Error)
+	if !ok {
+		return false
+	}
+	netOpErr, ok := netErr.(*net.OpError)
+	if !ok {
+		return false
+	}
+	if netOpErr.Op == "dial" {
+		return true
+	}
+	return false
+}

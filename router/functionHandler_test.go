@@ -24,7 +24,6 @@ import (
 	"testing"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"time"
 )
 
 func createBackendService(testResponseString string) *url.URL {
