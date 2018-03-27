@@ -174,11 +174,6 @@ func (ref PackageRef) Validate() (errs []error) {
 
 func (ref FunctionPackageRef) Validate() (errs []error) {
 	errs = append(errs, ref.PackageRef.Validate()...)
-
-	if len(ref.FunctionName) > 0 {
-		errs = append(errs, ValidateKubeName("FunctionPackageRef.FunctionName", ref.FunctionName)...)
-	}
-
 	return errs
 }
 
