@@ -189,7 +189,6 @@ func main() {
 	envBuilderImageFlag := cli.StringFlag{Name: "builder", Usage: "Environment builder image URL (optional)"}
 	envBuildCmdFlag := cli.StringFlag{Name: "buildcmd", Usage: "Build command for environment builder to build source package (optional)"}
 	envExternalNetworkFlag := cli.BoolFlag{Name: "externalnetwork", Usage: "Allow environment access external network when istio feature enabled (optional, defaults to false)"}
-
 	envVersionFlag := cli.IntFlag{Name: "version", Usage: "Environment API version: defaults to 1 (means v1 interface)"}
 	envSubcommands := []cli.Command{
 		{Name: "create", Aliases: []string{"add"}, Usage: "Add an environment", Flags: []cli.Flag{envNameFlag, envPoolsizeFlag, envImageFlag, envBuilderImageFlag, envBuildCmdFlag, minCpu, maxCpu, minMem, maxMem, envVersionFlag, envExternalNetworkFlag}, Action: envCreate},

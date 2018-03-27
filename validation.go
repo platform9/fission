@@ -111,15 +111,19 @@ func ValidateKubeReference(refName string, name string, namespace string) (errs 
 }
 
 func (archive Archive) Validate() (errs []error) {
-	switch archive.Type {
-	case ArchiveTypeLiteral, ArchiveTypeUrl: // no op
-	default:
-		errs = append(errs, MakeValidationErr(ErrorUnsupportedType, "Archive.Type", archive.Type, "not a valid archive type"))
+	if len(archive.Type) > 0 {
+		switch archive.Type {
+		case ArchiveTypeLiteral, ArchiveTypeUrl: // no op
+		default:
+			errs = append(errs, MakeValidationErr(ErrorUnsupportedType, "Archive.Type", archive.Type, "not a valid archive type"))
+		}
 	}
-	switch archive.Checksum.Type {
-	case ChecksumTypeSHA256: // no op
-	default:
-		errs = append(errs, MakeValidationErr(ErrorUnsupportedType, "Archive.Checksum.Type", archive.Checksum.Type, "not a valid checksum type"))
+	if len(archive.Checksum.Type) > 0 {
+		switch archive.Checksum.Type {
+		case ChecksumTypeSHA256: // no op
+		default:
+			errs = append(errs, MakeValidationErr(ErrorUnsupportedType, "Archive.Checksum.Type", archive.Checksum.Type, "not a valid checksum type"))
+		}
 	}
 	return errs
 }
@@ -219,8 +223,12 @@ func (ref FunctionReference) Validate() (errs []error) {
 }
 
 func (runtime Runtime) Validate() (errs []error) {
-	errs = append(errs, ValidateKubePort("Runtime.LoadEndpointPort", int(runtime.LoadEndpointPort))...)
-	errs = append(errs, ValidateKubePort("Runtime.FunctionEndpointPort", int(runtime.FunctionEndpointPort))...)
+	if runtime.LoadEndpointPort > 0 {
+		errs = append(errs, ValidateKubePort("Runtime.LoadEndpointPort", int(runtime.LoadEndpointPort))...)
+	}
+	if runtime.FunctionEndpointPort > 0 {
+		errs = append(errs, ValidateKubePort("Runtime.FunctionEndpointPort", int(runtime.FunctionEndpointPort))...)
+	}
 	return errs
 }
 
@@ -236,10 +244,12 @@ func (spec EnvironmentSpec) Validate() (errs []error) {
 	for _, r := range []Resource{spec.Runtime, spec.Builder} {
 		errs = append(errs, r.Validate()...)
 	}
-	switch spec.AllowedFunctionsPerContainer {
-	case AllowedFunctionsPerContainerSingle, AllowedFunctionsPerContainerInfinite: // no op
-	default:
-		errs = append(errs, MakeValidationErr(ErrorUnsupportedType, "EnvironmentSpec.AllowedFunctionsPerContainer", spec.AllowedFunctionsPerContainer, "not a valid value"))
+	if len(spec.AllowedFunctionsPerContainer) > 0 {
+		switch spec.AllowedFunctionsPerContainer {
+		case AllowedFunctionsPerContainerSingle, AllowedFunctionsPerContainerInfinite: // no op
+		default:
+			errs = append(errs, MakeValidationErr(ErrorUnsupportedType, "EnvironmentSpec.AllowedFunctionsPerContainer", spec.AllowedFunctionsPerContainer, "not a valid value"))
+		}
 	}
 	if spec.Poolsize < 0 {
 		errs = append(errs, MakeValidationErr(ErrorInvalidValue, "EnvironmentSpec.Poolsize", spec.Poolsize, "Poolsize must be greater or equal to 0"))
