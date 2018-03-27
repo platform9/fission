@@ -46,6 +46,7 @@ func (e ValidationError) Error() string {
 	default:
 		errMsg += fmt.Sprintf("Unknown error type: %v", e.BadValue)
 	}
+
 	if len(e.Detail) > 0 {
 		errMsg += fmt.Sprintf(": %v", e.Detail)
 	}
@@ -118,6 +119,7 @@ func (archive Archive) Validate() (errs []error) {
 			errs = append(errs, MakeValidationErr(ErrorUnsupportedType, "Archive.Type", archive.Type, "not a valid archive type"))
 		}
 	}
+
 	if len(archive.Checksum.Type) > 0 {
 		switch archive.Checksum.Type {
 		case ChecksumTypeSHA256: // no op
@@ -125,6 +127,7 @@ func (archive Archive) Validate() (errs []error) {
 			errs = append(errs, MakeValidationErr(ErrorUnsupportedType, "Archive.Checksum.Type", archive.Checksum.Type, "not a valid checksum type"))
 		}
 	}
+
 	return errs
 }
 
@@ -180,7 +183,9 @@ func (spec FunctionSpec) Validate() (errs []error) {
 	for _, c := range spec.ConfigMaps {
 		errs = append(errs, c.Validate()...)
 	}
+
 	errs = append(errs, spec.InvokeStrategy.Validate()...)
+
 	return errs
 }
 
@@ -190,7 +195,9 @@ func (is InvokeStrategy) Validate() (errs []error) {
 	default:
 		errs = append(errs, MakeValidationErr(ErrorUnsupportedType, "InvokeStrategy.StrategyType", is.StrategyType, "not a valid valid strategy"))
 	}
+
 	errs = append(errs, is.ExecutionStrategy.Validate()...)
+
 	return errs
 }
 
@@ -200,15 +207,19 @@ func (es ExecutionStrategy) Validate() (errs []error) {
 	default:
 		errs = append(errs, MakeValidationErr(ErrorUnsupportedType, "ExecutionStrategy.ExecutorType", es.ExecutorType, "not a valid executor type"))
 	}
+
 	if es.MinScale < 0 {
 		errs = append(errs, MakeValidationErr(ErrorInvalidValue, "ExecutionStrategy.MinScale", es.MinScale, "minimum scale must be greater or equal to 0"))
 	}
+
 	if es.MaxScale < es.MinScale {
 		errs = append(errs, MakeValidationErr(ErrorInvalidValue, "ExecutionStrategy.MaxScale", es.MaxScale, "maximum scale must be greater or equal to minimum scale"))
 	}
+
 	if es.TargetCPUPercent <= 0 || es.TargetCPUPercent > 100 {
 		errs = append(errs, MakeValidationErr(ErrorInvalidValue, "ExecutionStrategy.TargetCPUPercent", es.TargetCPUPercent, "TargetCPUPercent must be a value between 1 - 100"))
 	}
+
 	return errs
 }
 
@@ -218,7 +229,9 @@ func (ref FunctionReference) Validate() (errs []error) {
 	default:
 		errs = append(errs, MakeValidationErr(ErrorUnsupportedType, "FunctionReference.Type", ref.Type, "not a valid function reference type"))
 	}
+
 	errs = append(errs, ValidateKubeName("FunctionReference.Name", ref.Name)...)
+
 	return errs
 }
 
@@ -226,9 +239,11 @@ func (runtime Runtime) Validate() (errs []error) {
 	if runtime.LoadEndpointPort > 0 {
 		errs = append(errs, ValidateKubePort("Runtime.LoadEndpointPort", int(runtime.LoadEndpointPort))...)
 	}
+
 	if runtime.FunctionEndpointPort > 0 {
 		errs = append(errs, ValidateKubePort("Runtime.FunctionEndpointPort", int(runtime.FunctionEndpointPort))...)
 	}
+
 	return errs
 }
 
@@ -241,9 +256,13 @@ func (spec EnvironmentSpec) Validate() (errs []error) {
 	if spec.Version < 1 && spec.Version > 3 {
 		errs = append(errs, MakeValidationErr(ErrorInvalidValue, "EnvironmentSpec.Version", spec.Version, "not a valid environment version"))
 	}
-	for _, r := range []Resource{spec.Runtime, spec.Builder} {
-		errs = append(errs, r.Validate()...)
+
+	errs = append(errs, spec.Runtime.Validate()...)
+
+	if len(spec.Builder.Image) > 0 {
+		errs = append(errs, spec.Builder.Validate()...)
 	}
+
 	if len(spec.AllowedFunctionsPerContainer) > 0 {
 		switch spec.AllowedFunctionsPerContainer {
 		case AllowedFunctionsPerContainerSingle, AllowedFunctionsPerContainerInfinite: // no op
@@ -251,9 +270,11 @@ func (spec EnvironmentSpec) Validate() (errs []error) {
 			errs = append(errs, MakeValidationErr(ErrorUnsupportedType, "EnvironmentSpec.AllowedFunctionsPerContainer", spec.AllowedFunctionsPerContainer, "not a valid value"))
 		}
 	}
+
 	if spec.Poolsize < 0 {
 		errs = append(errs, MakeValidationErr(ErrorInvalidValue, "EnvironmentSpec.Poolsize", spec.Poolsize, "Poolsize must be greater or equal to 0"))
 	}
+
 	return errs
 }
 
@@ -264,13 +285,16 @@ func (spec HTTPTriggerSpec) Validate() (errs []error) {
 	default:
 		errs = append(errs, MakeValidationErr(ErrorUnsupportedType, "HTTPTriggerSpec.Method", spec.Method, "not a valid HTTP method"))
 	}
+
 	errs = append(errs, spec.FunctionReference.Validate()...)
+
 	if len(spec.Host) > 0 {
 		e := validation.IsDNS1123Subdomain(spec.Host)
 		if len(e) > 0 {
 			errs = append(errs, MakeValidationErr(ErrorInvalidValue, "HTTPTriggerSpec.Host", spec.Host, e...))
 		}
 	}
+
 	return errs
 }
 
@@ -280,9 +304,11 @@ func (spec KubernetesWatchTriggerSpec) Validate() (errs []error) {
 	default:
 		errs = append(errs, MakeValidationErr(ErrorUnsupportedType, "KubernetesWatchTriggerSpec.Type", spec.Type, "not a valid supported type"))
 	}
+
 	errs = append(errs, ValidateKubeName("KubernetesWatchTriggerSpec.Namespace", spec.Namespace)...)
 	errs = append(errs, ValidateKubeLabel("KubernetesWatchTriggerSpec.LabelSelector", spec.LabelSelector)...)
 	errs = append(errs, spec.FunctionReference.Validate()...)
+
 	return errs
 }
 
@@ -311,6 +337,8 @@ func (spec TimeTriggerSpec) Validate() (errs []error) {
 	if err != nil {
 		errs = append(errs, MakeValidationErr(ErrorInvalidValue, "TimeTriggerSpec.Cron", spec.Cron, "not a valid cron spec"))
 	}
+
 	errs = append(errs, spec.FunctionReference.Validate()...)
+
 	return errs
 }
