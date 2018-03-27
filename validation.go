@@ -111,6 +111,15 @@ func ValidateKubeReference(refName string, name string, namespace string) (errs 
 	return errs
 }
 
+func (checksum Checksum) Validate() (errs []error) {
+	switch checksum.Type {
+	case ChecksumTypeSHA256: // no op
+	default:
+		errs = append(errs, MakeValidationErr(ErrorUnsupportedType, "Checksum.Type", checksum.Type, "not a valid checksum type"))
+	}
+	return errs
+}
+
 func (archive Archive) Validate() (errs []error) {
 	if len(archive.Type) > 0 {
 		switch archive.Type {
@@ -120,12 +129,8 @@ func (archive Archive) Validate() (errs []error) {
 		}
 	}
 
-	if len(archive.Checksum.Type) > 0 {
-		switch archive.Checksum.Type {
-		case ChecksumTypeSHA256: // no op
-		default:
-			errs = append(errs, MakeValidationErr(ErrorUnsupportedType, "Archive.Checksum.Type", archive.Checksum.Type, "not a valid checksum type"))
-		}
+	if archive.Checksum != (Checksum{}) {
+		errs = append(errs, archive.Checksum.Validate()...)
 	}
 
 	return errs
@@ -169,7 +174,11 @@ func (ref PackageRef) Validate() (errs []error) {
 
 func (ref FunctionPackageRef) Validate() (errs []error) {
 	errs = append(errs, ref.PackageRef.Validate()...)
-	errs = append(errs, ValidateKubeName("FunctionPackageRef.FunctionName", ref.FunctionName)...)
+
+	if len(ref.FunctionName) > 0 {
+		errs = append(errs, ValidateKubeName("FunctionPackageRef.FunctionName", ref.FunctionName)...)
+	}
+
 	return errs
 }
 
@@ -177,6 +186,7 @@ func (spec FunctionSpec) Validate() (errs []error) {
 	for _, r := range []Resource{spec.Environment, spec.Package} {
 		errs = append(errs, r.Validate()...)
 	}
+
 	for _, s := range spec.Secrets {
 		errs = append(errs, s.Validate()...)
 	}
@@ -259,7 +269,7 @@ func (spec EnvironmentSpec) Validate() (errs []error) {
 
 	errs = append(errs, spec.Runtime.Validate()...)
 
-	if len(spec.Builder.Image) > 0 {
+	if spec.Builder != (Builder{}) {
 		errs = append(errs, spec.Builder.Validate()...)
 	}
 
