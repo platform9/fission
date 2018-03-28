@@ -77,10 +77,6 @@ const (
 	ErrorInvalidObject
 )
 
-type Resource interface {
-	Validate() []error
-}
-
 func ValidateKubeLabel(field string, labels map[string]string) (errs []error) {
 	for k, v := range labels {
 		errs = append(errs, MakeValidationErr(ErrorInvalidValue, fmt.Sprintf("%v.key.%v", field, k), k, validation.IsQualifiedName(k)...))
@@ -152,9 +148,14 @@ func (ref ConfigMapReference) Validate() (errs []error) {
 }
 
 func (spec PackageSpec) Validate() (errs []error) {
-	for _, r := range []Resource{spec.Environment, spec.Source, spec.Deployment} {
-		errs = append(errs, r.Validate()...)
+	errs = append(errs, spec.Environment.Validate()...)
+
+	for _, r := range []Archive{spec.Source, spec.Deployment} {
+		if len(r.URL) > 0 || len(r.Literal) > 0 {
+			errs = append(errs, r.Validate()...)
+		}
 	}
+
 	return errs
 }
 
@@ -178,8 +179,12 @@ func (ref FunctionPackageRef) Validate() (errs []error) {
 }
 
 func (spec FunctionSpec) Validate() (errs []error) {
-	for _, r := range []Resource{spec.Environment, spec.Package} {
-		errs = append(errs, r.Validate()...)
+	if spec.Environment != (EnvironmentReference{}) {
+		errs = append(errs, spec.Environment.Validate()...)
+	}
+
+	if spec.Package != (FunctionPackageRef{}) {
+		errs = append(errs, spec.Package.Validate()...)
 	}
 
 	for _, s := range spec.Secrets {
@@ -189,7 +194,9 @@ func (spec FunctionSpec) Validate() (errs []error) {
 		errs = append(errs, c.Validate()...)
 	}
 
-	errs = append(errs, spec.InvokeStrategy.Validate()...)
+	if spec.InvokeStrategy != (InvokeStrategy{}) {
+		errs = append(errs, spec.InvokeStrategy.Validate()...)
+	}
 
 	return errs
 }

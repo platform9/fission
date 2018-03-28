@@ -82,10 +82,16 @@ func TestFunctionApi(t *testing.T) {
 		},
 		Spec: fission.FunctionSpec{
 			Environment: fission.EnvironmentReference{
-				Name: "nodejs",
+				Name:      "nodejs",
+				Namespace: metav1.NamespaceDefault,
 			},
 			Package: fission.FunctionPackageRef{
 				FunctionName: "xxx",
+				PackageRef: fission.PackageRef{
+					Namespace:       metav1.NamespaceDefault,
+					Name:            "xxx",
+					ResourceVersion: "12345",
+				},
 			},
 		},
 	}

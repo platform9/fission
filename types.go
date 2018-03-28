@@ -99,6 +99,7 @@ type (
 		// package update, making it possible to cache the function based on its metadata.
 		ResourceVersion string `json:"resourceversion,omitempty"`
 	}
+
 	FunctionPackageRef struct {
 		PackageRef PackageRef `json:"packageref"`
 
