@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/util/validation"
 )
@@ -311,7 +312,7 @@ func (spec HTTPTriggerSpec) Validate() (errs []error) {
 }
 
 func (spec KubernetesWatchTriggerSpec) Validate() (errs []error) {
-	switch spec.Type {
+	switch strings.ToUpper(spec.Type) {
 	case "POD", "SERVICE", "REPLICATIONCONTROLLER", "JOB":
 	default:
 		errs = append(errs, MakeValidationErr(ErrorUnsupportedType, "KubernetesWatchTriggerSpec.Type", spec.Type, "not a valid supported type"))

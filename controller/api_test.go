@@ -148,6 +148,7 @@ func TestHTTPTriggerApi(t *testing.T) {
 			Namespace: metav1.NamespaceDefault,
 		},
 		Spec: fission.HTTPTriggerSpec{
+			Method:      http.MethodGet,
 			RelativeURL: "/hello",
 			FunctionReference: fission.FunctionReference{
 				Type: fission.FunctionReferenceTypeFunctionName,

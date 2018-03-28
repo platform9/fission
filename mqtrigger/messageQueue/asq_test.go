@@ -104,7 +104,7 @@ func (m *azureHTTPClientMock) Do(req *http.Request) (*http.Response, error) {
 
 func TestNewStorageConnectionMissingAccountName(t *testing.T) {
 	connection, err := newAzureStorageConnection(DummyRouterURL, MessageQueueConfig{
-		MQType: ASQ,
+		MQType: fission.MessageQueueTypeASQ,
 		Url:    "",
 	})
 	require.Nil(t, connection)
@@ -114,7 +114,7 @@ func TestNewStorageConnectionMissingAccountName(t *testing.T) {
 func TestNewStorageConnectionMissingAccessKey(t *testing.T) {
 	_ = os.Setenv("AZURE_STORAGE_ACCOUNT_NAME", "accountname")
 	connection, err := newAzureStorageConnection(DummyRouterURL, MessageQueueConfig{
-		MQType: ASQ,
+		MQType: fission.MessageQueueTypeASQ,
 		Url:    "",
 	})
 	_ = os.Unsetenv("AZURE_STORAGE_ACCOUNT_NAME")
@@ -291,7 +291,7 @@ func TestAzureStorageQueuePoisonMessage(t *testing.T) {
 				Type: fission.FunctionReferenceTypeFunctionName,
 				Name: FunctionName,
 			},
-			MessageQueueType: ASQ,
+			MessageQueueType: fission.MessageQueueTypeASQ,
 			Topic:            QueueName,
 			ContentType:      ContentType,
 		},
@@ -434,7 +434,7 @@ func runAzureStorageQueueTest(t *testing.T, count int, output bool) {
 				Type: fission.FunctionReferenceTypeFunctionName,
 				Name: FunctionName,
 			},
-			MessageQueueType: ASQ,
+			MessageQueueType: fission.MessageQueueTypeASQ,
 			Topic:            QueueName,
 			ResponseTopic:    responseTopic,
 			ContentType:      ContentType,
