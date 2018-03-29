@@ -24,7 +24,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api"
-	v1 "k8s.io/client-go/pkg/api/v1"
+	apiv1 "k8s.io/client-go/pkg/api/v1"
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
@@ -196,15 +196,23 @@ func (gpm *GenericPoolManager) getEnvPoolsize(env *crd.Environment) int32 {
 	return poolsize
 }
 
-// IsValidPod ranges through kubeObjects and extracts the pod name and namespace to perform a get on the pod.
-// if the returned pod contains the address passed as the argument and the pod is not in a failed stated,
-// it means it's a valid pod, so returns true. else returns false.
+// IsValidPod checks if pod is not deleted and that it has the address passed as the argument. Also checks that all the
+// containers in it are reporting a ready status for the healthCheck.
 func (gpm *GenericPoolManager) IsValidPod(kubeObjects []api.ObjectReference, podAddress string) bool {
 	for _, obj := range kubeObjects {
 		if obj.Kind == "pod" {
+			// local function to check if all containers in a pod are ready
+			isReadyPod := func(pod *apiv1.Pod) bool {
+				for _, cStatus := range pod.Status.ContainerStatuses {
+					if !cStatus.Ready {
+						return false
+					}
+				}
+				return true
+			}
+
 			pod, err := gpm.kubernetesClient.CoreV1().Pods(obj.Namespace).Get(obj.Name, metav1.GetOptions{})
-			if err == nil && strings.Contains(podAddress, pod.Status.PodIP) &&
-				pod.Status.Phase != v1.PodFailed {
+			if err == nil && strings.Contains(podAddress, pod.Status.PodIP) && isReadyPod(pod) {
 				log.Printf("Valid pod address : %s", podAddress)
 				return true
 			}
