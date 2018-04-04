@@ -2,6 +2,11 @@
 
 set -euo pipefail
 
+if [[ "$TRAVIS_EVENT_TYPE" -e "cron" ]]
+then
+    exit 0
+fi
+
 if [ ! -f ${HOME}/.kube/config ]
 then
     echo "Skipping end to end tests, no cluster credentials"

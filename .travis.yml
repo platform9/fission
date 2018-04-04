@@ -38,7 +38,7 @@ script:
   - hack/verify-gofmt.sh
   - hack/verify-govet.sh
   - hack/runtests.sh
-  - test/build_and_test.sh
+  #- test/build_and_test.sh // Remove before merging the PR
   - test/test_upgrade.sh
 
 notifications:
