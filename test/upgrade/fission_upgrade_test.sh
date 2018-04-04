@@ -2,10 +2,12 @@
 
 set -euo pipefail
 
-if [[ "$TRAVIS_EVENT_TYPE" -ne "cron" ]]
-then
-    exit 0
-fi
+# To be uncommented before merge, right now for testing can't be cron
+
+#if [[ "$TRAVIS_EVENT_TYPE" -ne "cron" ]]
+#then
+#    exit 0
+#fi
 
 if [ ! -f ${HOME}/.kube/config ]
 then
@@ -21,7 +23,7 @@ popd
 # This will change for every new release
 CURRENT_VERSION=0.6.0
 
-source ../test_utils.sh
+source $ROOT/test/test_utils.sh
 source $(dirname $0)/fixture_tests.sh
 
 id=$(generate_test_id)
