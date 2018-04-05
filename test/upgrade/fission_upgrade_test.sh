@@ -65,8 +65,8 @@ port_forward_services $id $routerNodeport
 
 ## Setup - create fixtures for tests
 
-setup
-trap cleanup EXIT
+setup_fission_objects
+trap "cleanup $id" EXIT
 
 ## Test before upgrade
 
