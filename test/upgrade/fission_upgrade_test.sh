@@ -61,6 +61,8 @@ https://github.com/fission/fission/releases/download/${CURRENT_VERSION}/fission-
 
 mkdir temp && cd temp && curl -Lo fission https://github.com/fission/fission/releases/download/${CURRENT_VERSION}/fission-cli-linux && chmod +x fission && sudo mv fission /usr/local/bin/ && cd .. && rm -rf temp
 
+port_forward_services $id $routerNodeport
+
 ## Setup - create fixtures for tests
 
 setup
