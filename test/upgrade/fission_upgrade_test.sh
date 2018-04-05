@@ -40,10 +40,24 @@ helmVars=functionNamespace=$fns,controllerPort=$controllerNodeport,routerPort=$r
 
 dump_system_info
 
-helm install    \
---name $id      \
---wait			\
---timeout 540	\
+timeout 30 bash -c "helm_setup"
+
+echo "Deleting old releases"
+helm list -q|xargs -I@ bash -c "helm_uninstall_fission @"
+
+# deleting ns does take a while after command is issued
+while kubectl get ns| grep "fission-builder"
+do
+    sleep 5
+done
+
+echo "id and ns = $id and $ns"
+echo "helmVars = $helmVars"
+
+helm install \
+--name $id \
+--wait \
+--timeout 540 \
 --set $helmVars \
 --namespace $ns \
 https://github.com/fission/fission/releases/download/${CURRENT_VERSION}/fission-all-${CURRENT_VERSION}.tgz
@@ -88,18 +102,7 @@ build_fission_cli
 
 helmVars=image=$IMAGE,imageTag=$TAG,fetcherImage=$FETCHER_IMAGE,fetcherImageTag=$TAG,logger.fluentdImage=$FLUENTD_IMAGE,logger.fluentdImageTag=$TAG,functionNamespace=$fns,controllerPort=$controllerNodeport,routerPort=$routerNodeport,pullPolicy=Always,analytics=false,pruneInterval=$pruneInterval,routerServiceType=$routerServiceType
 
-timeout 30 bash -c "helm_setup"
-
-echo "Deleting old releases"
-helm list -q|xargs -I@ bash -c "helm_uninstall_fission @"
-
-# deleting ns does take a while after command is issued
-while kubectl get ns| grep "fission-builder"
-do
-    sleep 5
-done
-
-echo "Installing fission"
+echo "Upgrading fission"
 helm upgrade	\
  --wait			\
  --timeout 540	        \
