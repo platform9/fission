@@ -51,9 +51,6 @@ do
     sleep 5
 done
 
-echo "id and ns = $id and $ns"
-echo "helmVars = $helmVars"
-
 helm install \
 --name $id \
 --wait \
@@ -61,6 +58,8 @@ helm install \
 --set $helmVars \
 --namespace $ns \
 https://github.com/fission/fission/releases/download/${CURRENT_VERSION}/fission-all-${CURRENT_VERSION}.tgz
+
+mkdir temp && cd temp && curl -Lo fission https://github.com/fission/fission/releases/download/${CURRENT_VERSION}/fission-cli-linux && chmod +x fission && sudo mv fission /usr/local/bin/ && cd .. && rm -rf temp
 
 ## Setup - create fixtures for tests
 
@@ -97,6 +96,8 @@ build_and_push_env_builder $ENV $REPO/$ENV-env-builder:$TAG $BUILDER_IMAGE:$TAG
 build_and_push_fluentd $FLUENTD_IMAGE:$TAG
 
 build_fission_cli
+
+sudo mv $ROOT/fission/fission /usr/local/bin/
 
 ## Upgrade 
 
