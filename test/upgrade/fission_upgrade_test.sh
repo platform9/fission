@@ -113,14 +113,19 @@ helm upgrade	\
  --namespace $ns        \
  $id $ROOT/charts/fission-all
 
-validate_post_upgrade
-
-port_forward_services $id $routerNodeport
-
 sleep 10 # Takes a few seconds after upgrade to re-create K8S objects etc.
 
-## Tests
+port=8889 # Change local port as earlier bound port might not work
+kubectl get pods -l svc="router" -o name --namespace $ns | \
+        sed 's/^.*\///' | \
+        xargs -I{} kubectl port-forward {} $port:8888 -n $ns &
 
+export FISSION_ROUTER="127.0.0.1:"
+FISSION_ROUTER+="$port"
+export PATH=$ROOT/fission:$PATH
+
+## Tests
+validate_post_upgrade
 upgrade_tests
 
 ## Cleanup
