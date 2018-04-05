@@ -40,9 +40,10 @@ validate_post_upgrade() {
     echo `fission route list`
 }
 
-cleanup() {
+cleanup_fission_objects() {
     log "==== Cleanup Start ===="
-    id = $1
+    log "Input: $1"
+    id=$1
     echo "Cleaning up objects"
     fission env delete --name nodejs || true
     fission fn delete --name upgradehello || true

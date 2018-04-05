@@ -66,7 +66,7 @@ port_forward_services $id $routerNodeport
 ## Setup - create fixtures for tests
 
 setup_fission_objects
-trap "cleanup $id" EXIT
+trap "cleanup_fission_objects $id" EXIT
 
 ## Test before upgrade
 
@@ -128,6 +128,4 @@ export PATH=$ROOT/fission:$PATH
 validate_post_upgrade
 upgrade_tests
 
-## Cleanup
-
-cleanup $id
+## Cleanup is done by trap
