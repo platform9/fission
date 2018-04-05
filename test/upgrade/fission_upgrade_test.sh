@@ -113,6 +113,7 @@ helm upgrade	\
  --namespace $ns        \
  $id $ROOT/charts/fission-all
 
+port_forward_services $id $routerNodeport
 
 ## Tests
 
@@ -120,4 +121,4 @@ upgrade_tests
 
 ## Cleanup
 
-cleanup
+cleanup $id
