@@ -113,7 +113,11 @@ helm upgrade	\
  --namespace $ns        \
  $id $ROOT/charts/fission-all
 
+validate_post_upgrade
+
 port_forward_services $id $routerNodeport
+
+sleep 10 # Takes a few seconds after upgrade to re-create K8S objects etc.
 
 ## Tests
 

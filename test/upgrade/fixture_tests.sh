@@ -30,6 +30,16 @@ upgrade_tests() {
     log "==== Tests End ===="
 }
 
+validate_post_upgrade() {
+    echo `fission -v`
+    echo "Fission environments:"
+    echo `fission env list`
+    echo "Fission Functions:"
+    echo `fission fn list`
+    echo "Fission Routes:"
+    echo `fission route list`
+}
+
 cleanup() {
     log "==== Cleanup Start ===="
     id = $1
