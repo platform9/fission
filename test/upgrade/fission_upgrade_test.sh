@@ -30,13 +30,10 @@ id=$(generate_test_id)
 ns=f-$id
 fns=f-func-$id
 controllerNodeport=31234
-routerNodeport=31235
 pruneInterval=1
-routerServiceType=ClusterIP
+routerServiceType=LoadBalancer
 
-helmVars=functionNamespace=$fns,controllerPort=$controllerNodeport,routerPort=$routerNodeport,pullPolicy=Always,analytics=false,pruneInterval=$pruneInterval,routerServiceType=$routerServiceType
-
-#serviceType=NodePort
+helmVars=functionNamespace=$fns,controllerPort=$controllerNodeport,pullPolicy=Always,analytics=false,pruneInterval=$pruneInterval,routerServiceType=$routerServiceType
 
 dump_system_info
 
@@ -61,7 +58,8 @@ https://github.com/fission/fission/releases/download/${CURRENT_VERSION}/fission-
 
 mkdir temp && cd temp && curl -Lo fission https://github.com/fission/fission/releases/download/${CURRENT_VERSION}/fission-cli-linux && chmod +x fission && sudo mv fission /usr/local/bin/ && cd .. && rm -rf temp
 
-port_forward_services $id $routerNodeport
+wait_for_service $id "router"
+export FISSION_ROUTER=$(kubectl -n $ns get svc router -o jsonpath='{...ip}')
 
 ## Setup - create fixtures for tests
 
@@ -95,7 +93,7 @@ sudo mv $ROOT/fission/fission /usr/local/bin/
 
 ## Upgrade 
 
-helmVars=image=$IMAGE,imageTag=$TAG,fetcherImage=$FETCHER_IMAGE,fetcherImageTag=$TAG,logger.fluentdImage=$FLUENTD_IMAGE,logger.fluentdImageTag=$TAG,functionNamespace=$fns,controllerPort=$controllerNodeport,routerPort=$routerNodeport,pullPolicy=Always,analytics=false,pruneInterval=$pruneInterval,routerServiceType=$routerServiceType
+helmVars=image=$IMAGE,imageTag=$TAG,fetcherImage=$FETCHER_IMAGE,fetcherImageTag=$TAG,logger.fluentdImage=$FLUENTD_IMAGE,logger.fluentdImageTag=$TAG,functionNamespace=$fns,controllerPort=$controllerNodeport,pullPolicy=Always,analytics=false,pruneInterval=$pruneInterval,routerServiceType=$routerServiceType
 
 echo "Upgrading fission"
 helm upgrade	\
@@ -107,14 +105,8 @@ helm upgrade	\
 
 sleep 10 # Takes a few seconds after upgrade to re-create K8S objects etc.
 
-port=8889 # Change local port as earlier bound port might not work
-kubectl get pods -l svc="router" -o name --namespace $ns | \
-        sed 's/^.*\///' | \
-        xargs -I{} kubectl port-forward {} $port:8888 -n $ns &
-
-export FISSION_ROUTER="127.0.0.1:"
-FISSION_ROUTER+="$port"
-export PATH=$ROOT/fission:$PATH
+# No need to wait as upgrade won't create a new LB
+export FISSION_ROUTER=$(kubectl -n $ns get svc router -o jsonpath='{...ip}')
 
 ## Tests
 validate_post_upgrade

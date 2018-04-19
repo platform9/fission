@@ -242,6 +242,23 @@ port_forward_services() {
         xargs -I{} kubectl port-forward {} $port:$port -n $ns &
 }
 
+wait_for_service() { 
+    id=$1 
+    svc=$2 
+  
+    ns=f-$id 
+    while true 
+        do 
+        ip=$(kubectl -n $ns get svc $svc -o jsonpath='{...ip}') 
+        if [ ! -z $ip ] 
+        then 
+            break 
+        fi 
+        echo Waiting for service $svc... 
+        sleep 1 
+    done 
+ } 
+
 dump_builder_pod_logs() {
     bns=$1
     builderPods=$(kubectl -n $bns get pod -o name)
