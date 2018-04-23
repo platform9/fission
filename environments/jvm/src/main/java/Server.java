@@ -55,6 +55,7 @@ public class Server {
 			return ResponseEntity.ok(fn.apply(json));
 		}
 	}
+	//TODO Add mapping for other methods too.
 	
 
     @PostMapping(path = "/v2/specialize", consumes = "application/json")
@@ -64,16 +65,19 @@ public class Server {
     	if (!file.exists()) {
     		return ResponseEntity.badRequest().body("/userfunc/user not found");
     	}
-    	System.out.println("file="+ file);
     	
-    	URLClassLoader fnClass = null;
+    	String entryPoint = req.getFunctionname();
+
+    	JarFile jarFile = null;
+    	URLClassLoader cl = null;
     	try {
     		
-    		JarFile jarFile = new JarFile(file);
+    		jarFile = new JarFile(file);
     		Enumeration<JarEntry> e = jarFile.entries();
     		URL[] urls = { new URL("jar:file:" + file+"!/") };
-    		URLClassLoader cl = URLClassLoader.newInstance(urls);
+    		cl = URLClassLoader.newInstance(urls);
 
+    		// Load all dependent classes from libraries etc. 
     		while (e.hasMoreElements()) {
     		    JarEntry je = e.nextElement();
     		    if(je.isDirectory() || !je.getName().endsWith(".class")){
@@ -81,37 +85,36 @@ public class Server {
     		    }
     		    String className = je.getName().substring(0,je.getName().length()-6);
     		    className = className.replace('/', '.');
-    		    System.out.println("class="+className);
-    		    Class c = cl.loadClass(className);
-
+    		    cl.loadClass(className);
     		}
-
-			fnClass = new URLClassLoader(new URL[] {file.toURI().toURL()});
-			// How to get only the class with Function 
-			fn = (Function<Object, Object>) fnClass.loadClass("io.fission.HelloWorld").newInstance();
-
-			//fnClass.loadClass("io.fission.Person").newInstance();
-			//TODO We need to load all classes
+    		// Instantiate the function class
+    		//TODO Check if it is better idea to get main class from MANIFEST.MF
+			fn = (Function<Object, Object>) cl.loadClass(entryPoint).newInstance();
 			
 		} catch (MalformedURLException e) {
 			e.printStackTrace();
-			return ResponseEntity.badRequest().body("Error loading the class from the file");
+			return ResponseEntity.badRequest().body("Error loading the Function class file");
 		} catch (ClassNotFoundException e) {
 			e.printStackTrace();
+			return ResponseEntity.badRequest().body("Error loading Function or dependent class");
 		} catch (InstantiationException e) {
 			e.printStackTrace();
+			return ResponseEntity.badRequest().body("Error creating a new instance of function class");
 		} catch (IllegalAccessException e) {
 			e.printStackTrace();
+			return ResponseEntity.badRequest().body("Error creating a new instance of function class");
 		} catch (IOException e) {
 			e.printStackTrace();
-		} /*finally {
+			return ResponseEntity.badRequest().body("Error reading the JAR file");
+		} finally {
 			try {
-				fnClass.close();
+				cl.close();
+				jarFile.close();
 			} catch (IOException e) {
 				e.printStackTrace();
 				return ResponseEntity.badRequest().body("Error closing the file while loading the class");
 			}
-		}*/
+		}
     	long elapsedTime = System.nanoTime() - startTime;
     	System.out.println("Specialize call done in: " + elapsedTime/1000000 +" ms");
 
