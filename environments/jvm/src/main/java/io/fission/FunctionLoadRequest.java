@@ -1,3 +1,4 @@
+package io.fission;
 
 public class FunctionLoadRequest {
 	

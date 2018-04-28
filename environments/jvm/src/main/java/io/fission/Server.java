@@ -1,3 +1,4 @@
+package io.fission;
 
 import java.io.File;
 import java.io.IOException;
@@ -12,6 +13,7 @@ import java.util.jar.JarFile;
 
 import org.springframework.boot.*;
 import org.springframework.boot.autoconfigure.*;
+import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,6 +26,8 @@ public class Server {
 		
 	private Function<Object, Object> fn;
 
+	
+	/*
 	@GetMapping("/")
 	ResponseEntity<Object> home(@RequestParam Map<String, String> params) throws JsonProcessingException {
 		ObjectMapper mapper = new ObjectMapper();
@@ -36,23 +40,14 @@ public class Server {
 		} else {
 			return ResponseEntity.ok(fn.apply(json));
 		}
-	}
+	} */
 	
-	@PostMapping("/")
-	ResponseEntity<Object> home(@RequestBody Object req){
-		ObjectMapper mapper = new ObjectMapper();
-		String json = "";
-		
-		try {
-			json = mapper.writeValueAsString(req);
-		} catch (JsonProcessingException e) {
-			e.printStackTrace();
-		}
-		
+	@RequestMapping("/")
+	ResponseEntity<Object> home(RequestEntity<?> req){
 		if (fn == null ) {
 			return ResponseEntity.badRequest().body("Container not specialized");
 		} else {
-			return ResponseEntity.ok(fn.apply(json));
+			return ResponseEntity.ok(fn.apply(req));
 		}
 	}
 	//TODO Add mapping for other methods too.
@@ -69,13 +64,14 @@ public class Server {
     	String entryPoint = req.getFunctionname();
 
     	JarFile jarFile = null;
-    	URLClassLoader cl = null;
+    	ClassLoader cl = null;
     	try {
     		
     		jarFile = new JarFile(file);
     		Enumeration<JarEntry> e = jarFile.entries();
     		URL[] urls = { new URL("jar:file:" + file+"!/") };
-    		cl = URLClassLoader.newInstance(urls);
+    		//cl = URLClassLoader.newInstance(urls);
+    		cl = Thread.currentThread().getContextClassLoader();
 
     		// Load all dependent classes from libraries etc. 
     		while (e.hasMoreElements()) {
@@ -108,7 +104,7 @@ public class Server {
 			return ResponseEntity.badRequest().body("Error reading the JAR file");
 		} finally {
 			try {
-				cl.close();
+				//cl.close();
 				jarFile.close();
 			} catch (IOException e) {
 				e.printStackTrace();
