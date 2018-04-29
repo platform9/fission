@@ -2,7 +2,6 @@ package io.fission;
 
 import java.io.IOException;
 
-import org.springframework.boot.SpringApplication;
 import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
 
@@ -12,14 +11,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class HelloWorld implements FissionFunction {
 
-	public HelloWorld() {
-		System.out.println("Initialized the Function class");
-		
+	public static void main(String args[]) {
+		System.out.println("Main class");
 	}
 	
-	 public static void main(String[] args) {
-	        SpringApplication.run(HelloWorld.class, args);
-	 }
+	public HelloWorld() {
+		System.out.println("Initialized the Function class");	
+	}
 
 	@Override
 	public ResponseEntity call(RequestEntity req, FissionContext context) {

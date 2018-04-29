@@ -70,21 +70,21 @@ public class Server {
     		jarFile = new JarFile(file);
     		Enumeration<JarEntry> e = jarFile.entries();
     		URL[] urls = { new URL("jar:file:" + file+"!/") };
-    		//cl = URLClassLoader.newInstance(urls);
-    		cl = Thread.currentThread().getContextClassLoader();
-
+    		cl = URLClassLoader.newInstance(urls);
+    		
     		// Load all dependent classes from libraries etc. 
     		while (e.hasMoreElements()) {
     		    JarEntry je = e.nextElement();
+    		    
     		    if(je.isDirectory() || !je.getName().endsWith(".class")){
     		        continue;
     		    }
     		    String className = je.getName().substring(0,je.getName().length()-6);
     		    className = className.replace('/', '.');
+    		    //System.out.println("JE="+je.getName()+" &ClassName="+className);
     		    cl.loadClass(className);
     		}
     		// Instantiate the function class
-    		//TODO Check if it is better idea to get main class from MANIFEST.MF
 			fn = (Function<Object, Object>) cl.loadClass(entryPoint).newInstance();
 			
 		} catch (MalformedURLException e) {
