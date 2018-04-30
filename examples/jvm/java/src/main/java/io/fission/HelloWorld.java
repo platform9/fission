@@ -1,19 +1,16 @@
 package io.fission;
 
-import java.io.IOException;
+import java.util.LinkedHashMap;
 
 import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
 
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-public class HelloWorld implements FissionFunction {
+import io.fission.FissionFunction;
+import io.fission.FissionContext;
 
-	public static void main(String args[]) {
-		System.out.println("Main class");
-	}
+public class HelloWorld implements FissionFunction<RequestEntity, FissionContext> {
 	
 	public HelloWorld() {
 		System.out.println("Initialized the Function class");	
@@ -22,26 +19,13 @@ public class HelloWorld implements FissionFunction {
 	@Override
 	public ResponseEntity call(RequestEntity req, FissionContext context) {
 		
-		String json = (String)req.getBody();
+		LinkedHashMap json = (LinkedHashMap) req.getBody();
 		
 		ObjectMapper mapper = new ObjectMapper();
 		Person p = null;
-		try {
-			p = mapper.readValue(json, Person.class);
-		} catch (JsonParseException e) {
-			e.printStackTrace();
-		} catch (JsonMappingException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		return ResponseEntity.ok("Hello Mr. "+ p.getName() + " Happy"+ p.getAge());
-		
-	}
-
-	
-	
-	 
+		p = mapper.convertValue(json, Person.class);
+		return ResponseEntity.ok("Hello Mr. "+ p.getName() + " Happy"+ p.getAge());	
+	}	 
 
 }
 

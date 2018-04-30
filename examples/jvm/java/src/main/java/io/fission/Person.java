@@ -1,6 +1,5 @@
 package io.fission;
 
-
 public class Person {
 	
 	private String name;

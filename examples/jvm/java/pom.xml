@@ -24,11 +24,22 @@
 		<dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+            <scope>provided</scope>
         </dependency>
 		<dependency>
 		    <groupId>com.fasterxml.jackson.core</groupId>
 		    <artifactId>jackson-databind</artifactId>
-		</dependency>	
+		</dependency>
+		<dependency>
+		    <groupId>com.fasterxml.jackson.core</groupId>
+		    <artifactId>jackson-core</artifactId>
+		</dependency>
+		<dependency>
+		    <groupId>io.fission</groupId>
+		    <artifactId>fission-java-core</artifactId>
+		    <version>0.0.1</version>
+		    <scope>provided</scope>
+		</dependency>		
     </dependencies>
 
 	<build>

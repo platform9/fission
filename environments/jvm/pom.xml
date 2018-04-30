@@ -17,7 +17,12 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
-        </dependency>       
+        </dependency>
+		<dependency>
+		    <groupId>io.fission</groupId>
+		    <artifactId>fission-java-core</artifactId>
+		    <version>0.0.1</version>
+		</dependency>        
     </dependencies>
 
     <build>

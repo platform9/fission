@@ -6,8 +6,6 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Enumeration;
-import java.util.Map;
-import java.util.function.Function;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
@@ -17,14 +15,13 @@ import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import io.fission.FissionFunction;
 
 @RestController
 @EnableAutoConfiguration
 public class Server {
 		
-	private Function<Object, Object> fn;
+	private FissionFunction fn;
 
 	
 	/*
@@ -47,7 +44,7 @@ public class Server {
 		if (fn == null ) {
 			return ResponseEntity.badRequest().body("Container not specialized");
 		} else {
-			return ResponseEntity.ok(fn.apply(req));
+			return ((ResponseEntity<Object>) ((FissionFunction<RequestEntity, FissionContext>) fn).call(req, null));
 		}
 	}
 	//TODO Add mapping for other methods too.
@@ -70,22 +67,30 @@ public class Server {
     		jarFile = new JarFile(file);
     		Enumeration<JarEntry> e = jarFile.entries();
     		URL[] urls = { new URL("jar:file:" + file+"!/") };
-    		cl = URLClassLoader.newInstance(urls);
+
+    		//TODO Check if the classloading can be improved for ex. use something like: 
+    		// Thread.currentThread().setContextClassLoader(cl);
+    		if (this.getClass().getClassLoader() == null) {
+    			cl = URLClassLoader.newInstance(urls);	
+    		} else {
+    			System.out.println("Using THIS class's CL");
+    			cl = URLClassLoader.newInstance(urls, this.getClass().getClassLoader());
+    		}
     		
     		// Load all dependent classes from libraries etc. 
     		while (e.hasMoreElements()) {
     		    JarEntry je = e.nextElement();
-    		    
     		    if(je.isDirectory() || !je.getName().endsWith(".class")){
     		        continue;
     		    }
     		    String className = je.getName().substring(0,je.getName().length()-6);
     		    className = className.replace('/', '.');
-    		    //System.out.println("JE="+je.getName()+" &ClassName="+className);
+    		    System.out.println("ClassName="+className);
     		    cl.loadClass(className);
     		}
+    		
     		// Instantiate the function class
-			fn = (Function<Object, Object>) cl.loadClass(entryPoint).newInstance();
+			fn = (FissionFunction<RequestEntity, FissionContext>) cl.loadClass(entryPoint).newInstance();
 			
 		} catch (MalformedURLException e) {
 			e.printStackTrace();
