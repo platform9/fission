@@ -85,7 +85,6 @@ public class Server {
     		    }
     		    String className = je.getName().substring(0,je.getName().length()-6);
     		    className = className.replace('/', '.');
-    		    System.out.println("ClassName="+className);
     		    cl.loadClass(className);
     		}
     		
