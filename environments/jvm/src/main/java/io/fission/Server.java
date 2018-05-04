@@ -58,7 +58,11 @@ public class Server {
     		return ResponseEntity.badRequest().body("/userfunc/user not found");
     	}
     	
-    	String entryPoint = req.getFunctionname();
+    	String entryPoint = req.getFunctionName();
+    	System.out.println("Entrypoint class:"+ entryPoint);
+    	if (entryPoint == null) {
+    		return ResponseEntity.badRequest().body("Entrypoint class is missing in the function");
+    	}
 
     	JarFile jarFile = null;
     	ClassLoader cl = null;
@@ -73,8 +77,11 @@ public class Server {
     		if (this.getClass().getClassLoader() == null) {
     			cl = URLClassLoader.newInstance(urls);	
     		} else {
-    			System.out.println("Using THIS class's CL");
     			cl = URLClassLoader.newInstance(urls, this.getClass().getClassLoader());
+    		}
+    		
+    		if (cl == null) {
+    			return ResponseEntity.status(500).body("Failed to initialize the classloader");
     		}
     		
     		// Load all dependent classes from libraries etc. 
@@ -85,6 +92,7 @@ public class Server {
     		    }
     		    String className = je.getName().substring(0,je.getName().length()-6);
     		    className = className.replace('/', '.');
+    		    System.out.println("Class="+ className);
     		    cl.loadClass(className);
     		}
     		

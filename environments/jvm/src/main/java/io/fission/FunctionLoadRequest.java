@@ -3,7 +3,7 @@ package io.fission;
 public class FunctionLoadRequest {
 	
 	private String filepath;
-	private String functionname;
+	private String functionName;
 	private String url;
 	
 	String getFilepath() {
@@ -12,18 +12,16 @@ public class FunctionLoadRequest {
 	void setFilepath(String filepath) {
 		this.filepath = filepath;
 	}
-	String getFunctionname() {
-		return functionname;
-	}
-	void setFunctionname(String functionname) {
-		this.functionname = functionname;
-	}
 	String getUrl() {
 		return url;
 	}
 	void setUrl(String url) {
 		this.url = url;
 	}
-	
-	
+	public String getFunctionName() {
+		return functionName;
+	}
+	public void setFunctionName(String functionName) {
+		this.functionName = functionName;
+	}
 }
