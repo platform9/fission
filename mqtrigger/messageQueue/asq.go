@@ -210,10 +210,13 @@ func (asc AzureStorageConnection) subscribe(trigger *crd.MessageQueueTrigger) (m
 		queue:           asc.service.GetQueue(trigger.Spec.Topic),
 		queueName:       trigger.Spec.Topic,
 		outputQueueName: trigger.Spec.ResponseTopic,
-		functionURL:     asc.routerURL + "/" + strings.TrimPrefix(fission.UrlForFunction(trigger.Spec.FunctionReference.Name, trigger.Metadata.Namespace), "/"),
-		contentType:     trigger.Spec.ContentType,
-		unsubscribe:     make(chan bool),
-		done:            make(chan bool),
+		// with the addition of multi-tenancy, the users can create functions in any namespace. however,
+		// the triggers can only be created in the same namespace as the function.
+		// so essentially, function namespace = trigger namespace.
+		functionURL: asc.routerURL + "/" + strings.TrimPrefix(fission.UrlForFunction(trigger.Spec.FunctionReference.Name, trigger.Metadata.Namespace), "/"),
+		contentType: trigger.Spec.ContentType,
+		unsubscribe: make(chan bool),
+		done:        make(chan bool),
 	}
 
 	go runAzureQueueSubscription(asc, subscription)

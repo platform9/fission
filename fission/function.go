@@ -121,7 +121,6 @@ func fnCreate(c *cli.Context) error {
 
 	fnNamespace := c.String("fnNamespace")
 	envNamespace := c.String("envNamespace")
-	noEnvSharing := c.Bool("no-env-sharing")
 
 	if len(c.String("package")) > 0 {
 		fatal("--package is deprecated, please use --deploy instead.")
@@ -202,16 +201,6 @@ func fnCreate(c *cli.Context) error {
 
 		// create new package in the same namespace as the function.
 		pkgMetadata = createPackage(client, fnNamespace, envName, envNamespace, srcArchiveName, deployArchiveName, buildcmd, specFile)
-	}
-
-	// If the user doesnt want to share his environment with any other function
-	// if so, warn the user that when the other function gets loaded in the env pod, the service account mounted in the env pod will have permissions to view his secret
-	// but this is a trade-off for being able to share warm env containers. by default, we encourage sharing of env containers for optimal resource consumption.
-	if noEnvSharing {
-		fnList, _ := getFunctionsByEnvironment(client, envName, envNamespace)
-		if len(fnList) > 0 {
-			fatal(fmt.Sprintf("Environment : %s.%s is referenced by %d other function(s). When these functions are loaded in the env, they can use the SA mounted in their pods to view each others secrets.", envName, envNamespace, len(fnList)))
-		}
 	}
 
 	invokeStrategy := getInvokeStrategy(c.Int("minscale"), c.Int("maxscale"), c.String("executortype"), getTargetCPU(c))
@@ -406,7 +395,6 @@ func fnUpdate(c *cli.Context) error {
 
 	envName := c.String("env")
 	envNamespace := c.String("envNamespace")
-	noEnvSharing := c.Bool("no-env-sharing")
 	deployArchiveName := c.String("code")
 	if len(deployArchiveName) == 0 {
 		deployArchiveName = c.String("deploy")
@@ -469,16 +457,6 @@ func fnUpdate(c *cli.Context) error {
 	if len(envName) > 0 {
 		function.Spec.Environment.Name = envName
 		function.Spec.Environment.Namespace = envNamespace
-
-		// If the user doesnt want to share his environment with any other function
-		// if so, warn the user that when the other function gets loaded in the env pod, the service account mounted in the env pod will have permissions to view his secret
-		// but this is a trade-off for being able to share warm env containers. by default, we encourage sharing of env containers for optimal resource consumption.
-		if noEnvSharing {
-			fnList, _ := getFunctionsByEnvironment(client, envName, envNamespace)
-			if len(fnList) > 0 {
-				fatal(fmt.Sprintf("Environment : %s.%s is referenced by %d functions. When these functions are loaded in the env, they can use the SA mounted in their pods to view each others secrets.", envName, envNamespace, len(fnList)))
-			}
-		}
 	}
 
 	if len(entrypoint) > 0 {

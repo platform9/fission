@@ -229,7 +229,7 @@ func StartExecutor(fissionNamespace string, functionNamespace string, envBuilder
 	poolID := strings.ToLower(uniuri.NewLen(8))
 	cleanupObjects(kubernetesClient, functionNamespace, poolID)
 	go idleObjectReaper(kubernetesClient, fissionClient, fsCache, time.Minute*2)
-	go cleanupRoleBindings(kubernetesClient, fissionClient, functionNamespace, envBuilderNamespace, time.Minute*30 )
+	go cleanupRoleBindings(kubernetesClient, fissionClient, functionNamespace, envBuilderNamespace, time.Minute*30)
 
 	gpm := poolmgr.MakeGenericPoolManager(
 		fissionClient, kubernetesClient,

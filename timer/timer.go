@@ -129,6 +129,10 @@ func (timer *Timer) newCron(t crd.TimeTrigger) *cron.Cron {
 		headers := map[string]string{
 			"X-Fission-Timer-Name": t.Metadata.Name,
 		}
+
+		// with the addition of multi-tenancy, the users can create functions in any namespace. however,
+		// the triggers can only be created in the same namespace as the function.
+		// so essentially, function namespace = trigger namespace.
 		(*timer.publisher).Publish("", headers, fission.UrlForFunction(t.Spec.FunctionReference.Name, t.Metadata.Namespace))
 	})
 	c.Start()

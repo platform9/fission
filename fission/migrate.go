@@ -43,7 +43,6 @@ type (
 )
 
 func migrateDumpTPRResource(client *client.Client, filename string) {
-	// TODO : STV
 	pkgs, err := client.PackageList(metav1.NamespaceAll)
 	checkErr(err, "dump packages")
 	fns, err := client.FunctionList(metav1.NamespaceAll)

@@ -100,6 +100,9 @@ func msgHandler(nats *Nats, trigger *crd.MessageQueueTrigger) func(*ns.Msg) {
 				trigger.Spec.FunctionReference.Type, trigger.Metadata.Name)
 		}
 
+		// with the addition of multi-tenancy, the users can create functions in any namespace. however,
+		// the triggers can only be created in the same namespace as the function.
+		// so essentially, function namespace = trigger namespace.
 		url := nats.routerUrl + "/" + strings.TrimPrefix(fission.UrlForFunction(trigger.Spec.FunctionReference.Name, trigger.Metadata.Namespace), "/")
 		log.Printf("Making HTTP request to %v", url)
 

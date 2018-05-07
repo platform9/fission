@@ -158,6 +158,10 @@ func (gpm *GenericPoolManager) makeFuncController(fissionClient *crd.FissionClie
 				oldFunc := oldObj.(*crd.Function)
 				newFunc := newObj.(*crd.Function)
 
+				if oldFunc.Metadata.ResourceVersion == newFunc.Metadata.ResourceVersion {
+					return
+				}
+
 				envChanged := (oldFunc.Spec.Environment.Namespace != newFunc.Spec.Environment.Namespace)
 
 				executorTypeChangedToPM := (oldFunc.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType != fission.ExecutorTypePoolmgr &&
