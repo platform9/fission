@@ -17,21 +17,17 @@ limitations under the License.
 package main
 
 import (
-	"fmt"
-	"io/ioutil"
-	"net/http"
-	"os"
-	"path/filepath"
-	"strings"
-
-	version "github.com/fission/fission"
-	"github.com/urfave/cli"
+	log "github.com/sirupsen/logrus"
 )
 
-verifyFunctionSpecReferences() {
-
-}
 
 func main() {
-	verifyFunctionSpecReferences()
+	log.Printf("Starting post-install tasks")
+	// TODO :  wait for crds to be present on the k8s cluster before verifying.
+
+	crdBackedClient := makeCRDBackedClient()
+	crdBackedClient.VerifyFunctionSpecReferences()
+	crdBackedClient.RemoveClusterAdminRolesForFissionSA()
+
+	select {}
 }
