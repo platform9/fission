@@ -29,13 +29,14 @@ type (
 	FetchRequestType int
 
 	FetchRequest struct {
-		FetchType     FetchRequestType             `json:"fetchType"`
-		Package       metav1.ObjectMeta            `json:"package"`
-		Url           string                       `json:"url"`
-		StorageSvcUrl string                       `json:"storagesvcurl"`
-		Filename      string                       `json:"filename"`
-		Secrets       []fission.SecretReference    `json:"secretList"`
-		ConfigMaps    []fission.ConfigMapReference `json:"configMapList"`
+		FetchType      FetchRequestType             `json:"fetchType"`
+		Package        metav1.ObjectMeta            `json:"package"`
+		Url            string                       `json:"url"`
+		StorageSvcUrl  string                       `json:"storagesvcurl"`
+		Filename       string                       `json:"filename"`
+		Secrets        []fission.SecretReference    `json:"secretList"`
+		ConfigMaps     []fission.ConfigMapReference `json:"configMapList"`
+		ExtractArchive bool                         `json:"extractarchive"`
 	}
 
 	// UploadRequest send from builder manager describes which
@@ -301,7 +302,11 @@ func (fetcher *Fetcher) Fetch(req FetchRequest) (int, error) {
 			log.Println(err.Error())
 			return 500, err
 		}
-		tmpPath = tmpUnarchivePath
+
+		// If extract is not true then pass the directory path, else the archive file
+		if !req.ExtractArchive {
+			tmpPath = tmpUnarchivePath
+		}
 	}
 
 	// move tmp file to requested filename

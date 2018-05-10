@@ -127,9 +127,10 @@ func (deploy *NewDeploy) getDeploymentSpec(fn *crd.Function, env *crd.Environmen
 			Namespace: fn.Spec.Package.PackageRef.Namespace,
 			Name:      fn.Spec.Package.PackageRef.Name,
 		},
-		Filename:   targetFilename,
-		Secrets:    fn.Spec.Secrets,
-		ConfigMaps: fn.Spec.ConfigMaps,
+		Filename:       targetFilename,
+		Secrets:        fn.Spec.Secrets,
+		ConfigMaps:     fn.Spec.ConfigMaps,
+		ExtractArchive: env.Spec.ExtractArchive,
 	}
 
 	loadReq := fission.FunctionLoadRequest{

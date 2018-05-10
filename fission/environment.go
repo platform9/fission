@@ -69,6 +69,11 @@ func envCreate(c *cli.Context) error {
 		}
 	}
 
+	extractArchive := false
+	if c.IsSet("extract") {
+		extractArchive = c.Bool("extract")
+	}
+
 	// Environment API interface version is not specified and
 	// builder image is empty, set default interface version
 	if envVersion == 0 {
@@ -95,6 +100,7 @@ func envCreate(c *cli.Context) error {
 			Resources:                    resourceReq,
 			AllowAccessToExternalNetwork: envExternalNetwork,
 			TerminationGracePeriod:       envGracePeriod,
+			ExtractArchive:               extractArchive,
 		},
 	}
 
