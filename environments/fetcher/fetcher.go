@@ -294,7 +294,8 @@ func (fetcher *Fetcher) Fetch(req FetchRequest) (int, error) {
 	}
 
 	// check file type here, if the file is a zip file unarchive it.
-	if archiver.Zip.Match(tmpPath) {
+	// If extract true then extract else use archive as it is
+	if archiver.Zip.Match(tmpPath) && req.ExtractArchive {
 		// unarchive tmp file to a tmp unarchive path
 		tmpUnarchivePath := filepath.Join(fetcher.sharedVolumePath, uuid.NewV4().String())
 		err := fetcher.unarchive(tmpPath, tmpUnarchivePath)
@@ -303,10 +304,7 @@ func (fetcher *Fetcher) Fetch(req FetchRequest) (int, error) {
 			return 500, err
 		}
 
-		// If extract is not true then pass the directory path, else the archive file
-		if !req.ExtractArchive {
-			tmpPath = tmpUnarchivePath
-		}
+		tmpPath = tmpUnarchivePath
 	}
 
 	// move tmp file to requested filename
