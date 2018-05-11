@@ -271,7 +271,7 @@ type (
 
 		// ExtractArchive is used by fetcher to determine if the extrcted archive
 		// or unarchived file should be placed, which is then used by specialize handler
-		ExtractArchive bool
+		ExtractArchive bool `json:"extractarchive"`
 	}
 
 	AllowedFunctionsPerContainer string

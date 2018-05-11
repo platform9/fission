@@ -293,8 +293,6 @@ func (fetcher *Fetcher) Fetch(req FetchRequest) (int, error) {
 		}
 	}
 
-	// check file type here, if the file is a zip file unarchive it.
-	// If extract true then extract else use archive as it is
 	if archiver.Zip.Match(tmpPath) && req.ExtractArchive {
 		// unarchive tmp file to a tmp unarchive path
 		tmpUnarchivePath := filepath.Join(fetcher.sharedVolumePath, uuid.NewV4().String())

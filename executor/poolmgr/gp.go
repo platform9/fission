@@ -363,13 +363,6 @@ func (gp *GenericPool) specializePod(pod *apiv1.Pod, metadata *metav1.ObjectMeta
 		return err
 	}
 
-	env, err := gp.fissionClient.
-		Environments(fn.Spec.Environment.Namespace).
-		Get(fn.Spec.Environment.Name)
-	if err != nil {
-		return err
-	}
-
 	// for backward compatibility, since most v1 env
 	// still try to load user function from hard coded
 	// path /userfunc/user
@@ -387,7 +380,7 @@ func (gp *GenericPool) specializePod(pod *apiv1.Pod, metadata *metav1.ObjectMeta
 		Filename:       targetFilename,
 		Secrets:        fn.Spec.Secrets,
 		ConfigMaps:     fn.Spec.ConfigMaps,
-		ExtractArchive: env.Spec.ExtractArchive,
+		ExtractArchive: gp.env.Spec.ExtractArchive,
 	})
 	if err != nil {
 		return err
