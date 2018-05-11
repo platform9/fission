@@ -72,7 +72,6 @@ func envCreate(c *cli.Context) error {
 	extractArchive := true
 	if c.IsSet("extract") {
 		extractArchive = c.Bool("extract")
-		fmt.Println("extractArchive=", extractArchive)
 	}
 
 	// Environment API interface version is not specified and
