@@ -21,7 +21,7 @@
 		<dependency>
 		    <groupId>io.fission</groupId>
 		    <artifactId>fission-java-core</artifactId>
-		    <version>0.0.1</version>
+		    <version>0.0.1-SNAPSHOT</version>
 		</dependency>        
     </dependencies>
 
@@ -34,4 +34,12 @@
         </plugins>
     </build>
 
+	<!-- Adding Sonatype repository to pull snapshots -->
+	<repositories>
+		<repository>
+			<id>fission-java-core</id>
+			<name>fission-java-core-snapshot</name>
+			<url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+		</repository>
+	</repositories>
 </project>
