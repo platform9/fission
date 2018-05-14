@@ -91,3 +91,9 @@ heapster: false
 ## This interval configures the frequency at which it runs inside the storagesvc pod.
 ## The value is in minutes.
 pruneInterval: 60
+
+## Fission fetcher repository
+preInstallTaskImage: fission/preinstalltask
+
+## Fission fetcher image version
+preInstallTaskImageTag: 0.7.1

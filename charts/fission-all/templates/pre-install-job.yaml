@@ -1,0 +1,35 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ template "fullname" . }}-{{ .Chart.Version }}
+  labels:
+    # The "release" convention makes it easy to tie a release to all of the
+    # Kubernetes resources that were created as part of that release.
+    release: {{ .Release.Name }}
+    # This makes it easy to audit chart usage.
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    app: {{ template "name" . }}
+  annotations:
+    # This is what defines this resource as a hook. Without this line, the
+    # job is considered part of the release.
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  template:
+    metadata:
+      name: {{ template "fullname" . }}
+      labels:
+        release: {{ .Release.Name }}
+        app: {{ template "name" . }}
+      annotations:
+        {{- if .Values.enableIstio }}
+        "sidecar.istio.io/inject": "false"
+        {{- end }}
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: post-install-job
+          image: "fission/alpinecurl"
+          image: minikube/postinstalltasks:latest
+          command: [ "/preinstalltasks"]
+      serviceAccount: fission-svc

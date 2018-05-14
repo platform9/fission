@@ -95,7 +95,6 @@ kind: ServiceAccount
 metadata:
   name: fission-fetcher
   namespace: {{ .Values.functionNamespace }}
-
 ---
 apiVersion: v1
 kind: ServiceAccount

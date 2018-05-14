@@ -8,6 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	multierror "github.com/hashicorp/go-multierror"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/fission/fission/crd"
 )
@@ -16,11 +17,6 @@ type (
 	Client struct {
 		fissionClient     *crd.FissionClient
 		kubernetesClient  *kubernetes.Clientset
-		//storageServiceUrl string
-		//builderManagerUrl string
-		//workflowApiUrl    string
-		//functionNamespace string
-		//useIstio          bool
 	}
 )
 
@@ -36,7 +32,10 @@ func makeCRDBackedClient() *Client {
 		return nil
 	}
 
-	return &Client{fissionClient: fissionClient, kubernetesClient: kubernetesClient}
+	return &Client{
+		fissionClient: fissionClient,
+		kubernetesClient: kubernetesClient,
+	}
 }
 
 func (client *Client) VerifyFunctionSpecReferences() {
@@ -80,48 +79,27 @@ func (client *Client) VerifyFunctionSpecReferences() {
 	}
 
 	log.Printf("VerifyFunctionSpecReferences passed")
+}
 
+func (client *Client) deleteClusterRoleBinding(clusterRoleBinding string) (err error) {
+	for i := 0; i < 5 ; i++ {
+		err = client.kubernetesClient.ClusterRoleBindings().Delete(clusterRoleBinding, metav1.DeleteOptions{})
+		if err != nil && k8serrors.IsNotFound(err) || err == nil {
+			break
+		}
+	}
+
+	return err
 }
 
 func (client *Client) RemoveClusterAdminRolesForFissionSA() {
-	// 1. remove clusterrolebindings : fission-builder-crd and fission-fetcher-crd
-	/*
-	---
-	kind: ClusterRoleBinding
-	apiVersion: rbac.authorization.k8s.io/v1beta1
-	metadata:
-	  name: fission-fetcher-crd
-	subjects:
-	- kind: ServiceAccount
-	  name: fission-fetcher
-	  namespace: {{ .Values.functionNamespace }}
-	roleRef:
-	  kind: ClusterRole
-	  name: cluster-admin
-	  apiGroup: rbac.authorization.k8s.io
+	clusterRoleBindings := []string{"fission-builder-crd", "fission-fetcher-crd"}
+	for _, clusterRoleBinding := range clusterRoleBindings {
+		err := client.deleteClusterRoleBinding(clusterRoleBinding)
+		if err != nil {
+			fatal(fmt.Sprintf("Error deleting rolebinding : %s, err : %v", clusterRoleBinding, err))
+		}
+	}
 
-	---
-	kind: ClusterRoleBinding
-	apiVersion: rbac.authorization.k8s.io/v1beta1
-	metadata:
-	  name: fission-builder-crd
-	subjects:
-	- kind: ServiceAccount
-	  name: fission-builder
-	  namespace: {{ .Values.builderNamespace }}
-	roleRef:
-	  kind: ClusterRole
-	  name: cluster-admin
-	  apiGroup: rbac.authorization.k8s.io
-
-	---
-	 */
-
-	// 2. create 2 rolebindings : package-getter-rb, secret-configmap-getter-rb in default namespace and assign the following
-	// package-getter-rb : [fission-fetcher.fission-function, fission-builder, fission-builder]
-	// secret-configmap-getter-rb : [fission-fetcher.fission-function]
-
-	// TODO : how to be certain the user retained functionNamespace = fission-function and envBuilderNs = fission-builder for helm upgrades?
-	// may be make an api with controller, to return the functionNamespace and builderNamespace
-	// we dont have that problem for helm install, because we can pass the argument of values.functionNamespace and values.envBuilderNamespace to this job.
+	log.Printf("Removed cluster admin rolebindings for fission-builder and fission-fetcher SAs")
 }
