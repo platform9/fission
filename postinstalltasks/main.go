@@ -20,10 +20,19 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+func getStringArgWithDefault(arg interface{}, defaultValue string) string {
+	if arg != nil {
+		return arg.(string)
+	} else {
+		return defaultValue
+	}
+}
 
 func main() {
 	log.Printf("Starting post-install tasks")
 	// TODO :  wait for crds to be present on the k8s cluster before verifying.
+
+	// TODO : Think about all the services installed/ SA created for fission-core installation.
 
 	crdBackedClient := makeCRDBackedClient()
 	crdBackedClient.VerifyFunctionSpecReferences()
