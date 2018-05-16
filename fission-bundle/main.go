@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -150,6 +151,13 @@ func registerTraceExporter(logger *zap.Logger, arguments map[string]interface{})
 }
 
 func main() {
+	// From https://github.com/containous/traefik/pull/1817/files
+	// Tell glog to log into STDERR. Otherwise, we risk
+	// certain kinds of API errors getting logged into a directory not
+	// available in a `FROM scratch` Docker container, causing glog to abort
+	// hard with an exit code > 0.
+	flag.Set("logtostderr", "true")
+
 	usage := `fission-bundle: Package of all fission microservices: controller, router, executor.
 
 Use it to start one or more of the fission servers:

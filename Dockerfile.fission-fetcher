@@ -1,0 +1,30 @@
+FROM golang:1.10.1 as builder
+
+ARG GITCOMMIT=unknown
+# E.g. GITCOMMIT=$(git rev-parse HEAD)
+
+ARG BUILDVERSION=unknown
+# E.g. BUILDVERSION=$(git rev-parse HEAD)
+
+ARG BUILDDATE=unknown
+# E.g. BUILDDATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+
+ARG GOPKG=github.com/fission/fission
+COPY . /go/src/${GOPKG}
+RUN rm -f /go/src/${GOPKG}/Dockerfile*
+WORKDIR /go/src/${GOPKG}/environments/fetcher/cmd
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a \
+    -o /go/bin/fetcher \
+    -gcflags=-trimpath=$GOPATH \
+    -asmflags=-trimpath=$GOPATH \
+    -ldflags "-X github.com/fission/fission.GitCommit=${GITCOMMIT} -X github.com/fission/fission.BuildDate=${BUILDDATE} -X github.com/fission/fission.Version=${BUILDVERSION}"
+
+FROM alpine:latest as emptydir
+RUN mkdir /emptytmp && chmod 1777 /emptytmp
+
+FROM scratch
+COPY --from=builder /go/bin/fetcher /
+COPY --from=emptydir /emptytmp /tmp
+COPY --from=emptydir /bin/sleep /bin/sleep
+
+ENTRYPOINT ["/fetcher"]

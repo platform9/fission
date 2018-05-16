@@ -1,0 +1,33 @@
+FROM golang:1.10.1 as builder
+
+ARG GITCOMMIT=unknown
+# E.g. GITCOMMIT=$(git rev-parse HEAD)
+
+ARG BUILDVERSION=unknown
+# E.g. BUILDVERSION=$(git rev-parse HEAD)
+
+ARG BUILDDATE=unknown
+# E.g. BUILDDATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+
+ARG GOPKG=github.com/fission/fission
+COPY . /go/src/${GOPKG}
+RUN rm -f /go/src/${GOPKG}/Dockerfile*
+WORKDIR /go/src/${GOPKG}/fission-bundle
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a \
+    -o /go/bin/fission-bundle \
+    -gcflags=-trimpath=$GOPATH \
+    -asmflags=-trimpath=$GOPATH \
+    -ldflags "-X github.com/fission/fission.GitCommit=${GITCOMMIT} -X github.com/fission/fission.BuildDate=${BUILDDATE} -X github.com/fission/fission.Version=${BUILDVERSION}"
+
+FROM alpine:latest as certs
+RUN apk --update add ca-certificates
+
+FROM alpine:latest as emptydir
+RUN mkdir /emptytmp && chmod 1777 /emptytmp
+
+FROM scratch
+COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=builder /go/bin/fission-bundle /
+COPY --from=emptydir /emptytmp /tmp
+
+ENTRYPOINT ["/fission-bundle"]

@@ -209,7 +209,7 @@ func (deploy *NewDeploy) getDeploymentSpec(fn *crd.Function, env *crd.Environmen
 								PreStop: &apiv1.Handler{
 									Exec: &apiv1.ExecAction{
 										Command: []string{
-											"sleep",
+											"/bin/sleep",
 											fmt.Sprintf("%v", gracePeriodSeconds),
 										},
 									},
