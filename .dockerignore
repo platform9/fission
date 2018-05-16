@@ -1,0 +1,15 @@
+*.md
+*.sh
+Documentation
+charts
+examples
+environments/*
+!environments/fetcher
+demos
+test
+Makefile
+LICENSE
+glide.*
+.travis.yml
+.gitignore
+.git
