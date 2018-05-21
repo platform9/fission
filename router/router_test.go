@@ -59,7 +59,7 @@ func TestRouter(t *testing.T) {
 	frr.refCache.Set(nfr, rr)
 
 	// HTTP trigger set with a trigger for this function
-	triggers, _, _ := makeHTTPTriggerSet(fmap, nil, nil, nil)
+	triggers, _, _ := makeHTTPTriggerSet(fmap, nil, nil, nil, nil)
 	triggerUrl := "/foo"
 	triggers.triggers = append(triggers.triggers,
 		crd.HTTPTrigger{
