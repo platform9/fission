@@ -9,7 +9,7 @@ branches:
 language: go
 
 go:
-  - 1.8
+  - 1.9.6
 
 cache:
   directories:
