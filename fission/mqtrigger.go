@@ -27,6 +27,7 @@ import (
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
+	fv1 "github.com/fission/fission/pkg/apis/fission.io/v1"
 )
 
 func mqtCreate(c *cli.Context) error {
@@ -195,7 +196,7 @@ func mqtList(c *cli.Context) error {
 
 func checkMQTopicAvailability(mqType fission.MessageQueueType, topics ...string) {
 	for _, t := range topics {
-		if len(t) > 0 && !fission.IsTopicValid(mqType, t) {
+		if len(t) > 0 && !fv1.IsTopicValid(mqType, t) {
 			fatal(fmt.Sprintf("Invalid topic for %s: %s", mqType, t))
 		}
 	}

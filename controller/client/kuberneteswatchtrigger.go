@@ -26,12 +26,13 @@ import (
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
+	fv1 "github.com/fission/fission/pkg/apis/fission.io/v1"
 )
 
 func (c *Client) WatchCreate(w *crd.KubernetesWatchTrigger) (*metav1.ObjectMeta, error) {
 	err := w.Validate()
 	if err != nil {
-		return nil, fission.AggregateValidationErrors("KubernetesWatchTrigger", err)
+		return nil, fv1.AggregateValidationErrors("KubernetesWatchTrigger", err)
 	}
 
 	reqbody, err := json.Marshal(w)

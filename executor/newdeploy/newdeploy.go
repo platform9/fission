@@ -25,14 +25,13 @@ import (
 	"strconv"
 	"time"
 
+	asv1 "k8s.io/api/autoscaling/v1"
+	apiv1 "k8s.io/api/core/v1"
+	"k8s.io/api/extensions/v1beta1"
 	k8s_err "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/client-go/pkg/api/v1"
-	apiv1 "k8s.io/client-go/pkg/api/v1"
-	asv1 "k8s.io/client-go/pkg/apis/autoscaling/v1"
-	"k8s.io/client-go/pkg/apis/extensions/v1beta1"
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
@@ -310,33 +309,33 @@ func (deploy *NewDeploy) getDeploymentSpec(fn *crd.Function, env *crd.Environmen
 
 // getResources overrides only the resources which are overridden at function level otherwise
 // default to resources specified at environment level
-func (deploy *NewDeploy) getResources(env *crd.Environment, fn *crd.Function) v1.ResourceRequirements {
+func (deploy *NewDeploy) getResources(env *crd.Environment, fn *crd.Function) apiv1.ResourceRequirements {
 	resources := env.Spec.Resources
 	if resources.Requests == nil {
-		resources.Requests = make(map[v1.ResourceName]resource.Quantity)
+		resources.Requests = make(map[apiv1.ResourceName]resource.Quantity)
 	}
 	if resources.Limits == nil {
-		resources.Limits = make(map[v1.ResourceName]resource.Quantity)
+		resources.Limits = make(map[apiv1.ResourceName]resource.Quantity)
 	}
 	// Only override the once specified at function, rest default to values from env.
-	_, ok := fn.Spec.Resources.Requests[v1.ResourceCPU]
+	_, ok := fn.Spec.Resources.Requests[apiv1.ResourceCPU]
 	if ok {
-		resources.Requests[v1.ResourceCPU] = fn.Spec.Resources.Requests[v1.ResourceCPU]
+		resources.Requests[apiv1.ResourceCPU] = fn.Spec.Resources.Requests[apiv1.ResourceCPU]
 	}
 
-	_, ok = fn.Spec.Resources.Requests[v1.ResourceMemory]
+	_, ok = fn.Spec.Resources.Requests[apiv1.ResourceMemory]
 	if ok {
-		resources.Requests[v1.ResourceMemory] = fn.Spec.Resources.Requests[v1.ResourceMemory]
+		resources.Requests[apiv1.ResourceMemory] = fn.Spec.Resources.Requests[apiv1.ResourceMemory]
 	}
 
-	_, ok = fn.Spec.Resources.Limits[v1.ResourceCPU]
+	_, ok = fn.Spec.Resources.Limits[apiv1.ResourceCPU]
 	if ok {
-		resources.Limits[v1.ResourceCPU] = fn.Spec.Resources.Limits[v1.ResourceCPU]
+		resources.Limits[apiv1.ResourceCPU] = fn.Spec.Resources.Limits[apiv1.ResourceCPU]
 	}
 
-	_, ok = fn.Spec.Resources.Limits[v1.ResourceMemory]
+	_, ok = fn.Spec.Resources.Limits[apiv1.ResourceMemory]
 	if ok {
-		resources.Limits[v1.ResourceMemory] = fn.Spec.Resources.Limits[v1.ResourceMemory]
+		resources.Limits[apiv1.ResourceMemory] = fn.Spec.Resources.Limits[apiv1.ResourceMemory]
 	}
 
 	return resources

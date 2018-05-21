@@ -28,9 +28,8 @@ import (
 
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
+	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/pkg/api"
-	apiv1 "k8s.io/client-go/pkg/api/v1"
 	restclient "k8s.io/client-go/rest"
 
 	"github.com/fission/fission"
@@ -205,7 +204,7 @@ func (a *API) FunctionPodLogs(w http.ResponseWriter, r *http.Request) {
 		ns = "fission-function"
 	}
 
-	f, err := a.fissionClient.Functions(api.NamespaceDefault).Get(fnName)
+	f, err := a.fissionClient.Functions(apiv1.NamespaceDefault).Get(fnName)
 	if err != nil {
 		a.respondWithError(w, err)
 		return

@@ -24,9 +24,9 @@ import (
 	"strings"
 	"time"
 
+	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/pkg/api"
 	k8sCache "k8s.io/client-go/tools/cache"
 
 	"github.com/fission/fission"
@@ -222,7 +222,7 @@ func (gpm *GenericPoolManager) getEnvPoolsize(env *crd.Environment) int32 {
 
 // IsValidPod checks if pod is not deleted and that it has the address passed as the argument. Also checks that all the
 // containers in it are reporting a ready status for the healthCheck.
-func (gpm *GenericPoolManager) IsValidPod(kubeObjects []api.ObjectReference, podAddress string) bool {
+func (gpm *GenericPoolManager) IsValidPod(kubeObjects []apiv1.ObjectReference, podAddress string) bool {
 	for _, obj := range kubeObjects {
 		if obj.Kind == "pod" {
 			pod, err := gpm.kubernetesClient.CoreV1().Pods(obj.Namespace).Get(obj.Name, metav1.GetOptions{})

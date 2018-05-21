@@ -20,9 +20,9 @@ import (
 	"log"
 	"time"
 
+	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/pkg/api"
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/cache"
@@ -45,11 +45,11 @@ const (
 
 type (
 	FuncSvc struct {
-		Name              string                // Name of object
-		Function          *metav1.ObjectMeta    // function this pod/service is for
-		Environment       *crd.Environment      // function's environment
-		Address           string                // Host:Port or IP:Port that the function's service can be reached at.
-		KubernetesObjects []api.ObjectReference // Kubernetes Objects (within the function namespace)
+		Name              string                  // Name of object
+		Function          *metav1.ObjectMeta      // function this pod/service is for
+		Environment       *crd.Environment        // function's environment
+		Address           string                  // Host:Port or IP:Port that the function's service can be reached at.
+		KubernetesObjects []apiv1.ObjectReference // Kubernetes Objects (within the function namespace)
 		Executor          executorType
 
 		Ctime time.Time
@@ -66,7 +66,7 @@ type (
 	fscRequest struct {
 		requestType       fscRequestType
 		address           string
-		kubernetesObjects []api.ObjectReference
+		kubernetesObjects []apiv1.ObjectReference
 		age               time.Duration
 		responseChannel   chan *fscResponse
 	}

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -12,7 +13,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/portforward"
-	"k8s.io/client-go/tools/remotecommand"
+	"k8s.io/client-go/transport/spdy"
 )
 
 func findFreePort() (string, error) {
@@ -101,7 +102,7 @@ func runPortForward(kubeConfig string, labelSelector string, localPort string, f
 	readyChannel := make(chan struct{})
 
 	// create request URL
-	req := clientset.CoreV1Client.RESTClient().Post().Resource("pods").
+	req := clientset.CoreV1().RESTClient().Post().Resource("pods").
 		Namespace(podNameSpace).Name(podName).SubResource("portforward")
 	url := req.URL()
 
@@ -110,11 +111,12 @@ func runPortForward(kubeConfig string, labelSelector string, localPort string, f
 	ports := []string{portCombo}
 
 	// actually start the port-forwarding process here
-	dialer, err := remotecommand.NewExecutor(config, "POST", url)
+	transport, upgrader, err := spdy.RoundTripperFor(config)
 	if err != nil {
-		msg := fmt.Sprintf("newexecutor errored out :%v", err.Error())
+		msg := fmt.Sprintf("spdy round tripper errored out :%v", err.Error())
 		fatal(msg)
 	}
+	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, "POST", url)
 
 	outStream := os.Stdout
 	if verbosity < 2 {

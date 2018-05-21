@@ -17,8 +17,8 @@ limitations under the License.
 package util
 
 import (
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/client-go/pkg/api/v1"
 )
 
 var resources map[string]resource.Quantity

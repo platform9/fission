@@ -26,11 +26,10 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/pkg/api"
-	apiv1 "k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/rest"
 	k8sCache "k8s.io/client-go/tools/cache"
 
@@ -310,7 +309,7 @@ func (deploy *NewDeploy) fnCreate(fn *crd.Function) (*fscache.FuncSvc, error) {
 		return fsvc, errors.Wrap(err, fmt.Sprintf("error creating the HPA %v:", objName))
 	}
 
-	kubeObjRefs := []api.ObjectReference{
+	kubeObjRefs := []apiv1.ObjectReference{
 		{
 			//obj.TypeMeta.Kind does not work hence this, needs investigationa and a fix
 			Kind:            "deployment",

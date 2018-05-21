@@ -32,13 +32,13 @@ import (
 	"time"
 
 	"github.com/dchest/uniuri"
+
+	apiv1 "k8s.io/api/core/v1"
+	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/pkg/api"
-	apiv1 "k8s.io/client-go/pkg/api/v1"
-	"k8s.io/client-go/pkg/apis/extensions/v1beta1"
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
@@ -771,7 +771,7 @@ func (gp *GenericPool) GetFuncSvc(m *metav1.ObjectMeta) (*fscache.FuncSvc, error
 		svcHost = fmt.Sprintf("%v:8888", pod.Status.PodIP)
 	}
 
-	kubeObjRefs := []api.ObjectReference{
+	kubeObjRefs := []apiv1.ObjectReference{
 		{
 			Kind:            "pod",
 			Name:            pod.ObjectMeta.Name,

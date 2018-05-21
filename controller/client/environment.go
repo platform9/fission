@@ -24,14 +24,14 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
+	fv1 "github.com/fission/fission/pkg/apis/fission.io/v1"
 )
 
 func (c *Client) EnvironmentCreate(env *crd.Environment) (*metav1.ObjectMeta, error) {
 	err := env.Validate()
 	if err != nil {
-		return nil, fission.AggregateValidationErrors("Environment", err)
+		return nil, fv1.AggregateValidationErrors("Environment", err)
 	}
 
 	reqbody, err := json.Marshal(env)
@@ -86,7 +86,7 @@ func (c *Client) EnvironmentGet(m *metav1.ObjectMeta) (*crd.Environment, error) 
 func (c *Client) EnvironmentUpdate(env *crd.Environment) (*metav1.ObjectMeta, error) {
 	err := env.Validate()
 	if err != nil {
-		return nil, fission.AggregateValidationErrors("Environment", err)
+		return nil, fv1.AggregateValidationErrors("Environment", err)
 	}
 
 	reqbody, err := json.Marshal(env)
