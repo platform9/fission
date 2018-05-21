@@ -40,7 +40,7 @@ type requestType int
 const (
 	GET_BUILDER requestType = iota
 	CLEANUP_BUILDERS
-	x
+
 	LABEL_ENV_NAME            = "envName"
 	LABEL_ENV_RESOURCEVERSION = "envResourceVersion"
 )
