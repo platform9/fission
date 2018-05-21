@@ -279,6 +279,7 @@ type (
 	HTTPTriggerSpec struct {
 		Host              string            `json:"host"`
 		RelativeURL       string            `json:"relativeurl"`
+		CreateIngress     bool              `json:"createingress"`
 		Method            string            `json:"method"`
 		FunctionReference FunctionReference `json:"functionref"`
 	}

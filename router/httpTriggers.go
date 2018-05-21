@@ -25,6 +25,7 @@ import (
 	"github.com/gorilla/mux"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	k8sCache "k8s.io/client-go/tools/cache"
 
@@ -38,6 +39,7 @@ type HTTPTriggerSet struct {
 	*mutableRouter
 
 	fissionClient     *crd.FissionClient
+	kubeClient        *kubernetes.Clientset
 	executor          *executorClient.Client
 	resolver          *functionReferenceResolver
 	crdClient         *rest.RESTClient
@@ -50,11 +52,12 @@ type HTTPTriggerSet struct {
 }
 
 func makeHTTPTriggerSet(fmap *functionServiceMap, fissionClient *crd.FissionClient,
-	executor *executorClient.Client, crdClient *rest.RESTClient) (*HTTPTriggerSet, k8sCache.Store, k8sCache.Store) {
+	kubeClient *kubernetes.Clientset, executor *executorClient.Client, crdClient *rest.RESTClient) (*HTTPTriggerSet, k8sCache.Store, k8sCache.Store) {
 	httpTriggerSet := &HTTPTriggerSet{
 		functionServiceMap: fmap,
 		triggers:           []crd.HTTPTrigger{},
 		fissionClient:      fissionClient,
+		kubeClient:         kubeClient,
 		executor:           executor,
 		crdClient:          crdClient,
 	}
@@ -171,12 +174,19 @@ func (ts *HTTPTriggerSet) initTriggerController() (k8sCache.Store, k8sCache.Cont
 	store, controller := k8sCache.NewInformer(listWatch, &crd.HTTPTrigger{}, resyncPeriod,
 		k8sCache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
+				trigger := obj.(*crd.HTTPTrigger)
+				go createIngress(trigger, ts.kubeClient)
 				ts.syncTriggers()
 			},
 			DeleteFunc: func(obj interface{}) {
 				ts.syncTriggers()
+				trigger := obj.(*crd.HTTPTrigger)
+				go deleteIngress(trigger, ts.kubeClient)
 			},
 			UpdateFunc: func(oldObj interface{}, newObj interface{}) {
+				oldTrigger := oldObj.(*crd.HTTPTrigger)
+				newTrigger := newObj.(*crd.HTTPTrigger)
+				go updateIngress(oldTrigger, newTrigger, ts.kubeClient)
 				ts.syncTriggers()
 			},
 		})
