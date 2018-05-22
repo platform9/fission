@@ -53,13 +53,6 @@ func createIngress(trigger *crd.HTTPTrigger, kubeClient *kubernetes.Clientset) {
 			// https://github.com/kubernetes/kubernetes/issues/17088
 			// We need to revisit this in future, once Kubernetes supports cross namespace ingress
 			Namespace: podNamespace,
-			OwnerReferences: []v1.OwnerReference{
-				{
-					Kind:       trigger.Kind,
-					Name:       trigger.Metadata.Name,
-					APIVersion: trigger.APIVersion,
-				},
-			},
 		},
 		Spec: v1beta1.IngressSpec{
 			Rules: []v1beta1.IngressRule{
