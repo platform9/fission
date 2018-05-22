@@ -93,7 +93,4 @@ heapster: false
 pruneInterval: 60
 
 ## Fission fetcher repository
-preInstallTaskImage: fission/preinstalltask
-
-## Fission fetcher image version
-preInstallTaskImageTag: 0.7.1
+preInstallChecksImage: fission/pre-install-checks
