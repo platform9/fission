@@ -55,11 +55,11 @@ func createIngress(trigger *crd.HTTPTrigger, kubeClient *kubernetes.Clientset) {
 			Namespace: podNamespace,
 			OwnerReferences: []v1.OwnerReference{
 				v1.OwnerReference{
-					Kind: trigger.Kind,
-					Name: trigger.Metadata.Name,
+					Kind:       trigger.Kind,
+					Name:       trigger.Metadata.Name,
 					APIVersion: trigger.APIVersion,
 				},
-			}
+			},
 		},
 		Spec: v1beta1.IngressSpec{
 			Rules: []v1beta1.IngressRule{
