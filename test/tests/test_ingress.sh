@@ -10,11 +10,11 @@ cleanup() {
 }
 
 log "Creating route for URL $relativeUrl"
-route_name = $(fission route create --url $relativeUrl --function $functionName --createingress| grep trigger| cut -d" " -f 2|cut -d"'" -f 2)
+route_name=$(fission route create --url $relativeUrl --function $functionName --createingress| grep trigger| cut -d" " -f 2|cut -d"'" -f 2)
 trap "cleanup $route_name" EXIT
 
 log "Verifying to route in ingress"
-actual_route = $(k -n fission get ing -l 'functionName=$functionName,triggerName=$route_name' -o=jsonpath='{.items[0].spec.rules[0].http.paths[0].path}')
+actual_route=$(kubectl -n fission get ing -l 'functionName='$functionName',triggerName='$route_name -o=jsonpath='{.items[0].spec.rules[0].http.paths[0].path}')
 
 if [ $actual_route != $relativeUrl ]
 then
@@ -25,7 +25,7 @@ fi
 log "Modifying the route by adding host"
 fission route update --name $route_name --host $hostName --function $functionName
 
-actual_host=$(k -n fission get ing -l 'functionName=$functionName,triggerName=$route_name' -o=jsonpath='{.items[0].spec.rules[0].host}')
+actual_host=$(kubectl -n fission get ing -l 'functionName='$functionName',triggerName='$route_name -o=jsonpath='{.items[0].spec.rules[0].host}')
 
 if [ $hostName != $actual_host ]
 then
