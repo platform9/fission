@@ -588,6 +588,7 @@ spec:
     metadata:
       labels:
         svc: storagesvc
+        application: fission-storage
     spec:
       containers:
       - name: storagesvc
