@@ -17,18 +17,17 @@ limitations under the License.
 package main
 
 import (
+	"os"
+
 	log "github.com/sirupsen/logrus"
 )
 
 func main() {
-	log.Printf("Starting pre-install checks")
-	// TODO :  check if there are crds present on the k8s cluster before verifying.
-
-	// TODO : Think about all the services installed/ SA created for fission-core installation.
-
-	crdBackedClient := makeCRDBackedClient()
+	crdBackedClient, err := makeCRDBackedClient()
+	if err != nil {
+		log.Printf("Error creating a crd client : %v, please retry helm install", err)
+		os.Exit(1)
+	}
 	crdBackedClient.VerifyFunctionSpecReferences()
-	crdBackedClient.RemoveClusterAdminRolesForFissionSA()
-
-	select {}
+	crdBackedClient.RemoveClusterAdminRolesForFissionSAs()
 }

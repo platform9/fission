@@ -49,6 +49,7 @@ metadata:
     "helm.sh/hook-weight": "2"
     "helm.sh/hook-delete-policy": hook-succeeded
 spec:
+  backoffLimit: 0
   template:
     metadata:
       name: {{ template "fullname" . }}
