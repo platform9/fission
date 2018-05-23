@@ -392,6 +392,11 @@ func fnUpdate(c *cli.Context) error {
 
 	envName := c.String("env")
 	envNamespace := c.String("envNamespace")
+	// if the new env specified is the same as the old one, no need to update package with envname
+	if envName == function.Spec.Environment.Name && envNamespace == function.Spec.Environment.Namespace {
+		envName = ""
+	}
+
 	deployArchiveName := c.String("code")
 	if len(deployArchiveName) == 0 {
 		deployArchiveName = c.String("deploy")
