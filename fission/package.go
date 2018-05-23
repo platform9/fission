@@ -116,6 +116,13 @@ func pkgUpdate(c *cli.Context) error {
 	})
 	checkErr(err, "get package")
 
+	// if the new env specified is the same as the old one, no need to update package
+	// same is true for all update parameters, but, for now, we dont check all of them - because, its ok to
+	// re-write the object with same old values, we just end up getting a new resource version for the object.
+	if envName == pkg.Spec.Environment.Name && envNamespace == pkg.Spec.Environment.Namespace {
+		envName = ""
+	}
+
 	fnList, err := getFunctionsByPackage(client, pkg.Metadata.Name, pkg.Metadata.Namespace)
 	checkErr(err, "get function list")
 
