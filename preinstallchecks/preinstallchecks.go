@@ -60,11 +60,18 @@ func (client *Client) VerifyFunctionSpecReferences() {
 	log.Printf("Verifying Function spec references for all functions in the cluster")
 
 	var result *multierror.Error
+	var err error
+	var fList *crd.FunctionList
 
-	fList, err := client.fissionClient.Functions(metav1.NamespaceAll).List(metav1.ListOptions{})
+	for i := 0; i < MaxRetries; i++ {
+		fList, err = client.fissionClient.Functions(metav1.NamespaceAll).List(metav1.ListOptions{})
+		if err == nil {
+			break
+		}
+	}
+
 	if err != nil {
-		log.Printf("Error listing functions in all namespaces")
-		return
+		fatal(fmt.Sprintf("Error: %v listing functions even after %d retries", err, MaxRetries))
 	}
 
 	// check that all secrets, configmaps, packages are in the same namespace
@@ -72,24 +79,25 @@ func (client *Client) VerifyFunctionSpecReferences() {
 		secrets := fn.Spec.Secrets
 		for _, secret := range secrets {
 			if secret.Namespace != fn.Metadata.Namespace {
-				result = multierror.Append(result, fmt.Errorf("Function : %s.%s cannot reference the secret : %s outside its namespace : %s", fn.Metadata.Name, fn.Metadata.Namespace, secret.Name, secret.Namespace))
+				result = multierror.Append(result, fmt.Errorf("Function : %s.%s cannot reference a secret : %s in namespace : %s", fn.Metadata.Name, fn.Metadata.Namespace, secret.Name, secret.Namespace))
 			}
 		}
 
 		configmaps := fn.Spec.ConfigMaps
 		for _, configmap := range configmaps {
 			if configmap.Namespace != fn.Metadata.Namespace {
-				result = multierror.Append(result, fmt.Errorf("Function : %s.%s cannot reference the configmap : %s outside its namespace : %s", fn.Metadata.Name, fn.Metadata.Namespace, configmap.Name, configmap.Namespace))
+				result = multierror.Append(result, fmt.Errorf("Function : %s.%s cannot reference a configmap : %s in namespace : %s", fn.Metadata.Name, fn.Metadata.Namespace, configmap.Name, configmap.Namespace))
 			}
 		}
 
 		if fn.Spec.Package.PackageRef.Namespace != fn.Metadata.Namespace {
-			result = multierror.Append(result, fmt.Errorf("Function : %s.%s cannot reference the package : %s outside its namespace : %s", fn.Metadata.Name, fn.Metadata.Namespace, fn.Spec.Package.PackageRef.Name, fn.Spec.Package.PackageRef.Namespace))
+			result = multierror.Append(result, fmt.Errorf("Function : %s.%s cannot reference a package : %s in namespace : %s", fn.Metadata.Name, fn.Metadata.Namespace, fn.Spec.Package.PackageRef.Name, fn.Spec.Package.PackageRef.Namespace))
 		}
 	}
 
 	if result != nil {
-		log.Printf("Installation failed due to the following errors")
+		log.Printf("Installation failed due to the following errors :")
+		log.Printf("Summary : A function cannot reference secrets, configmaps and packages outside it's own namespace")
 		fatal(result.Error())
 	}
 
