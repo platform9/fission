@@ -108,7 +108,7 @@ func (client *Client) deleteClusterRoleBinding(clusterRoleBinding string) (err e
 	for i := 0; i < MaxRetries; i++ {
 		err = client.k8sClient.RbacV1beta1Client.ClusterRoleBindings().Delete(clusterRoleBinding, &metav1.DeleteOptions{})
 		if err != nil && k8serrors.IsNotFound(err) || err == nil {
-			break
+			return nil
 		}
 	}
 
@@ -126,3 +126,4 @@ func (client *Client) RemoveClusterAdminRolesForFissionSAs() {
 
 	log.Println("Removed cluster admin privileges for fission-builder and fission-fetcher Service Accounts")
 }
+
