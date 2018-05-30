@@ -23,6 +23,8 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -42,9 +44,7 @@ type functionHandler struct {
 
 // A layer on top of http.DefaultTransport, with retries.
 type RetryingRoundTripper struct {
-	maxRetries     int
-	initialTimeout time.Duration
-	funcHandler    *functionHandler
+	funcHandler *functionHandler
 }
 
 // RoundTrip is a custom transport with retries for http requests that forwards the request to the right serviceUrl, obtained
@@ -92,7 +92,11 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 	}
 
 	// set the timeout for transport context
-	timeout := roundTripper.initialTimeout
+	timeout, err := time.ParseDuration(os.Getenv("ROUTER_ROUND_TRIP_TIMEOUT"))
+	if err != nil {
+		return nil, err
+	}
+
 	transport := http.DefaultTransport.(*http.Transport)
 
 	// cache lookup to get serviceUrl
@@ -102,7 +106,17 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 		needExecutor = true
 	}
 
-	for i := 0; i < roundTripper.maxRetries-1; i++ {
+	keepAlive, err := time.ParseDuration(os.Getenv("ROUTER_ROUND_TRIP_KEEP_ALIVE_TIME"))
+	if err != nil {
+		return nil, err
+	}
+
+	maxRetries, err := strconv.Atoi(os.Getenv("ROUTER_ROUND_TRIP_MAX_RETRIES"))
+	if err != nil {
+		return nil, err
+	}
+
+	for i := 0; i < maxRetries-1; i++ {
 		if needExecutor {
 			log.Printf("Calling getServiceForFunction for function: %s", roundTripper.funcHandler.function.Name)
 
@@ -148,7 +162,7 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 		// over-riding default settings.
 		transport.DialContext = (&net.Dialer{
 			Timeout:   timeout,
-			KeepAlive: 30 * time.Second,
+			KeepAlive: keepAlive,
 		}).DialContext
 
 		overhead := time.Since(startTime)
@@ -229,9 +243,7 @@ func (fh *functionHandler) handler(responseWriter http.ResponseWriter, request *
 	proxy := &httputil.ReverseProxy{
 		Director: director,
 		Transport: &RetryingRoundTripper{
-			initialTimeout: 50 * time.Millisecond,
-			maxRetries:     10,
-			funcHandler:    fh,
+			funcHandler: fh,
 		},
 	}
 

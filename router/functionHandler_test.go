@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"testing"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -48,6 +49,21 @@ func TestFunctionProxying(t *testing.T) {
 	testResponseString := "hi"
 	backendURL := createBackendService(testResponseString)
 	log.Printf("Created backend svc at %v", backendURL)
+
+	err := os.Setenv("ROUTER_ROUND_TRIP_KEEP_ALIVE_TIME", "30s")
+	if err != nil {
+		log.Panic(err)
+	}
+
+	err = os.Setenv("ROUTER_ROUND_TRIP_TIMEOUT", "50ms")
+	if err != nil {
+		log.Panic(err)
+	}
+
+	err = os.Setenv("ROUTER_ROUND_TRIP_MAX_RETRIES", "10")
+	if err != nil {
+		log.Panic(err)
+	}
 
 	fn := &metav1.ObjectMeta{Name: "foo", Namespace: metav1.NamespaceDefault}
 
