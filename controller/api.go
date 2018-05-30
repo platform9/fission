@@ -35,6 +35,15 @@ import (
 	"github.com/fission/fission/fission/logdb"
 )
 
+var podNamespace string
+
+func init() {
+	podNamespace = os.Getenv("POD_NAMESPACE")
+	if podNamespace == "" {
+		podNamespace = "fission"
+	}
+}
+
 type (
 	API struct {
 		fissionClient     *crd.FissionClient
@@ -167,6 +176,19 @@ func (api *API) HealthHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func (api *API) GetSvcName(w http.ResponseWriter, r *http.Request) {
+	v := mux.Vars(r)
+	appLabelSelector = "application=" + v["application"]
+	services, err := api.kubernetesClient.CoreV1().Services(podNamespace).List(metav1.ListOptions{
+		LabelSelector: appLabelSelector,
+	})
+	if err != nil || len(services.Items) > 0 {
+		api.respondWithError(w, err)
+	}
+	service := services.Items[0]
+	fmt.Fprintf(w, service.Name+"."+podNamespace)
+}
+
 func (api *API) Serve(port int) {
 	r := mux.NewRouter()
 	r.HandleFunc("/healthz", api.HealthHandler).Methods("GET")
@@ -223,6 +245,7 @@ func (api *API) Serve(port int) {
 	r.HandleFunc("/proxy/storage/v1/archive", api.StorageServiceProxy)
 	r.HandleFunc("/proxy/logs/{function}", api.FunctionPodLogs).Methods("POST")
 	r.HandleFunc("/proxy/workflows-apiserver/{path:.*}", api.WorkflowApiserverProxy)
+	r.HandleFunc("/proxy/svcname", api.GetSvcName).Queries("application").Methods("GET")
 
 	address := fmt.Sprintf(":%v", port)
 

@@ -177,6 +177,15 @@ func createArchive(client *client.Client, fileName string, specFile string) *fis
 
 		archiveUrl := ssClient.GetUrl(id)
 
+		/*url := fmt.Sprintf("http://%s/proxy/svcname?application=fission-storage", client.Url)
+		resp := httpRequest("GET", url, nil, nil)
+		if resp.StatusCode < 400 {
+			body, err := ioutil.ReadAll(resp.Body)
+			checkErr(err, "Package create")
+			fmt.Print(string(body))
+			defer resp.Body.Close()
+		}*/
+
 		archive.Type = fission.ArchiveTypeUrl
 		archive.URL = archiveUrl
 
