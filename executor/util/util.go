@@ -17,34 +17,41 @@ limitations under the License.
 package util
 
 import (
+	"os"
+
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/client-go/pkg/api/v1"
 )
 
-var resources map[string]resource.Quantity
-
-func init() {
-	resources = make(map[string]resource.Quantity)
-	mincpu, _ := resource.ParseQuantity("10m")
-	resources["mincpu"] = mincpu
-	minmem, _ := resource.ParseQuantity("16Mi")
-	resources["minmem"] = minmem
-	maxcpu, _ := resource.ParseQuantity("40m")
-	resources["maxcpu"] = maxcpu
-	maxmem, _ := resource.ParseQuantity("128Mi")
-	resources["maxmem"] = maxmem
-}
-
 func GetFetcherResources() (v1.ResourceRequirements, error) {
-	fetcherResources := v1.ResourceRequirements{
+	mincpu, err := resource.ParseQuantity(os.Getenv("FETCHER_MINCPU"))
+	if err != nil {
+		return v1.ResourceRequirements{}, err
+	}
+
+	minmem, err := resource.ParseQuantity(os.Getenv("FETCHER_MINMEM"))
+	if err != nil {
+		return v1.ResourceRequirements{}, err
+	}
+
+	maxcpu, err := resource.ParseQuantity(os.Getenv("FETCHER_MAXCPU"))
+	if err != nil {
+		return v1.ResourceRequirements{}, err
+	}
+
+	maxmem, err := resource.ParseQuantity(os.Getenv("FETCHER_MAXMEM"))
+	if err != nil {
+		return v1.ResourceRequirements{}, err
+	}
+
+	return v1.ResourceRequirements{
 		Requests: map[v1.ResourceName]resource.Quantity{
-			v1.ResourceCPU:    resources["mincpu"],
-			v1.ResourceMemory: resources["minmem"],
+			v1.ResourceCPU:    mincpu,
+			v1.ResourceMemory: minmem,
 		},
 		Limits: map[v1.ResourceName]resource.Quantity{
-			v1.ResourceCPU:    resources["maxcpu"],
-			v1.ResourceMemory: resources["maxmem"],
+			v1.ResourceCPU:    maxcpu,
+			v1.ResourceMemory: maxmem,
 		},
-	}
-	return fetcherResources, nil
+	}, nil
 }

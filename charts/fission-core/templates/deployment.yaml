@@ -226,6 +226,14 @@ spec:
           value: "{{ .Values.pullPolicy }}"
         - name: ENABLE_ISTIO
           value: "{{ .Values.enableIstio }}"
+        - name: FETCHER_MINCPU
+          value: {{ .Values.fetcherMinCpu | default "10m" | quote }}
+        - name: FETCHER_MINMEM
+          value: {{ .Values.fetcherMinMem | default "16Mi" | quote }}
+        - name: FETCHER_MAXCPU
+          value: {{ .Values.fetcherMaxCpu | default "40m" | quote }}
+        - name: FETCHER_MAXMEM
+          value: {{ .Values.fetcherMaxMem | default "128Mi" | quote }}          
         readinessProbe:
           httpGet:
             path: "/healthz"
