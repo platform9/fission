@@ -44,6 +44,7 @@ metadata:
   name: storagesvc
   labels:
     svc: storagesvc
+    application: fission-storage
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
 spec:
   type: ClusterIP

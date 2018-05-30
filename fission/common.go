@@ -175,16 +175,17 @@ func createArchive(client *client.Client, fileName string, specFile string) *fis
 		id, err := ssClient.Upload(fileName, nil)
 		checkErr(err, fmt.Sprintf("upload file %v", fileName))
 
-		archiveUrl := ssClient.GetUrl(id)
-
-		/*url := fmt.Sprintf("http://%s/proxy/svcname?application=fission-storage", client.Url)
-		resp := httpRequest("GET", url, nil, nil)
+		url := fmt.Sprintf("%s/proxy/svcname?application=fission-storage", client.Url)
+		resp := httpRequest("GET", url, "", nil)
+		storageSvc := "http://storagesvc.fission"
 		if resp.StatusCode < 400 {
 			body, err := ioutil.ReadAll(resp.Body)
 			checkErr(err, "Package create")
-			fmt.Print(string(body))
+			storageSvc = "http://" + string(body)
 			defer resp.Body.Close()
-		}*/
+		}
+
+		archiveUrl := ssClient.GetURL(id, storageSvc)
 
 		archive.Type = fission.ArchiveTypeUrl
 		archive.URL = archiveUrl

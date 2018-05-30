@@ -177,12 +177,11 @@ func (api *API) HealthHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) GetSvcName(w http.ResponseWriter, r *http.Request) {
-	v := mux.Vars(r)
-	appLabelSelector = "application=" + v["application"]
+	appLabelSelector := "application=" + r.URL.Query().Get("application")
 	services, err := api.kubernetesClient.CoreV1().Services(podNamespace).List(metav1.ListOptions{
 		LabelSelector: appLabelSelector,
 	})
-	if err != nil || len(services.Items) > 0 {
+	if err != nil || len(services.Items) > 1 || len(services.Items) == 0 {
 		api.respondWithError(w, err)
 	}
 	service := services.Items[0]
@@ -245,7 +244,7 @@ func (api *API) Serve(port int) {
 	r.HandleFunc("/proxy/storage/v1/archive", api.StorageServiceProxy)
 	r.HandleFunc("/proxy/logs/{function}", api.FunctionPodLogs).Methods("POST")
 	r.HandleFunc("/proxy/workflows-apiserver/{path:.*}", api.WorkflowApiserverProxy)
-	r.HandleFunc("/proxy/svcname", api.GetSvcName).Queries("application").Methods("GET")
+	r.HandleFunc("/proxy/svcname", api.GetSvcName).Queries("application", "").Methods("GET")
 
 	address := fmt.Sprintf(":%v", port)
 
