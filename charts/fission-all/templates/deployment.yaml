@@ -236,6 +236,14 @@ spec:
           value: "{{ .Values.pullPolicy }}"
         - name: ENABLE_ISTIO
           value: "{{ .Values.enableIstio }}"
+        - name: FETCHER_RESOURCE_REQUESTS_CPU
+          value: "10m"
+        - name: FETCHER_RESOURCE_REQUESTS_MEMORY
+          value: "16Mi"
+        - name: FETCHER_RESOURCE_LIMITS_CPU
+          value: "40m"
+        - name: FETCHER_RESOURCE_LIMITS_MEMORY
+          value: "128Mi"
         readinessProbe:
           httpGet:
             path: "/healthz"
