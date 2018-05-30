@@ -62,3 +62,11 @@ analytics: true
 ## This interval configures the frequency at which it runs inside the storagesvc pod.
 ## The value is in minutes.
 pruneInterval: 60
+
+# This configures fetcher container resource, on cpu request, memory request, cpu 
+# limit and memory limit.
+fetcher:
+  requestsCPU: "10m"
+  requestsMemory: "16Mi"
+  limitsCPU: "40m"
+  limitsMemory: "128Mi"
