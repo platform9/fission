@@ -153,17 +153,17 @@ func (client *Client) SetupRoleBindings() {
 	// so, we go ahead and create the role-bindings necessary for the fission-fetcher and fission-builder Service Accounts.
 	err := fission.SetupRoleBinding(client.k8sClient, fission.PackageGetterRB, metav1.NamespaceDefault, fission.PackageGetterCR, fission.ClusterRole, fission.FissionFetcherSA, client.fnPodNs)
 	if err != nil {
-		fatal(fmt.Sprint("Error setting up rolebinding %s for %s.%s service account", fission.PackageGetterRB, fission.FissionFetcherSA, client.fnPodNs))
+		fatal(fmt.Sprintf("Error setting up rolebinding %s for %s.%s service account", fission.PackageGetterRB, fission.FissionFetcherSA, client.fnPodNs))
 	}
 
 	err = fission.SetupRoleBinding(client.k8sClient, fission.PackageGetterRB, metav1.NamespaceDefault, fission.PackageGetterCR, fission.ClusterRole, fission.FissionBuilderSA, client.envBuilderNs)
 	if err != nil {
-		fatal(fmt.Sprint("Error setting up rolebinding %s for %s.%s service account", fission.PackageGetterRB, fission.FissionBuilderSA, client.envBuilderNs))
+		fatal(fmt.Sprintf("Error setting up rolebinding %s for %s.%s service account", fission.PackageGetterRB, fission.FissionBuilderSA, client.envBuilderNs))
 	}
 
 	err = fission.SetupRoleBinding(client.k8sClient, fission.SecretConfigMapGetterRB, metav1.NamespaceDefault, fission.SecretConfigMapGetterCR, fission.ClusterRole, fission.FissionFetcherSA, client.fnPodNs)
 	if err != nil {
-		fatal(fmt.Sprint("Error setting up rolebinding %s for %s.%s service account", fission.SecretConfigMapGetterRB, fission.FissionFetcherSA, client.fnPodNs))
+		fatal(fmt.Sprintf("Error setting up rolebinding %s for %s.%s service account", fission.SecretConfigMapGetterRB, fission.FissionFetcherSA, client.fnPodNs))
 	}
 
 	log.Printf("Created role-bindings : %s and %s in default namespace", fission.PackageGetterRB, fission.SecretConfigMapGetterRB)
