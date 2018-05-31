@@ -22,10 +22,12 @@ import (
 
 	multierror "github.com/hashicorp/go-multierror"
 	log "github.com/sirupsen/logrus"
+	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
+	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
 )
 
@@ -33,18 +35,24 @@ type (
 	Client struct {
 		fissionClient *crd.FissionClient
 		k8sClient     *kubernetes.Clientset
+		apiExtClient  *apiextensionsclient.Clientset
+		fnPodNs       string
+		envBuilderNs  string
 	}
 )
 
-const MaxRetries = 5
+const (
+	MaxRetries  = 5
+	FunctionCRD = "functions.fission.io"
+)
 
 func fatal(msg string) {
 	os.Stderr.WriteString(msg + "\n")
 	os.Exit(1)
 }
 
-func makeCRDBackedClient() (*Client, error) {
-	fissionClient, k8sClient, _, err := crd.MakeFissionClient()
+func makeCRDBackedClient(fnPodNs, envBuilderNs string) (*Client, error) {
+	fissionClient, k8sClient, apiExtClient, err := crd.MakeFissionClient()
 	if err != nil {
 		log.Errorf("Error making fission client")
 		return nil, err
@@ -53,7 +61,24 @@ func makeCRDBackedClient() (*Client, error) {
 	return &Client{
 		fissionClient: fissionClient,
 		k8sClient:     k8sClient,
+		fnPodNs:       fnPodNs,
+		envBuilderNs:  envBuilderNs,
+		apiExtClient:  apiExtClient,
 	}, nil
+}
+
+func (client *Client) IsFissionReInstall() bool {
+	for i := 0; i < MaxRetries; i++ {
+		_, err := client.apiExtClient.ApiextensionsV1beta1().CustomResourceDefinitions().Get(FunctionCRD, metav1.GetOptions{})
+		if err != nil && k8serrors.IsNotFound(err) {
+			return false
+		}
+		if err == nil {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (client *Client) VerifyFunctionSpecReferences() {
@@ -79,19 +104,19 @@ func (client *Client) VerifyFunctionSpecReferences() {
 		secrets := fn.Spec.Secrets
 		for _, secret := range secrets {
 			if secret.Namespace != fn.Metadata.Namespace {
-				result = multierror.Append(result, fmt.Errorf("Function : %s.%s cannot reference a secret : %s in namespace : %s", fn.Metadata.Name, fn.Metadata.Namespace, secret.Name, secret.Namespace))
+				result = multierror.Append(result, fmt.Errorf("function : %s.%s cannot reference a secret : %s in namespace : %s", fn.Metadata.Name, fn.Metadata.Namespace, secret.Name, secret.Namespace))
 			}
 		}
 
 		configmaps := fn.Spec.ConfigMaps
 		for _, configmap := range configmaps {
 			if configmap.Namespace != fn.Metadata.Namespace {
-				result = multierror.Append(result, fmt.Errorf("Function : %s.%s cannot reference a configmap : %s in namespace : %s", fn.Metadata.Name, fn.Metadata.Namespace, configmap.Name, configmap.Namespace))
+				result = multierror.Append(result, fmt.Errorf("function : %s.%s cannot reference a configmap : %s in namespace : %s", fn.Metadata.Name, fn.Metadata.Namespace, configmap.Name, configmap.Namespace))
 			}
 		}
 
 		if fn.Spec.Package.PackageRef.Namespace != fn.Metadata.Namespace {
-			result = multierror.Append(result, fmt.Errorf("Function : %s.%s cannot reference a package : %s in namespace : %s", fn.Metadata.Name, fn.Metadata.Namespace, fn.Spec.Package.PackageRef.Name, fn.Spec.Package.PackageRef.Namespace))
+			result = multierror.Append(result, fmt.Errorf("function : %s.%s cannot reference a package : %s in namespace : %s", fn.Metadata.Name, fn.Metadata.Namespace, fn.Spec.Package.PackageRef.Name, fn.Spec.Package.PackageRef.Namespace))
 		}
 	}
 
@@ -102,6 +127,47 @@ func (client *Client) VerifyFunctionSpecReferences() {
 	}
 
 	log.Printf("Function Spec References verified")
+}
+
+func (client *Client) NeedRoleBindings() bool {
+	pkgList, err := client.fissionClient.Packages(metav1.NamespaceDefault).List(metav1.ListOptions{})
+	if err == nil && len(pkgList.Items) > 0 {
+		return true
+	}
+
+	fnList, err := client.fissionClient.Functions(metav1.NamespaceDefault).List(metav1.ListOptions{})
+	if err == nil && len(fnList.Items) > 0 {
+		return true
+	}
+
+	return false
+}
+
+func (client *Client) SetupRoleBindings() {
+	if !client.NeedRoleBindings() {
+		log.Printf("No fission objects found, so no role-bindings to create")
+		return
+	}
+
+	// the fact that we're here implies that there had been a prior installation of fission and objects are present still
+	// so, we go ahead and create the role-bindings necessary for the fission-fetcher and fission-builder Service Accounts.
+	err := fission.SetupRoleBinding(client.k8sClient, fission.PackageGetterRB, metav1.NamespaceDefault, fission.PackageGetterCR, fission.ClusterRole, fission.FissionFetcherSA, client.fnPodNs)
+	if err != nil {
+		fatal(fmt.Sprint("Error setting up rolebinding %s for %s.%s service account", fission.PackageGetterRB, fission.FissionFetcherSA, client.fnPodNs))
+	}
+
+	err = fission.SetupRoleBinding(client.k8sClient, fission.PackageGetterRB, metav1.NamespaceDefault, fission.PackageGetterCR, fission.ClusterRole, fission.FissionBuilderSA, client.envBuilderNs)
+	if err != nil {
+		fatal(fmt.Sprint("Error setting up rolebinding %s for %s.%s service account", fission.PackageGetterRB, fission.FissionBuilderSA, client.envBuilderNs))
+	}
+
+	err = fission.SetupRoleBinding(client.k8sClient, fission.SecretConfigMapGetterRB, metav1.NamespaceDefault, fission.SecretConfigMapGetterCR, fission.ClusterRole, fission.FissionFetcherSA, client.fnPodNs)
+	if err != nil {
+		fatal(fmt.Sprint("Error setting up rolebinding %s for %s.%s service account", fission.SecretConfigMapGetterRB, fission.FissionFetcherSA, client.fnPodNs))
+	}
+
+	log.Printf("Created role-bindings : %s and %s in default namespace", fission.PackageGetterRB, fission.SecretConfigMapGetterRB)
+	return
 }
 
 func (client *Client) deleteClusterRoleBinding(clusterRoleBinding string) (err error) {
@@ -126,4 +192,3 @@ func (client *Client) RemoveClusterAdminRolesForFissionSAs() {
 
 	log.Println("Removed cluster admin privileges for fission-builder and fission-fetcher Service Accounts")
 }
-
