@@ -42,7 +42,7 @@ get_archive_url_from_package() {
 get_archive_from_storage() {
     storage_service_url=$1
     controller_ip=$(kubectl -n $FISSION_NAMESPACE get svc controller -o jsonpath='{...ip}')
-    controller_proxy_url=`echo $storage_service_url | sed -e "s/storagesvc.$FISSION_NAMESPACE/$controller_ip\/proxy\/storage/"`
+    controller_proxy_url=`echo $storage_service_url | sed -e "s/storagesvc.$FISSION_NAMESPACE/$controller_ip\/proxy\/storage\/v1/"`
     log "controller_proxy_url=$controller_proxy_url"
     http_status=`curl -sw "%{http_code}" $controller_proxy_url -o /tmp/file`
     echo "http_status: $http_status"
