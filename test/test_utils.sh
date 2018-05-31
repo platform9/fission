@@ -54,6 +54,19 @@ gcloud_login() {
     gcloud auth activate-service-account --key-file $KEY
 }
 
+build_and_push_pre_install_check_image() {
+    image_tag=$1
+
+    pushd $ROOT/preinstallchecks
+    ./build.sh
+    docker build -q -t $image_tag .
+
+    gcloud_login
+
+    gcloud docker -- push $image_tag
+    popd
+}
+
 build_and_push_fission_bundle() {
     image_tag=$1
 
@@ -177,11 +190,12 @@ helm_install_fission() {
     pruneInterval="${10}"
     routerServiceType=${11}
     serviceType=${12}
+    preinstallChecksImage=${13}
 
     ns=f-$id
     fns=f-func-$id
 
-    helmVars=image=$image,imageTag=$imageTag,fetcherImage=$fetcherImage,fetcherImageTag=$fetcherImageTag,functionNamespace=$fns,controllerPort=$controllerNodeport,routerPort=$routerNodeport,pullPolicy=Always,analytics=false,logger.fluentdImage=$fluentdImage,logger.fluentdImageTag=$fluentdImageTag,pruneInterval=$pruneInterval,routerServiceType=$routerServiceType,serviceType=$serviceType
+    helmVars=image=$image,imageTag=$imageTag,fetcherImage=$fetcherImage,fetcherImageTag=$fetcherImageTag,functionNamespace=$fns,controllerPort=$controllerNodeport,routerPort=$routerNodeport,pullPolicy=Always,analytics=false,logger.fluentdImage=$fluentdImage,logger.fluentdImageTag=$fluentdImageTag,pruneInterval=$pruneInterval,routerServiceType=$routerServiceType,serviceType=$serviceType,preInstallChecksImage=$preinstallChecksImage
 
     timeout 30 bash -c "helm_setup"
 
@@ -484,6 +498,8 @@ install_and_test() {
     pruneInterval=$7
     routerServiceType=$8
     serviceType=$9
+    preinstallCheckImage=${10}
+
 
     controllerPort=31234
     routerPort=31235
@@ -492,7 +508,7 @@ install_and_test() {
     
     id=$(generate_test_id)
     trap "helm_uninstall_fission $id" EXIT
-    helm_install_fission $id $image $imageTag $fetcherImage $fetcherImageTag $controllerPort $routerPort $fluentdImage $fluentdImageTag $pruneInterval $routerServiceType $serviceType
+    helm_install_fission $id $image $imageTag $fetcherImage $fetcherImageTag $controllerPort $routerPort $fluentdImage $fluentdImageTag $pruneInterval $routerServiceType $serviceType $preinstallCheckImage
     helm status $id | grep STATUS | grep -i deployed
     if [ $? -ne 0 ]; then
         describe_all_pods $id

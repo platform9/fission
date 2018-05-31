@@ -92,5 +92,5 @@ heapster: false
 ## The value is in minutes.
 pruneInterval: 60
 
-## Fission fetcher repository
+## Fission pre-install/pre-upgrade checks live in this image
 preInstallChecksImage: fission/pre-install-checks

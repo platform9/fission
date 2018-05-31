@@ -62,3 +62,6 @@ analytics: true
 ## This interval configures the frequency at which it runs inside the storagesvc pod.
 ## The value is in minutes.
 pruneInterval: 60
+
+## Fission pre-install/pre-upgrade checks live in this image
+preInstallChecksImage: fission/pre-install-checks

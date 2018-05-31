@@ -19,15 +19,47 @@ package main
 import (
 	"os"
 
+	"github.com/docopt/docopt-go"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/fission/fission"
 )
 
+func getStringArgWithDefault(arg interface{}, defaultValue string) string {
+	if arg != nil {
+		return arg.(string)
+	} else {
+		return defaultValue
+	}
+}
+
 func main() {
-	crdBackedClient, err := makeCRDBackedClient()
+	usage := `package to perform operations needed prior to fission installation
+Usage:
+  pre-install-checks --fn-pod-namespace=<podNamespace> --envbuilder-namespace=<envBuilderNamespace>
+Options:
+  --fn-pod-namespace=<podNamespace>                        Namespace where function pods get deployed.
+  --envbuilder-namespace=<envBuilderNamespace>             Namespace where builder env pods are deployed.`
+	arguments, err := docopt.Parse(usage, nil, true, fission.VersionInfo().String(), false)
+	if err != nil {
+		log.Fatalf("Error: %v", err)
+	}
+
+	functionPodNs := getStringArgWithDefault(arguments["--fn-pod-namespace"], "fission-function")
+	envBuilderNs := getStringArgWithDefault(arguments["--envbuilder-namespace"], "fission-builder")
+
+	crdBackedClient, err := makeCRDBackedClient(functionPodNs, envBuilderNs)
 	if err != nil {
 		log.Printf("Error creating a crd client : %v, please retry helm install", err)
 		os.Exit(1)
 	}
+
+	if !crdBackedClient.IsFissionReInstall() {
+		log.Printf("Nothing to do since CRDs are not present on the cluster")
+		return
+	}
+
 	crdBackedClient.VerifyFunctionSpecReferences()
-	crdBackedClient.RemoveClusterAdminRolesForFissionSAs()
+	//crdBackedClient.RemoveClusterAdminRolesForFissionSAs()
+	crdBackedClient.SetupRoleBindings()
 }
