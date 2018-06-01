@@ -37,7 +37,7 @@ metadata:
   labels:
     # The "release" convention makes it easy to tie a release to all of the
     # Kubernetes resources that were created as part of that release.
-    release: {{ .Release.Name }}
+    release: "{{ .Release.Name }}"
     # This makes it easy to audit chart usage.
     chart: {{ .Chart.Name }}-{{ .Chart.Version }}
     app: {{ template "name" . }}
@@ -53,7 +53,7 @@ spec:
     metadata:
       name: {{ template "fullname" . }}
       labels:
-        release: {{ .Release.Name }}
+        release: "{{ .Release.Name }}"
         app: {{ template "name" . }}
     spec:
       restartPolicy: Never
