@@ -107,35 +107,66 @@ func msgHandler(nats *Nats, trigger *crd.MessageQueueTrigger) func(*ns.Msg) {
 		log.Printf("Making HTTP request to %v", url)
 
 		headers := map[string]string{
-			"X-Fission-MQTrigger-Topic":     trigger.Spec.Topic,
-			"X-Fission-MQTrigger-RespTopic": trigger.Spec.ResponseTopic,
-			"Content-Type":                  trigger.Spec.ContentType,
+			"X-Fission-MQTrigger-Topic":      trigger.Spec.Topic,
+			"X-Fission-MQTrigger-RespTopic":  trigger.Spec.ResponseTopic,
+			"X-Fission-MQTrigger-ErrorTopic": trigger.Spec.ErrorTopic,
+			"Content-Type":                   trigger.Spec.ContentType,
 		}
 
 		// Create request
 		req, err := http.NewRequest("POST", url, bytes.NewReader(msg.Data))
+
+		if err != nil {
+			log.Errorf("Could not issue POST request with message to url %v", url)
+			return
+		}
+
 		for k, v := range headers {
 			req.Header.Add(k, v)
 		}
 
-		// Make the request
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			log.Warningf("Request failed: %v", url)
-			return
+		var resp *http.Response
+		// Number of retries is required to be between 0 (default) and 5, inclusive
+		for attempt := -1; attempt < trigger.Spec.MaxRetries; attempt++ {
+			// Make the request
+			log.Warningf("Request : %v", req)
+			resp, err = http.DefaultClient.Do(req)
+			if resp == nil {
+				// Retry without referencing status code of nil response on the next line
+				continue
+			}
+			if err == nil && resp.StatusCode == 200 {
+				// Success, quit retries
+				break
+			}
 		}
+
 		defer resp.Body.Close()
 
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			log.Warningf("Request body error: %v", string(body))
+		if resp == nil {
+			log.Warning("The response was undefined. Quit.")
 			return
 		}
-		if resp.StatusCode != 200 {
-			log.Printf("Request returned failure: %v", resp.StatusCode)
+
+		body, bodyErr := ioutil.ReadAll(resp.Body)
+		if bodyErr != nil {
+			log.Warningf("Response body error: %v", string(body))
 			return
 		}
-		// trigger acks message only if a request done successfully
+
+		// Only the latest error response will be published to error topic
+		if err != nil || resp.StatusCode != 200 {
+			if len(trigger.Spec.ErrorTopic) > 0 {
+				publishErr := nats.nsConn.Publish(trigger.Spec.ErrorTopic, body)
+				if publishErr != nil {
+					log.Error("Failed to publish error to error topic: %v", err)
+					// Do not ack message, quit
+					return
+				}
+			}
+		}
+
+		// Trigger acks message only if a request was processed successfully
 		err = msg.Ack()
 		if err != nil {
 			log.Warningf("Failed to ack message: %v", err)
@@ -148,4 +179,5 @@ func msgHandler(nats *Nats, trigger *crd.MessageQueueTrigger) func(*ns.Msg) {
 			}
 		}
 	}
+
 }

@@ -363,6 +363,8 @@ func upgradeRestoreState(c *cli.Context) error {
 				MessageQueueType:  fission.MessageQueueTypeNats, // only NATS is supported at that time (v1 types)
 				Topic:             t.Topic,
 				ResponseTopic:     t.ResponseTopic,
+				ErrorTopic:        t.ErrorTopic,
+				MaxRetries:        t.MaxRetries,
 			},
 		})
 		checkErr(err, fmt.Sprintf("create http trigger %v", t.Metadata.Name))

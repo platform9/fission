@@ -193,11 +193,13 @@ func main() {
 	mqtMQTypeFlag := cli.StringFlag{Name: "mqtype", Value: "nats-streaming", Usage: "Message queue type, e.g. nats-streaming, azure-storage-queue (optional)"}
 	mqtTopicFlag := cli.StringFlag{Name: "topic", Usage: "Message queue Topic the trigger listens on"}
 	mqtRespTopicFlag := cli.StringFlag{Name: "resptopic", Usage: "Topic that the function response is sent on (optional; response discarded if unspecified)"}
+	mqtErrorTopicFlag := cli.StringFlag{Name: "errortopic", Usage: "Topic that the function error messages are sent to (optional; errors discarded if unspecified"}
+	mqtMaxRetries := cli.IntFlag{Name: "maxretries", Usage: "Maximum number of times the function will be retried upon failure (optional; default is 0)"}
 	mqtMsgContentType := cli.StringFlag{Name: "contenttype, c", Value: "application/json", Usage: "Content type of messages that publish to the topic (optional)"}
 	mqtSubcommands := []cli.Command{
-		{Name: "create", Aliases: []string{"add"}, Usage: "Create Message queue trigger", Flags: []cli.Flag{mqtNameFlag, mqtFnNameFlag, fnNamespaceFlag, mqtMQTypeFlag, mqtTopicFlag, mqtRespTopicFlag, mqtMsgContentType, specSaveFlag}, Action: mqtCreate},
+		{Name: "create", Aliases: []string{"add"}, Usage: "Create Message queue trigger", Flags: []cli.Flag{mqtNameFlag, mqtFnNameFlag, fnNamespaceFlag, mqtMQTypeFlag, mqtTopicFlag, mqtRespTopicFlag, mqtErrorTopicFlag, mqtMaxRetries, mqtMsgContentType, specSaveFlag}, Action: mqtCreate},
 		{Name: "get", Usage: "Get message queue trigger", Flags: []cli.Flag{triggerNamespaceFlag}, Action: mqtGet},
-		{Name: "update", Usage: "Update message queue trigger", Flags: []cli.Flag{mqtNameFlag, triggerNamespaceFlag, mqtTopicFlag, mqtRespTopicFlag, mqtFnNameFlag, mqtMsgContentType}, Action: mqtUpdate},
+		{Name: "update", Usage: "Update message queue trigger", Flags: []cli.Flag{mqtNameFlag, triggerNamespaceFlag, mqtTopicFlag, mqtRespTopicFlag, mqtErrorTopicFlag, mqtMaxRetries, mqtFnNameFlag, mqtMsgContentType}, Action: mqtUpdate},
 		{Name: "delete", Usage: "Delete message queue trigger", Flags: []cli.Flag{mqtNameFlag, triggerNamespaceFlag}, Action: mqtDelete},
 		{Name: "list", Usage: "List message queue triggers", Flags: []cli.Flag{mqtMQTypeFlag, triggerNamespaceFlag}, Action: mqtList},
 	}

@@ -302,6 +302,8 @@ type (
 		MessageQueueType  MessageQueueType  `json:"messageQueueType"`
 		Topic             string            `json:"topic"`
 		ResponseTopic     string            `json:"respTopic,omitempty"`
+		ErrorTopic        string            `json:"errorTopic"`
+		MaxRetries        int               `json:"maxRetries"`
 		ContentType       string            `json:"contentType"`
 	}
 
