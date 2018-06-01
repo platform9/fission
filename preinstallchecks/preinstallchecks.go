@@ -67,6 +67,8 @@ func makeCRDBackedClient(fnPodNs, envBuilderNs string) (*Client, error) {
 	}, nil
 }
 
+// IsFissionReInstall checks if there is atleast one fission CRD, i.e. function in this case on this cluster.
+// we need this to find out if fission had been previously installed on this cluster
 func (client *Client) IsFissionReInstall() bool {
 	for i := 0; i < MaxRetries; i++ {
 		_, err := client.apiExtClient.ApiextensionsV1beta1().CustomResourceDefinitions().Get(FunctionCRD, metav1.GetOptions{})
@@ -81,6 +83,8 @@ func (client *Client) IsFissionReInstall() bool {
 	return false
 }
 
+// VerifyFunctionSpecReferences verifies that a function references secrets, configmaps, pkgs in its own namespace and
+// throws a list of functions that don't adhere to this requirement.
 func (client *Client) VerifyFunctionSpecReferences() {
 	log.Printf("Verifying Function spec references for all functions in the cluster")
 
@@ -129,6 +133,37 @@ func (client *Client) VerifyFunctionSpecReferences() {
 	log.Printf("Function Spec References verified")
 }
 
+// deleteClusterRoleBinding deletes the clusterRoleBinding passed as an argument to it.
+// if its not present, it just ignores and returns no errors
+func (client *Client) deleteClusterRoleBinding(clusterRoleBinding string) (err error) {
+	for i := 0; i < MaxRetries; i++ {
+		err = client.k8sClient.RbacV1beta1Client.ClusterRoleBindings().Delete(clusterRoleBinding, &metav1.DeleteOptions{})
+		if err != nil && k8serrors.IsNotFound(err) || err == nil {
+			return nil
+		}
+	}
+
+	return err
+}
+
+// RemoveClusterAdminRolesForFissionSAs deletes the clusterRoleBindings previously created on this cluster
+func (client *Client) RemoveClusterAdminRolesForFissionSAs() {
+	clusterRoleBindings := []string{"fission-builder-crd", "fission-fetcher-crd"}
+	for _, clusterRoleBinding := range clusterRoleBindings {
+		err := client.deleteClusterRoleBinding(clusterRoleBinding)
+		if err != nil {
+			fatal(fmt.Sprintf("Error deleting rolebinding : %s, err : %v", clusterRoleBinding, err))
+		}
+	}
+
+	log.Println("Removed cluster admin privileges for fission-builder and fission-fetcher Service Accounts")
+}
+
+// NeedRoleBindings checks if there is atleast one package or function in default namespace.
+// this is needed to find out if package-getter-rb and secret-configmap-getter-rb needs to be created for fission-fetcher
+// and fission-builder service accounts.
+// this because, we just deleted the ClusterRoleBindings for these service accounts in the previous function and
+// for the existing functions to work, we need to give these SAs the right privileges
 func (client *Client) NeedRoleBindings() bool {
 	pkgList, err := client.fissionClient.Packages(metav1.NamespaceDefault).List(metav1.ListOptions{})
 	if err == nil && len(pkgList.Items) > 0 {
@@ -143,6 +178,7 @@ func (client *Client) NeedRoleBindings() bool {
 	return false
 }
 
+// Setup appropriate role bindings for fission-fetcher and fission-builder SAs
 func (client *Client) SetupRoleBindings() {
 	if !client.NeedRoleBindings() {
 		log.Printf("No fission objects found, so no role-bindings to create")
@@ -168,27 +204,4 @@ func (client *Client) SetupRoleBindings() {
 
 	log.Printf("Created role-bindings : %s and %s in default namespace", fission.PackageGetterRB, fission.SecretConfigMapGetterRB)
 	return
-}
-
-func (client *Client) deleteClusterRoleBinding(clusterRoleBinding string) (err error) {
-	for i := 0; i < MaxRetries; i++ {
-		err = client.k8sClient.RbacV1beta1Client.ClusterRoleBindings().Delete(clusterRoleBinding, &metav1.DeleteOptions{})
-		if err != nil && k8serrors.IsNotFound(err) || err == nil {
-			return nil
-		}
-	}
-
-	return err
-}
-
-func (client *Client) RemoveClusterAdminRolesForFissionSAs() {
-	clusterRoleBindings := []string{"fission-builder-crd", "fission-fetcher-crd"}
-	for _, clusterRoleBinding := range clusterRoleBindings {
-		err := client.deleteClusterRoleBinding(clusterRoleBinding)
-		if err != nil {
-			fatal(fmt.Sprintf("Error deleting rolebinding : %s, err : %v", clusterRoleBinding, err))
-		}
-	}
-
-	log.Println("Removed cluster admin privileges for fission-builder and fission-fetcher Service Accounts")
 }
