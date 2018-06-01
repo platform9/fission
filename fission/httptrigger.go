@@ -147,22 +147,19 @@ func htUpdate(c *cli.Context) error {
 	}
 	triggerNamespace := c.String("triggerNamespace")
 
-	// update function ref
-	newFn := c.String("function")
-	if len(newFn) == 0 {
-		fatal("Nothing to update. Use --function to specify a new function.")
-	}
-
-	checkFunctionExistence(client, newFn, triggerNamespace)
-
 	ht, err := client.HTTPTriggerGet(&metav1.ObjectMeta{
 		Name:      htName,
 		Namespace: triggerNamespace,
 	})
 	checkErr(err, "get HTTP trigger")
 
-	if len(newFn) > 0 {
+	if c.IsSet("function") {
+		newFn := c.String("function")
+		checkFunctionExistence(client, newFn, triggerNamespace)
 		ht.Spec.FunctionReference.Name = newFn
+	} else {
+		fnName := ht.Spec.FunctionReference.Name
+		checkFunctionExistence(client, fnName, triggerNamespace)
 	}
 
 	if c.IsSet("createingress") {
