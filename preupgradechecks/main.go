@@ -36,7 +36,7 @@ func getStringArgWithDefault(arg interface{}, defaultValue string) string {
 func main() {
 	usage := `package to perform operations needed prior to fission installation
 Usage:
-  pre-install-checks --fn-pod-namespace=<podNamespace> --envbuilder-namespace=<envBuilderNamespace>
+  pre-upgrade-checks --fn-pod-namespace=<podNamespace> --envbuilder-namespace=<envBuilderNamespace>
 Options:
   --fn-pod-namespace=<podNamespace>                        Namespace where function pods get deployed.
   --envbuilder-namespace=<envBuilderNamespace>             Namespace where builder env pods are deployed.`
@@ -51,7 +51,7 @@ Options:
 
 	crdBackedClient, err := makeCRDBackedClient(functionPodNs, envBuilderNs)
 	if err != nil {
-		log.Printf("Error creating a crd client : %v, please retry helm install", err)
+		log.Printf("Error creating a crd client : %v, please retry helm upgrade", err)
 		os.Exit(1)
 	}
 

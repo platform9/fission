@@ -1,3 +1,3 @@
 FROM alpine:3.4
 RUN apk add --update ca-certificates
-ADD pre-install-checks /
+ADD pre-upgrade-checks /

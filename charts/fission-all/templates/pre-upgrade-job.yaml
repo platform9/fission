@@ -25,9 +25,9 @@ spec:
     spec:
       restartPolicy: Never
       containers:
-      - name: pre-install-job
-        image: {{ .Values.preInstallChecksImage }}:{{ .Values.imageTag }}
+      - name: pre-upgrade-job
+        image: {{ .Values.preUpgradeChecksImage }}:{{ .Values.imageTag }}
         imagePullPolicy: {{ .Values.pullPolicy }}
-        command: [ "/pre-install-checks" ]
+        command: [ "/pre-upgrade-checks" ]
         args: ["--fn-pod-namespace", "{{ .Values.functionNamespace }}", "--envbuilder-namespace", "{{ .Values.builderNamespace }}"]
       serviceAccount: fission-svc

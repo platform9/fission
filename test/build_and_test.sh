@@ -26,13 +26,13 @@ TAG=test
 PRUNE_INTERVAL=1 # this variable controls the interval to run archivePruner. The unit is in minutes.
 ROUTER_SERVICE_TYPE=LoadBalancer
 SERVICE_TYPE=LoadBalancer
-PREINSTALLCHECK_IMAGE=$REPO/pre-install-checks
+PRE_UPGRADE_CHECK_IMAGE=$REPO/pre-upgrade-checks
 
 dump_system_info
 
 build_and_push_fission_bundle $IMAGE:$TAG
 
-build_and_push_pre_install_check_image $PREINSTALLCHECK_IMAGE:$TAG
+build_and_push_pre_upgrade_check_image $PRE_UPGRADE_CHECK_IMAGE:$TAG
 
 build_and_push_fetcher $FETCHER_IMAGE:$TAG
 
@@ -48,4 +48,4 @@ build_and_push_fluentd $FLUENTD_IMAGE:$TAG
 
 build_fission_cli
 
-install_and_test $IMAGE $TAG $FETCHER_IMAGE $TAG $FLUENTD_IMAGE $TAG $PRUNE_INTERVAL $ROUTER_SERVICE_TYPE $SERVICE_TYPE $PREINSTALLCHECK_IMAGE
+install_and_test $IMAGE $TAG $FETCHER_IMAGE $TAG $FLUENTD_IMAGE $TAG $PRUNE_INTERVAL $ROUTER_SERVICE_TYPE $SERVICE_TYPE $PRE_UPGRADE_CHECK_IMAGE

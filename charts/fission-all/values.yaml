@@ -93,4 +93,4 @@ heapster: false
 pruneInterval: 60
 
 ## Fission pre-install/pre-upgrade checks live in this image
-preInstallChecksImage: fission/pre-install-checks
+preUpgradeChecksImage: fission/pre-upgrade-checks
