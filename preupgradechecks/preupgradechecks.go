@@ -137,7 +137,7 @@ func (client *Client) VerifyFunctionSpecReferences() {
 // if its not present, it just ignores and returns no errors
 func (client *Client) deleteClusterRoleBinding(clusterRoleBinding string) (err error) {
 	for i := 0; i < MaxRetries; i++ {
-		err = client.k8sClient.RbacV1beta1Client.ClusterRoleBindings().Delete(clusterRoleBinding, &metav1.DeleteOptions{})
+		err = client.k8sClient.RbacV1beta1().ClusterRoleBindings().Delete(clusterRoleBinding, &metav1.DeleteOptions{})
 		if err != nil && k8serrors.IsNotFound(err) || err == nil {
 			return nil
 		}
