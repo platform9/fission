@@ -131,7 +131,7 @@ func msgHandler(nats *Nats, trigger *crd.MessageQueueTrigger) func(*ns.Msg) {
 			// Make the request
 			log.Warningf("Request : %v", req)
 			resp, err = http.DefaultClient.Do(req)
-			if resp == nil {
+			if err != nil || resp == nil {
 				// Retry without referencing status code of nil response on the next line
 				continue
 			}
@@ -141,27 +141,30 @@ func msgHandler(nats *Nats, trigger *crd.MessageQueueTrigger) func(*ns.Msg) {
 			}
 		}
 
-		defer resp.Body.Close()
-
 		if resp == nil {
 			log.Warning("The response was undefined. Quit.")
 			return
 		}
 
+		// TODO : Sequence
+		defer resp.Body.Close()
+
 		body, bodyErr := ioutil.ReadAll(resp.Body)
 		if bodyErr != nil {
-			log.Warningf("Response body error: %v", string(body))
+			log.Warningf("Response body error: %v", bodyErr)
 			return
 		}
+
+		// TODO : what if err is not nil, then body is empty. publish either of them, not just body.
 
 		// Only the latest error response will be published to error topic
 		if err != nil || resp.StatusCode != 200 {
 			if len(trigger.Spec.ErrorTopic) > 0 {
 				publishErr := nats.nsConn.Publish(trigger.Spec.ErrorTopic, body)
 				if publishErr != nil {
-					log.Error("Failed to publish error to error topic: %v", err)
-					// Do not ack message, quit
-					return
+					log.Error("Failed to publish error to error topic: %v", publishErr)
+					// TODO: We will ack this message after max retries to prevent re-processing but
+					// this may cause message loss
 				}
 			}
 		}

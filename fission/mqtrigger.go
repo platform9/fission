@@ -72,7 +72,7 @@ func mqtCreate(c *cli.Context) error {
 
 	maxRetries := c.Int("maxretries")
 
-	if maxRetries < 0 || maxRetries > 5 {
+	if maxRetries < 0 {
 		fatal("Maximum number of retries must be between 1 and 5, default is 0")
 	}
 
@@ -162,7 +162,7 @@ func mqtUpdate(c *cli.Context) error {
 	// Default number of max retries is 0
 	mqt.Spec.MaxRetries = 0
 
-	if maxRetries > -1 && maxRetries < 6 {
+	if maxRetries > -1 {
 		mqt.Spec.MaxRetries = maxRetries
 		updated = true
 	}
