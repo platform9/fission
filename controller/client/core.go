@@ -19,6 +19,7 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 
 	apiv1 "k8s.io/api/core/v1"
@@ -71,4 +72,24 @@ func (c *Client) ConfigMapGet(m *metav1.ObjectMeta) (*apiv1.ConfigMap, error) {
 	}
 
 	return &configMap, nil
+}
+
+func (c *Client) GetSvcURL(label string) (string, error) {
+	url := fmt.Sprintf("%s/proxy/svcname?"+label, c.Url)
+
+	resp, err := http.Get(url)
+
+	if err != nil {
+		return "", err
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	storageSvc := string(body)
+
+	defer resp.Body.Close()
+	return storageSvc, err
 }

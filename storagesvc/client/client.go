@@ -109,11 +109,7 @@ func (c *Client) Upload(filePath string, metadata *map[string]string) (string, e
 
 // GetUrl returns an HTTP URL that can be used to download the file pointed to by ID
 func (c *Client) GetUrl(id string) string {
-	return c.GetURL(id, c.url)
-}
-
-func (c *Client) GetURL(id string, hostUrl string) string {
-	return fmt.Sprintf("%v/archive?id=%v", hostUrl, url.PathEscape(id))
+	return fmt.Sprintf("%v/archive?id=%v", c.url, url.PathEscape(id))
 }
 
 // Download fetches the file identified by ID to the local file path.
