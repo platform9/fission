@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
+	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/pkg/api"
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
@@ -21,7 +21,7 @@ func TestFunctionServiceCache(t *testing.T) {
 	var fsvc *FuncSvc
 	now := time.Now()
 
-	objects := []api.ObjectReference{
+	objects := []apiv1.ObjectReference{
 		{
 			Kind:       "pod",
 			Name:       "xxx",

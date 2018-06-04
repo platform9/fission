@@ -23,13 +23,13 @@ import (
 	"strconv"
 	"time"
 
+	apiv1 "k8s.io/api/core/v1"
+	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
-	apiv1 "k8s.io/client-go/pkg/api/v1"
-	"k8s.io/client-go/pkg/apis/extensions/v1beta1"
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
@@ -373,13 +373,9 @@ func (envw *environmentWatcher) createBuilder(env *crd.Environment, ns string) (
 }
 
 func (envw *environmentWatcher) deleteBuilderServiceByName(name, namespace string) error {
-	falseVal := false
-	delOpt := &metav1.DeleteOptions{
-		OrphanDependents: &falseVal,
-	}
-	err := envw.kubernetesClient.
+	err := envw.kubernetesClient.CoreV1().
 		Services(namespace).
-		Delete(name, delOpt)
+		Delete(name, &delOpt)
 	if err != nil {
 		return fmt.Errorf("Error deleting builder service %s.%s: %v", name, namespace, err)
 	}
@@ -387,13 +383,9 @@ func (envw *environmentWatcher) deleteBuilderServiceByName(name, namespace strin
 }
 
 func (envw *environmentWatcher) deleteBuilderDeploymentByName(name, namespace string) error {
-	falseVal := false
-	delOpt := &metav1.DeleteOptions{
-		OrphanDependents: &falseVal,
-	}
 	err := envw.kubernetesClient.ExtensionsV1beta1().
 		Deployments(namespace).
-		Delete(name, delOpt)
+		Delete(name, &delOpt)
 	if err != nil {
 		return fmt.Errorf("Error deleting builder deployment %s.%s: %v", name, namespace, err)
 	}
@@ -407,7 +399,7 @@ func (envw *environmentWatcher) deleteBuilderService(sel map[string]string, ns s
 	}
 	for _, svc := range svcList {
 		log.Printf("Removing builder service: %v", svc.ObjectMeta.Name)
-		err = envw.kubernetesClient.
+		err = envw.kubernetesClient.CoreV1().
 			Services(ns).
 			Delete(svc.ObjectMeta.Name, &delOpt)
 		if err != nil {
@@ -435,7 +427,7 @@ func (envw *environmentWatcher) deleteBuilderDeployment(sel map[string]string, n
 }
 
 func (envw *environmentWatcher) getBuilderServiceList(sel map[string]string, ns string) ([]apiv1.Service, error) {
-	svcList, err := envw.kubernetesClient.Services(ns).List(
+	svcList, err := envw.kubernetesClient.CoreV1().Services(ns).List(
 		metav1.ListOptions{
 			LabelSelector: labels.Set(sel).AsSelector().String(),
 		})
@@ -480,7 +472,7 @@ func (envw *environmentWatcher) createBuilderService(env *crd.Environment, ns st
 		},
 	}
 	log.Printf("Creating builder service: %v", name)
-	_, err := envw.kubernetesClient.Services(ns).Create(&service)
+	_, err := envw.kubernetesClient.CoreV1().Services(ns).Create(&service)
 	if err != nil {
 		return nil, err
 	}

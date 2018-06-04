@@ -22,10 +22,10 @@ import (
 	"strings"
 	"time"
 
+	apiv1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/pkg/api"
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
@@ -146,7 +146,7 @@ func idleObjectReaper(kubeClient *kubernetes.Clientset,
 	}
 }
 
-func deleteKubeobject(kubeClient *kubernetes.Clientset, kubeobj *api.ObjectReference) {
+func deleteKubeobject(kubeClient *kubernetes.Clientset, kubeobj *apiv1.ObjectReference) {
 	switch strings.ToLower(kubeobj.Kind) {
 	case "pod":
 		err := kubeClient.CoreV1().Pods(kubeobj.Namespace).Delete(kubeobj.Name, nil)

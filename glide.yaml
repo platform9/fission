@@ -16,27 +16,26 @@ import:
   version: ^1.1.0
 - package: github.com/urfave/cli
   version: ^1.18.1
+- package: golang.org/x/tools/imports
 - package: golang.org/x/net
   subpackages:
   - context
 - package: k8s.io/client-go
-  version: v4.0.0
+  version: v7.0.0
   subpackages:
   - kubernetes
-  - pkg/api
-  - pkg/api/v1
-  - pkg/apis/extensions/v1beta1
-  - pkg/labels
-  - pkg/util/intstr
+  - util/intstr
   - rest
 - package: k8s.io/api
-  version: 4b8fc5be9b77d91bbb6525d18591c43699a2b4e5
+  version: release-1.10
 - package: k8s.io/apiextensions-apiserver
-  version: release-1.7
+  version: release-1.10
   subpackages:
   - pkg/apis/apiextensions/v1beta1
 - package: k8s.io/apimachinery
-  version: release-1.7
+  version: release-1.10
+- package: k8s.io/code-generator
+- package: k8s.io/gengo
 - package: github.com/influxdata/influxdb
   version: v1.2.0
   subpackages:

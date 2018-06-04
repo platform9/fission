@@ -17,16 +17,16 @@ limitations under the License.
 package fission
 
 import (
+	"fmt"
 	"log"
 
-	"fmt"
+	apiv1 "k8s.io/api/core/v1"
+	rbac "k8s.io/api/rbac/v1beta1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/client-go/kubernetes"
-	apiv1 "k8s.io/client-go/pkg/api/v1"
-	rbac "k8s.io/client-go/pkg/apis/rbac/v1beta1"
 )
 
 // This file has util functions needed for setting up and cleaning up RBAC objects.
@@ -47,14 +47,14 @@ func MakeSAObj(sa, ns string) *apiv1.ServiceAccount {
 
 // SetupSA checks if a service account is present in the namespace, if not creates it.
 func SetupSA(k8sClient *kubernetes.Clientset, sa, ns string) (*apiv1.ServiceAccount, error) {
-	saObj, err := k8sClient.CoreV1Client.ServiceAccounts(ns).Get(sa, metav1.GetOptions{})
+	saObj, err := k8sClient.CoreV1().ServiceAccounts(ns).Get(sa, metav1.GetOptions{})
 	if err == nil {
 		return saObj, nil
 	}
 
 	if k8serrors.IsNotFound(err) {
 		saObj = MakeSAObj(sa, ns)
-		saObj, err = k8sClient.CoreV1Client.ServiceAccounts(ns).Create(saObj)
+		saObj, err = k8sClient.CoreV1().ServiceAccounts(ns).Create(saObj)
 	}
 
 	return saObj, err

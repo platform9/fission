@@ -33,7 +33,7 @@ func (a *API) ConfigMapGet(w http.ResponseWriter, r *http.Request) {
 		ns = metav1.NamespaceDefault
 	}
 
-	configMap, err := a.kubernetesClient.ConfigMaps(ns).Get(name, metav1.GetOptions{})
+	configMap, err := a.kubernetesClient.CoreV1().ConfigMaps(ns).Get(name, metav1.GetOptions{})
 	if err != nil {
 		log.Printf("Error getting config map: %s from ns: %s", name, ns)
 		a.respondWithError(w, err)

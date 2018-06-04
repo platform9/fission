@@ -24,14 +24,14 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
+	fv1 "github.com/fission/fission/pkg/apis/fission.io/v1"
 )
 
 func (c *Client) MessageQueueTriggerCreate(t *crd.MessageQueueTrigger) (*metav1.ObjectMeta, error) {
 	err := t.Validate()
 	if err != nil {
-		return nil, fission.AggregateValidationErrors("MessageQueueTrigger", err)
+		return nil, fv1.AggregateValidationErrors("MessageQueueTrigger", err)
 	}
 
 	reqbody, err := json.Marshal(t)
@@ -86,7 +86,7 @@ func (c *Client) MessageQueueTriggerGet(m *metav1.ObjectMeta) (*crd.MessageQueue
 func (c *Client) MessageQueueTriggerUpdate(mqTrigger *crd.MessageQueueTrigger) (*metav1.ObjectMeta, error) {
 	err := mqTrigger.Validate()
 	if err != nil {
-		return nil, fission.AggregateValidationErrors("MessageQueueTrigger", err)
+		return nil, fv1.AggregateValidationErrors("MessageQueueTrigger", err)
 	}
 
 	reqbody, err := json.Marshal(mqTrigger)

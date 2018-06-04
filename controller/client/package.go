@@ -24,14 +24,14 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
+	fv1 "github.com/fission/fission/pkg/apis/fission.io/v1"
 )
 
 func (c *Client) PackageCreate(f *crd.Package) (*metav1.ObjectMeta, error) {
 	err := f.Validate()
 	if err != nil {
-		return nil, fission.AggregateValidationErrors("Package", err)
+		return nil, fv1.AggregateValidationErrors("Package", err)
 	}
 
 	reqbody, err := json.Marshal(f)
@@ -86,7 +86,7 @@ func (c *Client) PackageGet(m *metav1.ObjectMeta) (*crd.Package, error) {
 func (c *Client) PackageUpdate(f *crd.Package) (*metav1.ObjectMeta, error) {
 	err := f.Validate()
 	if err != nil {
-		return nil, fission.AggregateValidationErrors("Package", err)
+		return nil, fv1.AggregateValidationErrors("Package", err)
 	}
 
 	reqbody, err := json.Marshal(f)

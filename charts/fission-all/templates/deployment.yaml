@@ -466,7 +466,8 @@ spec:
         - name: fission-log
           hostPath:
               path: /var/log/fission
-
+  updateStrategy:
+    type: RollingUpdate
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment

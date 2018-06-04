@@ -25,10 +25,10 @@ import (
 
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
+	apiv1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	apiv1 "k8s.io/client-go/pkg/api/v1"
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
@@ -123,14 +123,14 @@ func (api *API) createNsIfNotExists(ns string) error {
 		return nil
 	}
 
-	_, err := api.kubernetesClient.CoreV1Client.Namespaces().Get(ns, metav1.GetOptions{})
+	_, err := api.kubernetesClient.CoreV1().Namespaces().Get(ns, metav1.GetOptions{})
 	if err != nil && kerrors.IsNotFound(err) {
 		ns := &apiv1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: ns,
 			},
 		}
-		_, err = api.kubernetesClient.CoreV1Client.Namespaces().Create(ns)
+		_, err = api.kubernetesClient.CoreV1().Namespaces().Create(ns)
 	}
 
 	return err
@@ -215,8 +215,6 @@ func (api *API) Serve(port int) {
 	r.HandleFunc("/v2/triggers/messagequeue/{mqTrigger}", api.MessageQueueTriggerApiGet).Methods("GET")
 	r.HandleFunc("/v2/triggers/messagequeue/{mqTrigger}", api.MessageQueueTriggerApiUpdate).Methods("PUT")
 	r.HandleFunc("/v2/triggers/messagequeue/{mqTrigger}", api.MessageQueueTriggerApiDelete).Methods("DELETE")
-
-	r.HandleFunc("/v2/deleteTpr", api.Tpr2crdApi).Methods("DELETE")
 
 	r.HandleFunc("/v2/secrets/{secret}", api.SecretGet).Methods("GET")
 	r.HandleFunc("/v2/configmaps/{configmap}", api.ConfigMapGet).Methods("GET")

@@ -21,10 +21,10 @@ import (
 	"log"
 	"time"
 
+	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	apiv1 "k8s.io/client-go/pkg/api/v1"
 	k8sCache "k8s.io/client-go/tools/cache"
 
 	"github.com/fission/fission"

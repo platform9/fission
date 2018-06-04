@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package fission
+package v1
 
 import (
 	"fmt"
@@ -38,26 +38,28 @@ var (
 	validAzureQueueName = regexp.MustCompile("^[a-z0-9][a-z0-9\\-]*[a-z0-9]$")
 )
 
-type ValidationErrorType int
+type (
+	ValidationErrorType int
 
-// ValidationError is a custom error type for resource validation.
-// It indicate which field is invalid or illegal in the fission resource.
-// Also, it shows what kind of error type, bad value and detail error messages.
-type ValidationError struct {
-	// Type of validation error.
-	// It indicates what kind of error of field in error output.
-	Type ValidationErrorType
+	// ValidationError is a custom error type for resource validation.
+	// It indicate which field is invalid or illegal in the fission resource.
+	// Also, it shows what kind of error type, bad value and detail error messages.
+	ValidationError struct {
+		// Type of validation error.
+		// It indicates what kind of error of field in error output.
+		Type ValidationErrorType
 
-	// Name of error field.
-	// Example: FunctionReference.Name
-	Field string
+		// Name of error field.
+		// Example: FunctionReference.Name
+		Field string
 
-	// Error field value.
-	BadValue interface{}
+		// Error field value.
+		BadValue string
 
-	// Detail error message
-	Detail string
-}
+		// Detail error message
+		Detail string
+	}
+)
 
 func (e ValidationError) Error() string {
 	// Example error message
@@ -104,7 +106,7 @@ func MakeValidationErr(errType ValidationErrorType, field string, val interface{
 	return ValidationError{
 		Type:     errType,
 		Field:    field,
-		BadValue: val,
+		BadValue: fmt.Sprintf("%v", val),
 		Detail:   fmt.Sprintf("%v", detail),
 	}
 }

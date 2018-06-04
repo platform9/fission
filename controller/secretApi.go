@@ -33,7 +33,7 @@ func (a *API) SecretGet(w http.ResponseWriter, r *http.Request) {
 		ns = metav1.NamespaceDefault
 	}
 
-	secret, err := a.kubernetesClient.Secrets(ns).Get(name, metav1.GetOptions{})
+	secret, err := a.kubernetesClient.CoreV1().Secrets(ns).Get(name, metav1.GetOptions{})
 	if err != nil {
 		log.Printf("Error getting secret: %s from ns: %s", name, ns)
 		a.respondWithError(w, err)
