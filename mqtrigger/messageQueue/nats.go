@@ -126,7 +126,6 @@ func msgHandler(nats *Nats, trigger *crd.MessageQueueTrigger) func(*ns.Msg) {
 		}
 
 		var resp *http.Response
-		// Number of retries is required to be between 0 (default) and 5, inclusive
 		for attempt := -1; attempt < trigger.Spec.MaxRetries; attempt++ {
 			// Make the request
 			log.Warningf("Request : %v", req)
