@@ -27,6 +27,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fission/fission/fission/log"
 	"github.com/fsnotify/fsnotify"
 	"github.com/ghodss/yaml"
 	multierror "github.com/hashicorp/go-multierror"
@@ -503,7 +504,7 @@ func (fr *FissionResources) parseYaml(b []byte, loc *location) error {
 	default:
 		// no need to error out just because there's some extra files around;
 		// also good for compatibility.
-		warn(fmt.Sprintf("Ignoring unknown type %v in %v", tm.Kind, loc))
+		log.Warn(fmt.Sprintf("Ignoring unknown type %v in %v", tm.Kind, loc))
 	}
 
 	// add to source map, check for duplicates
@@ -523,7 +524,8 @@ func readSpecs(specDir string) (*FissionResources, error) {
 
 	// make sure spec directory exists before continue
 	if _, err := os.Stat(specDir); os.IsNotExist(err) {
-		fatal(fmt.Sprintf("Spec directory %v doesn't exist. Please check directory path or run \"fission spec init\" to create it.", specDir))
+		log.Fatal(fmt.Sprintf("Spec directory %v doesn't exist. "+
+			"Please check directory path or run \"fission spec init\" to create it.", specDir))
 	}
 
 	fr := FissionResources{
@@ -950,7 +952,7 @@ func localArchiveFromSpec(specDir string, aus *ArchiveUploadSpec) (*fission.Arch
 		absGlob := rootDir + "/" + relativeGlob
 		f, err := filepath.Glob(absGlob)
 		if err != nil {
-			warn(fmt.Sprintf("Invalid glob in archive %v: %v", aus.Name, relativeGlob))
+			log.Warn(fmt.Sprintf("Invalid glob in archive %v: %v", aus.Name, relativeGlob))
 			return nil, err
 		}
 		files = append(files, f...)

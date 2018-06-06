@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/dchest/uniuri"
+	"github.com/fission/fission/fission/log"
 	"github.com/urfave/cli"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -37,7 +38,7 @@ type (
 
 func getV1URL(serverUrl string) string {
 	if len(serverUrl) == 0 {
-		fatal("Need --server or FISSION_URL set to your fission server.")
+		log.Fatal("Need --server or FISSION_URL set to your fission server.")
 	}
 	isHTTPS := strings.Index(serverUrl, "https://") == 0
 	isHTTP := strings.Index(serverUrl, "http://") == 0
@@ -57,7 +58,7 @@ func get(url string) []byte {
 	checkErr(err, "reading server response")
 
 	if resp.StatusCode != 200 {
-		fatal(fmt.Sprintf("Failed to fetch fission v0.1 state: %v", string(body)))
+		log.Fatal(fmt.Sprintf("Failed to fetch fission v0.1 state: %v", string(body)))
 	}
 	return body
 }
@@ -251,7 +252,7 @@ func upgradeDumpState(c *cli.Context) error {
 	checkErr(err, "reach fission server")
 	if resp.StatusCode == http.StatusNotFound {
 		msg := fmt.Sprintf("Server %v isn't a v1 Fission server. Use --server to point at a pre-0.2.x Fission server.", u)
-		fatal(msg)
+		log.Fatal(msg)
 	}
 
 	upgradeDumpV1State(u, filename)
