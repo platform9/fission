@@ -152,6 +152,13 @@ type (
 
 		Items []MessageQueueTrigger `json:"items"`
 	}
+
+	// TODO: Should this be here?
+	Recorder struct {
+		metav1.TypeMeta `json:",inline"`
+		Metadata        metav1.ObjectMeta       `json:"metadata"`
+		Spec            RecorderSpec `json:"spec"`
+	}
 )
 
 // Each CRD type needs:
@@ -380,5 +387,15 @@ func (ml *MessageQueueTriggerList) Validate() error {
 	for _, m := range ml.Items {
 		result = multierror.Append(result, m.Validate())
 	}
+	return result.ErrorOrNil()
+}
+
+func (r *Recorder) Validate() error {
+	var result *multierror.Error
+
+	result = multierror.Append(result,
+		validateMetadata("Recorder", r.Metadata),
+		r.Spec.Validate())
+
 	return result.ErrorOrNil()
 }

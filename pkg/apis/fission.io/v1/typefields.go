@@ -311,6 +311,20 @@ type (
 		ContentType       string            `json:"contentType"`
 	}
 
+	// BackendType is the DB/cache where function request/responses are stored
+	BackendType string
+
+	// RecorderSpec defines ...
+	RecorderSpec struct {
+		Name              string
+		BackendType       BackendType
+		Functions         []FunctionReference
+		Trigger           []string
+		RetentionPolicy   string
+		EvictionPolicy    string
+		Enabled           bool
+	}
+
 	// TimeTrigger invokes the specific function at a time or
 	// times specified by a cron string.
 	TimeTriggerSpec struct {
