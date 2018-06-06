@@ -22,6 +22,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/fission/fission/fission/log"
 	"github.com/robfig/cron"
 	"github.com/satori/go.uuid"
 	"github.com/urfave/cli"
@@ -35,7 +36,7 @@ import (
 func getAPITimeInfo(client *client.Client) time.Time {
 	serverInfo, err := client.ServerInfo()
 	if err != nil {
-		fatal(fmt.Sprintf("Error syncing server time information: %v", err))
+		log.Fatal(fmt.Sprintf("Error syncing server time information: %v", err))
 	}
 	return serverInfo.ServerTime.CurrentTime
 }
@@ -65,14 +66,14 @@ func ttCreate(c *cli.Context) error {
 	}
 	fnName := c.String("function")
 	if len(fnName) == 0 {
-		fatal("Need a function name to create a trigger, use --function")
+		log.Fatal("Need a function name to create a trigger, use --function")
 	}
 
 	fnNamespace := c.String("fnNamespace")
 
 	cronSpec := c.String("cron")
 	if len(cronSpec) == 0 {
-		fatal("Need a cron spec like '0 30 * * * *', '@every 1h30m', or '@hourly'; use --cron")
+		log.Fatal("Need a cron spec like '0 30 * * * *', '@every 1h30m', or '@hourly'; use --cron")
 	}
 
 	tt := &crd.TimeTrigger{
@@ -116,7 +117,7 @@ func ttUpdate(c *cli.Context) error {
 	client := getClient(c.GlobalString("server"))
 	ttName := c.String("name")
 	if len(ttName) == 0 {
-		fatal("Need name of trigger, use --name")
+		log.Fatal("Need name of trigger, use --name")
 	}
 	ttNs := c.String("triggerns")
 
@@ -143,7 +144,7 @@ func ttUpdate(c *cli.Context) error {
 	}
 
 	if !updated {
-		fatal("Nothing to update. Use --cron or --function.")
+		log.Fatal("Nothing to update. Use --cron or --function.")
 	}
 
 	_, err = client.TimeTriggerUpdate(tt)
@@ -161,7 +162,7 @@ func ttDelete(c *cli.Context) error {
 	client := getClient(c.GlobalString("server"))
 	ttName := c.String("name")
 	if len(ttName) == 0 {
-		fatal("Need name of trigger to delete, use --name")
+		log.Fatal("Need name of trigger to delete, use --name")
 	}
 	ttNs := c.String("triggerns")
 
@@ -200,7 +201,7 @@ func ttTest(c *cli.Context) error {
 	round := c.Int("round")
 	cronSpec := c.String("cron")
 	if len(cronSpec) == 0 {
-		fatal("Need a cron spec like '0 30 * * * *', '@every 1h30m', or '@hourly'; use --cron")
+		log.Fatal("Need a cron spec like '0 30 * * * *', '@every 1h30m', or '@hourly'; use --cron")
 	}
 
 	err := getCronNextNActivationTime(cronSpec, getAPITimeInfo(client), round)

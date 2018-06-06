@@ -25,6 +25,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/fission/fission/fission/log"
 	"github.com/urfave/cli"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -68,7 +69,7 @@ func pkgCreate(c *cli.Context) error {
 	pkgNamespace := c.String("pkgNamespace")
 	envName := c.String("env")
 	if len(envName) == 0 {
-		fatal("Need --env argument.")
+		log.Fatal("Need --env argument.")
 	}
 	envNamespace := c.String("envNamespace")
 	srcArchiveName := c.String("src")
@@ -76,7 +77,7 @@ func pkgCreate(c *cli.Context) error {
 	buildcmd := c.String("buildcmd")
 
 	if len(srcArchiveName) == 0 && len(deployArchiveName) == 0 {
-		fatal("Need --src to specify source archive, or use --deploy to specify deployment archive.")
+		log.Fatal("Need --src to specify source archive, or use --deploy to specify deployment archive.")
 	}
 
 	meta := createPackage(client, pkgNamespace, envName, envNamespace, srcArchiveName, deployArchiveName, buildcmd, "")
@@ -90,7 +91,7 @@ func pkgUpdate(c *cli.Context) error {
 
 	pkgName := c.String("name")
 	if len(pkgName) == 0 {
-		fatal("Need --name argument.")
+		log.Fatal("Need --name argument.")
 	}
 	pkgNamespace := c.String("pkgNamespace")
 
@@ -102,12 +103,12 @@ func pkgUpdate(c *cli.Context) error {
 	buildcmd := c.String("buildcmd")
 
 	if len(srcArchiveName) > 0 && len(deployArchiveName) > 0 {
-		fatal("Need either of --src or --deploy and not both arguments.")
+		log.Fatal("Need either of --src or --deploy and not both arguments.")
 	}
 
 	if len(srcArchiveName) == 0 && len(deployArchiveName) == 0 &&
 		len(envName) == 0 && len(buildcmd) == 0 {
-		fatal("Need --env or --src or --deploy or --buildcmd argument.")
+		log.Fatal("Need --env or --src or --deploy or --buildcmd argument.")
 	}
 
 	pkg, err := client.PackageGet(&metav1.ObjectMeta{
@@ -120,7 +121,7 @@ func pkgUpdate(c *cli.Context) error {
 	checkErr(err, "get function list")
 
 	if !force && len(fnList) > 1 {
-		fatal("Package is used by multiple functions, use --force to force update")
+		log.Fatal("Package is used by multiple functions, use --force to force update")
 	}
 
 	newPkgMeta := updatePackage(client, pkg,
@@ -185,7 +186,7 @@ func pkgSourceGet(c *cli.Context) error {
 
 	pkgName := c.String("name")
 	if len(pkgName) == 0 {
-		fatal("Need name of package, use --name")
+		log.Fatal("Need name of package, use --name")
 	}
 	pkgNamespace := c.String("pkgNamespace")
 
@@ -222,7 +223,7 @@ func pkgDeployGet(c *cli.Context) error {
 
 	pkgName := c.String("name")
 	if len(pkgName) == 0 {
-		fatal("Need name of package, use --name")
+		log.Fatal("Need name of package, use --name")
 	}
 	pkgNamespace := c.String("pkgNamespace")
 
@@ -259,7 +260,7 @@ func pkgInfo(c *cli.Context) error {
 
 	pkgName := c.String("name")
 	if len(pkgName) == 0 {
-		fatal("Need name of package, use --name")
+		log.Fatal("Need name of package, use --name")
 	}
 	pkgNamespace := c.String("pkgNamespace")
 
@@ -369,7 +370,7 @@ func pkgDelete(c *cli.Context) error {
 		fnList, err := getFunctionsByPackage(client, pkgName, pkgNamespace)
 
 		if !force && len(fnList) > 0 {
-			fatal("Package is used by at least one function, use -f to force delete")
+			log.Fatal("Package is used by at least one function, use -f to force delete")
 		}
 
 		err = deletePackage(client, pkgName, pkgNamespace)

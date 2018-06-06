@@ -31,6 +31,7 @@ import (
 	"strings"
 
 	"github.com/dchest/uniuri"
+	"github.com/fission/fission/fission/log"
 	uuid "github.com/satori/go.uuid"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -39,26 +40,6 @@ import (
 	"github.com/fission/fission/crd"
 	storageSvcClient "github.com/fission/fission/storagesvc/client"
 )
-
-var (
-	// global verbosity of our CLI
-	verbosity int
-)
-
-func fatal(msg string) {
-	os.Stderr.WriteString(msg + "\n")
-	os.Exit(1)
-}
-
-func warn(msg string) {
-	os.Stderr.WriteString(msg + "\n")
-}
-
-func verbose(msglevel int, format string, args ...interface{}) {
-	if verbosity >= msglevel {
-		fmt.Printf(format+"\n", args...)
-	}
-}
 
 func getClient(serverUrl string) *client.Client {
 	if len(serverUrl) == 0 {
@@ -78,7 +59,7 @@ func getClient(serverUrl string) *client.Client {
 
 func checkErr(err error, msg string) {
 	if err != nil {
-		fatal(fmt.Sprintf("Failed to %v: %v", msg, err))
+		log.Fatal(fmt.Sprintf("Failed to %v: %v", msg, err))
 	}
 }
 
@@ -91,7 +72,7 @@ func httpRequest(method, url, body string, headers []string) *http.Response {
 		method != http.MethodDelete &&
 		method != http.MethodPost &&
 		method != http.MethodPut {
-		fatal(fmt.Sprintf("Invalid HTTP method '%s'.", method))
+		log.Fatal(fmt.Sprintf("Invalid HTTP method '%s'.", method))
 	}
 
 	req, err := http.NewRequest(method, url, strings.NewReader(body))
@@ -171,7 +152,7 @@ func createArchive(client *client.Client, fileName string, specFile string) *fis
 		// make a kubernetes client
 		_, kubeClient, _, err := crd.GetKubernetesClient()
 		if err != nil {
-			fatal(err.Error())
+			log.Fatal(err.Error())
 		}
 
 		fissionNamespace := os.Getenv("FISSION_NAMESPACE")
@@ -179,7 +160,7 @@ func createArchive(client *client.Client, fileName string, specFile string) *fis
 		// get svc end point for storagesvc
 		service, err := kubeClient.CoreV1().Services(fissionNamespace).Get("storagesvc", metav1.GetOptions{})
 		if err != nil {
-			fatal(fmt.Sprintf("Error getting storage service object from kubernetes :%v", err.Error()))
+			log.Fatal(fmt.Sprintf("Error getting storage service object from kubernetes :%v", err.Error()))
 		}
 
 		u := strings.TrimSuffix(client.Url, "/") + "/proxy/storage"

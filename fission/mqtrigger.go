@@ -21,6 +21,7 @@ import (
 	"os"
 	"text/tabwriter"
 
+	"github.com/fission/fission/fission/log"
 	"github.com/satori/go.uuid"
 	"github.com/urfave/cli"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,7 +40,7 @@ func mqtCreate(c *cli.Context) error {
 	}
 	fnName := c.String("function")
 	if len(fnName) == 0 {
-		fatal("Need a function name to create a trigger, use --function")
+		log.Fatal("Need a function name to create a trigger, use --function")
 	}
 	fnNamespace := c.String("fnNamespace")
 
@@ -52,20 +53,20 @@ func mqtCreate(c *cli.Context) error {
 	case fission.MessageQueueTypeASQ:
 		mqType = fission.MessageQueueTypeASQ
 	default:
-		fatal("Unknown message queue type, currently only \"nats-streaming, azure-storage-queue \" is supported")
+		log.Fatal("Unknown message queue type, currently only \"nats-streaming, azure-storage-queue \" is supported")
 	}
 
 	// TODO: check topic availability
 	topic := c.String("topic")
 	if len(topic) == 0 {
-		fatal("Listen topic cannot be empty")
+		log.Fatal("Listen topic cannot be empty")
 	}
 	respTopic := c.String("resptopic")
 
 	if topic == respTopic {
 		// TODO maybe this should just be a warning, perhaps
 		// allow it behind a --force flag
-		fatal("Listen topic should not equal to response topic")
+		log.Fatal("Listen topic should not equal to response topic")
 	}
 
 	contentType := c.String("contenttype")
@@ -115,7 +116,7 @@ func mqtUpdate(c *cli.Context) error {
 	client := getClient(c.GlobalString("server"))
 	mqtName := c.String("name")
 	if len(mqtName) == 0 {
-		fatal("Need name of trigger, use --name")
+		log.Fatal("Need name of trigger, use --name")
 	}
 	mqtNs := c.String("triggerns")
 
@@ -153,7 +154,7 @@ func mqtUpdate(c *cli.Context) error {
 	}
 
 	if !updated {
-		fatal("Nothing to update. Use --topic, --resptopic, or --function.")
+		log.Fatal("Nothing to update. Use --topic, --resptopic, or --function.")
 	}
 
 	_, err = client.MessageQueueTriggerUpdate(mqt)
@@ -167,7 +168,7 @@ func mqtDelete(c *cli.Context) error {
 	client := getClient(c.GlobalString("server"))
 	mqtName := c.String("name")
 	if len(mqtName) == 0 {
-		fatal("Need name of trigger to delete, use --name")
+		log.Fatal("Need name of trigger to delete, use --name")
 	}
 	mqtNs := c.String("triggerns")
 
@@ -204,7 +205,7 @@ func mqtList(c *cli.Context) error {
 func checkMQTopicAvailability(mqType fission.MessageQueueType, topics ...string) {
 	for _, t := range topics {
 		if len(t) > 0 && !fv1.IsTopicValid(mqType, t) {
-			fatal(fmt.Sprintf("Invalid topic for %s: %s", mqType, t))
+			log.Fatal(fmt.Sprintf("Invalid topic for %s: %s", mqType, t))
 		}
 	}
 }

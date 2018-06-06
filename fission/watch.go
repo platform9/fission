@@ -21,6 +21,7 @@ import (
 	"os"
 	"text/tabwriter"
 
+	"github.com/fission/fission/fission/log"
 	"github.com/satori/go.uuid"
 	"github.com/urfave/cli"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,7 +35,7 @@ func wCreate(c *cli.Context) error {
 
 	fnName := c.String("function")
 	if len(fnName) == 0 {
-		fatal("Need a function name to create a watch, use --function")
+		log.Fatal("Need a function name to create a watch, use --function")
 	}
 	fnNamespace := c.String("fnNamespace")
 
@@ -95,13 +96,13 @@ func wCreate(c *cli.Context) error {
 
 func wGet(c *cli.Context) error {
 	// TODO
-	fatal("Not implemented")
+	log.Fatal("Not implemented")
 	return nil
 }
 
 func wUpdate(c *cli.Context) error {
 	// TODO
-	fatal("Not implemented")
+	log.Fatal("Not implemented")
 	return nil
 }
 
@@ -110,7 +111,7 @@ func wDelete(c *cli.Context) error {
 
 	wName := c.String("name")
 	if len(wName) == 0 {
-		fatal("Need name of watch to delete, use --name")
+		log.Fatal("Need name of watch to delete, use --name")
 	}
 	wNs := c.String("triggerns")
 

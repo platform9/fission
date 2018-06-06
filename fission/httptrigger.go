@@ -23,6 +23,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/fission/fission/fission/log"
 	"github.com/satori/go.uuid"
 	"github.com/urfave/cli"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -54,7 +55,7 @@ func getMethod(method string) string {
 	case "TRACE":
 		return http.MethodTrace
 	}
-	fatal(fmt.Sprintf("Invalid HTTP Method %v", method))
+	log.Fatal(fmt.Sprintf("Invalid HTTP Method %v", method))
 	return ""
 }
 
@@ -75,13 +76,13 @@ func htCreate(c *cli.Context) error {
 
 	fnName := c.String("function")
 	if len(fnName) == 0 {
-		fatal("Need a function name to create a trigger, use --function")
+		log.Fatal("Need a function name to create a trigger, use --function")
 	}
 	fnNamespace := c.String("fnNamespace")
 
 	triggerUrl := c.String("url")
 	if len(triggerUrl) == 0 {
-		fatal("Need a trigger URL, use --url")
+		log.Fatal("Need a trigger URL, use --url")
 	}
 	if !strings.HasPrefix(triggerUrl, "/") {
 		triggerUrl = fmt.Sprintf("/%s", triggerUrl)
@@ -143,14 +144,14 @@ func htUpdate(c *cli.Context) error {
 	client := getClient(c.GlobalString("server"))
 	htName := c.String("name")
 	if len(htName) == 0 {
-		fatal("Need name of trigger, use --name")
+		log.Fatal("Need name of trigger, use --name")
 	}
 	triggerNamespace := c.String("triggerNamespace")
 
 	// update function ref
 	newFn := c.String("function")
 	if len(newFn) == 0 {
-		fatal("Nothing to update. Use --function to specify a new function.")
+		log.Fatal("Nothing to update. Use --function to specify a new function.")
 	}
 
 	checkFunctionExistence(client, newFn, triggerNamespace)
@@ -184,7 +185,7 @@ func htDelete(c *cli.Context) error {
 	client := getClient(c.GlobalString("server"))
 	htName := c.String("name")
 	if len(htName) == 0 {
-		fatal("Need name of trigger to delete, use --name")
+		log.Fatal("Need name of trigger to delete, use --name")
 	}
 	triggerNamespace := c.String("triggerNamespace")
 

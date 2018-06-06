@@ -22,6 +22,8 @@ import (
 	"path/filepath"
 
 	"github.com/fission/fission"
+	"github.com/fission/fission/fission/log"
+	"github.com/fission/fission/fission/portforward"
 	"github.com/urfave/cli"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -38,7 +40,8 @@ func getKubeConfigPath() string {
 		kubeConfig = filepath.Join(home, ".kube", "config")
 
 		if _, err := os.Stat(kubeConfig); os.IsNotExist(err) {
-			fatal("Couldn't find kubeconfig file. Set the KUBECONFIG environment variable to your kubeconfig's path.")
+			log.Fatal("Couldn't find kubeconfig file. " +
+				"Set the KUBECONFIG environment variable to your kubeconfig's path.")
 		}
 	}
 	return kubeConfig
@@ -51,8 +54,7 @@ func getServerUrl() string {
 	if len(fissionUrl) == 0 {
 		fissionNamespace := getFissionNamespace()
 		kubeConfig := getKubeConfigPath()
-		localPort := setupPortForward(
-			kubeConfig, fissionNamespace, "application=fission-api")
+		localPort := portforward.Setup(kubeConfig, fissionNamespace, "application=fission-api")
 		serverUrl = "http://127.0.0.1:" + localPort
 	} else {
 		serverUrl = fissionUrl
@@ -61,8 +63,8 @@ func getServerUrl() string {
 }
 
 func cliHook(c *cli.Context) error {
-	verbosity = c.Int("verbosity")
-	verbose(2, "Verbosity = 2")
+	log.Verbosity = c.Int("verbosity")
+	log.Verbose(2, "Verbosity = 2")
 	return nil
 }
 

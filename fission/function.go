@@ -28,6 +28,8 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/fission/fission/fission/log"
+	"github.com/fission/fission/fission/portforward"
 	"github.com/satori/go.uuid"
 	"github.com/urfave/cli"
 	apiv1 "k8s.io/api/core/v1"
@@ -42,7 +44,7 @@ import (
 func printPodLogs(c *cli.Context) error {
 	fnName := c.String("name")
 	if len(fnName) == 0 {
-		fatal("Need --name argument.")
+		log.Fatal("Need --name argument.")
 	}
 
 	queryURL, err := url.Parse(getServerUrl())
@@ -74,7 +76,7 @@ func getInvokeStrategy(minScale int, maxScale int, executorType string, targetcp
 	}
 
 	if minScale > maxScale {
-		fatal("Maxscale must be higher than or equal to minscale")
+		log.Fatal("Maxscale must be higher than or equal to minscale")
 	}
 
 	var fnExecutor fission.ExecutorType
@@ -86,7 +88,7 @@ func getInvokeStrategy(minScale int, maxScale int, executorType string, targetcp
 	case fission.ExecutorTypeNewdeploy:
 		fnExecutor = fission.ExecutorTypeNewdeploy
 	default:
-		fatal("Executor type must be one of 'poolmgr' or 'newdeploy', defaults to 'poolmgr'")
+		log.Fatal("Executor type must be one of 'poolmgr' or 'newdeploy', defaults to 'poolmgr'")
 	}
 
 	// Right now a simple single case strategy implementation
@@ -108,7 +110,7 @@ func getTargetCPU(c *cli.Context) int {
 	if c.IsSet("targetcpu") {
 		targetCPU = c.Int("targetcpu")
 		if targetCPU <= 0 || targetCPU > 100 {
-			fatal("TargetCPU must be a value between 1 - 100")
+			log.Fatal("TargetCPU must be a value between 1 - 100")
 		}
 	} else {
 		targetCPU = 80
@@ -125,7 +127,7 @@ func fnCreate(c *cli.Context) error {
 
 	fnName := c.String("name")
 	if len(fnName) == 0 {
-		fatal("Need --name argument.")
+		log.Fatal("Need --name argument.")
 	}
 
 	// user wants a spec, create a yaml file with package and function
@@ -142,7 +144,7 @@ func fnCreate(c *cli.Context) error {
 	// check function existence before creating package
 	for _, fn := range fnList {
 		if fn.Metadata.Name == fnName {
-			fatal("A function with the same name already exists.")
+			log.Fatal("A function with the same name already exists.")
 		}
 	}
 	entrypoint := c.String("entrypoint")
@@ -168,7 +170,7 @@ func fnCreate(c *cli.Context) error {
 		// need to specify environment for creating new package
 		envName = c.String("env")
 		if len(envName) == 0 {
-			fatal("Need --env argument.")
+			log.Fatal("Need --env argument.")
 		}
 
 		// examine existence of given environment
@@ -191,7 +193,7 @@ func fnCreate(c *cli.Context) error {
 		}
 		// fatal when both src & deploy archive are empty
 		if len(srcArchiveName) == 0 && len(deployArchiveName) == 0 {
-			fatal("Need --deploy or --src argument.")
+			log.Fatal("Need --deploy or --src argument.")
 		}
 
 		buildcmd := c.String("buildcmd")
@@ -204,7 +206,7 @@ func fnCreate(c *cli.Context) error {
 	resourceReq := getResourceReq(c, apiv1.ResourceRequirements{})
 	if (c.IsSet("mincpu") || c.IsSet("maxcpu") || c.IsSet("minmemory") || c.IsSet("maxmemory")) &&
 		invokeStrategy.ExecutionStrategy.ExecutorType == fission.ExecutorTypePoolmgr {
-		warn("CPU/Memory specified for function with pool manager executor will be ignored in favor of resources specified at environment")
+		log.Warn("CPU/Memory specified for function with pool manager executor will be ignored in favor of resources specified at environment")
 	}
 
 	var secrets []fission.SecretReference
@@ -217,7 +219,7 @@ func fnCreate(c *cli.Context) error {
 			Name:      secretName,
 		})
 		if k8serrors.IsNotFound(err) {
-			warn(fmt.Sprintf("Secret %s not found in Namespace: %s. Secret needs to be present in the same namespace as function", secretName, fnNamespace))
+			log.Warn(fmt.Sprintf("Secret %s not found in Namespace: %s. Secret needs to be present in the same namespace as function", secretName, fnNamespace))
 		}
 
 		newSecret := fission.SecretReference{
@@ -234,7 +236,7 @@ func fnCreate(c *cli.Context) error {
 			Name:      cfgMapName,
 		})
 		if k8serrors.IsNotFound(err) {
-			warn(fmt.Sprintf("ConfigMap %s not found in Namespace: %s. ConfigMap needs to be present in the same namespace as function", cfgMapName, fnNamespace))
+			log.Warn(fmt.Sprintf("ConfigMap %s not found in Namespace: %s. ConfigMap needs to be present in the same namespace as function", cfgMapName, fnNamespace))
 		}
 
 		newCfgMap := fission.ConfigMapReference{
@@ -322,7 +324,7 @@ func fnGet(c *cli.Context) error {
 
 	fnName := c.String("name")
 	if len(fnName) == 0 {
-		fatal("Need name of function, use --name")
+		log.Fatal("Need name of function, use --name")
 	}
 	fnNamespace := c.String("fnNamespace")
 	m := &metav1.ObjectMeta{
@@ -347,7 +349,7 @@ func fnGetMeta(c *cli.Context) error {
 
 	fnName := c.String("name")
 	if len(fnName) == 0 {
-		fatal("Need name of function, use --name")
+		log.Fatal("Need name of function, use --name")
 	}
 	fnNamespace := c.String("fnNamespace")
 
@@ -371,16 +373,16 @@ func fnUpdate(c *cli.Context) error {
 	client := getClient(c.GlobalString("server"))
 
 	if len(c.String("package")) > 0 {
-		fatal("--package is deprecated, please use --deploy instead.")
+		log.Fatal("--package is deprecated, please use --deploy instead.")
 	}
 
 	if len(c.String("srcpkg")) > 0 {
-		fatal("--srcpkg is deprecated, please use --src instead.")
+		log.Fatal("--srcpkg is deprecated, please use --src instead.")
 	}
 
 	fnName := c.String("name")
 	if len(fnName) == 0 {
-		fatal("Need name of function, use --name")
+		log.Fatal("Need name of function, use --name")
 	}
 	fnNamespace := c.String("fnNamespace")
 
@@ -406,12 +408,12 @@ func fnUpdate(c *cli.Context) error {
 	cfgMapName := c.String("configmap")
 
 	if len(srcArchiveName) > 0 && len(deployArchiveName) > 0 {
-		fatal("Need either of --src or --deploy and not both arguments.")
+		log.Fatal("Need either of --src or --deploy and not both arguments.")
 	}
 
 	if len(secretName) > 0 {
 		if len(function.Spec.Secrets) > 1 {
-			fatal("Please use 'fission spec apply' to update list of secrets")
+			log.Fatal("Please use 'fission spec apply' to update list of secrets")
 		}
 
 		// check that the referenced secret is in the same ns as the function, if not give a warning.
@@ -420,7 +422,7 @@ func fnUpdate(c *cli.Context) error {
 			Name:      secretName,
 		})
 		if k8serrors.IsNotFound(err) {
-			warn(fmt.Sprintf("secret %s not found in Namespace: %s. Secret needs to be present in the same namespace as function", secretName, fnNamespace))
+			log.Warn(fmt.Sprintf("secret %s not found in Namespace: %s. Secret needs to be present in the same namespace as function", secretName, fnNamespace))
 		}
 
 		newSecret := fission.SecretReference{
@@ -432,7 +434,7 @@ func fnUpdate(c *cli.Context) error {
 
 	if len(cfgMapName) > 0 {
 		if len(function.Spec.ConfigMaps) > 1 {
-			fatal("Please use 'fission spec apply' to update list of configmaps")
+			log.Fatal("Please use 'fission spec apply' to update list of configmaps")
 		}
 
 		// check that the referenced cfgmap is in the same ns as the function, if not give a warning.
@@ -441,7 +443,7 @@ func fnUpdate(c *cli.Context) error {
 			Name:      cfgMapName,
 		})
 		if k8serrors.IsNotFound(err) {
-			warn(fmt.Sprintf("ConfigMap %s not found in Namespace: %s. ConfigMap needs to be present in the same namespace as the function", cfgMapName, fnNamespace))
+			log.Warn(fmt.Sprintf("ConfigMap %s not found in Namespace: %s. ConfigMap needs to be present in the same namespace as the function", cfgMapName, fnNamespace))
 		}
 
 		newCfgMap := fission.ConfigMapReference{
@@ -476,7 +478,7 @@ func fnUpdate(c *cli.Context) error {
 		checkErr(err, "get function list")
 
 		if !force && len(fnList) > 1 {
-			fatal("Package is used by multiple functions, use --force to force update")
+			log.Fatal("Package is used by multiple functions, use --force to force update")
 		}
 
 		pkgMetadata = updatePackage(client, pkg, envName, envNamespace, srcArchiveName, deployArchiveName, buildcmd)
@@ -515,11 +517,11 @@ func fnUpdate(c *cli.Context) error {
 		minscale := c.Int("minscale")
 		maxscale := c.Int("maxscale")
 		if c.IsSet("maxscale") && minscale > c.Int("maxscale") {
-			fatal(fmt.Sprintf("Minscale's value %v can not be greater than maxscale value %v", minscale, maxscale))
+			log.Fatal(fmt.Sprintf("Minscale's value %v can not be greater than maxscale value %v", minscale, maxscale))
 		}
 		if function.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType != fission.ExecutorTypePoolmgr &&
 			minscale > function.Spec.InvokeStrategy.ExecutionStrategy.MaxScale {
-			fatal(fmt.Sprintf("Minscale provided: %v can not be greater than maxscale of existing function: %v", minscale,
+			log.Fatal(fmt.Sprintf("Minscale provided: %v can not be greater than maxscale of existing function: %v", minscale,
 				function.Spec.InvokeStrategy.ExecutionStrategy.MaxScale))
 		}
 		function.Spec.InvokeStrategy.ExecutionStrategy.MinScale = minscale
@@ -528,7 +530,7 @@ func fnUpdate(c *cli.Context) error {
 	if c.IsSet("maxscale") {
 		maxscale := c.Int("maxscale")
 		if maxscale < function.Spec.InvokeStrategy.ExecutionStrategy.MinScale {
-			fatal(fmt.Sprintf("Function's minscale: %v can not be greater than maxscale provided: %v",
+			log.Fatal(fmt.Sprintf("Function's minscale: %v can not be greater than maxscale provided: %v",
 				function.Spec.InvokeStrategy.ExecutionStrategy.MinScale, maxscale))
 		}
 		function.Spec.InvokeStrategy.ExecutionStrategy.MaxScale = maxscale
@@ -544,11 +546,11 @@ func fnUpdate(c *cli.Context) error {
 		case fission.ExecutorTypeNewdeploy:
 			fnExecutor = fission.ExecutorTypeNewdeploy
 		default:
-			fatal("Executor type must be one of 'poolmgr' or 'newdeploy', defaults to 'poolmgr'")
+			log.Fatal("Executor type must be one of 'poolmgr' or 'newdeploy', defaults to 'poolmgr'")
 		}
 		if (c.IsSet("mincpu") || c.IsSet("maxcpu") || c.IsSet("minmemory") || c.IsSet("maxmemory")) &&
 			fnExecutor == fission.ExecutorTypePoolmgr {
-			warn("CPU/Memory specified for function with pool manager executor will be ignored in favor of resources specified at environment")
+			log.Warn("CPU/Memory specified for function with pool manager executor will be ignored in favor of resources specified at environment")
 		}
 		function.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType = fnExecutor
 	}
@@ -565,7 +567,7 @@ func fnDelete(c *cli.Context) error {
 
 	fnName := c.String("name")
 	if len(fnName) == 0 {
-		fatal("Need name of function, use --name")
+		log.Fatal("Need name of function, use --name")
 	}
 	fnNamespace := c.String("fnNamespace")
 
@@ -616,7 +618,7 @@ func fnLogs(c *cli.Context) error {
 
 	fnName := c.String("name")
 	if len(fnName) == 0 {
-		fatal("Need name of function, use --name")
+		log.Fatal("Need name of function, use --name")
 	}
 	fnNamespace := c.String("fnNamespace")
 
@@ -642,7 +644,7 @@ func fnLogs(c *cli.Context) error {
 	// request the controller to establish a proxy server to the database.
 	logDB, err := logdb.GetLogDB(dbType, getServerUrl())
 	if err != nil {
-		fatal("failed to connect log database")
+		log.Fatal("failed to connect log database")
 	}
 
 	requestChan := make(chan struct{})
@@ -663,7 +665,7 @@ func fnLogs(c *cli.Context) error {
 				}
 				logEntries, err := logDB.GetLogs(logFilter)
 				if err != nil {
-					fatal("failed to query logs")
+					log.Fatal("failed to query logs")
 				}
 				for _, logEntry := range logEntries {
 					if c.Bool("d") {
@@ -695,14 +697,14 @@ func fnLogs(c *cli.Context) error {
 func fnTest(c *cli.Context) error {
 	fnName := c.String("name")
 	if len(fnName) == 0 {
-		fatal("Need function name to be specified with --name")
+		log.Fatal("Need function name to be specified with --name")
 	}
 	ns := c.String("fnNamespace")
 
 	routerURL := os.Getenv("FISSION_ROUTER")
 	if len(routerURL) == 0 {
 		// Portforward to the fission router
-		localRouterPort := setupPortForward(getKubeConfigPath(),
+		localRouterPort := portforward.Setup(getKubeConfigPath(),
 			getFissionNamespace(), "application=fission-router")
 		routerURL = "127.0.0.1:" + localRouterPort
 	} else {
