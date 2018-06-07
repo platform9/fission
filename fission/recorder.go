@@ -32,7 +32,7 @@ import (
 )
 
 func recorderCreate(c *cli.Context) error {
-	// Is this needed?
+	// TODO: Understand which client
 	client := getClient(c.GlobalString("server"))
 
 	recName := c.String("name")
@@ -43,8 +43,10 @@ func recorderCreate(c *cli.Context) error {
 	if len(fnName) == 0 {
 		fatal("Need a function name to create a recorder, user --function")
 	}
-	recEnabled := c.Bool("enabled")
-	//TODO Check namespace if required
+	// TODO Define appropriate set of policies and defaults
+	retPolicy := c.String("retention")
+	evictPolicy := c.String("eviction")
+	// TODO Check namespace if required
 
 	recorder := &crd.Recorder{
 		Metadata: metav1.ObjectMeta{
@@ -52,13 +54,13 @@ func recorderCreate(c *cli.Context) error {
 			Namespace: "default",		// TODO
 		},
 		Spec: fission.RecorderSpec{
-			Name:              recName,
-			BackendType:       "redis",		// TODO
-			Functions:         []v1.FunctionReference{}, // TODO
-			Trigger:           []string{},	// TODO
-			RetentionPolicy:   "",			// TODO
-			EvictionPolicy:    "",			// TODO
-			Enabled:           recEnabled,
+			Name:            recName,
+			BackendType:     "redis",		// TODO, where to get this from?
+			Functions:       []v1.FunctionReference{}, // TODO
+			Trigger:         []string{},	// TODO
+			RetentionPolicy: retPolicy,
+			EvictionPolicy:  evictPolicy,
+			Enabled:         true,
 		},
 	}
 
@@ -77,153 +79,61 @@ func recorderCreate(c *cli.Context) error {
 	return err
 }
 
-/*
-func mqtCreate(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
-
-	mqtName := c.String("name")
-	if len(mqtName) == 0 {
-		mqtName = uuid.NewV4().String()
-	}
-	fnName := c.String("function")
-	if len(fnName) == 0 {
-		fatal("Need a function name to create a trigger, use --function")
-	}
-	fnNamespace := c.String("fnNamespace")
-
-	var mqType fission.MessageQueueType
-	switch c.String("mqtype") {
-	case "":
-		mqType = fission.MessageQueueTypeNats
-	case fission.MessageQueueTypeNats:
-		mqType = fission.MessageQueueTypeNats
-	case fission.MessageQueueTypeASQ:
-		mqType = fission.MessageQueueTypeASQ
-	default:
-		fatal("Unknown message queue type, currently only \"nats-streaming, azure-storage-queue \" is supported")
-	}
-
-	// TODO: check topic availability
-	topic := c.String("topic")
-	if len(topic) == 0 {
-		fatal("Listen topic cannot be empty")
-	}
-	respTopic := c.String("resptopic")
-
-	if topic == respTopic {
-		// TODO maybe this should just be a warning, perhaps
-		// allow it behind a --force flag
-		fatal("Listen topic should not equal to response topic")
-	}
-
-	contentType := c.String("contenttype")
-	if len(contentType) == 0 {
-		contentType = "application/json"
-	}
-
-	checkMQTopicAvailability(mqType, topic, respTopic)
-
-	mqt := &crd.MessageQueueTrigger{
-		Metadata: metav1.ObjectMeta{
-			Name:      mqtName,
-			Namespace: fnNamespace,
-		},
-		Spec: fission.MessageQueueTriggerSpec{
-			FunctionReference: fission.FunctionReference{
-				Type: fission.FunctionReferenceTypeFunctionName,
-				Name: fnName,
-			},
-			MessageQueueType: mqType,
-			Topic:            topic,
-			ResponseTopic:    respTopic,
-			ContentType:      contentType,
-		},
-	}
-
-	// if we're writing a spec, don't call the API
-	if c.Bool("spec") {
-		specFile := fmt.Sprintf("mqtrigger-%v.yaml", mqtName)
-		err := specSave(*mqt, specFile)
-		checkErr(err, "create message queue trigger spec")
-		return nil
-	}
-
-	_, err := client.MessageQueueTriggerCreate(mqt)
-	checkErr(err, "create message queue trigger")
-
-	fmt.Printf("trigger '%s' created\n", mqtName)
-	return err
-}
-*/
-
 // TODO: Understand why this does nothing
 func recorderGet(c *cli.Context) error {
 	return nil
 }
 
-/*
-func mqtGet(c *cli.Context) error {
-	return nil
-}
-*/
-
 func recorderUpdate(c *cli.Context) error {
-	return nil
-}
-
-/*
-func mqtUpdate(c *cli.Context) error {
 	client := getClient(c.GlobalString("server"))
-	mqtName := c.String("name")
-	if len(mqtName) == 0 {
-		fatal("Need name of trigger, use --name")
+
+	recName := c.String("name")
+	if len(recName) == 0 {
+		fatal("Need name of recorder, use --name")
 	}
-	mqtNs := c.String("triggerns")
+	retPolicy := c.String("retention")
+	evictPolicy := c.String("eviction")
+	enable := c.Bool("enable")
+	disable := c.Bool("disable")
 
-	topic := c.String("topic")
-	respTopic := c.String("resptopic")
-	fnName := c.String("function")
-	contentType := c.String("contenttype")
-
-	mqt, err := client.MessageQueueTriggerGet(&metav1.ObjectMeta{
-		Name:      mqtName,
-		Namespace: mqtNs,
+	recorder, err := client.RecorderGet(&metav1.ObjectMeta{
+		Name: recName,
+		Namespace: "default",	// TODO
 	})
-	checkErr(err, "get Time trigger")
 
-	// TODO : Find out if we can make a call to checkIfFunctionExists, in the same ns more importantly.
-
-	checkMQTopicAvailability(mqt.Spec.MessageQueueType, topic, respTopic)
+	if enable && disable {
+		fatal("Cannot enable and disable a recorder simultaneously.")
+	}
 
 	updated := false
-	if len(topic) > 0 {
-		mqt.Spec.Topic = topic
+	// TODO: Additional validation on type of supported retention policy, eviction policy
+	if len(retPolicy) > 0 {
+		recorder.Spec.RetentionPolicy = retPolicy
 		updated = true
 	}
-	if len(respTopic) > 0 {
-		mqt.Spec.ResponseTopic = respTopic
+	if len(evictPolicy) > 0 {
+		recorder.Spec.EvictionPolicy = evictPolicy
 		updated = true
 	}
-	if len(fnName) > 0 {
-		mqt.Spec.FunctionReference.Name = fnName
-		updated = true
+	if enable {
+		recorder.Spec.Enabled = true
+		updated = true		// TODO: This is a very shallow check. It may already be enabled.
 	}
-	if len(contentType) > 0 {
-		mqt.Spec.ContentType = contentType
+	if disable {
+		recorder.Spec.Enabled = false
 		updated = true
 	}
 
 	if !updated {
-		fatal("Nothing to update. Use --topic, --resptopic, or --function.")
+		fatal("Nothing to update. Use --function, --triggers, --eviction, --retention, or --disable")
 	}
 
-	_, err = client.MessageQueueTriggerUpdate(mqt)
-	checkErr(err, "update Time trigger")
+	_, err = client.RecorderUpdate(recorder)
+	checkErr(err, "update recorder")
 
-	fmt.Printf("trigger '%v' updated\n", mqtName)
+	fmt.Printf("recorder '%v' updated\n", recName)
 	return nil
 }
-*/
 
 func recorderDelete(c *cli.Context) error {
 	return nil

@@ -199,11 +199,14 @@ func main() {
 	// TODO: Namespace flag?
 	recNameFlag := cli.StringFlag{Name: "name", Usage: "Recorder name"}
 	recFnNameFlag := cli.StringFlag{Name: "function", Usage: "Record Function name"} // TODO: Support multiple
-	recEnabled := cli.BoolFlag{Name: "enabled", Usage: "Recorder enabled/disabled"}
+	recRetentionPolFlag := cli.StringFlag{Name: "retention", Value: "5", Usage: "Retention policy (number of days)"}
+	recEvictionPolFlag := cli.StringFlag{Name: "eviction", Value: "LRU", Usage: "Eviction policy (default LRU)"}
+	recEnabled := cli.BoolFlag{Name: "enable", Usage: "Recorder enable"}
+	recDisabled := cli.BoolFlag{Name: "disable", Usage: "Recorder disable"}
 	recSubcommands := []cli.Command{
-		{Name: "create", Aliases: []string{"add"}, Usage: "Create recorder", Flags: []cli.Flag{recNameFlag, recFnNameFlag, recEnabled}, Action: recorderCreate},
+		{Name: "create", Aliases: []string{"add"}, Usage: "Create recorder", Flags: []cli.Flag{recNameFlag, recFnNameFlag, recRetentionPolFlag, recEvictionPolFlag, specSaveFlag}, Action: recorderCreate},
 		{Name: "get", Usage: "Get recorder", Flags: []cli.Flag{recNameFlag}, Action: recorderGet},
-		{Name: "update", Usage: "Update recorder", Flags: []cli.Flag{recNameFlag}, Action: recorderUpdate},
+		{Name: "update", Usage: "Update recorder", Flags: []cli.Flag{recNameFlag, recRetentionPolFlag, recEvictionPolFlag, recEnabled, recDisabled}, Action: recorderUpdate},
 		{Name: "delete", Usage: "Delete recorder", Flags: []cli.Flag{recNameFlag}, Action: recorderDelete},
 		{Name: "list", Usage: "List recorders", Flags: []cli.Flag{}, Action: recorderList},
 	}
@@ -285,6 +288,7 @@ func main() {
 		{Name: "httptrigger", Aliases: []string{"ht", "route"}, Usage: "Manage HTTP triggers (routes) for functions", Subcommands: htSubcommands},
 		{Name: "timetrigger", Aliases: []string{"tt", "timer"}, Usage: "Manage Time triggers (timers) for functions", Subcommands: ttSubcommands},
 		{Name: "mqtrigger", Aliases: []string{"mqt", "messagequeue"}, Usage: "Manage message queue triggers for functions", Subcommands: mqtSubcommands},
+		{Name: "recorder", Usage: "Manage recorders for functions", Subcommands: recSubcommands},
 		{Name: "environment", Aliases: []string{"env"}, Usage: "Manage environments", Subcommands: envSubcommands},
 		{Name: "watch", Aliases: []string{"w"}, Usage: "Manage watches", Subcommands: wSubCommands},
 		{Name: "package", Aliases: []string{"pkg"}, Usage: "Manage packages", Subcommands: pkgSubCommands},

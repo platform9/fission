@@ -19,17 +19,17 @@ package crd
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/kubernetes/scheme"
+	//"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 )
 
 type (
 	RecorderInterface interface {
-		Create(*Recorder)
-		Get(name string)
-		Update(*Recorder)
-		List(opts metav1.ListOptions)
-		Watch(opts metav1.ListOptions)
+		Create(*Recorder) (*Recorder, error)
+		Get(name string) (*Recorder, error)
+		Update(*Recorder) (*Recorder, error)
+		List(opts metav1.ListOptions) (*RecorderList, error)
+		Watch(opts metav1.ListOptions) (watch.Interface, error)
 	}
 
 	recorderClient struct {
@@ -73,7 +73,7 @@ func MakeMessageQueueTriggerInterface(crdClient *rest.RESTClient, namespace stri
 */
 
 func (rc *recorderClient) Create(f *Recorder) (*Recorder, error){
-
+	return nil, nil
 }
 
 /*
@@ -92,7 +92,7 @@ func (fc *messageQueueTriggerClient) Create(f *MessageQueueTrigger) (*MessageQue
 */
 
 func (rc *recorderClient) Get(name string) (*Recorder, error) {
-
+	return nil, nil
 }
 
 /*
@@ -111,7 +111,7 @@ func (fc *messageQueueTriggerClient) Get(name string) (*MessageQueueTrigger, err
 */
 
 func (rc *recorderClient) Update(f *Recorder) (*Recorder, error) {
-
+	return nil, nil
 }
 
 /*
@@ -131,7 +131,7 @@ func (fc *messageQueueTriggerClient) Update(f *MessageQueueTrigger) (*MessageQue
 */
 
 func (rc *recorderClient) Delete(name, string, opts *metav1.DeleteOptions) error {
-
+	return nil
 }
 
 /*
@@ -147,7 +147,7 @@ func (fc *messageQueueTriggerClient) Delete(name string, opts *metav1.DeleteOpti
 */
 
 func (rc *recorderClient) List(opts metav1.ListOptions) (*RecorderList, error) {
-
+	return nil, nil
 }
 /*
 func (fc *messageQueueTriggerClient) List(opts metav1.ListOptions) (*MessageQueueTriggerList, error) {
@@ -165,10 +165,12 @@ func (fc *messageQueueTriggerClient) List(opts metav1.ListOptions) (*MessageQueu
 }
 */
 
-func (rc *recorderClient) Watch(opts metav1.ListOptions) (watch.Interface, error) {
 
+func (rc *recorderClient) Watch(opts metav1.ListOptions) (watch.Interface, error) {
+	return nil, nil
 }
 
+/*
 func (fc *messageQueueTriggerClient) Watch(opts metav1.ListOptions) (watch.Interface, error) {
 	return fc.client.Get().
 		Prefix("watch").
@@ -177,3 +179,4 @@ func (fc *messageQueueTriggerClient) Watch(opts metav1.ListOptions) (watch.Inter
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Watch()
 }
+*/
