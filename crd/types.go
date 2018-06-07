@@ -36,4 +36,5 @@ type (
 	MessageQueueTrigger        = fv1.MessageQueueTrigger
 	MessageQueueTriggerList    = fv1.MessageQueueTriggerList
 	Recorder                   = fv1.Recorder
+	RecorderList               = fv1.RecorderList
 )

@@ -196,6 +196,18 @@ func main() {
 		{Name: "list", Usage: "List message queue triggers", Flags: []cli.Flag{mqtMQTypeFlag, triggerNamespaceFlag}, Action: mqtList},
 	}
 
+	// TODO: Namespace flag?
+	recNameFlag := cli.StringFlag{Name: "name", Usage: "Recorder name"}
+	recFnNameFlag := cli.StringFlag{Name: "function", Usage: "Record Function name"} // TODO: Support multiple
+	recEnabled := cli.BoolFlag{Name: "enabled", Usage: "Recorder enabled/disabled"}
+	recSubcommands := []cli.Command{
+		{Name: "create", Aliases: []string{"add"}, Usage: "Create recorder", Flags: []cli.Flag{recNameFlag, recFnNameFlag, recEnabled}, Action: recorderCreate},
+		{Name: "get", Usage: "Get recorder", Flags: []cli.Flag{recNameFlag}, Action: recorderGet},
+		{Name: "update", Usage: "Update recorder", Flags: []cli.Flag{recNameFlag}, Action: recorderUpdate},
+		{Name: "delete", Usage: "Delete recorder", Flags: []cli.Flag{recNameFlag}, Action: recorderDelete},
+		{Name: "list", Usage: "List recorders", Flags: []cli.Flag{}, Action: recorderList},
+	}
+
 	// environments
 	envNameFlag := cli.StringFlag{Name: "name", Usage: "Environment name"}
 	envPoolsizeFlag := cli.IntFlag{Name: "poolsize", Value: 3, Usage: "Size of the pool"}

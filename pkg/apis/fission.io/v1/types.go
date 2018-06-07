@@ -153,11 +153,18 @@ type (
 		Items []MessageQueueTrigger `json:"items"`
 	}
 
-	// TODO: Should this be here?
+	// TODO: Above comment
 	Recorder struct {
 		metav1.TypeMeta `json:",inline"`
 		Metadata        metav1.ObjectMeta       `json:"metadata"`
 		Spec            RecorderSpec `json:"spec"`
+	}
+
+	RecorderList struct {
+		metav1.TypeMeta `json:",inline"`
+		Metadata metav1.ListMeta `json:"metadata"`
+
+		Items []Recorder `json:"items"`
 	}
 )
 
