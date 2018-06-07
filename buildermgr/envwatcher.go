@@ -498,7 +498,10 @@ func (envw *environmentWatcher) createBuilderDeployment(env *crd.Environment, ns
 	sel := envw.getLabels(env.Metadata.Name, ns, env.Metadata.ResourceVersion)
 	var replicas int32 = 1
 
-	podAnnotation := make(map[string]string)
+	podAnnotation := env.Spec.Runtime.Annotations
+	if podAnnotation == nil {
+		podAnnotation = make(map[string]string)
+	}
 	if envw.useIstio && env.Spec.AllowAccessToExternalNetwork {
 		podAnnotation["sidecar.istio.io/inject"] = "false"
 	}

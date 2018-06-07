@@ -484,8 +484,10 @@ func (gp *GenericPool) createPool() error {
 		gracePeriodSeconds = gp.env.Spec.TerminationGracePeriod
 	}
 
-	podAnnotation := make(map[string]string)
-
+	podAnnotation := gp.env.Spec.Runtime.Annotations
+	if podAnnotation == nil {
+		podAnnotation = make(map[string]string)
+	}
 	if gp.useIstio && gp.env.Spec.AllowAccessToExternalNetwork {
 		podAnnotation["sidecar.istio.io/inject"] = "false"
 	}
