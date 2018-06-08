@@ -126,26 +126,24 @@ func msgHandler(nats *Nats, trigger *crd.MessageQueueTrigger) func(*ns.Msg) {
 		}
 
 		var resp *http.Response
-		for attempt := -1; attempt < trigger.Spec.MaxRetries; attempt++ {
+		for attempt := 0; attempt <= trigger.Spec.MaxRetries; attempt++ {
 			// Make the request
-			log.Warningf("Request : %v", req)
 			resp, err = http.DefaultClient.Do(req)
 			if err != nil || resp == nil {
 				// Retry without referencing status code of nil response on the next line
 				continue
 			}
 			if err == nil && resp.StatusCode == 200 {
-				// Success, quit retries
+				// Success, quit retrying
 				break
 			}
 		}
 
 		if resp == nil {
-			log.Warning("The response was undefined. Quit.")
+			log.Warning("Every retry failed; final retry gave empty response.")
 			return
 		}
 
-		// TODO : Sequence
 		defer resp.Body.Close()
 
 		body, bodyErr := ioutil.ReadAll(resp.Body)
@@ -154,11 +152,9 @@ func msgHandler(nats *Nats, trigger *crd.MessageQueueTrigger) func(*ns.Msg) {
 			return
 		}
 
-		// TODO : what if err is not nil, then body is empty. publish either of them, not just body.
-
 		// Only the latest error response will be published to error topic
 		if err != nil || resp.StatusCode != 200 {
-			if len(trigger.Spec.ErrorTopic) > 0 {
+			if len(trigger.Spec.ErrorTopic) > 0 && len(body) > 0 {
 				publishErr := nats.nsConn.Publish(trigger.Spec.ErrorTopic, body)
 				if publishErr != nil {
 					log.Error("Failed to publish error to error topic: %v", publishErr)
