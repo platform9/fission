@@ -23,6 +23,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
+	"gopkg.in/yaml.v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission"
@@ -83,17 +84,16 @@ func main() {
 	app.Name = "fission"
 	app.Usage = "Serverless functions for Kubernetes"
 	app.Version = fission.Version
+	cli.VersionPrinter = versionPrinter
 
-	cli.VersionPrinter = func(c *cli.Context) {
-		clientVer := fission.BuildInfo().String()
-		fmt.Printf("Client Version: %v\n", clientVer)
-		serverInfo, err := getClient(getServerUrl()).ServerInfo()
-		if err != nil {
-			fmt.Printf("Error getting Fission API version: %v", err)
-		} else {
-			serverVer := serverInfo.Build.String()
-			fmt.Printf("Server Version: %v\n", serverVer)
+	app.CustomAppHelpTemplate = helpTemplate
+	app.ExtraInfo = func() map[string]string {
+		info := map[string]string{}
+		pmds := plugin.FindAll(plugin.PrefixFission)
+		for _, pmd := range pmds {
+			info[pmd.Name] = pmd.Usage
 		}
+		return info
 	}
 
 	app.Flags = []cli.Flag{
@@ -311,3 +311,70 @@ func handleCommandNotFound(ctx *cli.Context, subCommand string) {
 		log.Fatal("Error while executing plugin " + pmd.Name + ": " + err.Error())
 	}
 }
+
+type Versions struct {
+	Client map[string]fission.BuildMeta `json:"client"`
+	Server map[string]fission.BuildMeta `json:"server",yaml:",flow"`
+}
+
+func versionPrinter(c *cli.Context) {
+	println("HHHHHHHH")
+	serverInfo, err := getClient(getServerUrl()).ServerInfo()
+	if err != nil {
+		warn(fmt.Sprintf("Error getting Fission API version: %v", err))
+	}
+
+	// Fetch client versions
+	versions := Versions{
+		Client: map[string]fission.BuildMeta{
+			"fission/core": fission.BuildInfo(),
+		},
+	}
+	for _, pmd := range plugin.FindAll("fission-") {
+		versions.Client[pmd.Name] = fission.BuildMeta{
+			Version: pmd.Version,
+		}
+	}
+
+	// Fetch server versions
+	versions.Server = map[string]fission.BuildMeta{
+		"fission/core": serverInfo.Build,
+	}
+	// TODO fetch versions of plugins server-side
+	bs, err := yaml.Marshal(versions)
+	if err != nil {
+		fatal("Failed to format versions: " + err.Error())
+	}
+	fmt.Println(string(bs))
+}
+
+var helpTemplate = `NAME:
+   {{.Name}}{{if .Usage}} - {{.Usage}}{{end}}
+
+USAGE:
+   {{if .UsageText}}{{.UsageText}}{{else}}{{.HelpName}} {{if .VisibleFlags}}[global options]{{end}}{{if .Commands}} command [command options]{{end}} {{if .ArgsUsage}}{{.ArgsUsage}}{{else}}[arguments...]{{end}}{{end}}{{if .Version}}{{if not .HideVersion}}
+
+VERSION:
+   {{.Version}}{{end}}{{end}}{{if .Description}}
+
+DESCRIPTION:
+   {{.Description}}{{end}}{{if len .Authors}}
+
+AUTHOR{{with $length := len .Authors}}{{if ne 1 $length}}S{{end}}{{end}}:
+   {{range $index, $author := .Authors}}{{if $index}}
+   {{end}}{{$author}}{{end}}{{end}}{{if .VisibleCommands}}
+
+COMMANDS:{{range .VisibleCategories}}{{if .Name}}
+   {{.Name}}:{{end}}{{range .VisibleCommands}}
+     {{join .Names ", "}}{{"\t"}}{{.Usage}}{{end}}{{end}}{{end}}{{if .VisibleFlags}}
+
+PLUGIN COMMANDS:{{ range $name, $usage := ExtraInfo }}
+     {{$name}}{{"\t"}}{{$usage}}{{end}}
+
+GLOBAL OPTIONS:
+   {{range $index, $option := .VisibleFlags}}{{if $index}}
+   {{end}}{{$option}}{{end}}{{end}}{{if .Copyright}}
+
+COPYRIGHT:
+   {{.Copyright}}{{end}}
+`
