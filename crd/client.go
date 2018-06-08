@@ -153,6 +153,13 @@ func configureClient(config *rest.Config) {
 				&metav1.ListOptions{},
 				&metav1.DeleteOptions{},
 			)
+			scheme.AddKnownTypes(
+				groupversion,
+				&Recorder{},
+				&RecorderList{},
+				&metav1.ListOptions{},
+				&metav1.DeleteOptions{},
+			)
 			return nil
 		})
 	schemeBuilder.AddToScheme(scheme.Scheme)
@@ -208,10 +215,12 @@ func (fc *FissionClient) TimeTriggers(ns string) TimeTriggerInterface {
 func (fc *FissionClient) MessageQueueTriggers(ns string) MessageQueueTriggerInterface {
 	return MakeMessageQueueTriggerInterface(fc.crdClient, ns)
 }
+func (fc *FissionClient) Recorders(ns string) RecorderInterface {
+	return MakeRecorderInterface(fc.crdClient, ns)
+}
 func (fc *FissionClient) Packages(ns string) PackageInterface {
 	return MakePackageInterface(fc.crdClient, ns)
 }
-
 func (fc *FissionClient) WaitForCRDs() error {
 	return waitForCRDs(fc.crdClient)
 }

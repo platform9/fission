@@ -17,7 +17,6 @@ limitations under the License.
 package client
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -26,37 +25,39 @@ import (
 
 	"github.com/fission/fission/crd"
 	fv1 "github.com/fission/fission/pkg/apis/fission.io/v1"
+	"bytes"
 )
 
-func (c *Client) RecorderCreate(r *crd.Recorder) (*metav1.ObjectMeta, error) {
+// TODO Remove third return value
+func (c *Client) RecorderCreate(r *crd.Recorder) (*metav1.ObjectMeta, error, string) {
 	err := r.Validate()
 	if err != nil {
-		return nil, fv1.AggregateValidationErrors("Recorder", err)
+		return nil, fv1.AggregateValidationErrors("Recorder", err), "Could not validate *crd.Recorder passed in"
 	}
 
 	reqbody, err := json.Marshal(r)
 	if err != nil {
-		return nil, err
+		return nil, err, "Could not marshall reqbody"
 	}
-	// TODO: Which url should be used here?
+
 	resp, err := http.Post(c.url("recorders"), "application/json", bytes.NewReader(reqbody))
 	if err != nil {
-		return nil, err
+		return nil, err, "Could not issue POST req to recorders/"
 	}
 	defer resp.Body.Close()
 
 	body, err := c.handleCreateResponse(resp)
 	if err != nil {
-		return nil, err
+		return nil, err, fmt.Sprintf("Could not handleCreateResponse for some reason, this was the resp passed in: %v", resp)
 	}
 
 	var m metav1.ObjectMeta
 	err = json.Unmarshal(body, &m)
 	if err != nil {
-		return nil, err
+		return nil, err, "Could not unmarshall"
 	}
 
-	return &m, nil
+	return &m, nil, "Success"
 }
 
 func (c *Client) RecorderGet(m *metav1.ObjectMeta) (*crd.Recorder, error) {

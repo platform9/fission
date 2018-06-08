@@ -72,7 +72,8 @@ func recorderCreate(c *cli.Context) error {
 		return nil
 	}
 
-	_, err := client.RecorderCreate(recorder)
+	_, err, help := client.RecorderCreate(recorder)
+	fmt.Println(help)
 	checkErr(err, "create recorder")
 
 	fmt.Printf("recorder '%s' created\n", recName)

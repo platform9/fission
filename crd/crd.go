@@ -160,6 +160,22 @@ func EnsureFissionCRDs(clientset *apiextensionsclient.Clientset) error {
 				},
 			},
 		},
+		// Recorders
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "recorders.fission.io",
+			},
+			Spec: apiextensionsv1beta1.CustomResourceDefinitionSpec{
+				Group: crdGroupName,
+				Version: crdVersion,
+				Scope: apiextensionsv1beta1.NamespaceScoped,
+				Names: apiextensionsv1beta1.CustomResourceDefinitionNames{
+					Kind: "Recorder",
+					Plural: "recorders",
+					Singular: "recorder",
+				},
+			},
+		},
 		// Packages: archives containing source or binaries for one or more functions
 		{
 			ObjectMeta: metav1.ObjectMeta{
