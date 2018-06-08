@@ -19,6 +19,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 
 	"github.com/sirupsen/logrus"
@@ -28,7 +29,7 @@ import (
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/fission/log"
-	"github.com/fission/fission/fission/plugin"
+	"github.com/fission/fission/fission/plugins"
 	"github.com/fission/fission/fission/portforward"
 )
 
@@ -70,12 +71,26 @@ func getApplicationUrl(selector string) string {
 	return serverUrl
 }
 
-func cliHook(c *cli.Context) error {
+func beforeAction(c *cli.Context) error {
 	log.Verbosity = c.Int("verbosity")
 	log.Verbose(2, "Verbosity >= 2")
 	if log.Verbosity >= 2 {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
+
+	// Ensure home path exists
+	fissionConfigPath := os.Getenv("FISSION_CONFIG_PATH")
+	if len(fissionConfigPath) == 0 {
+		fissionConfigPath = os.ExpandEnv("$HOME/.fission/")
+	}
+	err := os.MkdirAll(fissionConfigPath, os.ModePerm)
+	if err != nil {
+		logrus.Debugf("Failed to ensure that directories exist for path %v: %v", fissionConfigPath, err)
+	} else {
+		plugins.SetCachePath(path.Join(fissionConfigPath, "plugins-cache.json"))
+	}
+	plugins.SetPrefix("fission-")
+	plugins.UpdateCacheIfStale()
 	return nil
 }
 
@@ -85,11 +100,10 @@ func main() {
 	app.Usage = "Serverless functions for Kubernetes"
 	app.Version = fission.Version
 	cli.VersionPrinter = versionPrinter
-
 	app.CustomAppHelpTemplate = helpTemplate
 	app.ExtraInfo = func() map[string]string {
 		info := map[string]string{}
-		pmds := plugin.FindAll(plugin.PrefixFission)
+		pmds := plugins.FindAll()
 		for _, pmd := range pmds {
 			info[pmd.Name] = pmd.Usage
 		}
@@ -285,19 +299,19 @@ func main() {
 		{Name: "spec", Aliases: []string{"specs"}, Usage: "Manage a declarative app specification", Subcommands: specSubCommands},
 		{Name: "upgrade", Aliases: []string{}, Usage: "Upgrade tool from fission v0.1", Subcommands: upgradeSubCommands},
 	}
-	app.Before = cliHook
+	app.Before = beforeAction
 	app.CommandNotFound = handleCommandNotFound
 	app.Run(os.Args)
 }
 
 func handleCommandNotFound(ctx *cli.Context, subCommand string) {
 	logrus.Debugf("Looking for plugin for sub-command %v", subCommand)
-	pmd, err := plugin.Find(subCommand)
+	pmd, err := plugins.Find(subCommand)
 	if err != nil {
 		switch err {
-		case plugin.ErrPluginNotFound:
+		case plugins.ErrPluginNotFound:
 			log.Fatal("Unknown sub-command '" + subCommand + "'")
-		case plugin.ErrPluginInvalid:
+		case plugins.ErrPluginInvalid:
 			log.Fatal(err.Error())
 		default:
 			log.Fatal("Unknown error occurred when invoking " + subCommand + ": " + err.Error())
@@ -306,7 +320,7 @@ func handleCommandNotFound(ctx *cli.Context, subCommand string) {
 	}
 	args := ctx.Args().Tail()
 	logrus.Debugf("Deferring execution to plugin: %v with args %v", pmd.Path, args)
-	err = plugin.Exec(pmd, args)
+	err = plugins.Exec(pmd, args)
 	if err != nil {
 		log.Fatal("Error while executing plugin " + pmd.Name + ": " + err.Error())
 	}
@@ -321,7 +335,7 @@ func versionPrinter(c *cli.Context) {
 	println("HHHHHHHH")
 	serverInfo, err := getClient(getServerUrl()).ServerInfo()
 	if err != nil {
-		warn(fmt.Sprintf("Error getting Fission API version: %v", err))
+		log.Warn(fmt.Sprintf("Error getting Fission API version: %v", err))
 	}
 
 	// Fetch client versions
@@ -330,7 +344,7 @@ func versionPrinter(c *cli.Context) {
 			"fission/core": fission.BuildInfo(),
 		},
 	}
-	for _, pmd := range plugin.FindAll("fission-") {
+	for _, pmd := range plugins.FindAll() {
 		versions.Client[pmd.Name] = fission.BuildMeta{
 			Version: pmd.Version,
 		}
@@ -343,7 +357,7 @@ func versionPrinter(c *cli.Context) {
 	// TODO fetch versions of plugins server-side
 	bs, err := yaml.Marshal(versions)
 	if err != nil {
-		fatal("Failed to format versions: " + err.Error())
+		log.Fatal("Failed to format versions: " + err.Error())
 	}
 	fmt.Println(string(bs))
 }
