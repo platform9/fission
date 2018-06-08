@@ -90,6 +90,7 @@ func beforeAction(c *cli.Context) error {
 		plugins.SetCachePath(path.Join(fissionConfigPath, "plugins-cache.json"))
 	}
 	plugins.SetPrefix("fission-")
+	plugins.AddRegistry(path.Join(fissionConfigPath, "plugins-registry.yaml"))
 	plugins.UpdateCacheIfStale()
 	return nil
 }
@@ -310,7 +311,14 @@ func handleCommandNotFound(ctx *cli.Context, subCommand string) {
 	if err != nil {
 		switch err {
 		case plugins.ErrPluginNotFound:
-			log.Fatal("Unknown sub-command '" + subCommand + "'")
+			md, _, err := plugins.SearchRegistries(subCommand)
+			if err != nil {
+				logrus.Debugf("Failed to find command '%v' in registries: %v", subCommand, err)
+				log.Fatal("Unknown sub-command '" + subCommand + "'")
+			}
+			log.Fatal(fmt.Sprintf(`Command '%v' is not installed.
+It is available to download at '%v'.
+To make it available to your local Fission installation, download it and add it to the $PATH.`, subCommand, md.Url))
 		case plugins.ErrPluginInvalid:
 			log.Fatal(err.Error())
 		default:

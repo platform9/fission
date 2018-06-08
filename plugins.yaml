@@ -1,0 +1,6 @@
+# This file contains a basic registry of plugins for the CLI
+apiVersion: v1
+plugins:
+  workflows:
+  - version: 0.4.0
+    url: https://github.com/fission/fission-workflows/releases/tag/0.4.0/fission-workflows-{{.Platform}}
