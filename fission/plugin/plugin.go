@@ -6,8 +6,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
+	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -16,6 +19,7 @@ import (
 const (
 	CmdTimeout      = 5 * time.Second
 	CmdMetadataArgs = "--plugin"
+	PrefixFission   = "fission-"
 )
 
 var (
@@ -31,7 +35,7 @@ type Metadata struct {
 	Url      string            `json:"url"`
 	Requires map[string]string `json:"requires"`
 	Aliases  []string          `json:"aliases"`
-	Help     string            `json:"help"`
+	Usage    string            `json:"usage"`
 	Path     string            `json:"path"`
 }
 
@@ -48,7 +52,7 @@ func Find(pluginName string) (*Metadata, error) {
 		return nil, err
 	}
 
-	md, err := fetchPluginMetadata(pluginName, pluginPath)
+	md, err := fetchPluginMetadata(pluginPath)
 	if err != nil {
 		return nil, err
 	}
@@ -65,6 +69,34 @@ func Exec(pluginMetadata *Metadata, args []string) error {
 	return cmd.Run()
 }
 
+// FindAll searches the machine for all plugins currently present.
+func FindAll(pluginPrefix string) map[string]*Metadata {
+	plugins := map[string]*Metadata{}
+
+	dirs := strings.Split(os.Getenv("PATH"), ":")
+	for _, dir := range dirs {
+		fs, err := ioutil.ReadDir(dir)
+		if err != nil {
+			logrus.Debugf("Failed to read $PATH directory: %v", dir)
+			continue
+		}
+		for _, f := range fs {
+			if !strings.HasPrefix(f.Name(), pluginPrefix) {
+				continue
+			}
+			fp := path.Join(dir, f.Name())
+			md, err := fetchPluginMetadata(fp)
+			if err != nil {
+				logrus.Debugf("%v: %v", f.Name(), err)
+				continue
+			}
+			// TODO merge aliases
+			plugins[md.Name] = md
+		}
+	}
+	return plugins
+}
+
 func findPluginPath(pluginName string) (path string, err error) {
 	binaryName := binaryNameForPlugin(pluginName)
 	path, err = exec.LookPath(binaryName)
@@ -78,7 +110,7 @@ func findPluginPath(pluginName string) (path string, err error) {
 	return path, nil
 }
 
-func fetchPluginMetadata(pluginName, pluginPath string) (*Metadata, error) {
+func fetchPluginMetadata(pluginPath string) (*Metadata, error) {
 	buf := bytes.NewBuffer(nil)
 	ctx, cancel := context.WithTimeout(context.Background(), CmdTimeout)
 	defer cancel()
@@ -95,16 +127,15 @@ func fetchPluginMetadata(pluginName, pluginPath string) (*Metadata, error) {
 	if err != nil {
 		logrus.Debugf("Failed to read plugin metadata: %v", err)
 		p.Path = pluginPath
-		p.Name = pluginName
-	}
-	if p.Name != pluginName {
-		logrus.Debugf("%v: plugin name does not match plugin metadata (expected: %v, is: %v)",
-			ErrPluginInvalid, pluginName, p.Name)
-		return nil, ErrPluginInvalid
+		p.Name = pluginNameFromBinary(path.Base(pluginPath))
 	}
 	return p, nil
 }
 
 func binaryNameForPlugin(pluginName string) string {
-	return "fission-" + pluginName
+	return PrefixFission + pluginName
+}
+
+func pluginNameFromBinary(binaryName string) string {
+	return strings.TrimPrefix(binaryName, PrefixFission)
 }

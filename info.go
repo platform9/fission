@@ -29,9 +29,9 @@ var (
 
 type (
 	BuildMeta struct {
-		GitCommit string `json:"GitCommit,omitempty"`
-		BuildDate string `json:"BuildDate,omitempty"`
-		Version   string `json:"Version,omitempty"`
+		GitCommit string `json:"GitCommit,omitempty" yaml:"GitCommit,omitempty"`
+		BuildDate string `json:"BuildDate,omitempty" yaml:"BuildDate,omitempty"`
+		Version   string `json:"Version,omitempty" yaml:"Version,omitempty"`
 	}
 
 	Time struct {
