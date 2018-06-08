@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"os/exec"
 	"path"
@@ -15,6 +16,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v2"
 )
 
 const (
@@ -65,10 +67,18 @@ func SetPrefix(prefix string) {
 	DefaultManager.Prefix = prefix
 }
 
+func AddRegistry(registry string) {
+	DefaultManager.Registries = append(DefaultManager.Registries, registry)
+}
+
 func UpdateCacheIfStale() {
 	if DefaultManager.useCache() && DefaultManager.cacheIsStale() {
 		DefaultManager.FindAll()
 	}
+}
+
+func SearchRegistries(pluginName string) (*Metadata, string, error) {
+	return DefaultManager.SearchRegistries(pluginName)
 }
 
 type Manager struct {
@@ -104,6 +114,54 @@ func (mgr *Manager) Exec(pluginMetadata *Metadata, args []string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
+}
+
+func (mgr *Manager) SearchRegistries(pluginName string) (*Metadata, string, error) {
+	for _, registryPath := range mgr.Registries {
+		registry, err := mgr.fetchRegistry(registryPath)
+		if err != nil {
+			logrus.Debug(err)
+			continue
+		}
+
+		// Check if registry contains the plugin we are looking for.
+		for _, p := range registry {
+			if p.Name == pluginName {
+				return p, registryPath, nil
+			}
+		}
+	}
+	return nil, "", ErrPluginNotFound
+}
+
+func (mgr *Manager) fetchRegistry(registryPath string) ([]*Metadata, error) {
+	var registry []*Metadata
+	var bs []byte
+	var err error
+	if strings.HasPrefix(registryPath, "/") {
+		bs, err = ioutil.ReadFile(registryPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch filesystem registry %v: %v", registryPath, err)
+		}
+	} else {
+		resp, err := http.Get(registryPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch HTTP registry %v: %v", registry, err)
+		}
+		if resp.StatusCode >= 400 {
+			return nil, fmt.Errorf("failed to fetch HTTP registry %v: %v", registry, resp.Status)
+		}
+		bs, err = ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read HTTP registry %v: %v", registry, resp.Status)
+		}
+		resp.Body.Close()
+	}
+	err = yaml.Unmarshal(bs, &registry)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse registry %v: %v", registry, err)
+	}
+	return registry, nil
 }
 
 // FindAll searches the machine for all plugins currently present.
