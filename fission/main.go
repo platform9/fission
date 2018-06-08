@@ -21,11 +21,14 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/fission/fission"
-	"github.com/fission/fission/fission/log"
-	"github.com/fission/fission/fission/portforward"
+	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/fission/fission"
+	"github.com/fission/fission/fission/log"
+	"github.com/fission/fission/fission/plugin"
+	"github.com/fission/fission/fission/portforward"
 )
 
 func getFissionNamespace() string {
@@ -68,7 +71,10 @@ func getApplicationUrl(selector string) string {
 
 func cliHook(c *cli.Context) error {
 	log.Verbosity = c.Int("verbosity")
-	log.Verbose(2, "Verbosity = 2")
+	log.Verbose(2, "Verbosity >= 2")
+	if log.Verbosity >= 2 {
+		logrus.SetLevel(logrus.DebugLevel)
+	}
 	return nil
 }
 
@@ -279,7 +285,29 @@ func main() {
 		{Name: "spec", Aliases: []string{"specs"}, Usage: "Manage a declarative app specification", Subcommands: specSubCommands},
 		{Name: "upgrade", Aliases: []string{}, Usage: "Upgrade tool from fission v0.1", Subcommands: upgradeSubCommands},
 	}
-
 	app.Before = cliHook
+	app.CommandNotFound = handleCommandNotFound
 	app.Run(os.Args)
+}
+
+func handleCommandNotFound(ctx *cli.Context, subCommand string) {
+	logrus.Debugf("Looking for plugin for sub-command %v", subCommand)
+	pmd, err := plugin.Find(subCommand)
+	if err != nil {
+		switch err {
+		case plugin.ErrPluginNotFound:
+			log.Fatal("Unknown sub-command '" + subCommand + "'")
+		case plugin.ErrPluginInvalid:
+			log.Fatal(err.Error())
+		default:
+			log.Fatal("Unknown error occurred when invoking " + subCommand + ": " + err.Error())
+		}
+		os.Exit(9)
+	}
+	args := ctx.Args().Tail()
+	logrus.Debugf("Deferring execution to plugin: %v with args %v", pmd.Path, args)
+	err = plugin.Exec(pmd, args)
+	if err != nil {
+		log.Fatal("Error while executing plugin " + pmd.Name + ": " + err.Error())
+	}
 }
