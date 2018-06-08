@@ -219,12 +219,6 @@ type (
 		// - ImagePullPolicy
 		// (optional)
 		Container *apiv1.Container `json:"container,omitempty"`
-
-		// Annotations are added to the annotations in the PodSPec of the runtime
-		// environment. Fission overrides the following fields:
-		// - sidecar.istio.io/inject
-		// (optional)
-		Annotations map[string]string
 	}
 
 	Builder struct {
@@ -245,12 +239,6 @@ type (
 		// - ReadinessProbe
 		// (optional)
 		Container *apiv1.Container `json:"container,omitempty"`
-
-		// Annotations are added to the annotations in the PodSPec of the runtime
-		// environment. Fission overrides the following fields:
-		// - sidecar.istio.io/inject
-		// (optional)
-		Annotations map[string]string
 	}
 
 	EnvironmentSpec struct {

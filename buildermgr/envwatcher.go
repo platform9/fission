@@ -498,12 +498,12 @@ func (envw *environmentWatcher) createBuilderDeployment(env *crd.Environment, ns
 	sel := envw.getLabels(env.Metadata.Name, ns, env.Metadata.ResourceVersion)
 	var replicas int32 = 1
 
-	podAnnotation := env.Spec.Runtime.Annotations
-	if podAnnotation == nil {
-		podAnnotation = make(map[string]string)
+	podAnnotations := env.Metadata.Annotations
+	if podAnnotations == nil {
+		podAnnotations = make(map[string]string)
 	}
 	if envw.useIstio && env.Spec.AllowAccessToExternalNetwork {
-		podAnnotation["sidecar.istio.io/inject"] = "false"
+		podAnnotations["sidecar.istio.io/inject"] = "false"
 	}
 
 	deployment := &v1beta1.Deployment{
@@ -520,7 +520,7 @@ func (envw *environmentWatcher) createBuilderDeployment(env *crd.Environment, ns
 			Template: apiv1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      sel,
-					Annotations: podAnnotation,
+					Annotations: podAnnotations,
 				},
 				Spec: apiv1.PodSpec{
 					Volumes: []apiv1.Volume{
