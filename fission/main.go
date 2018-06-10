@@ -21,6 +21,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
@@ -106,7 +107,8 @@ func main() {
 		info := map[string]string{}
 		pmds := plugins.FindAll()
 		for _, pmd := range pmds {
-			info[pmd.Name] = pmd.Usage
+			names := strings.Join(append([]string{pmd.Name}, pmd.Aliases...), ", ")
+			info[names] = pmd.Usage
 		}
 		return info
 	}
@@ -319,7 +321,11 @@ func handleCommandNotFound(ctx *cli.Context, subCommand string) {
 			}
 			log.Fatal(fmt.Sprintf(`Command '%v' is not installed.
 It is available to download at '%v'.
-To make it available to your local Fission installation, download it and add it to the $PATH.`, subCommand, md.Url))
+
+To install it for your local Fission CLI:
+1. Download the plugin binary for your OS from the url
+2. Ensure that the plugin binary is executable: chmod +x <binary>
+2. Add the plugin binary to your $PATH: mv <binary> /usr/local/bin/<binary>`, subCommand, md.Url))
 		case plugins.ErrPluginInvalid:
 			log.Fatal(err.Error())
 		default:
