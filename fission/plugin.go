@@ -21,9 +21,9 @@ var cmdPlugin = cli.Command{
 			Action: pluginList,
 		},
 		{
-			Name:   "refresh",
-			Usage:  "Clear and rebuild plugin cache",
-			Action: pluginRefresh,
+			Name:   "cache-clear",
+			Usage:  "Clear plugin caches",
+			Action: pluginCacheClear,
 		},
 	},
 }
@@ -38,7 +38,7 @@ func pluginList(c *cli.Context) error {
 	return nil
 }
 
-func pluginRefresh(c *cli.Context) error {
+func pluginCacheClear(c *cli.Context) error {
 	plugins.ClearCache()
 	logrus.Debug("Cache cleared.")
 	return nil

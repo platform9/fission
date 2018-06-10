@@ -33,14 +33,13 @@ var (
 // Metadata contains the metadata of a plugin.
 // The only metadata that is guaranteed to be non-empty is the Path and Name. All other fields are considered optional.
 type Metadata struct {
-	Name       string            `json:"name"`
-	Version    string            `json:"version"`
-	Url        string            `json:"url"`
-	Requires   map[string]string `json:"requires"`
-	Aliases    []string          `json:"aliases"`
-	Usage      string            `json:"usage"`
-	Path       string            `json:"path"`
-	ModifiedAt time.Time         `json:"modifiedAt"`
+	Name       string    `json:"name"`
+	Version    string    `json:"version"`
+	Url        string    `json:"url"`
+	Aliases    []string  `json:"aliases"`
+	Usage      string    `json:"usage"`
+	Path       string    `json:"path"`
+	ModifiedAt time.Time `json:"modifiedAt"`
 }
 
 var DefaultManager = &Manager{
@@ -103,9 +102,21 @@ type Manager struct {
 // If found it returns the plugin, otherwise it returns ErrPluginNotFound if the plugin was not found or it returns
 // ErrPluginInvalid if the plugin was found but considered unusable (e.g. not executable or invalid permissions).
 func (mgr *Manager) Find(pluginName string) (*Metadata, error) {
-	pluginPath, err := mgr.findPluginPath(pluginName)
+	// Look in cache for possible options (and aliases)
+	c, err := mgr.readCache()
 	if err != nil {
-		// TODO check for aliases
+		logrus.Debug("Failed to read cache while finding %v: %v", pluginName, err)
+	}
+	name := pluginName
+	if cached, ok := c[pluginName]; ok {
+		name = cached.Name
+	}
+
+	// Search PATH for plugin as command-name
+	// To check if plugin is actually there still.
+	pluginPath, err := mgr.findPluginPath(name)
+	if err != nil {
+		// TODO fallback findall and try again
 		return nil, err
 	}
 
@@ -182,7 +193,7 @@ func (mgr *Manager) FindAll() map[string]*Metadata {
 	for _, dir := range dirs {
 		fs, err := ioutil.ReadDir(dir)
 		if err != nil {
-			logrus.Debugf("Failed to read $PATH directory: %v", dir)
+			logrus.Debugf("Failed to read $PATH directory %v: %v", dir, err)
 			continue
 		}
 		for _, f := range fs {
@@ -195,7 +206,6 @@ func (mgr *Manager) FindAll() map[string]*Metadata {
 				logrus.Debugf("%v: %v", f.Name(), err)
 				continue
 			}
-			// TODO merge aliases
 			plugins[md.Name] = md
 		}
 	}
@@ -290,6 +300,16 @@ func (mgr *Manager) deleteCached(cachedPluginName string) error {
 	if err != nil {
 		return err
 	}
+
+	cached, ok := mds[cachedPluginName]
+	if !ok {
+		return nil
+	}
+	for _, alias := range cached.Aliases {
+		if cachedAlias, ok := mds[alias]; ok && cachedAlias.Name == cached.Name {
+			delete(mds, alias)
+		}
+	}
 	delete(mds, cachedPluginName)
 	return mgr.writeCacheAll(mds)
 }
@@ -335,6 +355,17 @@ func (mgr *Manager) writeCacheAll(mds map[string]*Metadata) error {
 	if len(mgr.CachePath) == 0 {
 		return errors.New("undefined cache")
 	}
+	// Expand all aliases
+	for _, md := range mds {
+		for _, alias := range md.Aliases {
+			if existing, ok := mds[alias]; ok {
+				logrus.Debugf("Alias conflict for %v: used by %v and %v (ignored)", alias, existing.Name, md.Name)
+				continue
+			}
+			mds[alias] = md
+		}
+	}
+
 	bs, err := json.Marshal(mds)
 	if err != nil {
 		return err
@@ -354,4 +385,8 @@ func (mgr *Manager) binaryNameForPlugin(pluginName string) string {
 
 func (mgr *Manager) pluginNameFromBinary(binaryName string) string {
 	return strings.TrimPrefix(binaryName, mgr.Prefix)
+}
+
+func isAlias(s string, md *Metadata) bool {
+	return s != md.Name
 }
