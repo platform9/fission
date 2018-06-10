@@ -299,6 +299,7 @@ func main() {
 		{Name: "package", Aliases: []string{"pkg"}, Usage: "Manage packages", Subcommands: pkgSubCommands},
 		{Name: "spec", Aliases: []string{"specs"}, Usage: "Manage a declarative app specification", Subcommands: specSubCommands},
 		{Name: "upgrade", Aliases: []string{}, Usage: "Upgrade tool from fission v0.1", Subcommands: upgradeSubCommands},
+		cmdPlugin,
 	}
 	app.Before = beforeAction
 	app.CommandNotFound = handleCommandNotFound

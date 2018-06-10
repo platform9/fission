@@ -77,6 +77,16 @@ func UpdateCacheIfStale() {
 	}
 }
 
+func ClearCache() {
+	DefaultManager.cache = nil
+	if len(DefaultManager.CachePath) != 0 {
+		err := os.Remove(DefaultManager.CachePath)
+		if err != nil {
+			logrus.Debugf("Failed to delete cache at %v: %v", DefaultManager.CachePath, err)
+		}
+	}
+}
+
 func SearchRegistries(pluginName string) (*Metadata, string, error) {
 	return DefaultManager.SearchRegistries(pluginName)
 }
@@ -95,6 +105,7 @@ type Manager struct {
 func (mgr *Manager) Find(pluginName string) (*Metadata, error) {
 	pluginPath, err := mgr.findPluginPath(pluginName)
 	if err != nil {
+		// TODO check for aliases
 		return nil, err
 	}
 
@@ -108,7 +119,6 @@ func (mgr *Manager) Find(pluginName string) (*Metadata, error) {
 // Exec executes the plugin using the provided args.
 // All input and output is redirected to stdin, stdout, and stderr.
 func (mgr *Manager) Exec(pluginMetadata *Metadata, args []string) error {
-	// TODO remove from cache if command is in cache and could not be found!
 	cmd := exec.Command(pluginMetadata.Path, args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
@@ -249,10 +259,10 @@ func (mgr *Manager) fetchPluginMetadata(pluginPath string) (*Metadata, error) {
 	err = json.Unmarshal(buf.Bytes(), md)
 	if err != nil {
 		logrus.Debugf("Failed to read plugin metadata: %v", err)
-		md.Path = pluginPath
 		md.Name = mgr.pluginNameFromBinary(path.Base(pluginPath))
 	}
 	md.ModifiedAt = d.ModTime()
+	md.Path = pluginPath
 	if mgr.useCache() {
 		mgr.writeCache(md)
 	}
@@ -273,6 +283,15 @@ func (mgr *Manager) cacheIsStale() bool {
 		return true
 	}
 	return time.Now().After(fi.ModTime().Add(CacheRefreshInterval))
+}
+
+func (mgr *Manager) deleteCached(cachedPluginName string) error {
+	mds, err := mgr.readCache()
+	if err != nil {
+		return err
+	}
+	delete(mds, cachedPluginName)
+	return mgr.writeCacheAll(mds)
 }
 
 func (mgr *Manager) readCache() (map[string]*Metadata, error) {
