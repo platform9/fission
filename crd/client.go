@@ -160,6 +160,13 @@ func configureClient(config *rest.Config) {
 				&metav1.ListOptions{},
 				&metav1.DeleteOptions{},
 			)
+			scheme.AddKnownTypes(
+				groupversion,
+				&CanaryConfig{},
+				&CanaryConfigList{},
+				&metav1.ListOptions{},
+				&metav1.DeleteOptions{},
+			)
 			return nil
 		})
 	schemeBuilder.AddToScheme(scheme.Scheme)
@@ -220,6 +227,9 @@ func (fc *FissionClient) Recorders(ns string) RecorderInterface {
 }
 func (fc *FissionClient) Packages(ns string) PackageInterface {
 	return MakePackageInterface(fc.crdClient, ns)
+}
+func (fc *FissionClient) CanaryConfigs(ns string) CanaryConfigInterface {
+	return MakeCanaryConfigInterface(fc.crdClient, ns)
 }
 func (fc *FissionClient) WaitForCRDs() error {
 	return waitForCRDs(fc.crdClient)

@@ -37,4 +37,6 @@ type (
 	MessageQueueTriggerList    = fv1.MessageQueueTriggerList
 	Recorder                   = fv1.Recorder
 	RecorderList               = fv1.RecorderList
+	CanaryConfig               = fv1.CanaryConfig
+	CanaryConfigList           = fv1.CanaryConfigList
 )

@@ -253,6 +253,12 @@ func (api *API) Serve(port int) {
 	r.HandleFunc("/v2/secrets/{secret}", api.SecretGet).Methods("GET")
 	r.HandleFunc("/v2/configmaps/{configmap}", api.ConfigMapGet).Methods("GET")
 
+	r.HandleFunc("/v2/canaryconfigs", api.CanaryConfigApiCreate).Methods("POST")
+	r.HandleFunc("/v2/canaryconfigs/{canaryConfig}", api.CanaryConfigApiGet).Methods("GET")
+	r.HandleFunc("/v2/canaryconfigs/{canaryConfig}", api.CanaryConfigApiUpdate).Methods("PUT")
+	r.HandleFunc("/v2/canaryconfigs/{canaryConfig}", api.CanaryConfigApiDelete).Methods("DELETE")
+	r.HandleFunc("/v2/canaryconfigs", api.CanaryConfigApiList).Methods("GET")
+
 	r.HandleFunc("/proxy/{dbType}", api.FunctionLogsApiPost).Methods("POST")
 	r.HandleFunc("/proxy/storage/v1/archive", api.StorageServiceProxy)
 	r.HandleFunc("/proxy/logs/{function}", api.FunctionPodLogs).Methods("POST")
