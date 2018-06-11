@@ -68,6 +68,8 @@ func (fmap *functionServiceMap) assign(f *metav1.ObjectMeta, serviceUrl *url.URL
 	mk := keyFromMetadata(f)
 	err, old := fmap.cache.Set(*mk, serviceUrl)
 	if err != nil {
+		log.Printf("Comparing serviceUrl with oldUrl, serviceUrl.Host = %v , oldUrl.Host = %v", serviceUrl.Host, old.(*url.URL).Host)
+		log.Printf("Also dumping serviceUrl obj %+v, old : %+v", *serviceUrl, *(old.(*url.URL)))
 		if *serviceUrl == *(old.(*url.URL)) {
 			return
 		}

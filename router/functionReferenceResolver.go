@@ -45,25 +45,39 @@ type (
 
 	resolveResultType int
 
+	FunctionWeightDistribution struct {
+		name      string
+		weight    int
+		sumPrefix int
+	}
+
 	// resolveResult is the result of resolving a function reference; for now
 	// it's just the metadata of one function, but in the future could support
 	// a distribution of requests across two functions.
 	resolveResult struct {
 		resolveResultType
-		functionMetadata *metav1.ObjectMeta
+		//functionMetadata *metav1.ObjectMeta
+		functionMetadataMap        map[string]*metav1.ObjectMeta
+		functionWtDistributionList []FunctionWeightDistribution
 	}
+
+	// TODO : Change the comments to reflect final design.
+	// had to change this because of the new addition of function -> weights map.
+	// the key of any cache cannot be a map or a slice.
 
 	// namespacedFunctionReference is just a function reference plus a
 	// namespace. Since a function reference works on names, it's only
 	// meaningful within a namespace.
 	namespacedFunctionReference struct {
-		namespace         string
-		functionReference fission.FunctionReference
+		namespace              string
+		triggerName            string
+		triggerResourceVersion string
 	}
 )
 
 const (
 	resolveResultSingleFunction = iota
+	resolveResultMultipleFunctions
 )
 
 func makeFunctionReferenceResolver(store k8sCache.Store) *functionReferenceResolver {
@@ -89,15 +103,12 @@ func makeK8SCache(crdClient *rest.RESTClient) (k8sCache.Store, k8sCache.Controll
 		k8sCache.ResourceEventHandlerFuncs{})
 }
 
-// resolve translates a namespace and a function reference to resolveResult.
-// The resolveResult for now is just a function's metadata. In the future, some
-// function ref types may resolve to two functions rather than just one
-// (e.g. for incremental deployment), which will make the resolveResult a bit
-// more complex.
-func (frr *functionReferenceResolver) resolve(namespace string, fr *fission.FunctionReference) (*resolveResult, error) {
+// resolve translates a trigger's function reference to a resolveResult.
+func (frr *functionReferenceResolver) resolve(trigger crd.HTTPTrigger) (*resolveResult, error) {
 	nfr := namespacedFunctionReference{
-		namespace:         namespace,
-		functionReference: *fr,
+		namespace:              trigger.Metadata.Namespace,
+		triggerName:            trigger.Metadata.Name,
+		triggerResourceVersion: trigger.Metadata.ResourceVersion,
 	}
 
 	// check cache
@@ -110,14 +121,21 @@ func (frr *functionReferenceResolver) resolve(namespace string, fr *fission.Func
 	// resolve on cache miss
 	var rr *resolveResult
 
-	switch fr.Type {
+	switch trigger.Spec.FunctionReference.Type {
 	case fission.FunctionReferenceTypeFunctionName:
-		rr, err = frr.resolveByName(namespace, fr.Name)
+		rr, err = frr.resolveByName(nfr.namespace, trigger.Spec.FunctionReference.Name)
 		if err != nil {
 			return nil, err
 		}
+
+	case fission.FunctionReferenceTypeFunctionWeights:
+		rr, err = frr.resolveByFunctionWeights(nfr.namespace, &trigger.Spec.FunctionReference)
+		if err != nil {
+			return nil, err
+		}
+
 	default:
-		return nil, fmt.Errorf("Unrecognized function reference type %v", fr.Type)
+		return nil, fmt.Errorf("Unrecognized function reference type %v", trigger.Spec.FunctionReference.Type)
 	}
 
 	// cache resolve result
@@ -143,17 +161,63 @@ func (frr *functionReferenceResolver) resolveByName(namespace, name string) (*re
 	}
 
 	f := obj.(*crd.Function)
+	functionMetadataMap := make(map[string]*metav1.ObjectMeta, 1)
+	functionMetadataMap[f.Metadata.Name] = &f.Metadata
+
 	rr := resolveResult{
-		resolveResultType: resolveResultSingleFunction,
-		functionMetadata:  &f.Metadata,
+		resolveResultType:   resolveResultSingleFunction,
+		functionMetadataMap: functionMetadataMap,
 	}
+
 	return &rr, nil
 }
 
-func (frr *functionReferenceResolver) delete(namespace string, fr *fission.FunctionReference) error {
+func (frr *functionReferenceResolver) resolveByFunctionWeights(namespace string, fr *fission.FunctionReference) (*resolveResult, error) {
+
+	functionMetadataMap := make(map[string]*metav1.ObjectMeta, 0)
+	fnWtDistrList := make([]FunctionWeightDistribution, 0)
+	sumPrefix := 0
+
+	for functionName, functionWeight := range fr.FunctionWeights {
+		// get function from cache
+		obj, isExist, err := frr.store.Get(&crd.Function{
+			Metadata: metav1.ObjectMeta{
+				Namespace: namespace,
+				Name:      functionName,
+			},
+		})
+		if err != nil {
+			return nil, err
+		}
+		if !isExist {
+			return nil, fmt.Errorf("function %v does not exist", functionName)
+		}
+
+		f := obj.(*crd.Function)
+		functionMetadataMap[f.Metadata.Name] = &f.Metadata
+		sumPrefix = sumPrefix + functionWeight
+		fnWtDistrList = append(fnWtDistrList, FunctionWeightDistribution{
+			name:      functionName,
+			weight:    functionWeight,
+			sumPrefix: sumPrefix,
+		})
+
+	}
+
+	rr := resolveResult{
+		resolveResultType:          resolveResultMultipleFunctions,
+		functionMetadataMap:        functionMetadataMap,
+		functionWtDistributionList: fnWtDistrList,
+	}
+
+	return &rr, nil
+}
+
+func (frr *functionReferenceResolver) delete(namespace string, triggerName, triggerRV string) error {
 	nfr := namespacedFunctionReference{
-		namespace:         namespace,
-		functionReference: *fr,
+		namespace:              namespace,
+		triggerName:            triggerName,
+		triggerResourceVersion: triggerRV,
 	}
 	return frr.refCache.Delete(nfr)
 }
