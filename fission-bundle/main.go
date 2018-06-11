@@ -19,8 +19,8 @@ import (
 	"github.com/fission/fission/timer"
 )
 
-func runController(port int) {
-	controller.Start(port)
+func runController(port int, prometheusSvc string) {
+	controller.Start(port, prometheusSvc)
 	log.Fatalf("Error: Controller exited.")
 }
 
@@ -114,7 +114,7 @@ Use it to start one or more of the fission servers:
  backends.
 
 Usage:
-  fission-bundle --controllerPort=<port>
+  fission-bundle --controllerPort=<port> --prometheusSvc=<url>
   fission-bundle --routerPort=<port> [--executorUrl=<url>]
   fission-bundle --executorPort=<port> [--namespace=<namespace>] [--fission-namespace=<namespace>]
   fission-bundle --kubewatcher [--routerUrl=<url>]
@@ -125,6 +125,7 @@ Usage:
   fission-bundle --version
 Options:
   --controllerPort=<port>         Port that the controller should listen on.
+  --prometheusSvc=<url>           Service endpoint of prometheus server
   --routerPort=<port>             Port that the router should listen on.
   --executorPort=<port>           Port that the executor should listen on.
   --storageServicePort=<port>     Port that the storage service should listen on.
@@ -153,10 +154,11 @@ Options:
 	executorUrl := getStringArgWithDefault(arguments["--executorUrl"], "http://executor.fission")
 	routerUrl := getStringArgWithDefault(arguments["--routerUrl"], "http://router.fission")
 	storageSvcUrl := getStringArgWithDefault(arguments["--storageSvcUrl"], "http://storagesvc.fission")
+	prometheusSvcUrl := getStringArgWithDefault(arguments["--prometheusSvc"], "")
 
 	if arguments["--controllerPort"] != nil {
 		port := getPort(arguments["--controllerPort"])
-		runController(port)
+		runController(port, prometheusSvcUrl)
 	}
 
 	if arguments["--routerPort"] != nil {

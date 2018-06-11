@@ -167,6 +167,21 @@ type (
 
 		Items []Recorder `json:"items"`
 	}
+
+	// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+	CanaryConfig struct {
+		metav1.TypeMeta `json:",inline"`
+		Metadata        metav1.ObjectMeta `json:"metadata"`
+		Spec            CanaryConfigSpec  `json:"spec"`
+	}
+
+	// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+	CanaryConfigList struct {
+		metav1.TypeMeta `json:",inline"`
+		Metadata        metav1.ListMeta `json:"metadata"`
+
+		Items []CanaryConfig `json:"items"`
+	}
 )
 
 // Each CRD type needs:
@@ -199,6 +214,9 @@ func (m *MessageQueueTrigger) GetObjectKind() schema.ObjectKind {
 func (p *Package) GetObjectKind() schema.ObjectKind {
 	return &p.TypeMeta
 }
+func (c *CanaryConfig) GetObjectKind() schema.ObjectKind {
+	return &c.TypeMeta
+}
 
 func (r *Recorder) GetObjectKind() schema.ObjectKind {
 	return &r.TypeMeta
@@ -224,6 +242,9 @@ func (m *MessageQueueTrigger) GetObjectMeta() metav1.Object {
 }
 func (p *Package) GetObjectMeta() metav1.Object {
 	return &p.Metadata
+}
+func (c *CanaryConfig) GetObjectMeta() metav1.Object {
+	return &c.Metadata
 }
 
 func (r *Recorder) GetObjectMeta() metav1.Object {
@@ -255,6 +276,10 @@ func (rl *RecorderList) GetObjectKind() schema.ObjectKind {
 	return &rl.TypeMeta
 }
 
+func (cl *CanaryConfigList) GetObjectKind() schema.ObjectKind {
+	return &cl.TypeMeta
+}
+
 func (fl *FunctionList) GetListMeta() metav1.ListInterface {
 	return &fl.Metadata
 }
@@ -276,8 +301,13 @@ func (ml *MessageQueueTriggerList) GetListMeta() metav1.ListInterface {
 func (pl *PackageList) GetListMeta() metav1.ListInterface {
 	return &pl.Metadata
 }
+
 func (rl *RecorderList) GetListMeta() metav1.ListInterface {
 	return &rl.Metadata
+}
+
+func (cl *CanaryConfigList) GetListMeta() metav1.ListInterface {
+	return &cl.Metadata
 }
 
 func validateMetadata(field string, m metav1.ObjectMeta) error {

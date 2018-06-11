@@ -329,11 +329,14 @@ func (ref FunctionReference) Validate() error {
 
 	switch ref.Type {
 	case FunctionReferenceTypeFunctionName: // no op
+	case FunctionReferenceTypeFunctionWeights: // no op
 	default:
 		result = multierror.Append(result, MakeValidationErr(ErrorUnsupportedType, "FunctionReference.Type", ref.Type, "not a valid function reference type"))
 	}
 
-	result = multierror.Append(result, ValidateKubeName("FunctionReference.Name", ref.Name))
+	if ref.Type == FunctionReferenceTypeFunctionName {
+		result = multierror.Append(result, ValidateKubeName("FunctionReference.Name", ref.Name))
+	}
 
 	return result.ErrorOrNil()
 }

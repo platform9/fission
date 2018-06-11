@@ -119,8 +119,10 @@ func (ts *HTTPTriggerSet) getRouter() *mux.Router {
 		trigger := ts.triggers[i]
 
 		// resolve function reference
-		rr, err := ts.resolver.resolve(trigger.Metadata.Namespace, &trigger.Spec.FunctionReference)
+		rr, err := ts.resolver.resolve(trigger)
 		if err != nil {
+			//log.Printf("Error resolving trigger: %s, err : %v", trigger.Metadata.Name, err)
+
 			// Unresolvable function reference. Report the error via
 			// the trigger's status.
 			go ts.updateTriggerStatusFailed(&trigger, err)
@@ -137,21 +139,32 @@ func (ts *HTTPTriggerSet) getRouter() *mux.Router {
 
 		//log.Printf("The trigger %v should be recorded: %v", trigger.Metadata.Name, doRecord)
 
-		if rr.resolveResultType != resolveResultSingleFunction {
+		if rr.resolveResultType != resolveResultSingleFunction && rr.resolveResultType != resolveResultMultipleFunctions {
 			// not implemented yet
 			log.Panicf("resolve result type not implemented (%v)", rr.resolveResultType)
 		}
 
 		fh := &functionHandler{
-			fmap:                 ts.functionServiceMap,
-			frmap:                ts.recorderSet.functionRecorderMap,
-			trmap:                ts.recorderSet.triggerRecorderMap,
-			function:             rr.functionMetadata,
-			executor:             ts.executor,
-			httpTrigger:          &trigger,
-			tsRoundTripperParams: ts.tsRoundTripperParams,
-			recorderName:         recorderName,
+			fmap:                     ts.functionServiceMap,
+			frmap:                    ts.recorderSet.functionRecorderMap,
+			trmap:                    ts.recorderSet.triggerRecorderMap,
+			executor:                 ts.executor,
+			httpTrigger:              &trigger,
+			functionMetadataMap:      rr.functionMetadataMap,
+			fnWeightDistributionList: rr.functionWtDistributionList,
+			tsRoundTripperParams:     ts.tsRoundTripperParams,
+			recorderName:             recorderName,
 		}
+
+		//log.Printf("Dumping fh object : %+v", fh)
+
+		if rr.resolveResultType == resolveResultSingleFunction {
+			for _, metadata := range fh.functionMetadataMap {
+				fh.function = metadata
+			}
+		}
+
+		//log.Printf("Setting up url %s handler %+v", trigger.Spec.RelativeURL, *fh)
 
 		ht := muxRouter.HandleFunc(trigger.Spec.RelativeURL, fh.handler)
 		ht.Methods(trigger.Spec.Method)
@@ -247,6 +260,17 @@ func (ts *HTTPTriggerSet) initTriggerController() (k8sCache.Store, k8sCache.Cont
 	return store, controller
 }
 
+//func needResolverCacheInvalidation(key namespacedFunctionReference, rr resolveResult, fn *metav1.ObjectMeta) bool {
+//	if key.refType == fission.FunctionReferenceTypeFunctionWeights &&
+//		rr.functionMap[fn.Name].weight != 0 &&
+//		rr.functionMap[fn.Name].metadata.ResourceVersion != fn.ResourceVersion {
+//		return true
+//	}
+//
+//	//log.Printf("needResolverCacheInvalidation decides to not invalidate the cache")
+//	return false
+//}
+
 func (ts *HTTPTriggerSet) initFunctionController() (k8sCache.Store, k8sCache.Controller) {
 	resyncPeriod := 30 * time.Second
 	listWatch := k8sCache.NewListWatchFromClient(ts.crdClient, "functions", metav1.NamespaceAll, fields.Everything())
@@ -270,12 +294,16 @@ func (ts *HTTPTriggerSet) initFunctionController() (k8sCache.Store, k8sCache.Con
 
 				// update resolver function reference cache
 				for key, rr := range ts.resolver.copy() {
-					if key.functionReference.Name == fn.Metadata.Name &&
-						rr.functionMetadata.ResourceVersion != fn.Metadata.ResourceVersion {
-						err := ts.resolver.delete(key.namespace, &key.functionReference)
+					if key.namespace == fn.Metadata.Namespace &&
+						rr.functionMetadataMap[fn.Metadata.Name] != nil &&
+						rr.functionMetadataMap[fn.Metadata.Name].ResourceVersion != fn.Metadata.ResourceVersion {
+						// invalidate resolver cache
+						log.Printf("Invalidating resolver cache")
+						err := ts.resolver.delete(key.namespace, key.triggerName, key.triggerResourceVersion)
 						if err != nil {
 							log.Printf("Error deleting functionReferenceResolver cache: %v", err)
 						}
+
 						break
 					}
 				}
