@@ -129,11 +129,14 @@ func msgHandler(nats *Nats, trigger *crd.MessageQueueTrigger) func(*ns.Msg) {
 		for attempt := 0; attempt <= trigger.Spec.MaxRetries; attempt++ {
 			// Make the request
 			resp, err = http.DefaultClient.Do(req)
-			if err != nil || resp == nil {
-				// Retry without referencing status code of nil response on the next line
+			if err != nil {
+				log.Error(err)
 				continue
 			}
-			if err == nil && resp.StatusCode == 200 {
+			if resp == nil {
+				continue
+			}
+			if err == nil && resp.StatusCode == http.StatusOK {
 				// Success, quit retrying
 				break
 			}
