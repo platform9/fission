@@ -139,6 +139,20 @@ func recorderUpdate(c *cli.Context) error {
 }
 
 func recorderDelete(c *cli.Context) error {
+	client := getClient(c.GlobalString("server"))
+	recName := c.String("name")
+	if len(recName) == 0 {
+		fatal("Need name of recorder to delete, use --name")
+	}
+	recNs := c.String("recorderns")
+
+	err := client.RecorderDelete(&metav1.ObjectMeta{
+		Name: recName,
+		Namespace: recNs,
+	})
+	checkErr(err, "delete recorder")
+
+	fmt.Printf("recorder '%v' deleted\n", recName)
 	return nil
 }
 
@@ -183,25 +197,3 @@ func recorderList(c *cli.Context) error {
 
 	return nil
 }
-
-/*
-func mqtList(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
-	mqtNs := c.String("triggerns")
-
-	mqts, err := client.MessageQueueTriggerList(c.String("mqtype"), mqtNs)
-	checkErr(err, "list message queue triggers")
-
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
-
-	fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\n",
-		"NAME", "FUNCTION_NAME", "MESSAGE_QUEUE_TYPE", "TOPIC", "RESPONSE_TOPIC", "PUB_MSG_CONTENT_TYPE")
-	for _, mqt := range mqts {
-		fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\n",
-			mqt.Metadata.Name, mqt.Spec.FunctionReference.Name, mqt.Spec.MessageQueueType, mqt.Spec.Topic, mqt.Spec.ResponseTopic, mqt.Spec.ContentType)
-	}
-	w.Flush()
-
-	return nil
-}
-*/

@@ -23,55 +23,30 @@ import (
 	"github.com/fission/fission/crd"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/gorilla/mux"
+	"github.com/fission/fission"
 )
 
 func (a *API) RecorderApiList(w http.ResponseWriter, r*http.Request) {
-	// TODO: Extract/set namespace
-
-	log.Info("At the right place!")
-
-	recorders, err := a.fissionClient.Recorders(metav1.NamespaceAll).List(metav1.ListOptions{})
-	if err != nil {
-		log.Info("Couldn't obtain recorders")
-		a.respondWithError(w, err)
-		return
-	}
-	resp, err := json.Marshal(recorders.Items)
-	if err != nil {
-		log.Info("Couldn't unmarshall")
-		a.respondWithError(w, err)
-		return
-	}
-	a.respondWithSuccess(w, resp)
-}
-
-/*
-func (a *API) MessageQueueTriggerApiList(w http.ResponseWriter, r *http.Request) {
-	//mqType := r.FormValue("mqtype") // ignored for now
 	ns := a.extractQueryParamFromRequest(r, "namespace")
 	if len(ns) == 0 {
 		ns = metav1.NamespaceAll
 	}
 
-	triggers, err := a.fissionClient.MessageQueueTriggers(ns).List(metav1.ListOptions{})
+	recorders, err := a.fissionClient.Recorders(ns).List(metav1.ListOptions{})
 	if err != nil {
 		a.respondWithError(w, err)
 		return
 	}
-	resp, err := json.Marshal(triggers.Items)
+	resp, err := json.Marshal(recorders.Items)
 	if err != nil {
 		a.respondWithError(w, err)
 		return
 	}
 	a.respondWithSuccess(w, resp)
 }
-*/
 
 func (a *API) RecorderApiCreate(w http.ResponseWriter, r*http.Request) {
-	//w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	//_, err := w.Write([]byte("At least you tried"))
-	//return
-
 	body, err := ioutil.ReadAll(r.Body)
 
 	if err != nil {
@@ -113,7 +88,24 @@ func (a *API) RecorderApiCreate(w http.ResponseWriter, r*http.Request) {
 }
 
 func (a *API) RecorderApiGet(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	name := vars["recorder"]
+	ns := a.extractQueryParamFromRequest(r, "namespace")
+	if len(ns) == 0 {
+		ns = metav1.NamespaceDefault
+	}
 
+	recorder, err := a.fissionClient.Recorders(ns).Get(name)
+	if err != nil {
+		a.respondWithError(w, err)
+		return
+	}
+	resp, err := json.Marshal(recorder)
+	if err != nil {
+		a.respondWithError(w, err)
+		return
+	}
+	a.respondWithSuccess(w, resp)
 }
 /*
 func (a *API) MessageQueueTriggerApiGet(w http.ResponseWriter, r *http.Request) {
@@ -139,12 +131,8 @@ func (a *API) MessageQueueTriggerApiGet(w http.ResponseWriter, r *http.Request) 
 */
 
 func (a *API) RecorderApiUpdate(w http.ResponseWriter, r *http.Request) {
-
-}
-/*
-func (a *API) MessageQueueTriggerApiUpdate(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	name := vars["mqTrigger"]
+	name := vars["recorder"]
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -152,36 +140,48 @@ func (a *API) MessageQueueTriggerApiUpdate(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	var mqTrigger crd.MessageQueueTrigger
-	err = json.Unmarshal(body, &mqTrigger)
+	var recorder crd.Recorder
+	err = json.Unmarshal(body, &recorder)
 	if err != nil {
 		a.respondWithError(w, err)
 		return
 	}
 
-	if name != mqTrigger.Metadata.Name {
-		err = fission.MakeError(fission.ErrorInvalidArgument, "Message queue trigger name doesn't match URL")
+	if name != recorder.Metadata.Name {
+		err = fission.MakeError(fission.ErrorInvalidArgument, "Recorder name doesn't match URL")
 		a.respondWithError(w, err)
 		return
 	}
 
-	tnew, err := a.fissionClient.MessageQueueTriggers(mqTrigger.Metadata.Namespace).Update(&mqTrigger)
+	rnew, err := a.fissionClient.Recorders(recorder.Metadata.Namespace).Update(&recorder)
 	if err != nil {
 		a.respondWithError(w, err)
 		return
 	}
 
-	resp, err := json.Marshal(tnew.Metadata)
+	resp, err := json.Marshal(rnew.Metadata)
 	if err != nil {
 		a.respondWithError(w, err)
 		return
 	}
+
 	a.respondWithSuccess(w, resp)
 }
-*/
 
 func (a *API) RecorderApiDelete(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	name := vars["recorder"]
+	ns := a.extractQueryParamFromRequest(r, "namespace")
+	if len(ns) == 0 {
+		ns = metav1.NamespaceDefault
+	}
 
+	err := a.fissionClient.Recorders(ns).Delete(name, &metav1.DeleteOptions{})
+	if err != nil {
+		a.respondWithError(w, err)
+		return
+	}
+	a.respondWithSuccess(w, []byte(""))
 }
 
 /*

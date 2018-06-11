@@ -15,22 +15,22 @@ topic="foo.bar"
 resptopic="foo.foo"
 expectedRespOutput="[foo.foo]: 'Hello, World!'"
 
-log "Pre-test cleanup"
+echo "Pre-test cleanup"
 fission env delete --name nodejs || true
 
-log "Creating nodejs env"
+echo "Creating nodejs env"
 fission env create --name nodejs --image fission/node-env
 trap "fission env delete --name nodejs" EXIT
 
-log "Creating function"
+echo "Creating function"
 fn=hello-$(date +%s)
 fission fn create --name $fn --env nodejs --code $DIR/main.js --method GET
 trap "fission fn delete --name $fn" EXIT
 
-log "Creating message queue trigger"
+echo "Creating message queue trigger"
 mqt=mqt-$(date +%s)
 fission mqtrigger create --name $mqt --function $fn --mqtype "nats-streaming" --topic $topic --resptopic $resptopic
-trap "fission mqtrigger delete --name $mqt" EXIT
+# trap "fission mqtrigger delete --name $mqt" EXIT
 
 # wait until nats trigger is created
 sleep 5
@@ -38,13 +38,13 @@ sleep 5
 #
 # Send a message
 #
-log "Sending message"
+echo "Sending message"
 go run $DIR/stan-pub.go -s $FISSION_NATS_STREAMING_URL -c $clusterID -id clientPub $topic ""
 
 #
 # Wait for message on response topic 
 #
-log "Waiting for response"
+echo "Waiting for response"
 TIMEOUT=timeout
 if [ $(uname -s) == 'Darwin' ]
 then
@@ -54,8 +54,8 @@ fi
 response=$($TIMEOUT 120s go run $DIR/stan-sub.go --last -s $FISSION_NATS_STREAMING_URL -c $clusterID -id clientSub $resptopic 2>&1)
 
 if [[ "$response" != "$expectedRespOutput" ]]; then
-    log "$response is not equal to $expectedRespOutput"
+    echo "$response is not equal to $expectedRespOutput"
     exit 1
 fi
 
-log "Subscriber received expected response: $response"
+echo "Subscriber received expected response: $response"

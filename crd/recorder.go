@@ -30,6 +30,7 @@ type (
 		Create(*Recorder) (*Recorder, error)
 		Get(name string) (*Recorder, error)
 		Update(*Recorder) (*Recorder, error)
+		Delete(name string, opts *metav1.DeleteOptions) error
 		List(opts metav1.ListOptions) (*RecorderList, error)
 		Watch(opts metav1.ListOptions) (watch.Interface, error)
 	}
@@ -47,28 +48,6 @@ func MakeRecorderInterface(crdClient *rest.RESTClient, namespace string) Recorde
 	}
 }
 
-/*
-func MakeMessageQueueTriggerInterface(crdClient *rest.RESTClient, namespace string) MessageQueueTriggerInterface {
-	return &messageQueueTriggerClient{
-		client:    crdClient,
-		namespace: namespace,
-	}
-}
-*/
-
-//func (fc *messageQueueTriggerClient) Create(f *MessageQueueTrigger) (*MessageQueueTrigger, error) {
-//	var result MessageQueueTrigger
-//	err := fc.client.Post().
-//		Resource("messagequeuetriggers").
-//		Namespace(fc.namespace).
-//		Body(f).
-//		Do().Into(&result)
-//	if err != nil {
-//		return nil, err
-//	}
-//	return &result, nil
-//}
-
 func (rc *recorderClient) Create(r *Recorder) (*Recorder, error){
 	var result Recorder
 	err := rc.client.Post().
@@ -82,23 +61,18 @@ func (rc *recorderClient) Create(r *Recorder) (*Recorder, error){
 	return &result, nil
 }
 
-/*
-func (fc *messageQueueTriggerClient) Create(f *MessageQueueTrigger) (*MessageQueueTrigger, error) {
-	var result MessageQueueTrigger
-	err := fc.client.Post().
-		Resource("messagequeuetriggers").
-		Namespace(fc.namespace).
-		Body(f).
+
+func (rc *recorderClient) Get(name string) (*Recorder, error) {
+	var result Recorder
+	err := rc.client.Get().
+		Resource("recorders").
+		Namespace(rc.namespace).
+		Name(name).
 		Do().Into(&result)
 	if err != nil {
 		return nil, err
 	}
 	return &result, nil
-}
-*/
-
-func (rc *recorderClient) Get(name string) (*Recorder, error) {
-	return nil, nil
 }
 
 /*
@@ -116,28 +90,28 @@ func (fc *messageQueueTriggerClient) Get(name string) (*MessageQueueTrigger, err
 }
 */
 
-func (rc *recorderClient) Update(f *Recorder) (*Recorder, error) {
-	return nil, nil
-}
-
-/*
-func (fc *messageQueueTriggerClient) Update(f *MessageQueueTrigger) (*MessageQueueTrigger, error) {
-	var result MessageQueueTrigger
-	err := fc.client.Put().
-		Resource("messagequeuetriggers").
-		Namespace(fc.namespace).
-		Name(f.Metadata.Name).
-		Body(f).
+func (rc *recorderClient) Update(r *Recorder) (*Recorder, error) {
+	var result Recorder
+	err := rc.client.Put().
+		Resource("recorders").
+		Namespace(rc.namespace).
+		Name(r.Metadata.Name).
+		Body(r).
 		Do().Into(&result)
 	if err != nil {
 		return nil, err
 	}
 	return &result, nil
 }
-*/
 
-func (rc *recorderClient) Delete(name, string, opts *metav1.DeleteOptions) error {
-	return nil
+func (rc *recorderClient) Delete(name string, opts *metav1.DeleteOptions) error {
+	return rc.client.Delete().
+		Namespace(rc.namespace).
+		Resource("recorders").
+		Name(name).
+		Body(opts).
+		Do().
+		Error()
 }
 
 /*
@@ -166,21 +140,6 @@ func (rc *recorderClient) List(opts metav1.ListOptions) (*RecorderList, error) {
 	}
 	return &result, nil
 }
-/*
-func (fc *messageQueueTriggerClient) List(opts metav1.ListOptions) (*MessageQueueTriggerList, error) {
-	var result MessageQueueTriggerList
-	err := fc.client.Get().
-		Namespace(fc.namespace).
-		Resource("messagequeuetriggers").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Do().
-		Into(&result)
-	if err != nil {
-		return nil, err
-	}
-	return &result, nil
-}
-*/
 
 
 func (rc *recorderClient) Watch(opts metav1.ListOptions) (watch.Interface, error) {

@@ -103,6 +103,7 @@ func main() {
 	envNamespaceFlag := cli.StringFlag{Name: "envNamespace, envns", Value: metav1.NamespaceDefault, Usage: "Namespace for environment object"}
 	pkgNamespaceFlag := cli.StringFlag{Name: "pkgNamespace, pkgns", Value: metav1.NamespaceDefault, Usage: "Namespace for package object"}
 	triggerNamespaceFlag := cli.StringFlag{Name: "triggerNamespace, triggerns", Value: metav1.NamespaceDefault, Usage: "Namespace for trigger object"}
+	recorderNamespaceFlag := cli.StringFlag{Name: "recorderNamespace, recorderns", Value: metav1.NamespaceDefault, Usage: "Namespace for recorder object"}
 
 	// trigger method and url flags (used in function and route CLIs)
 	htMethodFlag := cli.StringFlag{Name: "method", Value: "GET", Usage: "HTTP Method: GET|POST|PUT|DELETE|HEAD"}
@@ -206,8 +207,8 @@ func main() {
 	recSubcommands := []cli.Command{
 		{Name: "create", Aliases: []string{"add"}, Usage: "Create recorder", Flags: []cli.Flag{recNameFlag, recFnNameFlag, recRetentionPolFlag, recEvictionPolFlag, specSaveFlag}, Action: recorderCreate},
 		{Name: "get", Usage: "Get recorder", Flags: []cli.Flag{recNameFlag}, Action: recorderGet},
-		{Name: "update", Usage: "Update recorder", Flags: []cli.Flag{recNameFlag, recRetentionPolFlag, recEvictionPolFlag, recEnabled, recDisabled}, Action: recorderUpdate},
-		{Name: "delete", Usage: "Delete recorder", Flags: []cli.Flag{recNameFlag}, Action: recorderDelete},
+		{Name: "update", Usage: "Update recorder", Flags: []cli.Flag{recNameFlag, recFnNameFlag, recRetentionPolFlag, recEvictionPolFlag, recEnabled, recDisabled}, Action: recorderUpdate},
+		{Name: "delete", Usage: "Delete recorder", Flags: []cli.Flag{recNameFlag, recorderNamespaceFlag}, Action: recorderDelete},
 		{Name: "list", Usage: "List recorders", Flags: []cli.Flag{}, Action: recorderList},
 	}
 
