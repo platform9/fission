@@ -107,28 +107,6 @@ func (a *API) RecorderApiGet(w http.ResponseWriter, r *http.Request) {
 	}
 	a.respondWithSuccess(w, resp)
 }
-/*
-func (a *API) MessageQueueTriggerApiGet(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	name := vars["mqTrigger"]
-	ns := a.extractQueryParamFromRequest(r, "namespace")
-	if len(ns) == 0 {
-		ns = metav1.NamespaceDefault
-	}
-
-	mqTrigger, err := a.fissionClient.MessageQueueTriggers(ns).Get(name)
-	if err != nil {
-		a.respondWithError(w, err)
-		return
-	}
-	resp, err := json.Marshal(mqTrigger)
-	if err != nil {
-		a.respondWithError(w, err)
-		return
-	}
-	a.respondWithSuccess(w, resp)
-}
-*/
 
 func (a *API) RecorderApiUpdate(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
@@ -183,21 +161,3 @@ func (a *API) RecorderApiDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	a.respondWithSuccess(w, []byte(""))
 }
-
-/*
-func (a *API) MessageQueueTriggerApiDelete(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	name := vars["mqTrigger"]
-	ns := a.extractQueryParamFromRequest(r, "namespace")
-	if len(ns) == 0 {
-		ns = metav1.NamespaceDefault
-	}
-
-	err := a.fissionClient.MessageQueueTriggers(ns).Delete(name, &metav1.DeleteOptions{})
-	if err != nil {
-		a.respondWithError(w, err)
-		return
-	}
-	a.respondWithSuccess(w, []byte(""))
-}
-*/

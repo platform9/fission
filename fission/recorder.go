@@ -74,16 +74,34 @@ func recorderCreate(c *cli.Context) error {
 		return nil
 	}
 
-	_, err, help := client.RecorderCreate(recorder)
-	fmt.Println(help)
+	_, err := client.RecorderCreate(recorder)
 	checkErr(err, "create recorder")
 
 	fmt.Printf("recorder '%s' created\n", recName)
 	return err
 }
 
-// TODO: Understand why this does nothing
 func recorderGet(c *cli.Context) error {
+	client := getClient(c.GlobalString("server"))
+	// TODO: Namespace
+
+	recName := c.String("name")
+
+	recorder, err := client.RecorderGet(&metav1.ObjectMeta{
+		Name: recName,
+		Namespace: "default", // TODO
+	})
+
+	checkErr(err, "get recorder")
+
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
+
+	fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\n",
+		"NAME", "ENABLED", "BACKEND_TYPE", "FUNCTIONS", "TRIGGERS", "RETENTION_POLICY", "EVICTION_POLICY")
+	fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\n",
+			recorder.Metadata.Name, recorder.Spec.Enabled, recorder.Spec.BackendType, recorder.Spec.Functions, recorder.Spec.Trigger, recorder.Spec.RetentionPolicy, recorder.Spec.EvictionPolicy,)
+	w.Flush()
+
 	return nil
 }
 
@@ -156,32 +174,11 @@ func recorderDelete(c *cli.Context) error {
 	return nil
 }
 
-/*
-func mqtDelete(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
-	mqtName := c.String("name")
-	if len(mqtName) == 0 {
-		fatal("Need name of trigger to delete, use --name")
-	}
-	mqtNs := c.String("triggerns")
-
-	err := client.MessageQueueTriggerDelete(&metav1.ObjectMeta{
-		Name:      mqtName,
-		Namespace: mqtNs,
-	})
-	checkErr(err, "delete trigger")
-
-	fmt.Printf("trigger '%v' deleted\n", mqtName)
-	return nil
-}
-*/
-
 func recorderList(c *cli.Context) error {
 	client := getClient(c.GlobalString("server"))
 	// TODO: Namespace
 
-	recorders, err, help := client.RecorderList("redis", "default")
-	fmt.Println(help)
+	recorders, err := client.RecorderList("redis", "default")
 
 	checkErr(err, "list recorders")
 

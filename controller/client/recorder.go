@@ -29,35 +29,35 @@ import (
 )
 
 // TODO Remove third return value
-func (c *Client) RecorderCreate(r *crd.Recorder) (*metav1.ObjectMeta, error, string) {
+func (c *Client) RecorderCreate(r *crd.Recorder) (*metav1.ObjectMeta, error) {
 	err := r.Validate()
 	if err != nil {
-		return nil, fv1.AggregateValidationErrors("Recorder", err), "Could not validate *crd.Recorder passed in"
+		return nil, fv1.AggregateValidationErrors("Recorder", err)
 	}
 
 	reqbody, err := json.Marshal(r)
 	if err != nil {
-		return nil, err, "Could not marshall reqbody"
+		return nil, err
 	}
 
 	resp, err := http.Post(c.url("recorders"), "application/json", bytes.NewReader(reqbody))
 	if err != nil {
-		return nil, err, "Could not issue POST req to recorders/"
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	body, err := c.handleCreateResponse(resp)
 	if err != nil {
-		return nil, err, fmt.Sprintf("Could not handleCreateResponse for some reason, this was the resp passed in: %v", resp)
+		return nil, err
 	}
 
 	var m metav1.ObjectMeta
 	err = json.Unmarshal(body, &m)
 	if err != nil {
-		return nil, err, fmt.Sprintf("Could not unmarshall: %v", resp, body)
+		return nil, err
 	}
 
-	return &m, nil, "Success"
+	return &m, nil
 }
 
 func (c *Client) RecorderGet(m *metav1.ObjectMeta) (*crd.Recorder, error) {
@@ -125,7 +125,7 @@ func (c *Client) RecorderDelete(m *metav1.ObjectMeta) error {
 }
 
 
-func (c *Client) RecorderList(backendType string, ns string) ([]crd.Recorder, error, string) {
+func (c *Client) RecorderList(backendType string, ns string) ([]crd.Recorder, error) {
 	relativeUrl := "recorders"
 	if len(backendType) > 0 {
 		relativeUrl += fmt.Sprintf("?backendtype=%v&namespace=%v", backendType, ns)
@@ -133,21 +133,21 @@ func (c *Client) RecorderList(backendType string, ns string) ([]crd.Recorder, er
 
 	resp, err := http.Get(c.url(relativeUrl))
 	if err != nil {
-		return nil, err, fmt.Sprintf("Could not issue GET req to %v", relativeUrl)
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	body, err := c.handleResponse(resp)
 	if err != nil {
-		return nil, err, fmt.Sprintf("Could not handle response: %v", resp.Status)
+		return nil, err
 	}
 
 	recorders := make([]crd.Recorder, 0)
 	err = json.Unmarshal(body, &recorders)
 	if err != nil {
-		return nil, err, "Could not unmarshall body"
+		return nil, err
 	}
 
-	return recorders, nil, "No issue"
+	return recorders, nil
 }
 
