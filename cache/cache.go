@@ -31,6 +31,7 @@ const (
 	DELETE
 	EXPIRE
 	COPY
+	FORCESET
 )
 
 type (
