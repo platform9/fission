@@ -54,7 +54,7 @@ func (c *Client) RecorderCreate(r *crd.Recorder) (*metav1.ObjectMeta, error, str
 	var m metav1.ObjectMeta
 	err = json.Unmarshal(body, &m)
 	if err != nil {
-		return nil, err, "Could not unmarshall"
+		return nil, err, fmt.Sprintf("Could not unmarshall: %v", resp, body)
 	}
 
 	return &m, nil, "Success"
@@ -125,29 +125,29 @@ func (c *Client) RecorderDelete(m *metav1.ObjectMeta) error {
 }
 
 
-func (c *Client) RecorderList(backendType string, ns string) ([]crd.Recorder, error) {
-	relativeUrl := "triggers/"
+func (c *Client) RecorderList(backendType string, ns string) ([]crd.Recorder, error, string) {
+	relativeUrl := "recorders"
 	if len(backendType) > 0 {
 		relativeUrl += fmt.Sprintf("?backendtype=%v&namespace=%v", backendType, ns)
 	}
 
 	resp, err := http.Get(c.url(relativeUrl))
 	if err != nil {
-		return nil, err
+		return nil, err, fmt.Sprintf("Could not issue GET req to %v", relativeUrl)
 	}
 	defer resp.Body.Close()
 
 	body, err := c.handleResponse(resp)
 	if err != nil {
-		return nil, err
+		return nil, err, fmt.Sprintf("Could not handle response: %v", resp.Status)
 	}
 
 	recorders := make([]crd.Recorder, 0)
 	err = json.Unmarshal(body, &recorders)
 	if err != nil {
-		return nil, err
+		return nil, err, "Could not unmarshall body"
 	}
 
-	return recorders, nil
+	return recorders, nil, "No issue"
 }
 

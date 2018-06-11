@@ -29,6 +29,8 @@ import (
 	"github.com/fission/fission/crd"
 	v1 "github.com/fission/fission/pkg/apis/fission.io/v1"
 
+	"text/tabwriter"
+	"os"
 )
 
 func recorderCreate(c *cli.Context) error {
@@ -161,6 +163,24 @@ func mqtDelete(c *cli.Context) error {
 */
 
 func recorderList(c *cli.Context) error {
+	client := getClient(c.GlobalString("server"))
+	// TODO: Namespace
+
+	recorders, err, help := client.RecorderList("redis", "default")
+	fmt.Println(help)
+
+	checkErr(err, "list recorders")
+
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
+
+	fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\n",
+		"NAME", "ENABLED", "BACKEND_TYPE", "FUNCTIONS", "TRIGGERS", "RETENTION_POLICY", "EVICTION_POLICY")
+	for _, r := range recorders {
+		fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\n",
+			r.Metadata.Name, r.Spec.Enabled, r.Spec.BackendType, r.Spec.Functions, r.Spec.Trigger, r.Spec.RetentionPolicy, r.Spec.EvictionPolicy,)
+	}
+	w.Flush()
+
 	return nil
 }
 

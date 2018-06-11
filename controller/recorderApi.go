@@ -21,10 +21,28 @@ import (
 	"net/http"
 	"io/ioutil"
 	"github.com/fission/fission/crd"
+	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func (a *API) RecorderApiList(w http.ResponseWriter, r*http.Request) {
+	// TODO: Extract/set namespace
 
+	log.Info("At the right place!")
+
+	recorders, err := a.fissionClient.Recorders(metav1.NamespaceAll).List(metav1.ListOptions{})
+	if err != nil {
+		log.Info("Couldn't obtain recorders")
+		a.respondWithError(w, err)
+		return
+	}
+	resp, err := json.Marshal(recorders.Items)
+	if err != nil {
+		log.Info("Couldn't unmarshall")
+		a.respondWithError(w, err)
+		return
+	}
+	a.respondWithSuccess(w, resp)
 }
 
 /*
@@ -50,13 +68,14 @@ func (a *API) MessageQueueTriggerApiList(w http.ResponseWriter, r *http.Request)
 */
 
 func (a *API) RecorderApiCreate(w http.ResponseWriter, r*http.Request) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	_, err := w.Write([]byte("At least you tried"))
-	return
+	//w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	//_, err := w.Write([]byte("At least you tried"))
+	//return
 
 	body, err := ioutil.ReadAll(r.Body)
 
 	if err != nil {
+		log.Info("In RecoderApiCreate, error with ioutil.ReadAll")	// TODO: Remove later
 		a.respondWithError(w, err)
 		return
 	}
@@ -64,6 +83,7 @@ func (a *API) RecorderApiCreate(w http.ResponseWriter, r*http.Request) {
 	var recorder crd.Recorder
 	err = json.Unmarshal(body, &recorder)
 	if err != nil {
+		log.Info("In RecoderApiCreate, error with json.Unmarshal")
 		a.respondWithError(w, err)
 		return
 	}
@@ -91,44 +111,6 @@ func (a *API) RecorderApiCreate(w http.ResponseWriter, r*http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	a.respondWithSuccess(w, resp)
 }
-
-/*
-func (a *API) MessageQueueTriggerApiCreate(w http.ResponseWriter, r *http.Request) {
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		a.respondWithError(w, err)
-		return
-	}
-
-	var mqTrigger crd.MessageQueueTrigger
-	err = json.Unmarshal(body, &mqTrigger)
-	if err != nil {
-		a.respondWithError(w, err)
-		return
-	}
-
-	// check if namespace exists, if not create it.
-	err = a.createNsIfNotExists(mqTrigger.Metadata.Namespace)
-	if err != nil {
-		a.respondWithError(w, err)
-		return
-	}
-
-	tnew, err := a.fissionClient.MessageQueueTriggers(mqTrigger.Metadata.Namespace).Create(&mqTrigger)
-	if err != nil {
-		a.respondWithError(w, err)
-		return
-	}
-
-	resp, err := json.Marshal(tnew.Metadata)
-	if err != nil {
-		a.respondWithError(w, err)
-		return
-	}
-	w.WriteHeader(http.StatusCreated)
-	a.respondWithSuccess(w, resp)
-}
-*/
 
 func (a *API) RecorderApiGet(w http.ResponseWriter, r *http.Request) {
 

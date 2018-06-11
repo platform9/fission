@@ -21,6 +21,8 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	//"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/kubernetes/scheme"
+	log "github.com/sirupsen/logrus"
 )
 
 type (
@@ -151,7 +153,18 @@ func (fc *messageQueueTriggerClient) Delete(name string, opts *metav1.DeleteOpti
 */
 
 func (rc *recorderClient) List(opts metav1.ListOptions) (*RecorderList, error) {
-	return nil, nil
+	var result RecorderList
+	err := rc.client.Get().
+		Namespace(rc.namespace).
+		Resource("recorders").
+		VersionedParams(&opts, scheme.ParameterCodec).
+		Do().
+		Into(&result)
+	if err != nil {
+		log.Info("Issue in CRD file")
+		return nil, err
+	}
+	return &result, nil
 }
 /*
 func (fc *messageQueueTriggerClient) List(opts metav1.ListOptions) (*MessageQueueTriggerList, error) {
