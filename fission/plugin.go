@@ -5,9 +5,10 @@ import (
 	"os"
 	"text/tabwriter"
 
-	"github.com/fission/fission/fission/plugins"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
+
+	"github.com/fission/fission/fission/plugin"
 )
 
 var cmdPlugin = cli.Command{
@@ -28,18 +29,18 @@ var cmdPlugin = cli.Command{
 	},
 }
 
-func pluginList(c *cli.Context) error {
+func pluginList(_ *cli.Context) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
 	fmt.Fprintln(w, "NAME\tVERSION\tPATH")
-	for _, plugin := range plugins.FindAll() {
-		fmt.Fprintf(w, "%v\t%v\t%v\n", plugin.Name, plugin.Version, plugin.Path)
+	for _, p := range plugin.FindAll() {
+		fmt.Fprintf(w, "%v\t%v\t%v\n", p.Name, p.Version, p.Path)
 	}
 	w.Flush()
 	return nil
 }
 
-func pluginCacheClear(c *cli.Context) error {
-	plugins.ClearCache()
+func pluginCacheClear(_ *cli.Context) error {
+	plugin.ClearCache()
 	logrus.Debug("Cache cleared.")
 	return nil
 }
