@@ -1,17 +1,36 @@
-# 0.7.2
-[Documentation](https://docs.fission.io/0.7.2/)
-## Downloads for 0.7.2
+# 0.8.0
+[Documentation](https://docs.fission.io/0.8.0/)
+## Downloads for 0.8.0
 
 
 filename | sha256 hash
 -------- | -----------
-[fission-core-0.7.2.tgz](https://github.com/fission/fission/releases/download/0.7.2/fission-core-0.7.2.tgz) | `e890adfe45816fe82b6f48722b88a5f8ffe17d670cf751ec95036a8e4bcb05dd`
-[fission-all-0.7.2.tgz](https://github.com/fission/fission/releases/download/0.7.2/fission-all-0.7.2.tgz) | `7e22eab5663b02570a4e3a94af70970c0d10cbfd95a65383f5db512616a03b90`
-[fission-cli-osx](https://github.com/fission/fission/releases/download/0.7.2/fission-cli-osx) | `8e00248acd9cea9f5df45c06aced4367c6a5ace0b83df7584cc27e2d8511ad87`
-[fission-cli-linux](https://github.com/fission/fission/releases/download/0.7.2/fission-cli-linux) | `58558fd4642d5ae4a6e4a2fa1c191e0ea5a3c26482c547d6820aea1649c4170b`
-[fission-cli-windows.exe](https://github.com/fission/fission/releases/download/0.7.2/fission-cli-windows.exe) | `1a86c0a66580111cd69b9d1adc3668ed2120d20e72d790e3a15b3cca31227d45`
+[fission-all-0.8.0.tgz](https://github.com/fission/fission/releases/download/0.8.0/fission-all-0.8.0.tgz) | `bf643aab4642c1d9f73235ffe10c51b74e46474d765cefc29139a560c702e515`
+[fission-core-0.8.0.tgz](https://github.com/fission/fission/releases/download/0.8.0/fission-core-0.8.0.tgz) | `5473832a696b1e4e3316878f84dad813e3fbcc7b270563d11a0b02345f1b0370`
+[fission-cli-linux](https://github.com/fission/fission/releases/download/0.8.0/fission-cli-linux) | `db6d66aae513fd1bc8f969c4e781e7f5bd9369dfcf5389edc3b6afb48522b387`
+[fission-cli-osx](https://github.com/fission/fission/releases/download/0.8.0/fission-cli-osx) | `3b2cff596402d4a35a5347cb1d0cc8c90e09cdc88c6a0a33f99cc510c7ccbb8b`
+[fission-cli-windows.exe](https://github.com/fission/fission/releases/download/0.8.0/fission-cli-windows.exe) | `41fce28b3f5d34e63910882d8a7fbee6241a8644e1a65a133a30714bb666d7f9`
 
 # Change Log
+
+## [0.8.0](https://github.com/fission/fission/tree/0.8.0) (2018-06-05)
+[Full Changelog](https://github.com/fission/fission/compare/0.7.2...0.8.0)
+
+**Merged pull requests:**
+
+- Pre-install/pre-upgrade hooks to verify func references and assign restricted role bindings [\#717](https://github.com/fission/fission/pull/717) ([smruthi2187](https://github.com/smruthi2187))
+- Logger daemonset's update strategy [\#714](https://github.com/fission/fission/pull/714) ([vishal-biyani](https://github.com/vishal-biyani))
+- Check spec directory exists before reading spec files [\#709](https://github.com/fission/fission/pull/709) ([life1347](https://github.com/life1347))
+- Formatted specifiers are not compatible with variables [\#706](https://github.com/fission/fission/pull/706) ([xiekeyang](https://github.com/xiekeyang))
+- Indicate HTTP status code by library const [\#703](https://github.com/fission/fission/pull/703) ([xiekeyang](https://github.com/xiekeyang))
+- docker-distribution version bump for windows compatibility [\#691](https://github.com/fission/fission/pull/691) ([thejosephstevens](https://github.com/thejosephstevens))
+- Java environment Design & considerations [\#642](https://github.com/fission/fission/pull/642) ([vishal-biyani](https://github.com/vishal-biyani))
+- Working version of Ingress integration [\#688](https://github.com/fission/fission/pull/688) ([vishal-biyani](https://github.com/vishal-biyani))
+- Update k8s dependencies to 1.10 [\#687](https://github.com/fission/fission/pull/687) ([life1347](https://github.com/life1347))
+- Add time trigger cron spec examination tool [\#680](https://github.com/fission/fission/pull/680) ([life1347](https://github.com/life1347))
+- Fission metrics integration [\#677](https://github.com/fission/fission/pull/677) ([soamvasani](https://github.com/soamvasani))
+- Replace Werkzeug  with Bjoern as underlying WSGI server [\#672](https://github.com/fission/fission/pull/672) ([life1347](https://github.com/life1347))
+- Enabling multi-tenancy for fission objects. [\#655](https://github.com/fission/fission/pull/655) ([smruthi2187](https://github.com/smruthi2187))
 
 ## [0.7.2](https://github.com/fission/fission/tree/0.7.2) (2018-05-05)
 [Full Changelog](https://github.com/fission/fission/compare/0.7.1...0.7.2)

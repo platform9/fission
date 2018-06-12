@@ -13,7 +13,7 @@ routerServiceType: LoadBalancer
 image: fission/fission-bundle
 
 ## Fission image version
-imageTag: 0.7.2
+imageTag: 0.8.0
 
 ## Image pull policy
 pullPolicy: IfNotPresent
@@ -22,7 +22,7 @@ pullPolicy: IfNotPresent
 fetcherImage: fission/fetcher
 
 ## Fission fetcher image version
-fetcherImageTag: 0.7.2
+fetcherImageTag: 0.8.0
 
 ## Port at which Fission controller service should be exposed
 controllerPort: 31313
@@ -62,3 +62,6 @@ analytics: true
 ## This interval configures the frequency at which it runs inside the storagesvc pod.
 ## The value is in minutes.
 pruneInterval: 60
+
+## Fission pre-install/pre-upgrade checks live in this image
+preUpgradeChecksImage: fission/pre-upgrade-checks

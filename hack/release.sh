@@ -250,6 +250,31 @@ build_charts() {
     popd
 }
 
+
+# Build pre-upgrade-checks image
+build_pre_upgrade_checks_image() {
+    local version=$1
+    local date=$2
+    local gitcommit=$3
+
+    local tag=fission/pre-upgrade-checks:$version
+
+    pushd $DIR/preupgradechecks
+
+    ./build.sh $version $date $gitcommit
+    docker build -t $tag .
+    docker tag $tag fission/pre-upgrade-checks:latest
+
+    popd
+}
+
+# Push pre-upgrade-checks image
+push_pre_upgrade_checks_image() {
+    local version=$1
+    local tag=fission/pre-upgrade-checks:$version
+    docker push $tag
+}
+
 build_all() {
     local version=$1
 
@@ -289,6 +314,7 @@ build_all() {
     build_logger_image $version
     build_all_cli $version $date $gitcommit
     build_charts $version
+    build_pre_upgrade_checks_image $version $date $gitcommit
 }
 
 push_all() {
@@ -304,6 +330,9 @@ push_all() {
 
     push_logger_image $version
     push_logger_image latest
+
+    push_pre_upgrade_checks_image $version
+    push_pre_upgrade_checks_image latest
 }
 
 tag_and_release() {

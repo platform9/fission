@@ -1,13 +1,13 @@
 1. Install the client CLI.
 
 Mac:
-  $ curl -Lo fission https://github.com/fission/fission/releases/download/0.7.2/fission-cli-osx && chmod +x fission && sudo mv fission /usr/local/bin/
+  $ curl -Lo fission https://github.com/fission/fission/releases/download/0.8.0/fission-cli-osx && chmod +x fission && sudo mv fission /usr/local/bin/
 
 Linux:
-  $ curl -Lo fission https://github.com/fission/fission/releases/download/0.7.2/fission-cli-linux && chmod +x fission && sudo mv fission /usr/local/bin/
+  $ curl -Lo fission https://github.com/fission/fission/releases/download/0.8.0/fission-cli-linux && chmod +x fission && sudo mv fission /usr/local/bin/
 
 Windows:
-  For Windows, you can use the linux binary on WSL. Or you can download this windows executable: https://github.com/fission/fission/releases/download/0.7.2/fission-cli-windows.exe
+  For Windows, you can use the linux binary on WSL. Or you can download this windows executable: https://github.com/fission/fission/releases/download/0.8.0/fission-cli-windows.exe
 
 2. You're ready to use Fission!
 

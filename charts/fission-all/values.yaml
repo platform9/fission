@@ -16,13 +16,13 @@ image: fission/fission-bundle
 pullPolicy: IfNotPresent
 
 ## Fission image version
-imageTag: 0.7.2
+imageTag: 0.8.0
 
 ## Fission fetcher repository
 fetcherImage: fission/fetcher
 
 ## Fission fetcher image version
-fetcherImageTag: 0.7.2
+fetcherImageTag: 0.8.0
 
 ## Port at which Fission controller service should be exposed
 controllerPort: 31313
@@ -48,7 +48,7 @@ enableIstio: false
 logger:
   influxdbAdmin: "admin"
   fluentdImage: fission/fluentd
-  fluentdImageTag: 0.7.2
+  fluentdImageTag: 0.8.0
 
 ## Type of Queue you would like to use
 ## currently supports nats-streaming, azure-storage-queue
@@ -91,3 +91,6 @@ heapster: false
 ## This interval configures the frequency at which it runs inside the storagesvc pod.
 ## The value is in minutes.
 pruneInterval: 60
+
+## Fission pre-install/pre-upgrade checks live in this image
+preUpgradeChecksImage: fission/pre-upgrade-checks

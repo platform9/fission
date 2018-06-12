@@ -1,5 +1,6 @@
 fission-bundle/fission-bundle
 fission/fission
+environments/fetcher/cmd/fetcher
 
 # Pycharm IDE
 .idea
