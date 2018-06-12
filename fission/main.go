@@ -30,7 +30,7 @@ import (
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/fission/log"
-	"github.com/fission/fission/fission/plugins"
+	"github.com/fission/fission/fission/plugin"
 	"github.com/fission/fission/fission/portforward"
 )
 
@@ -79,20 +79,21 @@ func beforeAction(c *cli.Context) error {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
 
-	// Ensure home path exists
+	// Setup CLI plugin manager
 	fissionConfigPath := os.Getenv("FISSION_CONFIG_PATH")
 	if len(fissionConfigPath) == 0 {
-		fissionConfigPath = os.ExpandEnv("$HOME/.fission/")
+		fissionConfigPath = os.ExpandEnv("/fission")
 	}
 	err := os.MkdirAll(fissionConfigPath, os.ModePerm)
 	if err != nil {
 		logrus.Debugf("Failed to ensure that directories exist for path %v: %v", fissionConfigPath, err)
 	} else {
-		plugins.SetCachePath(path.Join(fissionConfigPath, "plugins-cache.json"))
+		plugin.SetCache(path.Join(fissionConfigPath, "plugins-cache.json"))
 	}
-	plugins.SetPrefix("fission-")
-	plugins.AddRegistry(path.Join(fissionConfigPath, "plugins-registry.yaml"))
-	plugins.UpdateCacheIfStale()
+	plugin.SetPrefix("fission-")
+	plugin.AddRegistry(plugin.Registry(path.Join(fissionConfigPath, "plugins-registry.yaml")))
+	plugin.AddRegistry("https://github.com/fission/fission/blob/master/plugins.yaml")
+	plugin.EnsureFreshCache()
 	return nil
 }
 
@@ -105,8 +106,7 @@ func main() {
 	app.CustomAppHelpTemplate = helpTemplate
 	app.ExtraInfo = func() map[string]string {
 		info := map[string]string{}
-		pmds := plugins.FindAll()
-		for _, pmd := range pmds {
+		for _, pmd := range plugin.FindAll() {
 			names := strings.Join(append([]string{pmd.Name}, pmd.Aliases...), ", ")
 			info[names] = pmd.Usage
 		}
@@ -310,11 +310,11 @@ func main() {
 
 func handleCommandNotFound(ctx *cli.Context, subCommand string) {
 	logrus.Debugf("Looking for plugin for sub-command %v", subCommand)
-	pmd, err := plugins.Find(subCommand)
+	pmd, err := plugin.Find(subCommand)
 	if err != nil {
 		switch err {
-		case plugins.ErrPluginNotFound:
-			md, _, err := plugins.SearchRegistries(subCommand)
+		case plugin.ErrPluginNotFound:
+			md, _, err := plugin.SearchRegistries(subCommand)
 			if err != nil {
 				logrus.Debugf("Failed to find command '%v' in registries: %v", subCommand, err)
 				log.Fatal("Unknown sub-command '" + subCommand + "'")
@@ -325,8 +325,8 @@ It is available to download at '%v'.
 To install it for your local Fission CLI:
 1. Download the plugin binary for your OS from the url
 2. Ensure that the plugin binary is executable: chmod +x <binary>
-2. Add the plugin binary to your $PATH: mv <binary> /usr/local/bin/<binary>`, subCommand, md.Url))
-		case plugins.ErrPluginInvalid:
+2. Add the plugin binary to your $PATH: mv <binary> /usr/local/bin/fission-%v`, subCommand, md.Url, subCommand))
+		case plugin.ErrPluginMetadataInvalid:
 			log.Fatal(err.Error())
 		default:
 			log.Fatal("Unknown error occurred when invoking " + subCommand + ": " + err.Error())
@@ -335,19 +335,19 @@ To install it for your local Fission CLI:
 	}
 	args := ctx.Args().Tail()
 	logrus.Debugf("Deferring execution to plugin: %v with args %v", pmd.Path, args)
-	err = plugins.Exec(pmd, args)
+	err = plugin.Exec(pmd, args)
 	if err != nil {
 		log.Fatal("Error while executing plugin " + pmd.Name + ": " + err.Error())
 	}
 }
 
+// Versions is a container of versions of the client (and its plugins) and server (and its plugins).
 type Versions struct {
 	Client map[string]fission.BuildMeta `json:"client"`
-	Server map[string]fission.BuildMeta `json:"server",yaml:",flow"`
+	Server map[string]fission.BuildMeta `json:"server"`
 }
 
-func versionPrinter(c *cli.Context) {
-	println("HHHHHHHH")
+func versionPrinter(_ *cli.Context) {
 	serverInfo, err := getClient(getServerUrl()).ServerInfo()
 	if err != nil {
 		log.Warn(fmt.Sprintf("Error getting Fission API version: %v", err))
@@ -359,7 +359,7 @@ func versionPrinter(c *cli.Context) {
 			"fission/core": fission.BuildInfo(),
 		},
 	}
-	for _, pmd := range plugins.FindAll() {
+	for _, pmd := range plugin.FindAll() {
 		versions.Client[pmd.Name] = fission.BuildMeta{
 			Version: pmd.Version,
 		}
@@ -369,12 +369,12 @@ func versionPrinter(c *cli.Context) {
 	versions.Server = map[string]fission.BuildMeta{
 		"fission/core": serverInfo.Build,
 	}
-	// TODO fetch versions of plugins server-side
+	// FUTURE: fetch versions of plugins server-side
 	bs, err := yaml.Marshal(versions)
 	if err != nil {
 		log.Fatal("Failed to format versions: " + err.Error())
 	}
-	fmt.Println(string(bs))
+	fmt.Print(string(bs))
 }
 
 var helpTemplate = `NAME:

@@ -116,7 +116,7 @@ type (
 		line int
 	}
 	sourceMap struct {
-		// kind -> namespace -> name -> Location
+		// kind -> namespace -> name -> location
 		locations map[string](map[string](map[string]location))
 	}
 )
@@ -387,7 +387,7 @@ func (loc location) String() string {
 	return fmt.Sprintf("%v:%v", loc.path, loc.line)
 }
 
-// Keep track of source Location of resources, and track duplicates
+// Keep track of source location of resources, and track duplicates
 func (fr *FissionResources) trackSourceMap(kind string, newobj *metav1.ObjectMeta, loc *location) error {
 	if _, exists := fr.sourceMap.locations[kind]; !exists {
 		fr.sourceMap.locations[kind] = make(map[string](map[string]location))
