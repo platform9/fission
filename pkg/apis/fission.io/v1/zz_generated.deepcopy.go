@@ -773,9 +773,9 @@ func (in *RecorderSpec) DeepCopyInto(out *RecorderSpec) {
 		*out = make([]FunctionReference, len(*in))
 		copy(*out, *in)
 	}
-	if in.Trigger != nil {
-		in, out := &in.Trigger, &out.Trigger
-		*out = make([]string, len(*in))
+	if in.Triggers != nil {
+		in, out := &in.Triggers, &out.Triggers
+		*out = make([]TriggerReference, len(*in))
 		copy(*out, *in)
 	}
 	return

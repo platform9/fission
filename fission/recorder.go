@@ -39,19 +39,33 @@ func recorderCreate(c *cli.Context) error {
 	if len(recName) == 0 {
 		recName = uuid.NewV4().String()
 	}
-	fnNamesOriginal := c.StringSlice("function")[0]
-	fnNames := strings.Split(fnNamesOriginal, ",")
+	fnsOriginal := c.StringSlice("function")
+	triggersOriginal := c.StringSlice("trigger")
 
-	if len(fnNames) == 0 {
-		fatal("Need at least one function name to create a recorder, use --function")	// TODO: Check that either function or trigger provided
+	if len(fnsOriginal) == 0 && len(triggersOriginal) == 0 {
+		fatal("Need to specify at least one function or one trigger, use --function, --trigger")
 	}
+
 	var functions []v1.FunctionReference
-	for _, name := range fnNames {
-		functions = append(functions, v1.FunctionReference{
-			//Type: FunctionReferenceTypeFunctionName,
-			Type: "name",
-			Name: name,
-		})
+	if len(fnsOriginal) != 0 {
+		fns := strings.Split(fnsOriginal[0], ",")
+		for _, name := range fns {
+			functions = append(functions, v1.FunctionReference{
+				//Type: FunctionReferenceTypeFunctionName,
+				Type: "name",
+				Name: name,
+			})
+		}
+	}
+
+	var triggers []v1.TriggerReference
+	if len(triggersOriginal) != 0 {
+		triggs := strings.Split(triggersOriginal[0], ",")
+		for _, name := range triggs {
+			triggers = append(triggers, v1.TriggerReference{
+				Name: name,
+			})
+		}
 	}
 	// TODO Define appropriate set of policies and defaults
 	retPolicy := c.String("retention")
@@ -67,7 +81,7 @@ func recorderCreate(c *cli.Context) error {
 			Name:            recName,
 			BackendType:     "redis",		// TODO, where to get this from?
 			Functions:       functions, 	// TODO
-			Trigger:         []string{},	// TODO
+			Triggers:        triggers,		// TODO
 			RetentionPolicy: retPolicy,
 			EvictionPolicy:  evictPolicy,
 			Enabled:         true,
@@ -107,13 +121,13 @@ func recorderGet(c *cli.Context) error {
 	fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\n",
 		"NAME", "ENABLED", "BACKEND_TYPE", "FUNCTIONS", "TRIGGERS", "RETENTION_POLICY", "EVICTION_POLICY")
 	fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\n",
-			recorder.Metadata.Name, recorder.Spec.Enabled, recorder.Spec.BackendType, recorder.Spec.Functions, recorder.Spec.Trigger, recorder.Spec.RetentionPolicy, recorder.Spec.EvictionPolicy,)
+			recorder.Metadata.Name, recorder.Spec.Enabled, recorder.Spec.BackendType, recorder.Spec.Functions, recorder.Spec.Triggers, recorder.Spec.RetentionPolicy, recorder.Spec.EvictionPolicy,)
 	w.Flush()
 
 	return nil
 }
 
-// TODO: Functions 
+// TODO: Functions
 func recorderUpdate(c *cli.Context) error {
 	client := getClient(c.GlobalString("server"))
 
@@ -197,7 +211,7 @@ func recorderList(c *cli.Context) error {
 		"NAME", "ENABLED", "BACKEND_TYPE", "FUNCTIONS", "TRIGGERS", "RETENTION_POLICY", "EVICTION_POLICY")
 	for _, r := range recorders {
 		fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\n",
-			r.Metadata.Name, r.Spec.Enabled, r.Spec.BackendType, r.Spec.Functions, r.Spec.Trigger, r.Spec.RetentionPolicy, r.Spec.EvictionPolicy,)
+			r.Metadata.Name, r.Spec.Enabled, r.Spec.BackendType, r.Spec.Functions, r.Spec.Triggers, r.Spec.RetentionPolicy, r.Spec.EvictionPolicy,)
 	}
 	w.Flush()
 

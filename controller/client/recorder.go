@@ -28,9 +28,9 @@ import (
 	"bytes"
 )
 
-// TODO Remove third return value
 func (c *Client) RecorderCreate(r *crd.Recorder) (*metav1.ObjectMeta, error) {
 	err := r.Validate()
+	// log.Info("This is the validation err: %v", err)
 	if err != nil {
 		return nil, fv1.AggregateValidationErrors("Recorder", err)
 	}

@@ -290,6 +290,11 @@ type (
 		FunctionReference FunctionReference `json:"functionref"`
 	}
 
+	TriggerReference struct {
+		Name      string `json:"name"`
+	}
+
+
 	KubernetesWatchTriggerSpec struct {
 		Namespace         string            `json:"namespace"`
 		Type              string            `json:"type"`
@@ -319,7 +324,7 @@ type (
 		Name              string
 		BackendType       BackendType
 		Functions         []FunctionReference
-		Trigger           []string
+		Triggers          []TriggerReference
 		RetentionPolicy   string
 		EvictionPolicy    string
 		Enabled           bool

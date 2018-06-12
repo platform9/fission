@@ -338,6 +338,14 @@ func (ref FunctionReference) Validate() error {
 	return result.ErrorOrNil()
 }
 
+func (ref TriggerReference) Validate() error {
+	var result *multierror.Error
+	result = multierror.Append(result, ValidateKubeName("TriggerReference.Name", ref.Name))
+	// TODO: Remove debug line
+	//log.Info("In TriggerReference, validating %v, result: %v", ref.Name, result)
+	return result.ErrorOrNil()
+}
+
 func (runtime Runtime) Validate() error {
 	var result *multierror.Error
 
@@ -457,7 +465,9 @@ func (spec RecorderSpec) Validate() error {
 	for _, functionRef := range spec.Functions {
 		result = multierror.Append(result, functionRef.Validate())
 	}
-	// TODO: Find a way to validate all the triggers sensibly
+	for _, triggerRef := range spec.Triggers {
+		result = multierror.Append(result, triggerRef.Validate())
+	}
 
 	if len(spec.Name) == 0 {
 		result = multierror.Append(result, MakeValidationErr(ErrorInvalidValue, "RecorderSpec.Name", spec.Name, "not a valid name"))
@@ -469,6 +479,7 @@ func (spec RecorderSpec) Validate() error {
 		result = multierror.Append(result, MakeValidationErr(ErrorInvalidValue, "RecorderSpec.EvictionPolicy", spec.Name, "not a valid eviction policy"))
 	}
 
+	//log.Info("This is the RecorderSpec validation result: %v", result)
 	return result.ErrorOrNil()
 }
 
