@@ -18,19 +18,17 @@ package main
 
 import (
 	"fmt"
-	//"os"
-	//"text/tabwriter"
-
+	"os"
+	"text/tabwriter"
 	"github.com/satori/go.uuid"
 	"github.com/urfave/cli"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
-	v1 "github.com/fission/fission/pkg/apis/fission.io/v1"
+	"github.com/fission/fission/pkg/apis/fission.io/v1"
 
-	"text/tabwriter"
-	"os"
+	"strings"
 )
 
 func recorderCreate(c *cli.Context) error {
@@ -41,9 +39,19 @@ func recorderCreate(c *cli.Context) error {
 	if len(recName) == 0 {
 		recName = uuid.NewV4().String()
 	}
-	fnName := c.String("function")
-	if len(fnName) == 0 {
-		fatal("Need a function name to create a recorder, user --function")
+	fnNamesOriginal := c.StringSlice("function")[0]
+	fnNames := strings.Split(fnNamesOriginal, ",")
+
+	if len(fnNames) == 0 {
+		fatal("Need at least one function name to create a recorder, use --function")	// TODO: Check that either function or trigger provided
+	}
+	var functions []v1.FunctionReference
+	for _, name := range fnNames {
+		functions = append(functions, v1.FunctionReference{
+			//Type: FunctionReferenceTypeFunctionName,
+			Type: "name",
+			Name: name,
+		})
 	}
 	// TODO Define appropriate set of policies and defaults
 	retPolicy := c.String("retention")
@@ -58,7 +66,7 @@ func recorderCreate(c *cli.Context) error {
 		Spec: fission.RecorderSpec{
 			Name:            recName,
 			BackendType:     "redis",		// TODO, where to get this from?
-			Functions:       []v1.FunctionReference{}, // TODO
+			Functions:       functions, 	// TODO
 			Trigger:         []string{},	// TODO
 			RetentionPolicy: retPolicy,
 			EvictionPolicy:  evictPolicy,
@@ -105,6 +113,7 @@ func recorderGet(c *cli.Context) error {
 	return nil
 }
 
+// TODO: Functions 
 func recorderUpdate(c *cli.Context) error {
 	client := getClient(c.GlobalString("server"))
 
@@ -194,3 +203,9 @@ func recorderList(c *cli.Context) error {
 
 	return nil
 }
+
+func recorderMoar(c *cli.Context) error {
+	fmt.Println(c.String("moar"))
+	return nil
+}
+

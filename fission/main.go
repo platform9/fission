@@ -199,7 +199,7 @@ func main() {
 
 	// TODO: Namespace flag?
 	recNameFlag := cli.StringFlag{Name: "name", Usage: "Recorder name"}
-	recFnNameFlag := cli.StringFlag{Name: "function", Usage: "Record Function name"} // TODO: Support multiple
+	recFnNameFlag := cli.StringSliceFlag{Name: "function", Usage: "Record Function name"}
 	recRetentionPolFlag := cli.StringFlag{Name: "retention", Usage: "Retention policy (number of days)"}
 	recEvictionPolFlag := cli.StringFlag{Name: "eviction", Usage: "Eviction policy (default LRU)"}
 	recEnabled := cli.BoolFlag{Name: "enable", Usage: "Recorder enable"}
