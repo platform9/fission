@@ -1,8 +1,20 @@
 package router
 
 type (
-	functionRecorderMap map[string]bool
+	FunctionRecorderMap map[string]bool
+	TriggerRecorderMap map[string]bool
 )
+
+// Very simple at the moment
+func MakeFunctionRecorderMap() *FunctionRecorderMap {
+	var frmap FunctionRecorderMap
+	return &frmap
+}
+
+func MakeTriggerRecorderMap() *TriggerRecorderMap {
+	var trmap TriggerRecorderMap
+	return &trmap
+}
 
 /*
 type Record struct {

@@ -31,6 +31,12 @@ import (
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
 	executorClient "github.com/fission/fission/executor/client"
+	"github.com/sirupsen/logrus"
+	"strings"
+	"github.com/satori/go.uuid"
+	"io/ioutil"
+	"bytes"
+	"github.com/fission/fission/redis"
 )
 
 type tsRoundTripperParams struct {
@@ -38,6 +44,7 @@ type tsRoundTripperParams struct {
 	timeoutExponent int
 	keepAlive       time.Duration
 	maxRetries      int
+	reqUID          string
 }
 
 type functionHandler struct {
@@ -46,6 +53,7 @@ type functionHandler struct {
 	function             *metav1.ObjectMeta
 	httpTrigger          *crd.HTTPTrigger
 	tsRoundTripperParams *tsRoundTripperParams
+	recorderName         string
 }
 
 // A layer on top of http.DefaultTransport, with retries.
@@ -82,6 +90,23 @@ type RetryingRoundTripper struct {
 func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *http.Response, err error) {
 	var needExecutor, serviceUrlFromExecutor bool
 	var serviceUrl *url.URL
+
+	// TODO: Keep? --> Needed for queries encoded in URL before they're stripped by the proxy
+	var originalUrl url.URL
+	originalUrl = *req.URL
+
+	var postedBody string
+	if req.ContentLength > 0 {
+		p := make([]byte, req.ContentLength)			// Will this always work?
+		buf, _ := ioutil.ReadAll(req.Body)
+		rdr1 := ioutil.NopCloser(bytes.NewBuffer(buf))
+		rdr2 := ioutil.NopCloser(bytes.NewBuffer(buf))
+
+		rdr1.Read(p)
+		postedBody = string(p)
+		logrus.Info(fmt.Sprintf("%v", postedBody))
+		req.Body = rdr2
+	}
 
 	// Metrics stuff
 	startTime := time.Now()
@@ -177,6 +202,21 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 			functionCallCompleted(funcMetricLabels, httpMetricLabels,
 				overhead, time.Since(startTime), resp.ContentLength)
 
+			trigger := ""		// TODO: Better default, test case
+			if roundTripper.funcHandler.httpTrigger != nil {		// TODO: Duplicate check from above?
+				trigger = roundTripper.funcHandler.httpTrigger.Metadata.Name	// TODO: Not accurate information
+			} else {
+				log.Println("No trigger attached.")	// Wording?
+			}
+
+			// TODO: Stop recording -- find the correct placement for this
+			redis.EndRecord(
+				trigger,
+				roundTripper.funcHandler.recorderName,
+				roundTripper.funcHandler.tsRoundTripperParams.reqUID, req, originalUrl, postedBody, resp, roundTripper.funcHandler.function.Namespace,
+				time.Now().UnixNano(),
+			)
+
 			// return response back to user
 			return resp, nil
 		}
@@ -225,6 +265,15 @@ func (fh *functionHandler) handler(responseWriter http.ResponseWriter, request *
 	vars := mux.Vars(request)
 	for k, v := range vars {
 		request.Header.Add(fmt.Sprintf("X-Fission-Params-%v", k), v)
+	}
+	var reqUID string
+	if fh.recorderName != "" {
+		logrus.Info("Begin recording!")
+		UID := strings.ToLower(uuid.NewV4().String())
+		reqUID = "REQ" + UID
+		request.Header.Add("X-Fission-Recorder", reqUID)
+	} else {
+		logrus.Info("Don't begin recording.")
 	}
 
 	// system params

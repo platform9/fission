@@ -316,14 +316,11 @@ type (
 		ContentType       string            `json:"contentType"`
 	}
 
-	// BackendType is the DB/cache where function request/responses are stored
-	BackendType string
 
 	// RecorderSpec defines ...
 	RecorderSpec struct {
 		Name              string
-		BackendType       BackendType
-		Functions         []FunctionReference
+		Function          string
 		Triggers          []TriggerReference
 		RetentionPolicy   string
 		EvictionPolicy    string

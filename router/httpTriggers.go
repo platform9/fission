@@ -49,12 +49,14 @@ type HTTPTriggerSet struct {
 	functions         []crd.Function
 	funcStore         k8sCache.Store
 	funcController    k8sCache.Controller
+	recorderSet       *RecorderSet
+	recorderStore     k8sCache.Store
 
 	tsRoundTripperParams *tsRoundTripperParams
 }
 
 func makeHTTPTriggerSet(fmap *functionServiceMap, fissionClient *crd.FissionClient,
-	kubeClient *kubernetes.Clientset, executor *executorClient.Client, crdClient *rest.RESTClient, params *tsRoundTripperParams) (*HTTPTriggerSet, k8sCache.Store, k8sCache.Store) {
+	kubeClient *kubernetes.Clientset, executor *executorClient.Client, crdClient *rest.RESTClient, params *tsRoundTripperParams) (*HTTPTriggerSet, k8sCache.Store, k8sCache.Store, k8sCache.Store) {
 	httpTriggerSet := &HTTPTriggerSet{
 		functionServiceMap:   fmap,
 		triggers:             []crd.HTTPTrigger{},
@@ -64,8 +66,9 @@ func makeHTTPTriggerSet(fmap *functionServiceMap, fissionClient *crd.FissionClie
 		crdClient:            crdClient,
 		tsRoundTripperParams: params,
 	}
-	var tStore, fnStore k8sCache.Store
+	var tStore, fnStore, rStore k8sCache.Store
 	var tController, fnController k8sCache.Controller
+	var recorderSet *RecorderSet
 	if httpTriggerSet.crdClient != nil {
 		tStore, tController = httpTriggerSet.initTriggerController()
 		httpTriggerSet.triggerStore = tStore
@@ -73,8 +76,11 @@ func makeHTTPTriggerSet(fmap *functionServiceMap, fissionClient *crd.FissionClie
 		fnStore, fnController = httpTriggerSet.initFunctionController()
 		httpTriggerSet.funcStore = fnStore
 		httpTriggerSet.funcController = fnController
+		recorderSet, rStore = MakeRecorderSet(httpTriggerSet, crdClient)
+		httpTriggerSet.recorderSet = recorderSet
+		httpTriggerSet.recorderStore = rStore
 	}
-	return httpTriggerSet, tStore, fnStore
+	return httpTriggerSet, tStore, fnStore, rStore
 }
 
 func (ts *HTTPTriggerSet) subscribeRouter(ctx context.Context, mr *mutableRouter, resolver *functionReferenceResolver) {
@@ -89,6 +95,7 @@ func (ts *HTTPTriggerSet) subscribeRouter(ctx context.Context, mr *mutableRouter
 	}
 	go ts.runWatcher(ctx, ts.funcController)
 	go ts.runWatcher(ctx, ts.triggerController)
+	go ts.runWatcher(ctx, ts.recorderSet.recController)
 }
 
 func defaultHomeHandler(w http.ResponseWriter, r *http.Request) {
@@ -118,6 +125,11 @@ func (ts *HTTPTriggerSet) getRouter() *mux.Router {
 			continue
 		}
 
+		var recorder string
+		if ts.recorderSet.triggerRecorderMap[trigger.Metadata.Name] != nil {
+			recorder = ts.recorderSet.triggerRecorderMap[trigger.Metadata.Name].Spec.Name
+		}
+
 		if rr.resolveResultType != resolveResultSingleFunction {
 			// not implemented yet
 			log.Panicf("resolve result type not implemented (%v)", rr.resolveResultType)
@@ -129,6 +141,7 @@ func (ts *HTTPTriggerSet) getRouter() *mux.Router {
 			executor:             ts.executor,
 			httpTrigger:          &trigger,
 			tsRoundTripperParams: ts.tsRoundTripperParams,
+			recorderName:         recorder,
 		}
 
 		ht := muxRouter.HandleFunc(trigger.Spec.RelativeURL, fh.handler)

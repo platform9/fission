@@ -64,3 +64,5 @@ import:
 - package: github.com/prometheus/client_golang
   version: v0.8.0
 - package: github.com/dustin/go-humanize
+- package: github.com/golang/protobuf/proto
+  version: v1.1.0
