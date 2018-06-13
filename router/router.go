@@ -127,6 +127,7 @@ func Start(port int, executorUrl string) {
 			keepAlive:       keepAlive,
 			maxRetries:      maxRetries,
 		})
+
 	resolver := makeFunctionReferenceResolver(fnStore)
 
 	go serveMetric()

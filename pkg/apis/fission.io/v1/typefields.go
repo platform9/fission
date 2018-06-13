@@ -290,6 +290,7 @@ type (
 		FunctionReference FunctionReference `json:"functionref"`
 	}
 
+	// TODO: Is this needed?
 	TriggerReference struct {
 		Name      string `json:"name"`
 	}

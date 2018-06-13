@@ -266,6 +266,7 @@ func (fh *functionHandler) handler(responseWriter http.ResponseWriter, request *
 	for k, v := range vars {
 		request.Header.Add(fmt.Sprintf("X-Fission-Params-%v", k), v)
 	}
+
 	var reqUID string
 	if fh.recorderName != "" {
 		logrus.Info("Begin recording!")
