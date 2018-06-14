@@ -128,6 +128,7 @@ func (ts *HTTPTriggerSet) getRouter() *mux.Router {
 		var recorder string
 		if ts.recorderSet.triggerRecorderMap[trigger.Metadata.Name] != nil {
 			recorder = ts.recorderSet.triggerRecorderMap[trigger.Metadata.Name].Spec.Name
+
 		}
 
 		if rr.resolveResultType != resolveResultSingleFunction {
@@ -209,7 +210,7 @@ func (ts *HTTPTriggerSet)  initTriggerController() (k8sCache.Store, k8sCache.Con
 				ts.syncTriggers()
 				trigger := obj.(*crd.HTTPTrigger)
 				go deleteIngress(trigger, ts.kubeClient)
-				go ts.recorderSet.triggerDeleted(trigger)
+				go ts.recorderSet.TriggerDeleted(trigger)
 			},
 			UpdateFunc: func(oldObj interface{}, newObj interface{}) {
 				oldTrigger := oldObj.(*crd.HTTPTrigger)
@@ -232,7 +233,7 @@ func (ts *HTTPTriggerSet) initFunctionController() (k8sCache.Store, k8sCache.Con
 			DeleteFunc: func(obj interface{}) {
 				function := obj.(*crd.Function)
 				ts.syncTriggers()
-				go ts.recorderSet.funcDeleted(function)
+				go ts.recorderSet.FunctionDeleted(function)
 			},
 			UpdateFunc: func(oldObj interface{}, newObj interface{}) {
 				fn := newObj.(*crd.Function)

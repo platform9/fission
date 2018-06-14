@@ -69,11 +69,13 @@ func (rs *RecorderSet) newRecorder(r *crd.Recorder) {
 	// If triggers are not explicitly specified during the creation of this recorder,
 	// keep track of those associated with the function(s) specified [implicitly added triggers]
 	needTrack := len(triggers) == 0
+
 	trackFunction := make(map[string]bool)
 
 	log.Info("Creating/enabling recorder ! Need to track implicit triggers? ", needTrack)
 
 	rs.functionRecorderMap[function] = r
+
 	if needTrack {
 		trackFunction[function] = true
 	}
@@ -95,18 +97,19 @@ func (rs *RecorderSet) newRecorder(r *crd.Recorder) {
 
 	// TODO: Should we force a reset here? If this is renabling a disabled recorder, we have to
 	// Reset doRecord
-	rs.parent.forceNewRouter()
+	rs.parent.mutableRouter.updateRouter(rs.parent.getRouter())
 
-	log.Info("See updated trigger map: ", keys(rs.triggerRecorderMap))
-	log.Info("See updated function map: ", keys(rs.functionRecorderMap))
+	//log.Info("See updated trigger map: ", keys(rs.triggerRecorderMap))
+	//log.Info("See updated function map: ", keys(rs.functionRecorderMap))
 }
 
-func keys(m map[string]*crd.Recorder) (keys []string) {
-	for k := range m {
-		keys = append(keys, k)
-	}
-	return keys
-}
+//func keys(m map[string]*crd.Recorder) []string {
+//	var keys []string
+//	for k := range m {
+//		keys = append(keys, k)
+//	}
+//	return keys
+//}
 
 // TODO: Delete or disable?
 func (rs *RecorderSet) disableRecorder(r *crd.Recorder) {
@@ -134,24 +137,27 @@ func (rs *RecorderSet) disableRecorder(r *crd.Recorder) {
 	}
 
 	// Reset doRecord
-	rs.parent.forceNewRouter()
+	rs.parent.mutableRouter.updateRouter(rs.parent.getRouter())
 
-	log.Info("See updated trigger map: ", keys(rs.triggerRecorderMap))
-	log.Info("See updated function map: ", keys(rs.functionRecorderMap))
+	//log.Info("See updated trigger map: ", keys(rs.triggerRecorderMap))
+	//log.Info("See updated function map: ", keys(rs.functionRecorderMap))
+
+	// Reset doRecord
+	rs.parent.forceNewRouter()
 }
 
-func (rs *RecorderSet) updateRecorder(old *crd.Recorder, new *crd.Recorder) {
+func (rs *RecorderSet) updateRecorder(old *crd.Recorder, newer *crd.Recorder) {
 	if new.Spec.Enabled == true {
-		rs.newRecorder(new)				// TODO: Test this
+		rs.newRecorder(newer)				// TODO: Test this
 	} else {
 		rs.disableRecorder(old)
 	}
 }
 
-func (rs *RecorderSet) deleteTrigger(trigger *crd.HTTPTrigger) {
+func (rs *RecorderSet) TriggerDeleted(trigger *crd.HTTPTrigger) {
 	delete(rs.triggerRecorderMap, trigger.Metadata.Name)
 }
 
-func (rs *RecorderSet) deleteFunction(function *crd.Function) {
+func (rs *RecorderSet) FunctionDeleted(function *crd.Function) {
 	delete(rs.functionRecorderMap, function.Metadata.Name)
 }
