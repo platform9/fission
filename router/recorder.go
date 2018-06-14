@@ -95,7 +95,7 @@ func (rs *RecorderSet) newRecorder(r *crd.Recorder) {
 
 	// TODO: Should we force a reset here? If this is renabling a disabled recorder, we have to
 	// Reset doRecord
-	rs.parent.mutableRouter.updateRouter(rs.parent.getRouter())
+	rs.parent.forceNewRouter()
 
 	log.Info("See updated trigger map: ", keys(rs.triggerRecorderMap))
 	log.Info("See updated function map: ", keys(rs.functionRecorderMap))
@@ -134,7 +134,7 @@ func (rs *RecorderSet) disableRecorder(r *crd.Recorder) {
 	}
 
 	// Reset doRecord
-	rs.parent.mutableRouter.updateRouter(rs.parent.getRouter())
+	rs.parent.forceNewRouter()
 
 	log.Info("See updated trigger map: ", keys(rs.triggerRecorderMap))
 	log.Info("See updated function map: ", keys(rs.functionRecorderMap))

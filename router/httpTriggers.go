@@ -196,11 +196,20 @@ func (ts *HTTPTriggerSet)  initTriggerController() (k8sCache.Store, k8sCache.Con
 				trigger := obj.(*crd.HTTPTrigger)
 				go createIngress(trigger, ts.kubeClient)
 				ts.syncTriggers()
+				fnRef := trigger.Spec.FunctionReference.Name
+				recorder := ts.recorderSet.functionRecorderMap[fnRef]
+				if recorder != nil {
+					if len(recorder.Spec.Triggers) == 0 {
+						// This means no explicit triggers were specified; proceed to add this
+						ts.recorderSet.functionRecorderMap[fnRef] = recorder
+					}
+				}
 			},
 			DeleteFunc: func(obj interface{}) {
 				ts.syncTriggers()
 				trigger := obj.(*crd.HTTPTrigger)
 				go deleteIngress(trigger, ts.kubeClient)
+				go ts.recorderSet.triggerDeleted(trigger)
 			},
 			UpdateFunc: func(oldObj interface{}, newObj interface{}) {
 				oldTrigger := oldObj.(*crd.HTTPTrigger)
@@ -221,7 +230,9 @@ func (ts *HTTPTriggerSet) initFunctionController() (k8sCache.Store, k8sCache.Con
 				ts.syncTriggers()
 			},
 			DeleteFunc: func(obj interface{}) {
+				function := obj.(*crd.Function)
 				ts.syncTriggers()
+				go ts.recorderSet.funcDeleted(function)
 			},
 			UpdateFunc: func(oldObj interface{}, newObj interface{}) {
 				fn := newObj.(*crd.Function)
@@ -246,6 +257,10 @@ func (ts *HTTPTriggerSet) runWatcher(ctx context.Context, controller k8sCache.Co
 	go func() {
 		controller.Run(ctx.Done())
 	}()
+}
+
+func (ts *HTTPTriggerSet) forceNewRouter() {
+	ts.mutableRouter.updateRouter(ts.getRouter())
 }
 
 func (ts *HTTPTriggerSet) syncTriggers() {
