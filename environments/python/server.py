@@ -5,6 +5,7 @@ import sys
 import imp
 import os
 import bjoern
+from gevent.pywsgi import WSGIServer
 from flask import Flask, request, abort, g
 
 class FuncApp(Flask):
@@ -103,4 +104,8 @@ app.logger.info("Starting server")
 # TODO: this starts the built-in server, which isn't the most
 # efficient.  We should use something better.
 #
-bjoern.run(app, '0.0.0.0', 8888, reuse_port=True)
+if os.environ.get("WSGI_FRAMEWORK") == "GEVENT":
+    svc = WSGIServer(('0.0.0.0', 8888), app)
+    svc.serve_forever()
+else:
+    bjoern.run(app, '0.0.0.0', 8888, reuse_port=True)

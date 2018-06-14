@@ -5,3 +5,4 @@ python-dateutil
 requests==2.7.0
 redis
 hiredis
+gevent
