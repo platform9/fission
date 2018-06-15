@@ -69,6 +69,7 @@ func (rs *RecorderSet) newRecorder(r *crd.Recorder) {
 	// If triggers are not explicitly specified during the creation of this recorder,
 	// keep track of those associated with the function(s) specified [implicitly added triggers]
 	needTrack := len(triggers) == 0
+
 	trackFunction := make(map[string]bool)
 
 	log.Info("Creating/enabling recorder ! Need to track implicit triggers? ", needTrack)
@@ -101,14 +102,6 @@ func (rs *RecorderSet) newRecorder(r *crd.Recorder) {
 	//log.Info("See updated function map: ", keys(rs.functionRecorderMap))
 }
 
-//func keys(m map[string]*crd.Recorder) []string {
-//	var keys []string
-//	for k := range m {
-//		keys = append(keys, k)
-//	}
-//	return keys
-//}
-
 // TODO: Delete or disable?
 func (rs *RecorderSet) disableRecorder(r *crd.Recorder) {
 	function := r.Spec.Function
@@ -119,11 +112,13 @@ func (rs *RecorderSet) disableRecorder(r *crd.Recorder) {
 	// Account for function
 	delete(rs.functionRecorderMap, function)
 
+	log.Info("Disable recorder !")
+
 	// Account for explicitly added triggers
 	if len(triggers) != 0 {
 		for _, trigger := range triggers {
-			// delete(rs.triggerRecorderMap, trigger.Name)
-			rs.triggerRecorderMap[trigger.Name] = nil
+			delete(rs.triggerRecorderMap, trigger.Name)
+			// rs.triggerRecorderMap[trigger.Name] = nil
 		}
 	}
 
@@ -143,6 +138,9 @@ func (rs *RecorderSet) disableRecorder(r *crd.Recorder) {
 
 	// Reset doRecord
 	rs.parent.forceNewRouter()
+
+	//log.Info("See updated trigger map: ", keys(rs.triggerRecorderMap))
+	//log.Info("See updated function map: ", keys(rs.functionRecorderMap))
 }
 
 func (rs *RecorderSet) updateRecorder(old *crd.Recorder, newer *crd.Recorder) {
