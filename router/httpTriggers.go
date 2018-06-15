@@ -95,7 +95,11 @@ func (ts *HTTPTriggerSet) subscribeRouter(ctx context.Context, mr *mutableRouter
 	}
 	go ts.runWatcher(ctx, ts.funcController)
 	go ts.runWatcher(ctx, ts.triggerController)
-	go ts.runWatcher(ctx, ts.recorderSet.recController)
+	if ts.recorderSet.recController != nil {
+		go ts.runWatcher(ctx, ts.recorderSet.recController)
+	} else {
+		log.Fatal("Failed to run recorder Controller")
+	}
 }
 
 func defaultHomeHandler(w http.ResponseWriter, r *http.Request) {
