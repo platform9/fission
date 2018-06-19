@@ -292,6 +292,7 @@ type (
 
 	// TODO: Is this needed?
 	TriggerReference struct {
+		Type 	  string `json:"type"`
 		Name      string `json:"name"`
 	}
 
@@ -316,7 +317,6 @@ type (
 		MaxRetries        int               `json:"maxRetries"`
 		ContentType       string            `json:"contentType"`
 	}
-
 
 	// RecorderSpec defines ...
 	RecorderSpec struct {

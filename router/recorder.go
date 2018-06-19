@@ -77,7 +77,7 @@ func (rs *RecorderSet) newRecorder(r *crd.Recorder) {
 	rs.functionRecorderMap[function] = r
 	if needTrack {
 		trackFunction[function] = true
-    }
+	}
 
 	// Account for implicitly added triggers
 	if needTrack {
@@ -135,9 +135,6 @@ func (rs *RecorderSet) disableRecorder(r *crd.Recorder) {
 
 	//log.Info("See updated trigger map: ", keys(rs.triggerRecorderMap))
 	//log.Info("See updated function map: ", keys(rs.functionRecorderMap))
-
-	// Reset doRecord
-	rs.parent.forceNewRouter()
 
 	//log.Info("See updated trigger map: ", keys(rs.triggerRecorderMap))
 	//log.Info("See updated function map: ", keys(rs.functionRecorderMap))

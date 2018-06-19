@@ -75,21 +75,6 @@ func (rc *recorderClient) Get(name string) (*Recorder, error) {
 	return &result, nil
 }
 
-/*
-func (fc *messageQueueTriggerClient) Get(name string) (*MessageQueueTrigger, error) {
-	var result MessageQueueTrigger
-	err := fc.client.Get().
-		Resource("messagequeuetriggers").
-		Namespace(fc.namespace).
-		Name(name).
-		Do().Into(&result)
-	if err != nil {
-		return nil, err
-	}
-	return &result, nil
-}
-*/
-
 func (rc *recorderClient) Update(r *Recorder) (*Recorder, error) {
 	var result Recorder
 	err := rc.client.Put().
@@ -114,18 +99,6 @@ func (rc *recorderClient) Delete(name string, opts *metav1.DeleteOptions) error 
 		Error()
 }
 
-/*
-func (fc *messageQueueTriggerClient) Delete(name string, opts *metav1.DeleteOptions) error {
-	return fc.client.Delete().
-		Namespace(fc.namespace).
-		Resource("messagequeuetriggers").
-		Name(name).
-		Body(opts).
-		Do().
-		Error()
-}
-*/
-
 func (rc *recorderClient) List(opts metav1.ListOptions) (*RecorderList, error) {
 	var result RecorderList
 	err := rc.client.Get().
@@ -141,18 +114,7 @@ func (rc *recorderClient) List(opts metav1.ListOptions) (*RecorderList, error) {
 	return &result, nil
 }
 
-
+// TODO: Implement this.
 func (rc *recorderClient) Watch(opts metav1.ListOptions) (watch.Interface, error) {
 	return nil, nil
 }
-
-/*
-func (fc *messageQueueTriggerClient) Watch(opts metav1.ListOptions) (watch.Interface, error) {
-	return fc.client.Get().
-		Prefix("watch").
-		Namespace(fc.namespace).
-		Resource("messagequeuetriggers").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Watch()
-}
-*/
