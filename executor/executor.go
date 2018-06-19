@@ -115,6 +115,11 @@ func (executor *Executor) serveCreateFuncServices() {
 
 				// get the function service from the cache
 				fsvc, err := executor.fsCache.GetByFunction(m)
+
+				// fsCache return error when the entry does not exist/expire.
+				// It normally happened if there are multiple requests are
+				// waiting for the same function and executor failed to cre-
+				// ate service for function.
 				err = errors.New(fmt.Sprintf("Error getting service for function %v: %v", m.Name, err))
 				req.respChan <- &createFuncServiceResponse{
 					funcSvc: fsvc,
