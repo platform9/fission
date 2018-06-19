@@ -662,9 +662,11 @@ func (gp *GenericPool) waitForReadyPod() error {
 		depl, err := gp.kubernetesClient.ExtensionsV1beta1().Deployments(gp.namespace).Get(
 			gp.deployment.ObjectMeta.Name, metav1.GetOptions{})
 		if err != nil {
-			log.Printf("err: %v", err)
+			err = errors.New(fmt.Sprintf("Error waiting for ready pod: %v", err))
+			log.Print(err)
 			return err
 		}
+
 		gp.deployment = depl
 		if gp.deployment.Status.AvailableReplicas > 0 {
 			return nil
