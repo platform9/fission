@@ -49,17 +49,20 @@ type HTTPTriggerSet struct {
 	functions         []crd.Function
 	funcStore         k8sCache.Store
 	funcController    k8sCache.Controller
+
+	tsRoundTripperParams tsRoundTripperParams
 }
 
 func makeHTTPTriggerSet(fmap *functionServiceMap, fissionClient *crd.FissionClient,
-	kubeClient *kubernetes.Clientset, executor *executorClient.Client, crdClient *rest.RESTClient) (*HTTPTriggerSet, k8sCache.Store, k8sCache.Store) {
+	kubeClient *kubernetes.Clientset, executor *executorClient.Client, crdClient *rest.RESTClient, params tsRoundTripperParams) (*HTTPTriggerSet, k8sCache.Store, k8sCache.Store) {
 	httpTriggerSet := &HTTPTriggerSet{
-		functionServiceMap: fmap,
-		triggers:           []crd.HTTPTrigger{},
-		fissionClient:      fissionClient,
-		kubeClient:         kubeClient,
-		executor:           executor,
-		crdClient:          crdClient,
+		functionServiceMap:   fmap,
+		triggers:             []crd.HTTPTrigger{},
+		fissionClient:        fissionClient,
+		kubeClient:           kubeClient,
+		executor:             executor,
+		crdClient:            crdClient,
+		tsRoundTripperParams: params,
 	}
 	var tStore, fnStore k8sCache.Store
 	var tController, fnController k8sCache.Controller
@@ -121,10 +124,11 @@ func (ts *HTTPTriggerSet) getRouter() *mux.Router {
 		}
 
 		fh := &functionHandler{
-			fmap:        ts.functionServiceMap,
-			function:    rr.functionMetadata,
-			executor:    ts.executor,
-			httpTrigger: &trigger,
+			fmap:                 ts.functionServiceMap,
+			function:             rr.functionMetadata,
+			executor:             ts.executor,
+			httpTrigger:          &trigger,
+			tsRoundTripperParams: ts.tsRoundTripperParams,
 		}
 
 		ht := muxRouter.HandleFunc(trigger.Spec.RelativeURL, fh.handler)
@@ -152,9 +156,10 @@ func (ts *HTTPTriggerSet) getRouter() *mux.Router {
 	for _, function := range ts.functions {
 		m := function.Metadata
 		fh := &functionHandler{
-			fmap:     ts.functionServiceMap,
-			function: &m,
-			executor: ts.executor,
+			fmap:                 ts.functionServiceMap,
+			function:             &m,
+			executor:             ts.executor,
+			tsRoundTripperParams: ts.tsRoundTripperParams,
 		}
 		muxRouter.HandleFunc(fission.UrlForFunction(function.Metadata.Name, function.Metadata.Namespace), fh.handler)
 	}

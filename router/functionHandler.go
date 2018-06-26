@@ -33,18 +33,23 @@ import (
 	executorClient "github.com/fission/fission/executor/client"
 )
 
+type tsRoundTripperParams struct {
+	timeout    time.Duration
+	keepAlive  time.Duration
+	maxRetries int
+}
+
 type functionHandler struct {
-	fmap        *functionServiceMap
-	executor    *executorClient.Client
-	function    *metav1.ObjectMeta
-	httpTrigger *crd.HTTPTrigger
+	fmap                 *functionServiceMap
+	executor             *executorClient.Client
+	function             *metav1.ObjectMeta
+	httpTrigger          *crd.HTTPTrigger
+	tsRoundTripperParams tsRoundTripperParams
 }
 
 // A layer on top of http.DefaultTransport, with retries.
 type RetryingRoundTripper struct {
-	maxRetries     int
-	initialTimeout time.Duration
-	funcHandler    *functionHandler
+	funcHandler *functionHandler
 }
 
 // RoundTrip is a custom transport with retries for http requests that forwards the request to the right serviceUrl, obtained
@@ -92,7 +97,6 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 	}
 
 	// set the timeout for transport context
-	timeout := roundTripper.initialTimeout
 	transport := http.DefaultTransport.(*http.Transport)
 	// Disables caching, Please refer to issue and specifically comment: https://github.com/fission/fission/issues/723#issuecomment-398781995
 	transport.DisableKeepAlives = true
@@ -104,7 +108,7 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 		needExecutor = true
 	}
 
-	for i := 0; i < roundTripper.maxRetries-1; i++ {
+	for i := 0; i < roundTripper.funcHandler.tsRoundTripperParams.maxRetries-1; i++ {
 		if needExecutor {
 			log.Printf("Calling getServiceForFunction for function: %s", roundTripper.funcHandler.function.Name)
 
@@ -149,8 +153,8 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 
 		// over-riding default settings.
 		transport.DialContext = (&net.Dialer{
-			Timeout:   timeout,
-			KeepAlive: 30 * time.Second,
+			Timeout:   roundTripper.funcHandler.tsRoundTripperParams.timeout,
+			KeepAlive: roundTripper.funcHandler.tsRoundTripperParams.keepAlive,
 		}).DialContext
 
 		overhead := time.Since(startTime)
@@ -183,9 +187,8 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 		// just retry after backing off for timeout period.
 		if serviceUrlFromExecutor {
 			log.Printf("request to %s errored out. backing off for %v before retrying",
-				req.URL.Host, timeout)
-			timeout *= time.Duration(2)
-			time.Sleep(timeout)
+				req.URL.Host, roundTripper.funcHandler.tsRoundTripperParams.timeout)
+			time.Sleep(roundTripper.funcHandler.tsRoundTripperParams.timeout * time.Duration(2))
 			needExecutor = false
 			continue
 		} else {
@@ -231,9 +234,7 @@ func (fh *functionHandler) handler(responseWriter http.ResponseWriter, request *
 	proxy := &httputil.ReverseProxy{
 		Director: director,
 		Transport: &RetryingRoundTripper{
-			initialTimeout: 50 * time.Millisecond,
-			maxRetries:     10,
-			funcHandler:    fh,
+			funcHandler: fh,
 		},
 	}
 
