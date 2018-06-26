@@ -44,6 +44,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -97,7 +99,34 @@ func Start(port int, executorUrl string) {
 	restClient := fissionClient.GetCrdClient()
 
 	executor := executorClient.MakeClient(executorUrl)
-	triggers, _, fnStore := makeHTTPTriggerSet(fmap, fissionClient, kubeClient, executor, restClient)
+
+	timeout, err := time.ParseDuration(os.Getenv("ROUTER_ROUND_TRIP_TIMEOUT"))
+	if err != nil {
+		log.Fatalf("Failed to parse timeout: %v", err)
+	}
+
+	timeoutExponent, err := strconv.Atoi(os.Getenv("ROUTER_ROUNDTRIP_TIMEOUT_EXPONENT"))
+	if err != nil {
+		log.Fatalf("Failed to parse timeout exponent: %v", err)
+	}
+
+	keepAlive, err := time.ParseDuration(os.Getenv("ROUTER_ROUND_TRIP_KEEP_ALIVE_TIME"))
+	if err != nil {
+		log.Fatalf("Failed to parse keep alive time: %v", err)
+	}
+
+	maxRetries, err := strconv.Atoi(os.Getenv("ROUTER_ROUND_TRIP_MAX_RETRIES"))
+	if err != nil {
+		log.Fatalf("Failed to parse max retry times: %v", err)
+	}
+
+	triggers, _, fnStore := makeHTTPTriggerSet(fmap, fissionClient, kubeClient, executor, restClient,
+		tsRoundTripperParams{
+			timeout:         timeout,
+			timeoutExponent: timeoutExponent,
+			keepAlive:       keepAlive,
+			maxRetries:      maxRetries,
+		})
 	resolver := makeFunctionReferenceResolver(fnStore)
 
 	go serveMetric()

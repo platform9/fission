@@ -172,6 +172,14 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.namespace
+          - name: ROUTER_ROUND_TRIP_TIMEOUT
+            value: {{ .Values.routerRoundTripTimeout | default "50ms" | quote }}
+          - name: ROUTER_ROUNDTRIP_TIMEOUT_EXPONENT
+            value: {{ .Values.routerRoundTripTimeoutExponent | default 2 | quote }}
+          - name: ROUTER_ROUND_TRIP_KEEP_ALIVE_TIME
+            value: {{ .Values.routerRoundTripKeepAliveTime | default "30s" | quote }}
+          - name: ROUTER_ROUND_TRIP_MAX_RETRIES
+            value: {{ .Values.routerRoundTripMaxRetries | default 10 | quote }}
         readinessProbe:
           httpGet:
             path: "/router-healthz"

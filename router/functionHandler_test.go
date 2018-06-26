@@ -22,6 +22,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -56,6 +57,12 @@ func TestFunctionProxying(t *testing.T) {
 
 	fh := &functionHandler{fmap: fmap,
 		function: fn,
+		tsRoundTripperParams: tsRoundTripperParams{
+			timeout:         50 * time.Millisecond,
+			timeoutExponent: 2,
+			keepAlive:       30 * time.Second,
+			maxRetries:      10,
+		},
 	}
 	functionHandlerServer := httptest.NewServer(http.HandlerFunc(fh.handler))
 	fhURL := functionHandlerServer.URL
