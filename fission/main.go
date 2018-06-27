@@ -78,7 +78,7 @@ func beforeAction(c *cli.Context) error {
 	// Setup CLI plugin manager
 	fissionConfigPath := os.Getenv("FISSION_CONFIG_PATH")
 	if len(fissionConfigPath) == 0 {
-		fissionConfigPath = os.ExpandEnv("/fission")
+		fissionConfigPath = os.ExpandEnv("$HOME/.fission")
 	}
 	err := os.MkdirAll(fissionConfigPath, os.ModePerm)
 	if err != nil {
