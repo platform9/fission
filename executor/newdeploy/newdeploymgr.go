@@ -577,7 +577,9 @@ func updateStatus(fn *crd.Function, err error, message string) {
 	log.Printf(message, err)
 }
 
-// IsValid does a get on the service address to ensure it's a valid service. returns true if it is, else false.
+// IsValid does a get on the service address to ensure it's a valid service, then
+// scale deployment to 1 replica if there are no available replicas for function.
+// Return true if no error occurs, return false otherwise.
 func (deploy *NewDeploy) IsValid(fsvc *fscache.FuncSvc) bool {
 	service := strings.Split(fsvc.Address, ".")
 	if len(service) == 0 {
