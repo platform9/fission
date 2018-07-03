@@ -26,11 +26,13 @@ import (
 
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	k8sCache "k8s.io/client-go/tools/cache"
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
+	"github.com/fission/fission/executor/cleanup"
 	"github.com/fission/fission/executor/fscache"
 )
 
@@ -57,6 +59,8 @@ type (
 		funcController k8sCache.Controller
 		pkgStore       k8sCache.Store
 		pkgController  k8sCache.Controller
+
+		idlePodReapTime time.Duration
 	}
 	request struct {
 		requestType
@@ -75,7 +79,8 @@ func MakeGenericPoolManager(
 	kubernetesClient *kubernetes.Clientset,
 	functionNamespace string,
 	fsCache *fscache.FunctionServiceCache,
-	instanceId string) *GenericPoolManager {
+	instanceId string,
+	idlePodReapTime time.Duration) *GenericPoolManager {
 
 	gpm := &GenericPoolManager{
 		pools:            make(map[string]*GenericPool),
@@ -85,6 +90,7 @@ func MakeGenericPoolManager(
 		fsCache:          fsCache,
 		instanceId:       instanceId,
 		requestChannel:   make(chan *request),
+		idlePodReapTime:  idlePodReapTime,
 	}
 	go gpm.service()
 	go gpm.eagerPoolCreator()
@@ -108,6 +114,7 @@ func MakeGenericPoolManager(
 func (gpm *GenericPoolManager) Run(ctx context.Context) {
 	go gpm.funcController.Run(ctx.Done())
 	go gpm.pkgController.Run(ctx.Done())
+	go gpm.idleObjectReaper(gpm.kubernetesClient, gpm.fissionClient, gpm.fsCache, gpm.idlePodReapTime)
 }
 
 func (gpm *GenericPoolManager) service() {
@@ -240,4 +247,66 @@ func (gpm *GenericPoolManager) IsValidPod(kubeObjects []apiv1.ObjectReference, p
 		}
 	}
 	return false
+}
+
+// idleObjectReaper reaps objects after certain idle time
+func (gpm *GenericPoolManager) idleObjectReaper(kubeClient *kubernetes.Clientset,
+	fissionClient *crd.FissionClient,
+	fsCache *fscache.FunctionServiceCache,
+	idlePodReapTime time.Duration) {
+
+	pollSleep := time.Duration(2 * time.Minute)
+	for {
+		time.Sleep(pollSleep)
+
+		envs, err := fissionClient.Environments(metav1.NamespaceAll).List(metav1.ListOptions{})
+		if err != nil {
+			log.Fatalf("Failed to get environment list: %v", err)
+		}
+
+		envList := make(map[types.UID]struct{})
+		for _, env := range envs.Items {
+			envList[env.Metadata.UID] = struct{}{}
+		}
+
+		funcSvcs, err := fsCache.ListOld(idlePodReapTime)
+		if err != nil {
+			log.Printf("Error reaping idle pods: %v", err)
+			continue
+		}
+
+		for _, fsvc := range funcSvcs {
+			if fsvc.Executor != fscache.POOLMGR {
+				continue
+			}
+
+			log.Printf("fn %v", fsvc.Function.Name)
+
+			if _, ok := envList[fsvc.Environment.Metadata.UID]; !ok {
+				log.Printf("Environment %v for function %v no longer exists",
+					fsvc.Environment.Metadata.Name, fsvc.Name)
+			}
+
+			if fsvc.Environment.Spec.AllowedFunctionsPerContainer == fission.AllowedFunctionsPerContainerInfinite {
+				continue
+			}
+
+			deleted, err := fsCache.DeleteOld(fsvc, idlePodReapTime)
+			if err != nil {
+				log.Printf("Error deleting Kubernetes objects for fsvc '%v': %v", fsvc, err)
+				log.Printf("Object Name| Object Kind | Object Namespace")
+				for _, kubeobj := range fsvc.KubernetesObjects {
+					log.Printf("%v | %v | %v", kubeobj.Name, kubeobj.Kind, kubeobj.Namespace)
+				}
+			}
+
+			if !deleted {
+				continue
+			}
+
+			for _, kubeobj := range fsvc.KubernetesObjects {
+				cleanup.DeleteKubeobject(kubeClient, &kubeobj)
+			}
+		}
+	}
 }
