@@ -31,6 +31,7 @@ import (
 	"github.com/fission/fission"
 	"github.com/fission/fission/cache"
 	"github.com/fission/fission/crd"
+	"github.com/fission/fission/executor/cleanup"
 	"github.com/fission/fission/executor/fscache"
 	"github.com/fission/fission/executor/newdeploy"
 	"github.com/fission/fission/executor/poolmgr"
@@ -194,7 +195,7 @@ func (executor *Executor) getFunctionEnv(m *metav1.ObjectMeta) (*crd.Environment
 // isValidAddress invokes isValidService or isValidPod depending on the type of executor
 func (executor *Executor) isValidAddress(fsvc *fscache.FuncSvc) bool {
 	if fsvc.Executor == fscache.NEWDEPLOY {
-		return executor.ndm.IsValidService(fsvc.Address)
+		return executor.ndm.IsValid(fsvc)
 	} else {
 		return executor.gpm.IsValidPod(fsvc.KubernetesObjects, fsvc.Address)
 	}
@@ -233,17 +234,18 @@ func StartExecutor(fissionNamespace string, functionNamespace string, envBuilder
 	fsCache := fscache.MakeFunctionServiceCache()
 
 	poolID := strings.ToLower(uniuri.NewLen(8))
-	cleanupObjects(kubernetesClient, functionNamespace, poolID)
-	go idleObjectReaper(kubernetesClient, fissionClient, fsCache, time.Minute*2)
-	go cleanupRoleBindings(kubernetesClient, fissionClient, functionNamespace, envBuilderNamespace, time.Minute*30)
+	cleanup.CleanupObjects(kubernetesClient, functionNamespace, poolID)
+	go cleanup.CleanupRoleBindings(kubernetesClient, fissionClient, functionNamespace, envBuilderNamespace, time.Minute*30)
+
+	idlePodReapTime := 2 * time.Minute
 
 	gpm := poolmgr.MakeGenericPoolManager(
 		fissionClient, kubernetesClient,
-		functionNamespace, fsCache, poolID)
+		functionNamespace, fsCache, poolID, idlePodReapTime)
 
 	ndm := newdeploy.MakeNewDeploy(
 		fissionClient, kubernetesClient, restClient,
-		functionNamespace, fsCache, poolID)
+		functionNamespace, fsCache, poolID, idlePodReapTime)
 
 	api := MakeExecutor(gpm, ndm, fissionClient, fsCache)
 

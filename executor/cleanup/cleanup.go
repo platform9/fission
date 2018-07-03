@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package executor
+package cleanup
 
 import (
 	"fmt"
@@ -23,14 +23,11 @@ import (
 	"time"
 
 	apiv1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
-	"github.com/fission/fission/executor/fscache"
 )
 
 var (
@@ -38,8 +35,8 @@ var (
 	delOpt            = meta_v1.DeleteOptions{PropagationPolicy: &deletePropagation}
 )
 
-// cleanupObjects cleans up resources created by old executortype instances
-func cleanupObjects(kubernetesClient *kubernetes.Clientset,
+// CleanupObjects cleans up resources created by old executortype instances
+func CleanupObjects(kubernetesClient *kubernetes.Clientset,
 	namespace string,
 	instanceId string) {
 	go func() {
@@ -86,81 +83,8 @@ func cleanup(client *kubernetes.Clientset, namespace string, instanceId string) 
 	return nil
 }
 
-// TODO: Since different executor type has different idleObjectReaper strategy, move this part to executor type for better code separation.
-// idleObjectReaper reaps objects after certain idle time
-func idleObjectReaper(kubeClient *kubernetes.Clientset,
-	fissionClient *crd.FissionClient,
-	fsCache *fscache.FunctionServiceCache,
-	idlePodReapTime time.Duration) {
-
-	pollSleep := time.Duration(2 * time.Minute)
-	for {
-		time.Sleep(pollSleep)
-
-		envs, err := fissionClient.Environments(meta_v1.NamespaceAll).List(meta_v1.ListOptions{})
-		if err != nil {
-			log.Fatalf("Failed to get environment list: %v", err)
-		}
-
-		envList := make(map[types.UID]struct{})
-		for _, env := range envs.Items {
-			envList[env.Metadata.UID] = struct{}{}
-		}
-
-		funcSvcs, err := fsCache.ListOld(idlePodReapTime)
-		if err != nil {
-			log.Printf("Error reaping idle pods: %v", err)
-			continue
-		}
-
-		for _, fsvc := range funcSvcs {
-			if _, ok := envList[fsvc.Environment.Metadata.UID]; !ok {
-				log.Printf("Environment %v for function %v no longer exists",
-					fsvc.Environment.Metadata.Name, fsvc.Name)
-			}
-
-			if fsvc.Environment.Spec.AllowedFunctionsPerContainer == fission.AllowedFunctionsPerContainerInfinite {
-				continue
-			}
-
-			fn, err := fissionClient.Functions(fsvc.Function.Namespace).Get(fsvc.Function.Name)
-			if err != nil {
-				// Newdeploy manager handles the function delete event and clean cache/kubeobjs itself,
-				// so we ignore the not found error for functions with newdeploy executor type here.
-				if errors.IsNotFound(err) && fsvc.Executor == fscache.NEWDEPLOY {
-					continue
-				}
-				log.Printf("Error getting function: %v", fsvc.Function.Name)
-				continue
-			}
-
-			// Ignore functions of NewDeploy ExecutorType with MinScale > 0
-			if fn.Spec.InvokeStrategy.ExecutionStrategy.MinScale > 0 &&
-				fn.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType == fission.ExecutorTypeNewdeploy {
-				continue
-			}
-
-			deleted, err := fsCache.DeleteOld(fsvc, idlePodReapTime)
-			if err != nil {
-				log.Printf("Error deleting Kubernetes objects for fsvc '%v': %v", fsvc, err)
-				log.Printf("Object Name| Object Kind | Object Namespace")
-				for _, kubeobj := range fsvc.KubernetesObjects {
-					log.Printf("%v | %v | %v", kubeobj.Name, kubeobj.Kind, kubeobj.Namespace)
-				}
-			}
-
-			if !deleted {
-				continue
-			}
-
-			for _, kubeobj := range fsvc.KubernetesObjects {
-				deleteKubeobject(kubeClient, &kubeobj)
-			}
-		}
-	}
-}
-
-func deleteKubeobject(kubeClient *kubernetes.Clientset, kubeobj *apiv1.ObjectReference) {
+// DeleteKubeobject deletes given kubernetes object
+func DeleteKubeobject(kubeClient *kubernetes.Clientset, kubeobj *apiv1.ObjectReference) {
 	switch strings.ToLower(kubeobj.Kind) {
 	case "pod":
 		err := kubeClient.CoreV1().Pods(kubeobj.Namespace).Delete(kubeobj.Name, nil)
@@ -278,9 +202,9 @@ func logErr(msg string, err error) {
 	}
 }
 
-// cleanupRoleBindings periodically lists rolebindings across all namespaces and removes Service Accounts from them or
+// CleanupRoleBindings periodically lists rolebindings across all namespaces and removes Service Accounts from them or
 // deletes the rolebindings completely if there are no Service Accounts in a rolebinding object.
-func cleanupRoleBindings(client *kubernetes.Clientset, fissionClient *crd.FissionClient, functionNs, envBuilderNs string, cleanupRoleBindingInterval time.Duration) {
+func CleanupRoleBindings(client *kubernetes.Clientset, fissionClient *crd.FissionClient, functionNs, envBuilderNs string, cleanupRoleBindingInterval time.Duration) {
 	for {
 		log.Println("Starting cleanupRoleBindings cycle")
 		// get all rolebindings ( just to be efficient, one call to kubernetes )
