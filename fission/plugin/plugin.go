@@ -64,11 +64,13 @@ func Find(pluginName string) (*Metadata, error) {
 	// To check if plugin is actually there still.
 	pluginPath, err := findPluginOnPath(name)
 	if err != nil {
+		Cache.Delete(pluginName)
 		return nil, err
 	}
 
 	md, err := fetchPluginMetadata(pluginPath)
 	if err != nil {
+		Cache.Delete(pluginName)
 		return nil, err
 	}
 	return md, nil
@@ -111,7 +113,7 @@ func FindAll() map[string]*Metadata {
 }
 
 func findPluginOnPath(pluginName string) (path string, err error) {
-	binaryName := pluginNameToFilename(pluginName)
+	binaryName := Prefix + pluginName
 	path, _ = exec.LookPath(binaryName)
 
 	if len(path) == 0 {
@@ -132,7 +134,8 @@ func fetchPluginMetadata(pluginPath string) (*Metadata, error) {
 	}
 
 	// Check if we can retrieve the metadata for the plugin from the MetadataCache
-	if c, ok := Cache.Get(filenameToPluginName(path.Base(pluginPath))); ok {
+	pluginName := strings.TrimPrefix(path.Base(pluginPath), Prefix)
+	if c, ok := Cache.Get(pluginName); ok {
 		if c.ModifiedAt == d.ModTime() {
 			return c, nil
 		}
@@ -153,7 +156,7 @@ func fetchPluginMetadata(pluginPath string) (*Metadata, error) {
 	md := &Metadata{}
 	err = json.Unmarshal(buf.Bytes(), md)
 	if err != nil {
-		md.Name = filenameToPluginName(path.Base(pluginPath))
+		md.Name = pluginName
 	}
 	md.ModifiedAt = d.ModTime()
 	md.Path = pluginPath
@@ -276,7 +279,7 @@ func (c *MetadataCache) WriteAll(mds map[string]*Metadata) error {
 		return nil
 	}
 
-	// Store in MetadataCache file if set
+	// Store in file if set
 	if len(c.path) != 0 {
 		bs, err := json.Marshal(mds)
 		if err != nil {
@@ -312,12 +315,4 @@ func expandAliases(mds map[string]*Metadata) map[string]*Metadata {
 		}
 	}
 	return entries
-}
-
-func pluginNameToFilename(pluginName string) string {
-	return Prefix + pluginName
-}
-
-func filenameToPluginName(binaryName string) string {
-	return strings.TrimPrefix(binaryName, Prefix)
 }
