@@ -2,10 +2,8 @@
 //
 // The plugin package contains four important structs
 // - `plugin.Metadata` contains all the metadata of plugin (name, aliases, path, version...)
-// - `plugin.MetadataCache` is a in-memory memorization of plugins (with optional file-based persistence)
+// - `plugin.Cache` is a in-memory memorization of plugins (with optional file-based persistence)
 //
-// Unless you want to modify specific behavior of the plugin functionality, you simply can use the public
-// package-level functions that are mapped to the functions of a default plugin.Manager.
 package plugin
 
 import (
@@ -46,6 +44,21 @@ type Metadata struct {
 	Usage      string    `json:"usage,omitempty"`
 	Path       string    `json:"path,omitempty"`
 	ModifiedAt time.Time `json:"modifiedAt,omitempty"`
+}
+
+func (md *Metadata) Alias(alias string) {
+	if alias != md.Name && !md.HasAlias(alias) {
+		md.Aliases = append(md.Aliases, alias)
+	}
+}
+
+func (md *Metadata) HasAlias(needle string) bool {
+	for _, alias := range md.Aliases {
+		if alias == needle {
+			return true
+		}
+	}
+	return false
 }
 
 // Find searches the machine for the given plugin, returning the metadata of the plugin.
@@ -108,7 +121,7 @@ func FindAll() map[string]*Metadata {
 			plugins[md.Name] = md
 		}
 	}
-	Cache.WriteAll(plugins)
+	Cache.Set(plugins)
 	return plugins
 }
 
@@ -160,6 +173,7 @@ func fetchPluginMetadata(pluginPath string) (*Metadata, error) {
 	}
 	md.ModifiedAt = d.ModTime()
 	md.Path = pluginPath
+	md.Alias(pluginName)
 	Cache.Write(md)
 	return md, nil
 }
@@ -178,14 +192,8 @@ func NewCache(cachePath string) *MetadataCache {
 	}
 }
 
-func (c *MetadataCache) Delete(cachedPluginName string) error {
-	if c == nil {
-		return nil
-	}
-	mds, err := c.Entries()
-	if err != nil {
-		return err
-	}
+func (c MetadataCache) Delete(cachedPluginName string) error {
+	mds := c.Entries()
 	cached, ok := mds[cachedPluginName]
 	if !ok {
 		return nil
@@ -196,13 +204,10 @@ func (c *MetadataCache) Delete(cachedPluginName string) error {
 		}
 	}
 	delete(mds, cachedPluginName)
-	return c.WriteAll(mds)
+	return c.Set(mds)
 }
 
-func (c *MetadataCache) Get(key string) (*Metadata, bool) {
-	if c == nil {
-		return nil, false
-	}
+func (c MetadataCache) Get(key string) (*Metadata, bool) {
 	if c.inMem == nil {
 		c.loadFileCache()
 	}
@@ -210,40 +215,25 @@ func (c *MetadataCache) Get(key string) (*Metadata, bool) {
 	return val, ok
 }
 
-func (c *MetadataCache) Entries() (map[string]*Metadata, error) {
-	if c == nil {
-		return map[string]*Metadata{}, nil
-	}
-
+func (c MetadataCache) Entries() map[string]*Metadata {
 	if c.inMem == nil {
-		if _, err := c.loadFileCache(); err != nil {
-			return nil, err
-		}
+		c.loadFileCache()
 	}
-
-	return removeAliases(c.inMem), nil
+	return removeAliases(c.inMem)
 }
 
-func (c *MetadataCache) Write(md *Metadata) error {
-	if c == nil {
-		return nil
-	}
-	cached, err := c.Entries()
-	if err != nil {
-		return err
+func (c MetadataCache) Write(md *Metadata) error {
+	cached := c.Entries()
+	if existing, ok := cached[md.Name]; ok {
+		for _, alias := range existing.Aliases {
+			md.Alias(alias)
+		}
 	}
 	cached[md.Name] = md
-	err = c.WriteAll(cached)
-	if err != nil {
-		return err
-	}
-	return nil
+	return c.Set(cached)
 }
 
 func (c *MetadataCache) Clear() {
-	if c == nil {
-		return
-	}
 	// Clear in-memory MetadataCache
 	c.inMem = nil
 
@@ -256,29 +246,24 @@ func (c *MetadataCache) Clear() {
 // loadFileCache loads the Cache from the persisted Cache on the filesystem.
 // If present the Cache replaces the current in-memory Cache.
 // If not present, an empty Cache or an error will be returned.
-func (c *MetadataCache) loadFileCache() (map[string]*Metadata, error) {
+func (c *MetadataCache) loadFileCache() error {
 	cached := map[string]*Metadata{}
 	if len(c.path) == 0 {
-		return cached, nil
+		return nil
 	}
 	bs, err := ioutil.ReadFile(c.path)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	err = json.Unmarshal(bs, &cached)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	c.inMem = expandAliases(cached)
-
-	return cached, nil
+	return nil
 }
 
-func (c *MetadataCache) WriteAll(mds map[string]*Metadata) error {
-	if c == nil {
-		return nil
-	}
-
+func (c MetadataCache) Set(mds map[string]*Metadata) error {
 	// Store in file if set
 	if len(c.path) != 0 {
 		bs, err := json.Marshal(mds)
@@ -291,8 +276,8 @@ func (c *MetadataCache) WriteAll(mds map[string]*Metadata) error {
 		}
 	}
 
-	// Store in in-memory
-	c.inMem = expandAliases(mds)
+	// Load into in-memory cache
+	c.loadFileCache()
 	return nil
 }
 
