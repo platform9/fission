@@ -20,8 +20,6 @@ import (
 	"path"
 	"strings"
 	"time"
-
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -48,29 +46,6 @@ type Metadata struct {
 	Usage      string    `json:"usage,omitempty"`
 	Path       string    `json:"path,omitempty"`
 	ModifiedAt time.Time `json:"modifiedAt,omitempty"`
-}
-
-func Validate(md *Metadata) error {
-	if md == nil {
-		logrus.Debug("plugin metadata %v invalid: %v", md, "metadata is nil")
-		return ErrPluginMetadataInvalid
-	}
-	if len(md.Name) == 0 {
-		logrus.Debug("plugin metadata %v invalid: %v", md, "empty name")
-		return ErrPluginMetadataInvalid
-	}
-	if len(md.Path) == 0 {
-		logrus.Debug("plugin metadata %v invalid: %v", md, "empty path")
-		return ErrPluginMetadataInvalid
-	}
-	d, err := os.Stat(md.Path)
-	if err != nil {
-		return ErrPluginNotFound
-	}
-	if m := d.Mode(); m.IsDir() || m&0111 == 0 {
-		return ErrPluginInvalid
-	}
-	return nil
 }
 
 // Find searches the machine for the given plugin, returning the metadata of the plugin.
@@ -102,9 +77,6 @@ func Find(pluginName string) (*Metadata, error) {
 // Exec executes the plugin using the provided args.
 // All input and output is redirected to stdin, stdout, and stderr.
 func Exec(md *Metadata, args []string) error {
-	if err := Validate(md); err != nil {
-		return err
-	}
 	cmd := exec.Command(md.Path, args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
@@ -120,7 +92,6 @@ func FindAll() map[string]*Metadata {
 	for _, dir := range dirs {
 		fs, err := ioutil.ReadDir(dir)
 		if err != nil {
-			logrus.Debugf("Failed to read $PATH directory %v: %v", dir, err)
 			continue
 		}
 		for _, f := range fs {
@@ -130,25 +101,18 @@ func FindAll() map[string]*Metadata {
 			fp := path.Join(dir, f.Name())
 			md, err := fetchPluginMetadata(fp)
 			if err != nil {
-				logrus.Debugf("Failed to fetch metadata for %v: %v", f.Name(), err)
 				continue
 			}
 			plugins[md.Name] = md
 		}
 	}
-	err := Cache.WriteAll(plugins)
-	if err != nil {
-		logrus.Debug("Failed to MetadataCache plugin metadata: %v", err)
-	}
+	Cache.WriteAll(plugins)
 	return plugins
 }
 
 func findPluginOnPath(pluginName string) (path string, err error) {
 	binaryName := pluginNameToFilename(pluginName)
-	path, err = exec.LookPath(binaryName)
-	if err != nil {
-		logrus.Debugf("Plugin not found on $PATH: %v", err)
-	}
+	path, _ = exec.LookPath(binaryName)
 
 	if len(path) == 0 {
 		return "", ErrPluginNotFound
@@ -168,14 +132,9 @@ func fetchPluginMetadata(pluginPath string) (*Metadata, error) {
 	}
 
 	// Check if we can retrieve the metadata for the plugin from the MetadataCache
-	if err != nil {
-		logrus.Debugf("Failed to read MetadataCache for metadata fetch of %v: %v", pluginPath, err)
-	}
 	if c, ok := Cache.Get(filenameToPluginName(path.Base(pluginPath))); ok {
 		if c.ModifiedAt == d.ModTime() {
 			return c, nil
-		} else {
-			logrus.Debugf("MetadataCache entry for %v is stale; refreshing.", pluginPath)
 		}
 	}
 
@@ -194,7 +153,6 @@ func fetchPluginMetadata(pluginPath string) (*Metadata, error) {
 	md := &Metadata{}
 	err = json.Unmarshal(buf.Bytes(), md)
 	if err != nil {
-		logrus.Debugf("Failed to read plugin metadata: %v", err)
 		md.Name = filenameToPluginName(path.Base(pluginPath))
 	}
 	md.ModifiedAt = d.ModTime()
@@ -288,10 +246,7 @@ func (c *MetadataCache) Clear() {
 
 	// Remove MetadataCache file, if set.
 	if len(c.path) != 0 {
-		err := os.Remove(c.path)
-		if err != nil {
-			logrus.Debugf("Failed to Delete MetadataCache at %v: %v", c.path, err)
-		}
+		os.Remove(c.path)
 	}
 }
 
@@ -313,7 +268,6 @@ func (c *MetadataCache) loadFileCache() (map[string]*Metadata, error) {
 	}
 	c.inMem = expandAliases(cached)
 
-	logrus.Debugf("Read plugin metadata from Cache at %v", c.path)
 	return cached, nil
 }
 
@@ -332,7 +286,6 @@ func (c *MetadataCache) WriteAll(mds map[string]*Metadata) error {
 		if err != nil {
 			return err
 		}
-		logrus.Debugf("Cached plugin metadata in %v", c.path)
 	}
 
 	// Store in in-memory
@@ -352,9 +305,7 @@ func expandAliases(mds map[string]*Metadata) map[string]*Metadata {
 	entries := map[string]*Metadata{}
 	for _, md := range mds {
 		for _, alias := range md.Aliases {
-			if existing, ok := mds[alias]; ok {
-				logrus.Debugf("Alias conflict for %v: used by %v and %v (ignored)",
-					alias, existing.Name, md.Name)
+			if _, ok := mds[alias]; ok {
 				continue
 			}
 			entries[alias] = md
