@@ -716,9 +716,31 @@ func fnTest(c *cli.Context) error {
 		fnUri = fmt.Sprintf("%v/%v", ns, fnName)
 	}
 
-	url := fmt.Sprintf("http://%s/fission-function/%s", routerURL, fnUri)
+	functionUrl, err := url.Parse(fmt.Sprintf("http://%s/fission-function/%s", routerURL, fnUri))
+	if err != nil {
+		log.Fatal(err)
+	}
+	queryParams := c.StringSlice("query")
+	if len(queryParams) > 0 {
+		query := url.Values{}
+		for _, q := range queryParams {
+			queryParts := strings.SplitN(q, "=", 2)
+			var key, value string
+			if len(queryParts) == 0 {
+				continue
+			}
+			if len(queryParts) > 0 {
+				key = queryParts[0]
+			}
+			if len(queryParts) > 1 {
+				value = queryParts[1]
+			}
+			query.Set(key, value)
+		}
+		functionUrl.RawQuery = query.Encode()
+	}
 
-	resp := httpRequest(c.String("method"), url, c.String("body"), c.StringSlice("header"))
+	resp := httpRequest(c.String("method"), functionUrl.String(), c.String("body"), c.StringSlice("header"))
 	if resp.StatusCode < 400 {
 		body, err := ioutil.ReadAll(resp.Body)
 		checkErr(err, "Function test")
