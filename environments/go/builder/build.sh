@@ -5,8 +5,8 @@ trap "rm -rf ${srcDir}" EXIT
 
 if [ -d ${SRC_PKG} ]
 then
-    cp -r ${SRC_PKG} ${srcDir}
     echo "Building in directory ${srcDir}"
+    cp -r ${SRC_PKG} ${srcDir}
 elif [ -f ${SRC_PKG} ]
 then
     echo "Building file ${SRC_PKG} in ${srcDir}"
