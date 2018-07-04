@@ -111,6 +111,11 @@ func FindAll() map[string]*Metadata {
 			if err != nil {
 				continue
 			}
+			if existing, ok := plugins[md.Name]; ok {
+				for _, alias := range existing.Aliases {
+					md.Alias(alias)
+				}
+			}
 			plugins[md.Name] = md
 		}
 	}
