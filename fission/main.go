@@ -306,15 +306,13 @@ func main() {
 }
 
 func handleCommandNotFound(ctx *cli.Context, subCommand string) {
-	logrus.Debugf("Looking for plugin for sub-command %v", subCommand)
 	pmd, err := plugin.Find(subCommand)
 	if err != nil {
 		switch err {
 		case plugin.ErrPluginNotFound:
 			url, ok := plugin.SearchRegistries(subCommand)
 			if !ok {
-				logrus.Debugf("Failed to find command '%v' in registries: %v", subCommand, err)
-				log.Fatal("Unknown sub-command '" + subCommand + "'")
+				log.Fatal("No help topic for '" + subCommand + "'")
 			}
 			log.Fatal(fmt.Sprintf(`Command '%v' is not installed.
 It is available to download at '%v'.
@@ -331,7 +329,6 @@ To install it for your local Fission CLI:
 		os.Exit(9)
 	}
 	args := ctx.Args().Tail()
-	logrus.Debugf("Deferring execution to plugin: %v with args %v", pmd.Path, args)
 	err = plugin.Exec(pmd, args)
 	if err != nil {
 		log.Fatal("Error while executing plugin " + pmd.Name + ": " + err.Error())
