@@ -5,7 +5,6 @@ import (
 	"os"
 	"text/tabwriter"
 
-	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 
 	"github.com/fission/fission/fission/plugin"
@@ -21,11 +20,6 @@ var cmdPlugin = cli.Command{
 			Usage:  "List installed plugins",
 			Action: pluginList,
 		},
-		{
-			Name:   "cache-clear",
-			Usage:  "Clear plugin caches",
-			Action: pluginCacheClear,
-		},
 	},
 }
 
@@ -36,11 +30,5 @@ func pluginList(_ *cli.Context) error {
 		fmt.Fprintf(w, "%v\t%v\t%v\n", p.Name, p.Version, p.Path)
 	}
 	w.Flush()
-	return nil
-}
-
-func pluginCacheClear(_ *cli.Context) error {
-	plugin.Cache.Clear()
-	logrus.Debug("MetadataCache cleared.")
 	return nil
 }
