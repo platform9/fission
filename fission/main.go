@@ -19,7 +19,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -79,17 +78,7 @@ func beforeAction(c *cli.Context) error {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
 
-	// Setup CLI plugin manager
-	fissionConfigPath := os.Getenv("FISSION_CONFIG_PATH")
-	if len(fissionConfigPath) == 0 {
-		fissionConfigPath = os.ExpandEnv(path.Join("$HOME", ".fission"))
-	}
-	err := os.MkdirAll(fissionConfigPath, os.ModePerm)
-	if err != nil {
-		logrus.Debugf("Failed to ensure that directories exist for path %v: %v", fissionConfigPath, err)
-	} else {
-		plugin.Cache = plugin.NewCache(path.Join(fissionConfigPath, "plugins-cache.json"))
-	}
+	// Setup CLI plugins
 	plugin.Prefix = "fission-"
 	return nil
 }

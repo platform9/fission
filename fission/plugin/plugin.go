@@ -1,9 +1,4 @@
 // Package plugins provides support for creating extensible CLIs
-//
-// The plugin package contains four important structs
-// - `plugin.Metadata` contains all the metadata of plugin (name, aliases, path, version...)
-// - `plugin.Cache` is a in-memory memorization of plugins (with optional file-based persistence)
-//
 package plugin
 
 import (
@@ -31,7 +26,6 @@ var (
 	ErrPluginInvalid         = errors.New("invalid plugin")
 
 	Prefix = fmt.Sprintf("%v-", os.Args[0])
-	Cache  = &MetadataCache{}
 )
 
 // Metadata contains the metadata of a plugin.
@@ -67,23 +61,22 @@ func (md *Metadata) HasAlias(needle string) bool {
 // ErrPluginMetadataInvalid if the plugin was found but considered unusable (e.g. not executable
 // or invalid permissions).
 func Find(pluginName string) (*Metadata, error) {
-	// Look in MetadataCache for possible options (and aliases)
-	name := pluginName
-	if cached, ok := Cache.Get(pluginName); ok {
-		name = cached.Name
-	}
-
 	// Search PATH for plugin as command-name
 	// To check if plugin is actually there still.
-	pluginPath, err := findPluginOnPath(name)
+	pluginPath, err := findPluginOnPath(pluginName)
 	if err != nil {
-		Cache.Delete(pluginName)
-		return nil, err
+		// Fallback: Search for alias in each command
+		mds := FindAll()
+		for _, md := range mds {
+			if md.HasAlias(pluginName) {
+				return md, nil
+			}
+		}
+		return nil, ErrPluginNotFound
 	}
 
 	md, err := fetchPluginMetadata(pluginPath)
 	if err != nil {
-		Cache.Delete(pluginName)
 		return nil, err
 	}
 	return md, nil
@@ -121,7 +114,6 @@ func FindAll() map[string]*Metadata {
 			plugins[md.Name] = md
 		}
 	}
-	Cache.Set(plugins)
 	return plugins
 }
 
@@ -137,21 +129,12 @@ func findPluginOnPath(pluginName string) (path string, err error) {
 
 // fetchPluginMetadata attempts to fetch the plugin metadata given the plugin path.
 func fetchPluginMetadata(pluginPath string) (*Metadata, error) {
-	// Before we check the cache, check if the plugin is actually present at the pluginPath
 	d, err := os.Stat(pluginPath)
 	if err != nil {
 		return nil, ErrPluginNotFound
 	}
 	if m := d.Mode(); m.IsDir() || m&0111 == 0 {
 		return nil, ErrPluginInvalid
-	}
-
-	// Check if we can retrieve the metadata for the plugin from the cache
-	pluginName := strings.TrimPrefix(path.Base(pluginPath), Prefix)
-	if c, ok := Cache.Get(pluginName); ok {
-		if c.ModifiedAt == d.ModTime() {
-			return c, nil
-		}
 	}
 
 	// Fetch the metadata from the plugin itself.
@@ -166,6 +149,7 @@ func fetchPluginMetadata(pluginPath string) (*Metadata, error) {
 		return nil, err
 	}
 	// Parse metadata if possible
+	pluginName := strings.TrimPrefix(path.Base(pluginPath), Prefix)
 	md := &Metadata{}
 	err = json.Unmarshal(buf.Bytes(), md)
 	if err != nil {
@@ -174,6 +158,5 @@ func fetchPluginMetadata(pluginPath string) (*Metadata, error) {
 	md.ModifiedAt = d.ModTime()
 	md.Path = pluginPath
 	md.Alias(pluginName)
-	Cache.Write(md)
 	return md, nil
 }
