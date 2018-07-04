@@ -41,7 +41,7 @@ func TestFind(t *testing.T) {
 	if err != nil {
 		t.FailNow()
 	}
-	SetPrefix("")
+	Prefix = ""
 
 	found, err := Find(md.Name)
 	os.RemoveAll(testDir)
@@ -85,7 +85,7 @@ func TestExec(t *testing.T) {
 	if err != nil {
 		t.FailNow()
 	}
-	SetPrefix("")
+	Prefix = ""
 	err = Exec(md, nil)
 	os.RemoveAll(testDir)
 	assert.NoError(t, err)

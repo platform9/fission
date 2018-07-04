@@ -40,7 +40,7 @@ func pluginList(_ *cli.Context) error {
 }
 
 func pluginCacheClear(_ *cli.Context) error {
-	plugin.ClearCache()
-	logrus.Debug("Cache cleared.")
+	plugin.Cache.Clear()
+	logrus.Debug("MetadataCache cleared.")
 	return nil
 }

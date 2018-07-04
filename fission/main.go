@@ -82,18 +82,15 @@ func beforeAction(c *cli.Context) error {
 	// Setup CLI plugin manager
 	fissionConfigPath := os.Getenv("FISSION_CONFIG_PATH")
 	if len(fissionConfigPath) == 0 {
-		fissionConfigPath = os.ExpandEnv("$HOME/.fission")
+		fissionConfigPath = os.ExpandEnv(path.Join("$HOME", ".fission"))
 	}
 	err := os.MkdirAll(fissionConfigPath, os.ModePerm)
 	if err != nil {
 		logrus.Debugf("Failed to ensure that directories exist for path %v: %v", fissionConfigPath, err)
 	} else {
-		plugin.SetCache(path.Join(fissionConfigPath, "plugins-cache.json"))
+		plugin.Cache = plugin.NewCache(path.Join(fissionConfigPath, "plugins-cache.json"))
 	}
-	plugin.SetPrefix("fission-")
-	plugin.AddRegistry(plugin.Registry(path.Join(fissionConfigPath, "plugins-registry.yaml")))
-	plugin.AddRegistry("https://github.com/fission/fission/blob/master/plugins.yaml")
-	plugin.EnsureFreshCache()
+	plugin.Prefix = "fission-"
 	return nil
 }
 
@@ -314,8 +311,8 @@ func handleCommandNotFound(ctx *cli.Context, subCommand string) {
 	if err != nil {
 		switch err {
 		case plugin.ErrPluginNotFound:
-			md, _, err := plugin.SearchRegistries(subCommand)
-			if err != nil {
+			url, ok := plugin.SearchRegistries(subCommand)
+			if !ok {
 				logrus.Debugf("Failed to find command '%v' in registries: %v", subCommand, err)
 				log.Fatal("Unknown sub-command '" + subCommand + "'")
 			}
@@ -325,7 +322,7 @@ It is available to download at '%v'.
 To install it for your local Fission CLI:
 1. Download the plugin binary for your OS from the url
 2. Ensure that the plugin binary is executable: chmod +x <binary>
-2. Add the plugin binary to your $PATH: mv <binary> /usr/local/bin/fission-%v`, subCommand, md.Url, subCommand))
+2. Add the plugin binary to your $PATH: mv <binary> /usr/local/bin/fission-%v`, subCommand, url, subCommand))
 		case plugin.ErrPluginMetadataInvalid:
 			log.Fatal(err.Error())
 		default:
