@@ -2,10 +2,7 @@
 //
 // The plugin package contains four important structs
 // - `plugin.Metadata` contains all the metadata of plugin (name, aliases, path, version...)
-// - `plugin.Cache` is a in-memory memorization of plugins (with optional file-based persistence)
-// - `plugin.Registry` is a simple representation of a remote registry. The manager uses these to search for plugins
-// to suggest to the user to install.
-// - `plugin.Manager` ties everything together, providing the API user to find, search, list, and execute plugins.
+// - `plugin.MetadataCache` is a in-memory memorization of plugins (with optional file-based persistence)
 //
 // Unless you want to modify specific behavior of the plugin functionality, you simply can use the public
 // package-level functions that are mapped to the functions of a default plugin.Manager.
@@ -18,7 +15,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"os/exec"
 	"path"
@@ -26,19 +22,20 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v2"
 )
 
 const (
-	cmdTimeout           = 5 * time.Second
-	cmdMetadataArgs      = "--plugin"
-	cacheRefreshInterval = 1 * time.Hour
+	cmdTimeout      = 5 * time.Second
+	cmdMetadataArgs = "--plugin"
 )
 
 var (
 	ErrPluginNotFound        = errors.New("plugin not found")
 	ErrPluginMetadataInvalid = errors.New("invalid plugin metadata")
 	ErrPluginInvalid         = errors.New("invalid plugin")
+
+	Prefix = fmt.Sprintf("%v-", os.Args[0])
+	Cache  = &MetadataCache{}
 )
 
 // Metadata contains the metadata of a plugin.
@@ -51,53 +48,6 @@ type Metadata struct {
 	Usage      string    `json:"usage,omitempty"`
 	Path       string    `json:"path,omitempty"`
 	ModifiedAt time.Time `json:"modifiedAt,omitempty"`
-}
-
-var DefaultManager = &Manager{
-	Prefix: fmt.Sprintf("%v-", os.Args[0]),
-	Cache:  &Cache{},
-}
-
-func Find(pluginName string) (*Metadata, error) {
-	return DefaultManager.Find(pluginName)
-}
-
-func Exec(md *Metadata, args []string) error {
-	return DefaultManager.Exec(md, args)
-}
-
-func FindAll() map[string]*Metadata {
-	return DefaultManager.FindAll()
-}
-
-func SetCache(path string) {
-	DefaultManager.Cache.Clear()
-	if DefaultManager.Cache == nil {
-		DefaultManager.Cache = NewCache(path)
-	}
-	DefaultManager.Cache.path = path
-}
-
-func SetPrefix(prefix string) {
-	DefaultManager.Prefix = prefix
-}
-
-func AddRegistry(registry Registry) {
-	DefaultManager.Registries = append(DefaultManager.Registries, registry)
-}
-
-func EnsureFreshCache() {
-	if DefaultManager.Cache.IsStale() {
-		DefaultManager.FindAll()
-	}
-}
-
-func ClearCache() {
-	DefaultManager.Cache.Clear()
-}
-
-func SearchRegistries(pluginName string) (*Metadata, Registry, error) {
-	return DefaultManager.SearchRegistries(pluginName)
 }
 
 func Validate(md *Metadata) error {
@@ -123,32 +73,26 @@ func Validate(md *Metadata) error {
 	return nil
 }
 
-type Manager struct {
-	Prefix     string
-	Registries []Registry
-	Cache      *Cache // Empty means: do not Cache
-}
-
 // Find searches the machine for the given plugin, returning the metadata of the plugin.
 // The only metadata that is guaranteed to be non-empty is the path and Name. All other fields are considered optional.
 // If found it returns the plugin, otherwise it returns ErrPluginNotFound if the plugin was not found or it returns
 // ErrPluginMetadataInvalid if the plugin was found but considered unusable (e.g. not executable
 // or invalid permissions).
-func (mgr *Manager) Find(pluginName string) (*Metadata, error) {
-	// Look in Cache for possible options (and aliases)
+func Find(pluginName string) (*Metadata, error) {
+	// Look in MetadataCache for possible options (and aliases)
 	name := pluginName
-	if cached, ok := mgr.Cache.Get(pluginName); ok {
+	if cached, ok := Cache.Get(pluginName); ok {
 		name = cached.Name
 	}
 
 	// Search PATH for plugin as command-name
 	// To check if plugin is actually there still.
-	pluginPath, err := mgr.findPluginOnPath(name)
+	pluginPath, err := findPluginOnPath(name)
 	if err != nil {
 		return nil, err
 	}
 
-	md, err := mgr.fetchPluginMetadata(pluginPath)
+	md, err := fetchPluginMetadata(pluginPath)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +101,7 @@ func (mgr *Manager) Find(pluginName string) (*Metadata, error) {
 
 // Exec executes the plugin using the provided args.
 // All input and output is redirected to stdin, stdout, and stderr.
-func (mgr *Manager) Exec(md *Metadata, args []string) error {
+func Exec(md *Metadata, args []string) error {
 	if err := Validate(md); err != nil {
 		return err
 	}
@@ -168,33 +112,8 @@ func (mgr *Manager) Exec(md *Metadata, args []string) error {
 	return cmd.Run()
 }
 
-// SearchRegistries searches the registries for the plugin.
-// If found it returns the plugin metadata and the registry where it was found.
-// Otherwise it returns ErrPluginNotFound.
-func (mgr *Manager) SearchRegistries(pluginName string) (*Metadata, Registry, error) {
-	for _, registryPath := range mgr.Registries {
-		registry, err := registryPath.FetchAll()
-		if err != nil {
-			logrus.Debug(err)
-			continue
-		}
-
-		// Check if registry contains the plugin we are looking for.
-		for k, p := range registry {
-			// If the name is not set, the key is assumed to be the name
-			if len(p.Name) == 0 {
-				p.Name = k
-			}
-			if p.Name == pluginName {
-				return p, registryPath, nil
-			}
-		}
-	}
-	return nil, "", ErrPluginNotFound
-}
-
 // FindAll searches the machine for all plugins currently present.
-func (mgr *Manager) FindAll() map[string]*Metadata {
+func FindAll() map[string]*Metadata {
 	plugins := map[string]*Metadata{}
 
 	dirs := strings.Split(os.Getenv("PATH"), ":")
@@ -205,11 +124,11 @@ func (mgr *Manager) FindAll() map[string]*Metadata {
 			continue
 		}
 		for _, f := range fs {
-			if !strings.HasPrefix(f.Name(), mgr.Prefix) {
+			if !strings.HasPrefix(f.Name(), Prefix) {
 				continue
 			}
 			fp := path.Join(dir, f.Name())
-			md, err := mgr.fetchPluginMetadata(fp)
+			md, err := fetchPluginMetadata(fp)
 			if err != nil {
 				logrus.Debugf("Failed to fetch metadata for %v: %v", f.Name(), err)
 				continue
@@ -217,45 +136,15 @@ func (mgr *Manager) FindAll() map[string]*Metadata {
 			plugins[md.Name] = md
 		}
 	}
-	err := mgr.Cache.WriteAll(plugins)
+	err := Cache.WriteAll(plugins)
 	if err != nil {
-		logrus.Debug("Failed to Cache plugin metadata: %v", err)
+		logrus.Debug("Failed to MetadataCache plugin metadata: %v", err)
 	}
 	return plugins
 }
 
-func (mgr *Manager) fetchRegistry(registryPath string) (map[string]*Metadata, error) {
-	var registry map[string]*Metadata
-	var bs []byte
-	var err error
-	if strings.HasPrefix(registryPath, "/") {
-		bs, err = ioutil.ReadFile(registryPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to fetch filesystem registry %v: %v", registryPath, err)
-		}
-	} else {
-		resp, err := http.Get(registryPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to fetch HTTP registry %v: %v", registry, err)
-		}
-		if resp.StatusCode >= 400 {
-			return nil, fmt.Errorf("failed to fetch HTTP registry %v: %v", registry, resp.Status)
-		}
-		bs, err = ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read HTTP registry %v: %v", registry, resp.Status)
-		}
-		resp.Body.Close()
-	}
-	err = yaml.Unmarshal(bs, &registry)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse registry %v: %v", registry, err)
-	}
-	return registry, nil
-}
-
-func (mgr *Manager) findPluginOnPath(pluginName string) (path string, err error) {
-	binaryName := mgr.pluginNameToFilename(pluginName)
+func findPluginOnPath(pluginName string) (path string, err error) {
+	binaryName := pluginNameToFilename(pluginName)
 	path, err = exec.LookPath(binaryName)
 	if err != nil {
 		logrus.Debugf("Plugin not found on $PATH: %v", err)
@@ -268,8 +157,8 @@ func (mgr *Manager) findPluginOnPath(pluginName string) (path string, err error)
 }
 
 // fetchPluginMetadata attempts to fetch the plugin metadata given the plugin path.
-func (mgr *Manager) fetchPluginMetadata(pluginPath string) (*Metadata, error) {
-	// Before we check the Cache, check if the plugin is actually present at the pluginPath
+func fetchPluginMetadata(pluginPath string) (*Metadata, error) {
+	// Before we check the MetadataCache, check if the plugin is actually present at the pluginPath
 	d, err := os.Stat(pluginPath)
 	if err != nil {
 		return nil, ErrPluginNotFound
@@ -278,15 +167,15 @@ func (mgr *Manager) fetchPluginMetadata(pluginPath string) (*Metadata, error) {
 		return nil, ErrPluginInvalid
 	}
 
-	// Check if we can retrieve the metadata for the plugin from the Cache
+	// Check if we can retrieve the metadata for the plugin from the MetadataCache
 	if err != nil {
-		logrus.Debugf("Failed to read Cache for metadata fetch of %v: %v", pluginPath, err)
+		logrus.Debugf("Failed to read MetadataCache for metadata fetch of %v: %v", pluginPath, err)
 	}
-	if c, ok := mgr.Cache.Get(mgr.filenameToPluginName(path.Base(pluginPath))); ok {
+	if c, ok := Cache.Get(filenameToPluginName(path.Base(pluginPath))); ok {
 		if c.ModifiedAt == d.ModTime() {
 			return c, nil
 		} else {
-			logrus.Debugf("Cache entry for %v is stale; refreshing.", pluginPath)
+			logrus.Debugf("MetadataCache entry for %v is stale; refreshing.", pluginPath)
 		}
 	}
 
@@ -306,55 +195,29 @@ func (mgr *Manager) fetchPluginMetadata(pluginPath string) (*Metadata, error) {
 	err = json.Unmarshal(buf.Bytes(), md)
 	if err != nil {
 		logrus.Debugf("Failed to read plugin metadata: %v", err)
-		md.Name = mgr.filenameToPluginName(path.Base(pluginPath))
+		md.Name = filenameToPluginName(path.Base(pluginPath))
 	}
 	md.ModifiedAt = d.ModTime()
 	md.Path = pluginPath
-	mgr.Cache.Write(md)
+	Cache.Write(md)
 	return md, nil
 }
 
-func (mgr *Manager) pluginNameToFilename(pluginName string) string {
-	return mgr.Prefix + pluginName
+// MetadataCache allows short-circuiting of plugin lookups by memorizing plugin states.
+// By default the Cache will Cache the results in the memory.
+// If path is specified the Cache will also be cached persistently as a JSON file.
+type MetadataCache struct {
+	path  string
+	inMem map[string]*Metadata
 }
 
-func (mgr *Manager) filenameToPluginName(binaryName string) string {
-	return strings.TrimPrefix(binaryName, mgr.Prefix)
-}
-
-// Cache allows short-circuiting of plugin lookups by memorizing plugin states.
-// By default the cache will cache the results in the memory.
-// If path is specified the cache will also be cached persistently as a JSON file.
-type Cache struct {
-	path        string
-	inMem       map[string]*Metadata
-	lastUpdated time.Time
-}
-
-func NewCache(cachePath string) *Cache {
-	return &Cache{
+func NewCache(cachePath string) *MetadataCache {
+	return &MetadataCache{
 		path: cachePath,
 	}
 }
 
-func (c *Cache) IsStale() bool {
-	if c == nil {
-		// If there is no Cache it cannot be stale.
-		return false
-	}
-	modTime := c.lastUpdated
-	if modTime != (time.Time{}) {
-		fi, err := os.Stat(c.path)
-		if err != nil {
-			logrus.Debugf("Failed to stat Cache for staleness: %v", err)
-			return true
-		}
-		modTime = fi.ModTime()
-	}
-	return time.Now().After(modTime.Add(cacheRefreshInterval))
-}
-
-func (c *Cache) Delete(cachedPluginName string) error {
+func (c *MetadataCache) Delete(cachedPluginName string) error {
 	if c == nil {
 		return nil
 	}
@@ -375,7 +238,7 @@ func (c *Cache) Delete(cachedPluginName string) error {
 	return c.WriteAll(mds)
 }
 
-func (c *Cache) Get(key string) (*Metadata, bool) {
+func (c *MetadataCache) Get(key string) (*Metadata, bool) {
 	if c == nil {
 		return nil, false
 	}
@@ -386,7 +249,7 @@ func (c *Cache) Get(key string) (*Metadata, bool) {
 	return val, ok
 }
 
-func (c *Cache) Entries() (map[string]*Metadata, error) {
+func (c *MetadataCache) Entries() (map[string]*Metadata, error) {
 	if c == nil {
 		return map[string]*Metadata{}, nil
 	}
@@ -400,7 +263,7 @@ func (c *Cache) Entries() (map[string]*Metadata, error) {
 	return removeAliases(c.inMem), nil
 }
 
-func (c *Cache) Write(md *Metadata) error {
+func (c *MetadataCache) Write(md *Metadata) error {
 	if c == nil {
 		return nil
 	}
@@ -416,26 +279,26 @@ func (c *Cache) Write(md *Metadata) error {
 	return nil
 }
 
-func (c *Cache) Clear() {
+func (c *MetadataCache) Clear() {
 	if c == nil {
 		return
 	}
-	// Clear in-memory Cache
+	// Clear in-memory MetadataCache
 	c.inMem = nil
 
-	// Remove Cache file, if set.
+	// Remove MetadataCache file, if set.
 	if len(c.path) != 0 {
 		err := os.Remove(c.path)
 		if err != nil {
-			logrus.Debugf("Failed to Delete Cache at %v: %v", c.path, err)
+			logrus.Debugf("Failed to Delete MetadataCache at %v: %v", c.path, err)
 		}
 	}
 }
 
-// loadFileCache loads the cache from the persisted cache on the filesystem.
-// If present the cache replaces the current in-memory cache.
-// If not present, an empty cache or an error will be returned.
-func (c *Cache) loadFileCache() (map[string]*Metadata, error) {
+// loadFileCache loads the Cache from the persisted Cache on the filesystem.
+// If present the Cache replaces the current in-memory Cache.
+// If not present, an empty Cache or an error will be returned.
+func (c *MetadataCache) loadFileCache() (map[string]*Metadata, error) {
 	cached := map[string]*Metadata{}
 	if len(c.path) == 0 {
 		return cached, nil
@@ -450,16 +313,16 @@ func (c *Cache) loadFileCache() (map[string]*Metadata, error) {
 	}
 	c.inMem = expandAliases(cached)
 
-	logrus.Debugf("Read plugin metadata from cache at %v", c.path)
+	logrus.Debugf("Read plugin metadata from Cache at %v", c.path)
 	return cached, nil
 }
 
-func (c *Cache) WriteAll(mds map[string]*Metadata) error {
+func (c *MetadataCache) WriteAll(mds map[string]*Metadata) error {
 	if c == nil {
 		return nil
 	}
 
-	// Store in Cache file if set
+	// Store in MetadataCache file if set
 	if len(c.path) != 0 {
 		bs, err := json.Marshal(mds)
 		if err != nil {
@@ -474,41 +337,7 @@ func (c *Cache) WriteAll(mds map[string]*Metadata) error {
 
 	// Store in in-memory
 	c.inMem = expandAliases(mds)
-	c.lastUpdated = time.Now()
 	return nil
-}
-
-// Registry is a remote list of available plugins
-type Registry string
-
-func (r Registry) FetchAll() (map[string]*Metadata, error) {
-	var registry map[string]*Metadata
-	var bs []byte
-	var err error
-	if strings.HasPrefix(string(r), "/") {
-		bs, err = ioutil.ReadFile(string(r))
-		if err != nil {
-			return nil, fmt.Errorf("failed to fetch filesystem registry %v: %v", r, err)
-		}
-	} else {
-		resp, err := http.Get(string(r))
-		if err != nil {
-			return nil, fmt.Errorf("failed to fetch HTTP registry %v: %v", r, err)
-		}
-		if resp.StatusCode >= 400 {
-			return nil, fmt.Errorf("failed to fetch HTTP registry %v: %v", r, resp.Status)
-		}
-		bs, err = ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read HTTP registry %v: %v", r, resp.Status)
-		}
-		resp.Body.Close()
-	}
-	err = yaml.Unmarshal(bs, &registry)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse registry %v: %v", r, err)
-	}
-	return registry, nil
 }
 
 func removeAliases(mp map[string]*Metadata) map[string]*Metadata {
@@ -532,4 +361,12 @@ func expandAliases(mds map[string]*Metadata) map[string]*Metadata {
 		}
 	}
 	return entries
+}
+
+func pluginNameToFilename(pluginName string) string {
+	return Prefix + pluginName
+}
+
+func filenameToPluginName(binaryName string) string {
+	return strings.TrimPrefix(binaryName, Prefix)
 }
