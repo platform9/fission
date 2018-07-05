@@ -19,7 +19,6 @@ package poolmgr
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"math/rand"
@@ -32,7 +31,7 @@ import (
 	"time"
 
 	"github.com/dchest/uniuri"
-
+	"github.com/pkg/errors"
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -662,7 +661,9 @@ func (gp *GenericPool) waitForReadyPod() error {
 		depl, err := gp.kubernetesClient.ExtensionsV1beta1().Deployments(gp.namespace).Get(
 			gp.deployment.ObjectMeta.Name, metav1.GetOptions{})
 		if err != nil {
-			err = errors.New(fmt.Sprintf("Error waiting for ready pod: %v", err))
+			err = errors.Wrap(err, fmt.Sprintf(
+				"Error waiting for ready pod of deployment %v in namespace %v",
+				gp.deployment.ObjectMeta.Name, gp.namespace))
 			log.Print(err)
 			return err
 		}
@@ -673,7 +674,9 @@ func (gp *GenericPool) waitForReadyPod() error {
 		}
 
 		if time.Since(startTime) > gp.podReadyTimeout {
-			return errors.New("timeout: waited too long for pod to be ready")
+			return errors.Errorf(
+				"Timeout: waited too long for pod of deployment %v in namespace %v to be ready",
+				gp.deployment.ObjectMeta.Name, gp.namespace)
 		}
 		time.Sleep(1000 * time.Millisecond)
 	}

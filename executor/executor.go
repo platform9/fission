@@ -120,7 +120,7 @@ func (executor *Executor) serveCreateFuncServices() {
 				// It normally happened if there are multiple requests are
 				// waiting for the same function and executor failed to cre-
 				// ate service for function.
-				err = errors.New(fmt.Sprintf("Error getting service for function %v: %v", m.Name, err))
+				err = errors.Wrap(err, fmt.Sprintf("Error getting service for function %v in namespace %v", m.Name, m.Namespace))
 				req.respChan <- &createFuncServiceResponse{
 					funcSvc: fsvc,
 					err:     err,
@@ -171,7 +171,7 @@ func (executor *Executor) createServiceForFunction(meta *metav1.ObjectMeta) (*fs
 	}
 
 	if fsvcErr != nil {
-		fsvcErr = errors.New(fmt.Sprintf("[%v] Error creating service for function: %v", meta.Name, fsvcErr))
+		fsvcErr = errors.Wrap(fsvcErr, fmt.Sprintf("[%v] Error creating service for function", meta.Name))
 		log.Print(fsvcErr)
 	}
 
