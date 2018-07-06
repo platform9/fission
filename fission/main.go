@@ -213,6 +213,19 @@ func main() {
 		{Name: "list", Usage: "List recorders", Flags: []cli.Flag{}, Action: recorderList},
 	}
 
+<<<<<<< HEAD
+=======
+	filterTimeFrom := cli.StringFlag{Name: "from", Usage: "Filter records by time interval; specify start of interval"}
+	filterTimeTo := cli.StringFlag{Name: "to", Usage: "Filter records by time interval; specify end of interval"}
+	filterFunction := cli.StringFlag{Name: "function", Usage: "Filter records by function"}
+	filterTrigger := cli.StringFlag{Name: "trigger", Usage: "Filter records by trigger"}
+	verbosityFlag := cli.BoolFlag{Name: "v", Usage: "Toggle verbosity -- view more detailed requests/responses"}
+	vvFlag := cli.BoolFlag{Name: "vv", Usage: "Toggle verbosity -- view raw requests/responses"}
+	recViewSubcommands := []cli.Command{
+		{Name: "view", Usage: "View existing records", Flags: []cli.Flag{filterTimeTo, filterTimeFrom, filterFunction, filterTrigger, verbosityFlag, vvFlag}, Action: recordsView},
+	}
+
+>>>>>>> Missing redis deployment spec
 	// environments
 	envNameFlag := cli.StringFlag{Name: "name", Usage: "Environment name"}
 	envPoolsizeFlag := cli.IntFlag{Name: "poolsize", Value: 3, Usage: "Size of the pool"}

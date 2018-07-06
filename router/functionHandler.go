@@ -202,9 +202,14 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 			functionCallCompleted(funcMetricLabels, httpMetricLabels,
 				overhead, time.Since(startTime), resp.ContentLength)
 
+			// if transport.RoundTrip succeeds and it was a cached entry, then tapService
+			if !serviceUrlFromExecutor {
+				go roundTripper.funcHandler.tapService(serviceUrl)
+			}
+
 			trigger := ""		// TODO: Better default, test case
-			if roundTripper.funcHandler.httpTrigger != nil {		// TODO: Duplicate check from above?
-				trigger = roundTripper.funcHandler.httpTrigger.Metadata.Name	// TODO: Not accurate information
+			if roundTripper.funcHandler.httpTrigger != nil {
+				trigger = roundTripper.funcHandler.httpTrigger.Metadata.Name
 			} else {
 				log.Println("No trigger attached.")	// Wording?
 			}
