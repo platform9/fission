@@ -148,7 +148,7 @@ func MakeNewDeploy(
 func (deploy *NewDeploy) Run(ctx context.Context) {
 	go deploy.service()
 	go deploy.funcController.Run(ctx.Done())
-	go deploy.idleObjectReaper(deploy.kubernetesClient, deploy.fissionClient, deploy.fsCache, deploy.idlePodReapTime)
+	go deploy.idleObjectReaper()
 }
 
 func (deploy *NewDeploy) initFuncController() (k8sCache.Store, k8sCache.Controller) {
@@ -636,16 +636,13 @@ func (deploy *NewDeploy) IsValid(fsvc *fscache.FuncSvc) bool {
 }
 
 // idleObjectReaper reaps objects after certain idle time
-func (deploy *NewDeploy) idleObjectReaper(kubeClient *kubernetes.Clientset,
-	fissionClient *crd.FissionClient,
-	fsCache *fscache.FunctionServiceCache,
-	idlePodReapTime time.Duration) {
+func (deploy *NewDeploy) idleObjectReaper() {
 
 	pollSleep := time.Duration(2 * time.Minute)
 	for {
 		time.Sleep(pollSleep)
 
-		envs, err := fissionClient.Environments(metav1.NamespaceAll).List(metav1.ListOptions{})
+		envs, err := deploy.fissionClient.Environments(metav1.NamespaceAll).List(metav1.ListOptions{})
 		if err != nil {
 			log.Fatalf("Failed to get environment list: %v", err)
 		}
@@ -655,7 +652,7 @@ func (deploy *NewDeploy) idleObjectReaper(kubeClient *kubernetes.Clientset,
 			envList[env.Metadata.UID] = struct{}{}
 		}
 
-		funcSvcs, err := fsCache.ListOld(idlePodReapTime)
+		funcSvcs, err := deploy.fsCache.ListOld(deploy.idlePodReapTime)
 		if err != nil {
 			log.Printf("Error reaping idle pods: %v", err)
 			continue
@@ -671,7 +668,7 @@ func (deploy *NewDeploy) idleObjectReaper(kubeClient *kubernetes.Clientset,
 					fsvc.Environment.Metadata.Name, fsvc.Name)
 			}
 
-			fn, err := fissionClient.Functions(fsvc.Function.Namespace).Get(fsvc.Function.Name)
+			fn, err := deploy.fissionClient.Functions(fsvc.Function.Namespace).Get(fsvc.Function.Name)
 			if err != nil {
 				// Newdeploy manager handles the function delete event and clean cache/kubeobjs itself,
 				// so we ignore the not found error for functions with newdeploy executor type here.
@@ -704,7 +701,7 @@ func (deploy *NewDeploy) idleObjectReaper(kubeClient *kubernetes.Clientset,
 				continue
 			}
 
-			err = scaleDeployment(kubeClient, deployObj, 0)
+			err = scaleDeployment(deploy.kubernetesClient, deployObj, 0)
 			if err != nil {
 				log.Printf("Error scaling down deployment for function %v: %v", fsvc.Function.Name, err)
 			}
