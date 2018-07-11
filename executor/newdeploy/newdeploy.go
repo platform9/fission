@@ -58,6 +58,15 @@ func (deploy *NewDeploy) createOrGetDeployment(fn *crd.Function, env *crd.Enviro
 
 	existingDepl, err := deploy.kubernetesClient.ExtensionsV1beta1().Deployments(deployNamespace).Get(deployName, metav1.GetOptions{})
 	if err == nil {
+		// If minScale is 0 then scale to 1, otherwise scale up to minScale
+		if *existingDepl.Spec.Replicas == 0 {
+			err = scaleDeployment(deploy.kubernetesClient,
+				existingDepl.Namespace, existingDepl.Name, replicas)
+			if err != nil {
+				log.Printf("Error scaling up deployment for function %v: %v", fn.Metadata.Name, err)
+				return nil, err
+			}
+		}
 		if existingDepl.Status.ReadyReplicas < replicas {
 			existingDepl, err = deploy.waitForDeploy(existingDepl, replicas)
 		}

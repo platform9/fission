@@ -610,29 +610,7 @@ func (deploy *NewDeploy) IsValid(fsvc *fscache.FuncSvc) bool {
 		return true
 	}
 
-	// scale deployment to minScale
-	fn, err := deploy.fissionClient.Functions(fsvc.Function.Namespace).Get(fsvc.Function.Name)
-	if err != nil {
-		if k8sErrs.IsNotFound(err) {
-			log.Printf("Newdeploy function %v doesn't exist", fsvc.Function.Name)
-		} else {
-			log.Printf("Error getting function %v: %v", fsvc.Function.Name, err)
-		}
-		return false
-	}
-
-	// scale up to minScale
-	replicas := int32(fn.Spec.InvokeStrategy.ExecutionStrategy.MinScale)
-	if replicas == 0 {
-		replicas = 1
-	}
-	err = scaleDeployment(deploy.kubernetesClient, deployObj, replicas)
-	if err != nil {
-		log.Printf("Error scaling up deployment for function %v: %v", fsvc.Function.Name, err)
-		return false
-	}
-
-	return true
+	return false
 }
 
 // idleObjectReaper reaps objects after certain idle time
@@ -701,7 +679,7 @@ func (deploy *NewDeploy) idleObjectReaper() {
 				continue
 			}
 
-			err = scaleDeployment(deploy.kubernetesClient, deployObj, 0)
+			err = scaleDeployment(deploy.kubernetesClient, deployObj.Namespace, deployObj.Name, 0)
 			if err != nil {
 				log.Printf("Error scaling down deployment for function %v: %v", fsvc.Function.Name, err)
 			}
@@ -719,12 +697,12 @@ func getDeploymentObj(kubeobjs []apiv1.ObjectReference) *apiv1.ObjectReference {
 	return nil
 }
 
-func scaleDeployment(client *kubernetes.Clientset, kubeobj *apiv1.ObjectReference, replicas int32) error {
-	log.Printf("Scale deployment %v to replicas %v", kubeobj, replicas)
-	_, err := client.ExtensionsV1beta1().Deployments(kubeobj.Namespace).UpdateScale(kubeobj.Name, &v1beta1.Scale{
+func scaleDeployment(client *kubernetes.Clientset, deplNS string, deplName string, replicas int32) error {
+	log.Printf("Scale deployment %v in namespace %v to replicas %v", deplName, deplNS, replicas)
+	_, err := client.ExtensionsV1beta1().Deployments(deplNS).UpdateScale(deplName, &v1beta1.Scale{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      kubeobj.Name,
-			Namespace: kubeobj.Namespace,
+			Name:      deplName,
+			Namespace: deplNS,
 		},
 		Spec: v1beta1.ScaleSpec{
 			Replicas: replicas,
