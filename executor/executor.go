@@ -197,7 +197,7 @@ func (executor *Executor) isValidAddress(fsvc *fscache.FuncSvc) bool {
 	if fsvc.Executor == fscache.NEWDEPLOY {
 		return executor.ndm.IsValid(fsvc)
 	} else {
-		return executor.gpm.IsValidPod(fsvc.KubernetesObjects, fsvc.Address)
+		return executor.gpm.IsValid(fsvc.KubernetesObjects, fsvc.Address)
 	}
 }
 
