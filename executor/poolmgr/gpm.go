@@ -280,8 +280,6 @@ func (gpm *GenericPoolManager) idleObjectReaper(kubeClient *kubernetes.Clientset
 				continue
 			}
 
-			log.Printf("fn %v", fsvc.Function.Name)
-
 			if _, ok := envList[fsvc.Environment.Metadata.UID]; !ok {
 				log.Printf("Environment %v for function %v no longer exists",
 					fsvc.Environment.Metadata.Name, fsvc.Name)
@@ -294,10 +292,6 @@ func (gpm *GenericPoolManager) idleObjectReaper(kubeClient *kubernetes.Clientset
 			deleted, err := fsCache.DeleteOld(fsvc, idlePodReapTime)
 			if err != nil {
 				log.Printf("Error deleting Kubernetes objects for fsvc '%v': %v", fsvc, err)
-				log.Printf("Object Name| Object Kind | Object Namespace")
-				for _, kubeobj := range fsvc.KubernetesObjects {
-					log.Printf("%v | %v | %v", kubeobj.Name, kubeobj.Kind, kubeobj.Namespace)
-				}
 			}
 
 			if !deleted {
@@ -305,7 +299,7 @@ func (gpm *GenericPoolManager) idleObjectReaper(kubeClient *kubernetes.Clientset
 			}
 
 			for _, kubeobj := range fsvc.KubernetesObjects {
-				cleanup.DeleteKubeobject(kubeClient, &kubeobj)
+				cleanup.DeleteKubeObject(kubeClient, &kubeobj)
 			}
 		}
 	}

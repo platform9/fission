@@ -83,8 +83,8 @@ func cleanup(client *kubernetes.Clientset, namespace string, instanceId string) 
 	return nil
 }
 
-// DeleteKubeobject deletes given kubernetes object
-func DeleteKubeobject(kubeClient *kubernetes.Clientset, kubeobj *apiv1.ObjectReference) {
+// DeleteKubeObject deletes given kubernetes object
+func DeleteKubeObject(kubeClient *kubernetes.Clientset, kubeobj *apiv1.ObjectReference) {
 	switch strings.ToLower(kubeobj.Kind) {
 	case "pod":
 		err := kubeClient.CoreV1().Pods(kubeobj.Namespace).Delete(kubeobj.Name, nil)
