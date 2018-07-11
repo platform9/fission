@@ -657,11 +657,6 @@ func (deploy *NewDeploy) idleObjectReaper() {
 				continue
 			}
 
-			// Ignore functions of NewDeploy ExecutorType with MinScale > 0
-			if fn.Spec.InvokeStrategy.ExecutionStrategy.MinScale > 0 {
-				continue
-			}
-
 			deployObj := getDeploymentObj(fsvc.KubernetesObjects)
 			if deployObj == nil {
 				log.Printf("Error finding deployment for function %v: %v", fsvc.Function.Name, err)
@@ -675,11 +670,14 @@ func (deploy *NewDeploy) idleObjectReaper() {
 				continue
 			}
 
-			if currentDeploy.Status.AvailableReplicas == 0 {
+			replicas := int32(fn.Spec.InvokeStrategy.ExecutionStrategy.MinScale)
+
+			// do nothing if the current replicas is already lower than minScale
+			if *currentDeploy.Spec.Replicas <= replicas {
 				continue
 			}
 
-			err = scaleDeployment(deploy.kubernetesClient, deployObj.Namespace, deployObj.Name, 0)
+			err = scaleDeployment(deploy.kubernetesClient, deployObj.Namespace, deployObj.Name, replicas)
 			if err != nil {
 				log.Printf("Error scaling down deployment for function %v: %v", fsvc.Function.Name, err)
 			}
