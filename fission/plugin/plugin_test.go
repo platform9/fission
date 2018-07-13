@@ -24,7 +24,6 @@ func TestFind(t *testing.T) {
 	md := &Metadata{
 		Name:    "foo",
 		Version: "1.0.1",
-		Url:     "http://example.com",
 		Usage:   "Usage help",
 		Aliases: []string{"bar"},
 	}
@@ -47,11 +46,9 @@ func TestFind(t *testing.T) {
 	os.RemoveAll(testDir)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, found)
-	assert.NotEmpty(t, found.ModifiedAt)
 	assert.Equal(t, md.Name, found.Name)
 	assert.Equal(t, path.Join(testDir, md.Name), found.Path)
 	assert.Equal(t, md.Aliases, found.Aliases)
-	assert.Equal(t, md.Url, found.Url)
 	assert.Equal(t, md.Usage, found.Usage)
 	assert.Equal(t, md.Version, found.Version)
 }
@@ -68,7 +65,6 @@ func TestExec(t *testing.T) {
 	md := &Metadata{
 		Name:    "foo",
 		Version: "1.0.1",
-		Url:     "http://example.com",
 		Usage:   "Usage help",
 		Aliases: []string{"bar"},
 		Path:    path.Join(testBinary),

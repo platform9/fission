@@ -21,26 +21,23 @@ const (
 )
 
 var (
-	ErrPluginNotFound        = errors.New("plugin not found")
-	ErrPluginMetadataInvalid = errors.New("invalid plugin metadata")
-	ErrPluginInvalid         = errors.New("invalid plugin")
+	ErrPluginNotFound = errors.New("plugin not found")
+	ErrPluginInvalid  = errors.New("invalid plugin")
 
-	Prefix = fmt.Sprintf("%v-", os.Args[0])
+	Prefix = "fission-"
 )
 
 // Metadata contains the metadata of a plugin.
 // The only metadata that is guaranteed to be non-empty is the path and Name. All other fields are considered optional.
 type Metadata struct {
-	Name       string    `json:"name,omitempty"`
-	Version    string    `json:"version,omitempty"`
-	Url        string    `json:"url,omitempty"`
-	Aliases    []string  `json:"aliases,omitempty"`
-	Usage      string    `json:"usage,omitempty"`
-	Path       string    `json:"path,omitempty"`
-	ModifiedAt time.Time `json:"modifiedAt,omitempty"`
+	Name    string   `json:"name,omitempty"`
+	Version string   `json:"version,omitempty"`
+	Aliases []string `json:"aliases,omitempty"`
+	Usage   string   `json:"usage,omitempty"`
+	Path    string   `json:"path,omitempty"`
 }
 
-func (md *Metadata) Alias(alias string) {
+func (md *Metadata) AddAlias(alias string) {
 	if alias != md.Name && !md.HasAlias(alias) {
 		md.Aliases = append(md.Aliases, alias)
 	}
@@ -57,9 +54,7 @@ func (md *Metadata) HasAlias(needle string) bool {
 
 // Find searches the machine for the given plugin, returning the metadata of the plugin.
 // The only metadata that is guaranteed to be non-empty is the path and Name. All other fields are considered optional.
-// If found it returns the plugin, otherwise it returns ErrPluginNotFound if the plugin was not found or it returns
-// ErrPluginMetadataInvalid if the plugin was found but considered unusable (e.g. not executable
-// or invalid permissions).
+// If found it returns the plugin, otherwise it returns ErrPluginNotFound if the plugin was not found.
 func Find(pluginName string) (*Metadata, error) {
 	// Search PATH for plugin as command-name
 	// To check if plugin is actually there still.
@@ -85,6 +80,7 @@ func Find(pluginName string) (*Metadata, error) {
 // Exec executes the plugin using the provided args.
 // All input and output is redirected to stdin, stdout, and stderr.
 func Exec(md *Metadata, args []string) error {
+	fmt.Println(md.Path, args)
 	cmd := exec.Command(md.Path, args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
@@ -113,7 +109,7 @@ func FindAll() map[string]*Metadata {
 			}
 			if existing, ok := plugins[md.Name]; ok {
 				for _, alias := range existing.Aliases {
-					md.Alias(alias)
+					md.AddAlias(alias)
 				}
 			}
 			plugins[md.Name] = md
@@ -160,8 +156,7 @@ func fetchPluginMetadata(pluginPath string) (*Metadata, error) {
 	if err != nil {
 		md.Name = pluginName
 	}
-	md.ModifiedAt = d.ModTime()
 	md.Path = pluginPath
-	md.Alias(pluginName)
+	md.AddAlias(pluginName)
 	return md, nil
 }

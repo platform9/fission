@@ -22,9 +22,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/sirupsen/logrus"
+	"github.com/ghodss/yaml"
 	"github.com/urfave/cli"
-	"gopkg.in/yaml.v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission"
@@ -69,18 +68,6 @@ func getApplicationUrl(selector string) string {
 		serverUrl = fissionUrl
 	}
 	return serverUrl
-}
-
-func beforeAction(c *cli.Context) error {
-	log.Verbosity = c.Int("verbosity")
-	log.Verbose(2, "Verbosity >= 2")
-	if log.Verbosity >= 2 {
-		logrus.SetLevel(logrus.DebugLevel)
-	}
-
-	// Setup CLI plugins
-	plugin.Prefix = "fission-"
-	return nil
 }
 
 func main() {
@@ -289,7 +276,6 @@ func main() {
 		{Name: "upgrade", Aliases: []string{}, Usage: "Upgrade tool from fission v0.1", Subcommands: upgradeSubCommands},
 		cmdPlugin,
 	}
-	app.Before = beforeAction
 	app.CommandNotFound = handleCommandNotFound
 	app.Run(os.Args)
 }
@@ -307,20 +293,31 @@ func handleCommandNotFound(ctx *cli.Context, subCommand string) {
 It is available to download at '%v'.
 
 To install it for your local Fission CLI:
-1. Download the plugin binary for your OS from the url
+1. Download the plugin binary for your OS from the URL
 2. Ensure that the plugin binary is executable: chmod +x <binary>
 2. Add the plugin binary to your $PATH: mv <binary> /usr/local/bin/fission-%v`, subCommand, url, subCommand))
-		case plugin.ErrPluginMetadataInvalid:
-			log.Fatal(err.Error())
 		default:
-			log.Fatal("Unknown error occurred when invoking " + subCommand + ": " + err.Error())
+			log.Fatal("Error occurred when invoking " + subCommand + ": " + err.Error())
 		}
-		os.Exit(9)
+		os.Exit(1)
 	}
-	args := ctx.Args().Tail()
+
+	// Rebuild global arguments string (urfave/cli does not have an option to get the raw input of the global flags)
+	var globalArgs []string
+	for _, globalFlagName := range ctx.GlobalFlagNames() {
+		val := fmt.Sprintf("%v", ctx.GlobalGeneric(globalFlagName))
+		if len(val) > 0 {
+			globalArgs = append(globalArgs, fmt.Sprintf("--%v", globalFlagName), val)
+		}
+	}
+	args := append(globalArgs, ctx.Args().Tail()...)
+
 	err = plugin.Exec(pmd, args)
 	if err != nil {
-		log.Fatal("Error while executing plugin " + pmd.Name + ": " + err.Error())
+		// Pipe through the error of the subcommand. Unfortunately the exit code is not part of the Golang exec package
+		// API (because there is no platform-independent notion of an 'exit code'. So we are just returning exit code 1
+		// instead here, regardless of the exit code of the subcommand.
+		log.Fatal(err)
 	}
 }
 
@@ -370,11 +367,7 @@ VERSION:
    {{.Version}}{{end}}{{end}}{{if .Description}}
 
 DESCRIPTION:
-   {{.Description}}{{end}}{{if len .Authors}}
-
-AUTHOR{{with $length := len .Authors}}{{if ne 1 $length}}S{{end}}{{end}}:
-   {{range $index, $author := .Authors}}{{if $index}}
-   {{end}}{{$author}}{{end}}{{end}}{{if .VisibleCommands}}
+   {{.Description}}{{end}}{{if .VisibleCommands}}
 
 COMMANDS:{{range .VisibleCategories}}{{if .Name}}
    {{.Name}}:{{end}}{{range .VisibleCommands}}
@@ -385,8 +378,5 @@ PLUGIN COMMANDS:{{ range $name, $usage := ExtraInfo }}
 
 GLOBAL OPTIONS:
    {{range $index, $option := .VisibleFlags}}{{if $index}}
-   {{end}}{{$option}}{{end}}{{end}}{{if .Copyright}}
-
-COPYRIGHT:
-   {{.Copyright}}{{end}}
+   {{end}}{{$option}}{{end}}{{end}}
 `
