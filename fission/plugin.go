@@ -17,7 +17,7 @@ var cmdPlugin = cli.Command{
 	Subcommands: []cli.Command{
 		{
 			Name:   "list",
-			Usage:  "List installed plugins",
+			Usage:  "List installed client plugins",
 			Action: pluginList,
 		},
 	},
