@@ -410,7 +410,7 @@ func pkgRetry(c *cli.Context) error {
 
 	updatePackage(client, pkg, "", "", "", "", "", true)
 
-	fmt.Printf("Set package '%v' to pending state\n", pkg.Metadata.Name)
+	fmt.Printf("Set package '%v' to %v state\n", pkg.Metadata.Name, fission.BuildStatusPending)
 
 	return nil
 }
