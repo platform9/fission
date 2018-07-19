@@ -481,7 +481,7 @@ func fnUpdate(c *cli.Context) error {
 			log.Fatal("Package is used by multiple functions, use --force to force update")
 		}
 
-		pkgMetadata = updatePackage(client, pkg, envName, envNamespace, srcArchiveName, deployArchiveName, buildcmd)
+		pkgMetadata = updatePackage(client, pkg, envName, envNamespace, srcArchiveName, deployArchiveName, buildcmd, false)
 		checkErr(err, fmt.Sprintf("update package '%v'", pkgName))
 
 		fmt.Printf("package '%v' updated\n", pkgMetadata.GetName())

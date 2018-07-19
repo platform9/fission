@@ -240,6 +240,7 @@ func main() {
 	pkgSubCommands := []cli.Command{
 		{Name: "create", Usage: "Create new package", Flags: []cli.Flag{pkgNamespaceFlag, pkgEnvironmentFlag, envNamespaceFlag, pkgSrcArchiveFlag, pkgDeployArchiveFlag, pkgBuildCmdFlag}, Action: pkgCreate},
 		{Name: "update", Usage: "Update package", Flags: []cli.Flag{pkgNameFlag, pkgNamespaceFlag, pkgEnvironmentFlag, envNamespaceFlag, pkgSrcArchiveFlag, pkgDeployArchiveFlag, pkgBuildCmdFlag, pkgForceFlag}, Action: pkgUpdate},
+		{Name: "retry", Usage: "Try to rebuild failed package", Flags: []cli.Flag{pkgNameFlag, pkgNamespaceFlag}, Action: pkgRetry},
 		{Name: "getsrc", Usage: "Get source archive content", Flags: []cli.Flag{pkgNameFlag, pkgNamespaceFlag, pkgOutputFlag}, Action: pkgSourceGet},
 		{Name: "getdeploy", Usage: "Get deployment archive content", Flags: []cli.Flag{pkgNameFlag, pkgNamespaceFlag, pkgOutputFlag}, Action: pkgDeployGet},
 		{Name: "info", Usage: "Show package information", Flags: []cli.Flag{pkgNameFlag, pkgNamespaceFlag}, Action: pkgInfo},

@@ -125,7 +125,7 @@ func pkgUpdate(c *cli.Context) error {
 	}
 
 	newPkgMeta := updatePackage(client, pkg,
-		envName, envNamespace, srcArchiveName, deployArchiveName, buildcmd)
+		envName, envNamespace, srcArchiveName, deployArchiveName, buildcmd, false)
 
 	// update resource version of package reference of functions that shared the same package
 	for _, fn := range fnList {
@@ -140,7 +140,7 @@ func pkgUpdate(c *cli.Context) error {
 }
 
 func updatePackage(client *client.Client, pkg *crd.Package, envName, envNamespace,
-	srcArchiveName, deployArchiveName, buildcmd string) *metav1.ObjectMeta {
+	srcArchiveName, deployArchiveName, buildcmd string, forceRebuild bool) *metav1.ObjectMeta {
 
 	var srcArchiveMetadata, deployArchiveMetadata *fission.Archive
 	needToBuild := false
@@ -168,7 +168,7 @@ func updatePackage(client *client.Client, pkg *crd.Package, envName, envNamespac
 	}
 
 	// Set package as pending status when needToBuild is true
-	if needToBuild {
+	if needToBuild || forceRebuild {
 		// change into pending state to trigger package build
 		pkg.Status = fission.PackageStatus{
 			BuildStatus: fission.BuildStatusPending,
@@ -384,6 +384,33 @@ func pkgDelete(c *cli.Context) error {
 		checkErr(err, "error deleting orphan packages")
 		fmt.Println("Orphan packages deleted")
 	}
+
+	return nil
+}
+
+func pkgRetry(c *cli.Context) error {
+	client := getClient(c.GlobalString("server"))
+
+	pkgName := c.String("name")
+	if len(pkgName) == 0 {
+		log.Fatal("Need name of package, use --name")
+	}
+	pkgNamespace := c.String("pkgNamespace")
+
+	pkg, err := client.PackageGet(&metav1.ObjectMeta{
+		Name:      pkgName,
+		Namespace: pkgNamespace,
+	})
+	checkErr(err, "find package")
+
+	if pkg.Status.BuildStatus != fission.BuildStatusFailed {
+		log.Fatal(fmt.Sprintf("Package %v is not in %v state.",
+			pkg.Metadata.Name, fission.BuildStatusFailed))
+	}
+
+	updatePackage(client, pkg, "", "", "", "", "", true)
+
+	fmt.Printf("Set package '%v' to pending state\n", pkg.Metadata.Name)
 
 	return nil
 }
