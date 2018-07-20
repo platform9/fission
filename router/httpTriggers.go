@@ -175,9 +175,9 @@ func (ts *HTTPTriggerSet) getRouter() *mux.Router {
 	for _, function := range ts.functions {
 		m := function.Metadata
 
-		var doRecord bool
+		var recorder string
 		if ts.recorderSet.functionRecorderMap[m.Name] != nil {
-			doRecord = true
+			recorder = ts.recorderSet.functionRecorderMap[m.Name].Spec.Name
 		}
 
 		fh := &functionHandler{
@@ -185,6 +185,7 @@ func (ts *HTTPTriggerSet) getRouter() *mux.Router {
 			function:             &m,
 			executor:             ts.executor,
 			tsRoundTripperParams: ts.tsRoundTripperParams,
+			recorderName:         recorder,
 		}
 		muxRouter.HandleFunc(fission.UrlForFunction(function.Metadata.Name, function.Metadata.Namespace), fh.handler)
 	}
