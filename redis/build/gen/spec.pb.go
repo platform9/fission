@@ -34,7 +34,7 @@ func (m *Request) Reset()         { *m = Request{} }
 func (m *Request) String() string { return proto.CompactTextString(m) }
 func (*Request) ProtoMessage()    {}
 func (*Request) Descriptor() ([]byte, []int) {
-	return fileDescriptor_spec_c32fe73aa17c419e, []int{0}
+	return fileDescriptor_spec_ce9436f0047fa204, []int{0}
 }
 func (m *Request) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Request.Unmarshal(m, b)
@@ -108,7 +108,7 @@ func (m *Response) Reset()         { *m = Response{} }
 func (m *Response) String() string { return proto.CompactTextString(m) }
 func (*Response) ProtoMessage()    {}
 func (*Response) Descriptor() ([]byte, []int) {
-	return fileDescriptor_spec_c32fe73aa17c419e, []int{1}
+	return fileDescriptor_spec_ce9436f0047fa204, []int{1}
 }
 func (m *Response) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Response.Unmarshal(m, b)
@@ -155,7 +155,7 @@ func (m *UniqueRequest) Reset()         { *m = UniqueRequest{} }
 func (m *UniqueRequest) String() string { return proto.CompactTextString(m) }
 func (*UniqueRequest) ProtoMessage()    {}
 func (*UniqueRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_spec_c32fe73aa17c419e, []int{2}
+	return fileDescriptor_spec_ce9436f0047fa204, []int{2}
 }
 func (m *UniqueRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UniqueRequest.Unmarshal(m, b)
@@ -199,6 +199,7 @@ func (m *UniqueRequest) GetTrigger() string {
 // We need this because we don't store the ReqUID in the above Message (UniqueRequest)
 // and we don't store the UID there because the key in Redis is the ReqUID -- including it in the value would be
 // unnecessary duplication
+// but we need it here because we want to display to the user the ReqResponses for a given ReqUID
 type RecordedEntry struct {
 	ReqUID               string    `protobuf:"bytes,13,opt,name=ReqUID,proto3" json:"ReqUID,omitempty"`
 	Req                  *Request  `protobuf:"bytes,14,opt,name=Req,proto3" json:"Req,omitempty"`
@@ -213,7 +214,7 @@ func (m *RecordedEntry) Reset()         { *m = RecordedEntry{} }
 func (m *RecordedEntry) String() string { return proto.CompactTextString(m) }
 func (*RecordedEntry) ProtoMessage()    {}
 func (*RecordedEntry) Descriptor() ([]byte, []int) {
-	return fileDescriptor_spec_c32fe73aa17c419e, []int{3}
+	return fileDescriptor_spec_ce9436f0047fa204, []int{3}
 }
 func (m *RecordedEntry) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RecordedEntry.Unmarshal(m, b)
@@ -272,9 +273,9 @@ func init() {
 	proto.RegisterType((*RecordedEntry)(nil), "redisCache.RecordedEntry")
 }
 
-func init() { proto.RegisterFile("spec.proto", fileDescriptor_spec_c32fe73aa17c419e) }
+func init() { proto.RegisterFile("spec.proto", fileDescriptor_spec_ce9436f0047fa204) }
 
-var fileDescriptor_spec_c32fe73aa17c419e = []byte{
+var fileDescriptor_spec_ce9436f0047fa204 = []byte{
 	// 392 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x93, 0x5f, 0xab, 0xd3, 0x30,
 	0x18, 0xc6, 0xe9, 0xda, 0x75, 0xdd, 0x5b, 0xab, 0x23, 0x8e, 0x11, 0x86, 0x7f, 0x6a, 0x41, 0xe8,

@@ -292,6 +292,8 @@ func (fh *functionHandler) handler(responseWriter http.ResponseWriter, request *
 		}
 	}
 
+	fh.tsRoundTripperParams.reqUID = reqUID		// If reqUID
+
 	proxy := &httputil.ReverseProxy{
 		Director: director,
 		Transport: &RetryingRoundTripper{

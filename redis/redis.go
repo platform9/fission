@@ -35,14 +35,14 @@ func EndRecord(triggerName string, recorderName string, reqUID string, request *
 	if len(reqUID) == 0 {
 		return
 	}
-	replayed := request.Header.Get("X-Fission-Replayed")
+	//replayed := request.Header.Get("X-Fission-Replayed")
 
 	log.Info("EndRecord: URL > ", originalUrl.String(), " with body: ", payload)
 
-	if replayed == "true" {
-		log.Info("This was a replayed request.")
-		return
-	}
+	//if replayed == "true" {
+	//	log.Info("This was a replayed request.")
+	//	return
+	//}
 
 	fullPath := originalUrl.String()
 
@@ -91,6 +91,9 @@ func EndRecord(triggerName string, recorderName string, reqUID string, request *
 		Resp: resp,
 		Trigger: triggerName,			// TODO: Why is this here when Trigger is set as a separate field?
 	}
+
+	log.Info("Trying to record this UniqueRequest: ")
+	log.Info(ureq.String())
 
 	data, err := proto.Marshal(ureq)
 	if err != nil {

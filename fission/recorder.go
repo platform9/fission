@@ -148,7 +148,6 @@ func recorderUpdate(c *cli.Context) error {
 	triggers := c.StringSlice("trigger")
 	function := c.String("function")
 
-
 	if enable && disable {
 		log.Fatal("Cannot enable and disable a recorder simultaneously.")
 	}

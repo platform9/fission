@@ -44,7 +44,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"strconv"
 	"time"
 
@@ -100,22 +99,26 @@ func Start(port int, executorUrl string) {
 
 	executor := executorClient.MakeClient(executorUrl)
 
-	timeout, err := time.ParseDuration(os.Getenv("ROUTER_ROUND_TRIP_TIMEOUT"))
+	//timeout, err := time.ParseDuration(os.Getenv("ROUTER_ROUND_TRIP_TIMEOUT"))
+	timeout, err := time.ParseDuration("50ms")
 	if err != nil {
 		log.Fatalf("Failed to parse timeout: %v", err)
 	}
 
-	timeoutExponent, err := strconv.Atoi(os.Getenv("ROUTER_ROUNDTRIP_TIMEOUT_EXPONENT"))
+	//timeoutExponent, err := strconv.Atoi(os.Getenv("ROUTER_ROUNDTRIP_TIMEOUT_EXPONENT"))
+	timeoutExponent, err := strconv.Atoi("2")
 	if err != nil {
 		log.Fatalf("Failed to parse timeout exponent: %v", err)
 	}
 
-	keepAlive, err := time.ParseDuration(os.Getenv("ROUTER_ROUND_TRIP_KEEP_ALIVE_TIME"))
+	//keepAlive, err := time.ParseDuration(os.Getenv("ROUTER_ROUND_TRIP_KEEP_ALIVE_TIME"))
+	keepAlive, err := time.ParseDuration("30s")
 	if err != nil {
 		log.Fatalf("Failed to parse keep alive time: %v", err)
 	}
 
-	maxRetries, err := strconv.Atoi(os.Getenv("ROUTER_ROUND_TRIP_MAX_RETRIES"))
+	//maxRetries, err := strconv.Atoi(os.Getenv("ROUTER_ROUND_TRIP_MAX_RETRIES"))
+	maxRetries, err := strconv.Atoi("10")
 	if err != nil {
 		log.Fatalf("Failed to parse max retry times: %v", err)
 	}

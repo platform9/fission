@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/urfave/cli"
 	"fmt"
+	"log"
 	"text/tabwriter"
 	"os"
 )
@@ -10,7 +11,7 @@ import (
 func recordsView(c *cli.Context) error {
 	var verbosity int
 	if c.Bool("v") && c.Bool("vv") {
-		fatal("Conflicting verbosity levels, use either --v or --vv")
+		log.Fatal("Conflicting verbosity levels, use either --v or --vv")
 	}
 	if c.Bool("v") {
 		verbosity = 1

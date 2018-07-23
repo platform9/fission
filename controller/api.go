@@ -48,6 +48,7 @@ type (
 	API struct {
 		fissionClient     *crd.FissionClient
 		kubernetesClient  *kubernetes.Clientset
+		redisUrl          string
 		storageServiceUrl string
 		builderManagerUrl string
 		workflowApiUrl    string
@@ -91,6 +92,12 @@ func MakeAPI() (*API, error) {
 		api.functionNamespace = fnNs
 	} else {
 		api.functionNamespace = "fission-function"
+	}
+
+	rd := os.Getenv("REDIS_PORT_6379_TCP_ADDR")
+	rdport := os.Getenv("REDIS_PORT_6379_TCP_PORT")
+	if len(rd) > 0 && len(rdport) > 0{
+		api.redisUrl = fmt.Sprintf("%s:%s", rd, rdport)
 	}
 
 	return api, err
@@ -242,6 +249,11 @@ func (api *API) Serve(port int) {
 	r.HandleFunc("/v2/recorders/{recorder}", api.RecorderApiGet).Methods("GET")
 	r.HandleFunc("/v2/recorders/{recorder}", api.RecorderApiUpdate).Methods("PUT")
 	r.HandleFunc("/v2/recorders/{recorder}", api.RecorderApiDelete).Methods("DELETE")
+
+	r.HandleFunc("/v2/records", api.RecordsApiListAll).Methods("GET")
+	r.HandleFunc("/v2/records/function/{function}", api.RecordsApiFilterByFunction).Methods("GET")
+	r.HandleFunc("/v2/records/trigger/{trigger}", api.RecordsApiFilterByTrigger).Methods("GET")
+	r.HandleFunc("/v2/records/time", api.RecordsApiFilterByTime).Methods("GET")
 
 	r.HandleFunc("/v2/secrets/{secret}", api.SecretGet).Methods("GET")
 	r.HandleFunc("/v2/configmaps/{configmap}", api.ConfigMapGet).Methods("GET")
