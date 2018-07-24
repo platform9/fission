@@ -1,8 +1,15 @@
+#### Fission release
+
 Prerequisites
 -------------
 
-1. Get a dockerhub account if you don't have one.  Ask to be added to
-   the fission dockerhub account.
+1. Get a dockerhub account if you don't have one.  
+
+  Get access to:
+  - The fission dockerhub account (https://hub.docker.com/r/fission/ if you have access, you will see Fission listed in your organizations: https://hub.docker.com/organizations/ )
+  - Fission-charts repo (https://github.com/fission/fission-charts)
+  - Fission Documentation Repo (https://github.com/fission/docs.fission.io)
+  - Fission main repo (https://github.com/fission/fission)
 
 2. Get a Github "personal access token":
    https://help.github.com/articles/creating-a-personal-access-token-for-the-command-line/
@@ -19,7 +26,7 @@ Prerequisites
    
 4. Install changelog generator tool "github_changelog_generator": https://github.com/skywinder/github-changelog-generator
 
-5. Install realpath if you don't already have it : https://github.com/harto/realpath-osx
+5. Install realpath if you don't already have it : https://github.com/harto/realpath-osx (You can use the brew method on Mac)
 
 6. Install gothub if you don't already have it : https://github.com/itchio/gothub 
    You just have to go get github.com/itchio/gothub, that'll install gothub in $GOPATH/bin. Ensure this is already
@@ -29,81 +36,70 @@ Prerequisites
 Check that the build is green!
 ------------------------------
 
-Fix if not, etc.
+Fix the build if it is not green. DON'T proceed unless build is GREEN!
 
 
-Update versions
----------------
+Updating Fission Repo (https://github.com/fission/fission)
+------------------------------
 
-Update the version in the helm charts:
-
-In each charts, the version is in Chart.yaml, values.yaml and
-templates/NOTES.yaml.
-
-Commit your changes, push them, open a PR, merge it.
-
-Update doc versions: Docs live at github.com/fission/docs.fission.io
-
-
-Update the docs versions
-------------------------
-
-Archive existing version into dist/
-
-Change config.toml baseURL.
-
-Change versions in links.
-
-git add, git commit.
-
-
-Make the release
-----------------
-
-
-1. cd to the top of the repo, create a branch:
+1. cd to the top of the fission repo, create a branch:
 
    git checkout -b vX.Y.Z
 
-   Commit & push the version changes.
+2. Change references of old version to new version in charts directory. You use replace and find all with a quick preview in your IDE.
 
-2. Run
+3. Run
 
-   ./hack/release.sh <VERSION>
+   `./hack/release.sh <VERSION>`
 
    This script checks to make sure you're releasing from the vX.Y.Z
    branch, and that your repo is clean (no modified/staged files).
 
-   This will take a while.
+   This will take a while as it builds and pushes all images (Approx ~2-3 hours)
 
-3. Push docs update to github
+4. After the build is successful, the charts will be in build/charts directory from root of Fission. Move these charts to fission/fission-charts repo. We will push them shortly after some changes to repo.
 
-4. Copy over charts from build dir into charts repo [see below], update helm chart index, push to github
+5. As part of release script, changelog.md has been modified. Take a look at it, correct it if you want and then commit it, discard other directories etc. produced by builders after inspection.
 
-5. Manually test an installation, just for a sanity check
+6. Now push this vx.y.z branch to remote repo. Create a PR and merge it into master branch. 
 
-6. Git commit and push Changelog.md into master branch.
+a. Test build from master branch for sanity check
+b. Make sure the master build is green
 
-7. Switch the github release from pre-release to release.
+7. 
 
-8. Add links from release notes:
+Updating Fission Charts (https://github.com/fission/fission-charts)
+------------------------------
+a. Switch to fission/fission-charts repo and run `index.sh` in that repo.  (Don't edit the index.yaml in this repo manually.  index.sh generates it, using the helm repo CLI.)
+
+b. You should have index.yaml and fission-core-*, fission-all-* charts as change, add, commit and push it to repo.
+
+
+8. Go to Github Web UI --> Releases, here you will notice a pre-release for the version x.y.z you just created. 
+
+Edit it and add links to:
+
    * Install guide in docs
    * Changelog.md
 
-Update chart repo
------------------
+Before you save the release - UNCHECK the "This is a pre-release" checkbox. This mark the release as ready for consumption (If release is stable).
 
-Copy the helm charts over to the fission-charts repo
+Updating Fission Docs (https://github.com/fission/docs.fission.io)
+------------------------------
 
-Run `index.sh` in that repo.  (Don't edit the index.yaml in this repo
-manually.  index.sh generates it, using the helm repo CLI.)
+9. Documentatin Update 
 
-git add, git commit, and git push your changes.
+a. Merge documentation PRs that are peer reviewed and get latest master locally.
 
-The chart repo is a github page : https://github.com/fission/fission-charts, so once you push the master branch,
-you're all set.
+b. In the repo fission/docs.fission.io change version in version.sh file to latest version (x.y.z) and run build.sh script
 
-Ask to be added to this repo if permissions are missing.
+c. ** ONLY ** in the dist/x.y.z directory i.e. current version directory - replace all references from previous release to current release. Please use your IDE as there will be thousands of references.
+
+d.VERIFY: There should be changes only in dist/x.y.z - where x.y.z is current version and in following files:
+
+- dist/_redirects
+- dist/index.html
+- version.sh
 
 
 Announce the release

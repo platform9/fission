@@ -47,7 +47,7 @@ const (
 	AzureMessageFetchCount = 10
 	// AzureMessageVisibilityTimeout is the visibility timeout for dequeued messages.
 	AzureMessageVisibilityTimeout = time.Minute
-	// AzurePoisonQueueSuffix is the suffix used for posion queues.
+	// AzurePoisonQueueSuffix is the suffix used for poison queues.
 	AzurePoisonQueueSuffix = "-poison"
 	// AzureFunctionInvocationTimeout is the amount of time to wait for a triggered function to execute.
 	AzureFunctionInvocationTimeout = 10 * time.Minute

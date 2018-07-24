@@ -547,7 +547,7 @@ func (envw *environmentWatcher) createBuilderDeployment(env *crd.Environment, ns
 						fission.MergeContainerSpecs(&apiv1.Container{
 							Name:                   "builder",
 							Image:                  env.Spec.Builder.Image,
-							ImagePullPolicy:        apiv1.PullAlways,
+							ImagePullPolicy:        apiv1.PullIfNotPresent,
 							TerminationMessagePath: "/dev/termination-log",
 							VolumeMounts: []apiv1.VolumeMount{
 								{

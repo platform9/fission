@@ -42,8 +42,9 @@ type (
 	// UploadRequest send from builder manager describes which
 	// deployment package should be upload to storage service.
 	UploadRequest struct {
-		Filename      string `json:"filename"`
-		StorageSvcUrl string `json:"storagesvcurl"`
+		Filename       string `json:"filename"`
+		StorageSvcUrl  string `json:"storagesvcurl"`
+		ArchivePackage bool   `json:"archivepackage"`
 	}
 
 	// UploadResponse defines the download url of an archive and
@@ -421,12 +422,22 @@ func (fetcher *Fetcher) UploadHandler(w http.ResponseWriter, r *http.Request) {
 	srcFilepath := filepath.Join(fetcher.sharedVolumePath, req.Filename)
 	dstFilepath := filepath.Join(fetcher.sharedVolumePath, zipFilename)
 
-	err = fetcher.archive(srcFilepath, dstFilepath)
-	if err != nil {
-		e := fmt.Sprintf("Error archiving zip file: %v", err)
-		log.Println(e)
-		http.Error(w, e, http.StatusInternalServerError)
-		return
+	if req.ArchivePackage {
+		err = fetcher.archive(srcFilepath, dstFilepath)
+		if err != nil {
+			e := fmt.Sprintf("Error archiving zip file: %v", err)
+			log.Println(e)
+			http.Error(w, e, http.StatusInternalServerError)
+			return
+		}
+	} else {
+		err = os.Rename(srcFilepath, dstFilepath)
+		if err != nil {
+			e := fmt.Sprintf("Error renaming the archive: %v", err)
+			log.Println(e)
+			http.Error(w, e, http.StatusInternalServerError)
+			return
+		}
 	}
 
 	log.Println("Starting upload...")

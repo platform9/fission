@@ -98,7 +98,7 @@ func specializePod(f *fetcher.Fetcher, fetchPayload *string, loadPayload *string
 
 	_, err = f.FetchSecretsAndCfgMaps(fetchReq.Secrets, fetchReq.ConfigMaps)
 	if err != nil {
-		log.Fatalf("Error fetching secerts/configmaps: %v", err)
+		log.Fatalf("Error fetching secrets/configmaps: %v", err)
 		return
 	}
 

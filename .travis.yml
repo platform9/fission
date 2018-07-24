@@ -35,6 +35,7 @@ before_script:
   - cd ${TRAVIS_BUILD_DIR}
   - hack/verify-gofmt.sh
   - hack/verify-govet.sh
+  - helm lint charts/fission-all/ charts/fission-core/
   - glide install -v
   - go build -o fission/fission fission/*.go
   - ./fission-bundle/build.sh

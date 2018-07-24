@@ -94,9 +94,12 @@ func buildPackage(fissionClient *crd.FissionClient, envBuilderNamespace string,
 
 	log.Printf("Build succeed, source package: %v, deployment package: %v", srcPkgFilename, buildResp.ArtifactFilename)
 
+	archivePackage := !env.Spec.KeepArchive
+
 	uploadReq := &fetcher.UploadRequest{
-		Filename:      buildResp.ArtifactFilename,
-		StorageSvcUrl: storageSvcUrl,
+		Filename:       buildResp.ArtifactFilename,
+		StorageSvcUrl:  storageSvcUrl,
+		ArchivePackage: archivePackage,
 	}
 
 	log.Printf("Start uploading deployment package: %v", buildResp.ArtifactFilename)
