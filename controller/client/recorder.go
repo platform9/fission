@@ -23,9 +23,9 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"bytes"
 	"github.com/fission/fission/crd"
 	fv1 "github.com/fission/fission/pkg/apis/fission.io/v1"
-	"bytes"
 	"github.com/fission/fission/redis/build/gen"
 )
 
@@ -116,13 +116,11 @@ func (c *Client) RecorderUpdate(recorder *crd.Recorder) (*metav1.ObjectMeta, err
 	return &m, nil
 }
 
-
 func (c *Client) RecorderDelete(m *metav1.ObjectMeta) error {
 	relativeUrl := fmt.Sprintf("recorders/%v", m.Name)
 	relativeUrl += fmt.Sprintf("?namespace=%v", m.Namespace)
 	return c.delete(relativeUrl)
 }
-
 
 func (c *Client) RecorderList(ns string) ([]crd.Recorder, error) {
 	relativeUrl := "recorders"
@@ -151,7 +149,6 @@ func (c *Client) RecorderList(ns string) ([]crd.Recorder, error) {
 func (c *Client) RecordsByFunction(function string) ([]*redisCache.RecordedEntry, error) {
 	relativeUrl := "records/function/"
 	relativeUrl += fmt.Sprintf(function)
-
 
 	resp, err := http.Get(c.url(relativeUrl))
 	if err != nil {

@@ -1,10 +1,10 @@
 package controller
 
 import (
-	"net/http"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"github.com/fission/fission/redis"
 	"github.com/gorilla/mux"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"net/http"
 )
 
 func (a *API) RecordsApiListAll(w http.ResponseWriter, r *http.Request) {

@@ -1,37 +1,37 @@
 package router
 
 import (
-	"k8s.io/apimachinery/pkg/fields"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	k8sCache "k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/rest"
 	"github.com/fission/fission/crd"
-	"time"
 	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/client-go/rest"
+	k8sCache "k8s.io/client-go/tools/cache"
+	"time"
 )
 
 type RecorderSet struct {
-	parent               *HTTPTriggerSet
+	parent *HTTPTriggerSet
 
-	functionRecorderMap  map[string]*crd.Recorder
-	triggerRecorderMap   map[string]*crd.Recorder
+	functionRecorderMap map[string]*crd.Recorder
+	triggerRecorderMap  map[string]*crd.Recorder
 
-	crdClient            *rest.RESTClient
+	crdClient *rest.RESTClient
 
-	recorders            []crd.Recorder
-	recStore             k8sCache.Store
-	recController        k8sCache.Controller
+	recorders     []crd.Recorder
+	recStore      k8sCache.Store
+	recController k8sCache.Controller
 }
 
 func MakeRecorderSet(parent *HTTPTriggerSet, crdClient *rest.RESTClient) (*RecorderSet, k8sCache.Store) {
 	var rStore k8sCache.Store
 	recorderSet := &RecorderSet{
-		parent: parent,
+		parent:              parent,
 		functionRecorderMap: make(map[string]*crd.Recorder),
-		triggerRecorderMap: make(map[string]*crd.Recorder),
-		crdClient: crdClient,
-		recorders: []crd.Recorder{},
-		recStore: rStore,
+		triggerRecorderMap:  make(map[string]*crd.Recorder),
+		crdClient:           crdClient,
+		recorders:           []crd.Recorder{},
+		recStore:            rStore,
 	}
 	_, recorderSet.recController = recorderSet.initRecorderController()
 	return recorderSet, rStore
@@ -122,7 +122,7 @@ func (rs *RecorderSet) disableRecorder(r *crd.Recorder) {
 	for _, t := range rs.parent.triggerStore.List() {
 		trigger := *t.(*crd.HTTPTrigger)
 		if trigger.Spec.FunctionReference.Name == function {
-			delete(rs.triggerRecorderMap, trigger.Metadata.Name)	// Use function defined for this purpose below?
+			delete(rs.triggerRecorderMap, trigger.Metadata.Name) // Use function defined for this purpose below?
 		}
 	}
 
@@ -132,7 +132,7 @@ func (rs *RecorderSet) disableRecorder(r *crd.Recorder) {
 
 func (rs *RecorderSet) updateRecorder(old *crd.Recorder, newer *crd.Recorder) {
 	if newer.Spec.Enabled == true {
-		rs.newRecorder(newer)				// TODO: Test this
+		rs.newRecorder(newer) // TODO: Test this
 	} else {
 		rs.disableRecorder(old)
 	}

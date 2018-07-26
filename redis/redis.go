@@ -3,19 +3,19 @@ package redis
 import (
 	"net/http"
 
+	"encoding/json"
+	"fmt"
 	"github.com/fission/fission/redis/build/gen"
 	"github.com/golang/protobuf/proto"
 	"github.com/gomodule/redigo/redis"
 	log "github.com/sirupsen/logrus"
-	"strings"
 	"net/url"
-	"encoding/json"
 	"os"
-	"fmt"
+	"strings"
 )
 
 func NewClient() redis.Conn {
-	rd := os.Getenv("REDIS_PORT_6379_TCP_ADDR")			// TODO: Do this here or somewhere earlier?
+	rd := os.Getenv("REDIS_PORT_6379_TCP_ADDR") // TODO: Do this here or somewhere earlier?
 	rdport := os.Getenv("REDIS_PORT_6379_TCP_PORT")
 	redisUrl := fmt.Sprintf("%s:%s", rd, rdport)
 
@@ -65,20 +65,20 @@ func EndRecord(triggerName string, recorderName string, reqUID string, request *
 		Method:   request.Method,
 		URL:      url,
 		Header:   header,
-		Host:     request.Host,		// Proxied host?
+		Host:     request.Host, // Proxied host?
 		Form:     form,
 		PostForm: postForm,
 	}
 
 	resp := &redisCache.Response{
-		Status: response.Status,
+		Status:     response.Status,
 		StatusCode: int32(response.StatusCode),
 	}
 
-	ureq := &redisCache.UniqueRequest {
-		Req: req,
-		Resp: resp,
-		Trigger: triggerName,			// TODO: Why is this here when Trigger is set as a separate field?
+	ureq := &redisCache.UniqueRequest{
+		Req:     req,
+		Resp:    resp,
+		Trigger: triggerName, // TODO: Why is this here when Trigger is set as a separate field?
 	}
 
 	log.Info("Trying to record this UniqueRequest: ")

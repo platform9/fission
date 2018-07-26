@@ -1,16 +1,16 @@
 package redis
 
 import (
-	"errors"
 	"encoding/json"
+	"errors"
+	"github.com/fission/fission/crd"
+	"github.com/fission/fission/redis/build/gen"
+	"github.com/golang/protobuf/proto"
 	"github.com/gomodule/redigo/redis"
 	log "github.com/sirupsen/logrus"
-	"strings"
-	"github.com/golang/protobuf/proto"
-	"github.com/fission/fission/redis/build/gen"
-	"github.com/fission/fission/crd"
-	"time"
 	"strconv"
+	"strings"
+	"time"
 )
 
 func RecordsListAll() ([]byte, error) {
@@ -32,7 +32,7 @@ func RecordsListAll() ([]byte, error) {
 			if strings.HasPrefix(key, "REQ") {
 				val, err := redis.Bytes(client.Do("HGET", key, "ReqResponse"))
 				if err != nil {
-					log.Fatal(err)		// TODO: Fatal log or return err to be handled by caller?
+					log.Fatal(err) // TODO: Fatal log or return err to be handled by caller?
 				}
 				entry, err := deserializeReqResponse(val, key)
 				if err != nil {
@@ -142,13 +142,13 @@ func RecordsFilterByTrigger(queried string, recorders *crd.RecorderList, trigger
 
 	// TODO: Account for old/not-yet-deleted entries in the recorder lists
 	for key := range matchingRecorders {
-		val, err := redis.Strings(client.Do("LRANGE", key, "0", "-1"))   // TODO: Prefix that distinguishes recorder lists
+		val, err := redis.Strings(client.Do("LRANGE", key, "0", "-1")) // TODO: Prefix that distinguishes recorder lists
 		if err != nil {
 			// TODO: Handle deleted recorder? Or is this a non-issue because our list of recorders is up to date?
 			return []byte{}, err
 		}
 		for _, reqUID := range val {
-			val, err := redis.Strings(client.Do("HMGET", reqUID, "Trigger"))  // 1-to-1 reqUID - trigger?
+			val, err := redis.Strings(client.Do("HMGET", reqUID, "Trigger")) // 1-to-1 reqUID - trigger?
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -210,7 +210,7 @@ func RecordsFilterByFunction(query string, recorders *crd.RecorderList, triggers
 	var filtered []*redisCache.RecordedEntry
 
 	for key, _ := range matchingRecorders {
-		val, err := redis.Strings(client.Do("LRANGE", key, "0", "-1"))   // TODO: Prefix that distinguishes recorder lists
+		val, err := redis.Strings(client.Do("LRANGE", key, "0", "-1")) // TODO: Prefix that distinguishes recorder lists
 		if err != nil {
 			return []byte{}, err
 		}
@@ -251,9 +251,9 @@ func deserializeReqResponse(value []byte, reqUID string) (*redisCache.RecordedEn
 	}
 	log.Info("Parsed protobuf bytes: ", data)
 	transformed := &redisCache.RecordedEntry{
-		ReqUID: reqUID,
-		Req: data.Req,
-		Resp: data.Resp,
+		ReqUID:  reqUID,
+		Req:     data.Req,
+		Resp:    data.Resp,
 		Trigger: data.Trigger,
 	}
 	return transformed, nil
@@ -261,13 +261,13 @@ func deserializeReqResponse(value []byte, reqUID string) (*redisCache.RecordedEn
 
 // Validates that time input follows formatting rules. Should be similar to 90h, 18s, 1d, etc.
 func validateSplit(timeInput string) (int64, time.Duration, error) {
-	num := timeInput[0:len(timeInput)-1]
+	num := timeInput[0 : len(timeInput)-1]
 	unit := string(timeInput[len(timeInput)-1:])
 
 	num2, err := strconv.Atoi(num)
 	if err != nil {
 		return -1, time.Hour, errors.New("unsupported time format; use digits and choose unit from " +
-			"one of [s, m, h, d] for seconds, minutes, hours, and days respectively, example 90s")		// Return nil time struct?
+			"one of [s, m, h, d] for seconds, minutes, hours, and days respectively, example 90s") // Return nil time struct?
 	}
 
 	num3 := int64(num2)
@@ -283,7 +283,7 @@ func validateSplit(timeInput string) (int64, time.Duration, error) {
 		return num3, 24 * time.Hour, nil
 	default:
 		log.Info("Failed to default.")
-		return -1, time.Hour, errors.New("invalid time unit")		//TODO: Think of this case
+		return -1, time.Hour, errors.New("invalid time unit") //TODO: Think of this case
 	}
 }
 
@@ -299,10 +299,10 @@ func obtainInterval(to string, from string) (int64, int64, error) {
 	}
 
 	now := time.Now()
-	then := now.Add(time.Duration(-fromMultiplier) * fromUnit)		// Start search interval
+	then := now.Add(time.Duration(-fromMultiplier) * fromUnit) // Start search interval
 	rangeStart := then.UnixNano()
 
-	until := now.Add(time.Duration(-toMultiplier) * toUnit)			// End search interval
+	until := now.Add(time.Duration(-toMultiplier) * toUnit) // End search interval
 	rangeEnd := until.UnixNano()
 
 	return rangeStart, rangeEnd, nil

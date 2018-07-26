@@ -157,14 +157,14 @@ type (
 	// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 	Recorder struct {
 		metav1.TypeMeta `json:",inline"`
-		Metadata        metav1.ObjectMeta       `json:"metadata"`
-		Spec            RecorderSpec `json:"spec"`
+		Metadata        metav1.ObjectMeta `json:"metadata"`
+		Spec            RecorderSpec      `json:"spec"`
 	}
 
 	// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 	RecorderList struct {
 		metav1.TypeMeta `json:",inline"`
-		Metadata metav1.ListMeta `json:"metadata"`
+		Metadata        metav1.ListMeta `json:"metadata"`
 
 		Items []Recorder `json:"items"`
 	}

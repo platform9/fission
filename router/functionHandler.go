@@ -28,15 +28,15 @@ import (
 	"github.com/gorilla/mux"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"bytes"
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
 	executorClient "github.com/fission/fission/executor/client"
-	"github.com/sirupsen/logrus"
-	"strings"
-	"github.com/satori/go.uuid"
-	"io/ioutil"
-	"bytes"
 	"github.com/fission/fission/redis"
+	"github.com/satori/go.uuid"
+	"github.com/sirupsen/logrus"
+	"io/ioutil"
+	"strings"
 )
 
 type tsRoundTripperParams struct {
@@ -97,7 +97,7 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 
 	var postedBody string
 	if req.ContentLength > 0 {
-		p := make([]byte, req.ContentLength)			// Will this always work?
+		p := make([]byte, req.ContentLength) // Will this always work?
 		buf, _ := ioutil.ReadAll(req.Body)
 		rdr1 := ioutil.NopCloser(bytes.NewBuffer(buf))
 		rdr2 := ioutil.NopCloser(bytes.NewBuffer(buf))
@@ -207,11 +207,11 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 				go roundTripper.funcHandler.tapService(serviceUrl)
 			}
 
-			trigger := ""		// TODO: Better default, test case
+			trigger := "" // TODO: Better default, test case
 			if roundTripper.funcHandler.httpTrigger != nil {
 				trigger = roundTripper.funcHandler.httpTrigger.Metadata.Name
 			} else {
-				log.Println("No trigger attached.")	// Wording?
+				log.Println("No trigger attached.") // Wording?
 			}
 
 			// TODO: Stop recording -- find the correct placement for this
@@ -292,7 +292,7 @@ func (fh *functionHandler) handler(responseWriter http.ResponseWriter, request *
 		}
 	}
 
-	fh.tsRoundTripperParams.reqUID = reqUID		// If reqUID
+	fh.tsRoundTripperParams.reqUID = reqUID // If reqUID
 
 	proxy := &httputil.ReverseProxy{
 		Director: director,
