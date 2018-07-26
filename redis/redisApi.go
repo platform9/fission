@@ -209,7 +209,7 @@ func RecordsFilterByFunction(query string, recorders *crd.RecorderList, triggers
 
 	var filtered []*redisCache.RecordedEntry
 
-	for key, _ := range matchingRecorders {
+	for key := range matchingRecorders {
 		val, err := redis.Strings(client.Do("LRANGE", key, "0", "-1")) // TODO: Prefix that distinguishes recorder lists
 		if err != nil {
 			return []byte{}, err
