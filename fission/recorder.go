@@ -17,13 +17,13 @@ limitations under the License.
 package main
 
 import (
-	"log"
 	"fmt"
-	"os"
-	"text/tabwriter"
 	"github.com/satori/go.uuid"
 	"github.com/urfave/cli"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"log"
+	"os"
+	"text/tabwriter"
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
@@ -71,7 +71,7 @@ func recorderCreate(c *cli.Context) error {
 
 	recorder := &crd.Recorder{
 		Metadata: metav1.ObjectMeta{
-			Name: recName,
+			Name:      recName,
 			Namespace: "default",
 		},
 		Spec: fission.RecorderSpec{
@@ -105,7 +105,7 @@ func recorderGet(c *cli.Context) error {
 	recName := c.String("name")
 
 	recorder, err := client.RecorderGet(&metav1.ObjectMeta{
-		Name: recName,
+		Name:      recName,
 		Namespace: "default",
 	})
 
@@ -116,7 +116,7 @@ func recorderGet(c *cli.Context) error {
 	fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\n",
 		"NAME", "ENABLED", "FUNCTION", "TRIGGERS", "RETENTION_POLICY", "EVICTION_POLICY")
 	fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\n",
-		recorder.Metadata.Name, recorder.Spec.Enabled, recorder.Spec.Function, recorder.Spec.Triggers, recorder.Spec.RetentionPolicy, recorder.Spec.EvictionPolicy,)
+		recorder.Metadata.Name, recorder.Spec.Enabled, recorder.Spec.Function, recorder.Spec.Triggers, recorder.Spec.RetentionPolicy, recorder.Spec.EvictionPolicy)
 	w.Flush()
 
 	return nil
@@ -152,7 +152,7 @@ func recorderUpdate(c *cli.Context) error {
 	}
 
 	recorder, err := client.RecorderGet(&metav1.ObjectMeta{
-		Name: recName,
+		Name:      recName,
 		Namespace: "default",
 	})
 
@@ -216,7 +216,7 @@ func recorderDelete(c *cli.Context) error {
 	recNs := c.String("recorderns")
 
 	err := client.RecorderDelete(&metav1.ObjectMeta{
-		Name: recName,
+		Name:      recName,
 		Namespace: recNs,
 	})
 
@@ -238,7 +238,7 @@ func recorderList(c *cli.Context) error {
 		"NAME", "ENABLED", "FUNCTIONS", "TRIGGERS", "RETENTION_POLICY", "EVICTION_POLICY")
 	for _, r := range recorders {
 		fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\n",
-			r.Metadata.Name, r.Spec.Enabled, r.Spec.Function, r.Spec.Triggers, r.Spec.RetentionPolicy, r.Spec.EvictionPolicy,)
+			r.Metadata.Name, r.Spec.Enabled, r.Spec.Function, r.Spec.Triggers, r.Spec.RetentionPolicy, r.Spec.EvictionPolicy)
 	}
 	w.Flush()
 

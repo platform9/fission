@@ -1,11 +1,11 @@
 package main
 
 import (
-	"github.com/urfave/cli"
 	"fmt"
+	"github.com/urfave/cli"
 	"log"
-	"text/tabwriter"
 	"os"
+	"text/tabwriter"
 )
 
 func recordsView(c *cli.Context) error {
@@ -36,7 +36,7 @@ func recordsView(c *cli.Context) error {
 		return recordsByTime(from, to, verbosity, c)
 	}
 	err := recordsAll(verbosity, c)
-	checkErr(err, "view records")			// TODO: View all records by default or last 10?
+	checkErr(err, "view records") // TODO: View all records by default or last 10?
 	return nil
 }
 

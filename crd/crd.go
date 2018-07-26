@@ -166,12 +166,12 @@ func EnsureFissionCRDs(clientset *apiextensionsclient.Clientset) error {
 				Name: "recorders.fission.io",
 			},
 			Spec: apiextensionsv1beta1.CustomResourceDefinitionSpec{
-				Group: crdGroupName,
+				Group:   crdGroupName,
 				Version: crdVersion,
-				Scope: apiextensionsv1beta1.NamespaceScoped,
+				Scope:   apiextensionsv1beta1.NamespaceScoped,
 				Names: apiextensionsv1beta1.CustomResourceDefinitionNames{
-					Kind: "Recorder",
-					Plural: "recorders",
+					Kind:     "Recorder",
+					Plural:   "recorders",
 					Singular: "recorder",
 				},
 			},

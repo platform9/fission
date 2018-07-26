@@ -96,7 +96,7 @@ func MakeAPI() (*API, error) {
 
 	rd := os.Getenv("REDIS_PORT_6379_TCP_ADDR")
 	rdport := os.Getenv("REDIS_PORT_6379_TCP_PORT")
-	if len(rd) > 0 && len(rdport) > 0{
+	if len(rd) > 0 && len(rdport) > 0 {
 		api.redisUrl = fmt.Sprintf("%s:%s", rd, rdport)
 	}
 

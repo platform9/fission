@@ -18,16 +18,16 @@ package controller
 
 import (
 	"encoding/json"
-	"net/http"
-	"io/ioutil"
-	"github.com/fission/fission/crd"
-	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"github.com/gorilla/mux"
 	"github.com/fission/fission"
+	"github.com/fission/fission/crd"
+	"github.com/gorilla/mux"
+	log "github.com/sirupsen/logrus"
+	"io/ioutil"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"net/http"
 )
 
-func (a *API) RecorderApiList(w http.ResponseWriter, r*http.Request) {
+func (a *API) RecorderApiList(w http.ResponseWriter, r *http.Request) {
 	recorders, err := a.fissionClient.Recorders(metav1.NamespaceAll).List(metav1.ListOptions{})
 	if err != nil {
 		a.respondWithError(w, err)
@@ -41,11 +41,11 @@ func (a *API) RecorderApiList(w http.ResponseWriter, r*http.Request) {
 	a.respondWithSuccess(w, resp)
 }
 
-func (a *API) RecorderApiCreate(w http.ResponseWriter, r*http.Request) {
+func (a *API) RecorderApiCreate(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
 
 	if err != nil {
-		log.Info("In RecoderApiCreate, error with ioutil.ReadAll")	// TODO: Remove later
+		log.Info("In RecoderApiCreate, error with ioutil.ReadAll") // TODO: Remove later
 		a.respondWithError(w, err)
 		return
 	}

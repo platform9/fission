@@ -313,12 +313,12 @@ type (
 
 	// RecorderSpec defines a recorder
 	RecorderSpec struct {
-		Name              string
-		Function          string
-		Triggers          []string
-		RetentionPolicy   string
-		EvictionPolicy    string
-		Enabled           bool
+		Name            string
+		Function        string
+		Triggers        []string
+		RetentionPolicy string
+		EvictionPolicy  string
+		Enabled         bool
 	}
 
 	// TimeTrigger invokes the specific function at a time or

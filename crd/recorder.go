@@ -20,9 +20,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	//"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/kubernetes/scheme"
 	log "github.com/sirupsen/logrus"
+	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 )
 
 type (
@@ -36,19 +36,19 @@ type (
 	}
 
 	recorderClient struct {
-		client *rest.RESTClient
+		client    *rest.RESTClient
 		namespace string
 	}
 )
 
 func MakeRecorderInterface(crdClient *rest.RESTClient, namespace string) RecorderInterface {
 	return &recorderClient{
-		client: crdClient,
+		client:    crdClient,
 		namespace: namespace,
 	}
 }
 
-func (rc *recorderClient) Create(r *Recorder) (*Recorder, error){
+func (rc *recorderClient) Create(r *Recorder) (*Recorder, error) {
 	var result Recorder
 	err := rc.client.Post().
 		Resource("recorders").
@@ -60,7 +60,6 @@ func (rc *recorderClient) Create(r *Recorder) (*Recorder, error){
 	}
 	return &result, nil
 }
-
 
 func (rc *recorderClient) Get(name string) (*Recorder, error) {
 	var result Recorder
