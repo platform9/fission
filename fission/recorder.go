@@ -113,7 +113,7 @@ func recorderGet(c *cli.Context) error {
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
 
-	fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\n",
+	fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\n",
 		"NAME", "ENABLED", "FUNCTION", "TRIGGERS", "RETENTION_POLICY", "EVICTION_POLICY")
 	fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\n",
 		recorder.Metadata.Name, recorder.Spec.Enabled, recorder.Spec.Function, recorder.Spec.Triggers, recorder.Spec.RetentionPolicy, recorder.Spec.EvictionPolicy)
