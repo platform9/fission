@@ -23,10 +23,10 @@ type RecorderSet struct {
 func MakeRecorderSet(parent *HTTPTriggerSet, crdClient *rest.RESTClient) (*RecorderSet, k8sCache.Store) {
 	var rStore k8sCache.Store
 	recorderSet := &RecorderSet{
-		parent:              parent,
-		crdClient:           crdClient,
-		recorders:           []crd.Recorder{},
-		recStore:            rStore,
+		parent:    parent,
+		crdClient: crdClient,
+		recorders: []crd.Recorder{},
+		recStore:  rStore,
 	}
 	_, recorderSet.recController = recorderSet.initRecorderController()
 	return recorderSet, rStore

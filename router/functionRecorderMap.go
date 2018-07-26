@@ -45,4 +45,3 @@ func (frmap *functionRecorderMap) assign(function string, recorder *crd.Recorder
 func (frmap *functionRecorderMap) remove(function string) error {
 	return frmap.cache.Delete(function)
 }
-

@@ -1,10 +1,10 @@
 package router
 
 import (
-	"time"
 	"github.com/fission/fission/cache"
 	"github.com/fission/fission/crd"
 	"log"
+	"time"
 )
 
 type (
@@ -43,4 +43,3 @@ func (trmap *triggerRecorderMap) assign(trigger string, recorder *crd.Recorder) 
 func (trmap *triggerRecorderMap) remove(trigger string) error {
 	return trmap.cache.Delete(trigger)
 }
-
