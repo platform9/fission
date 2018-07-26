@@ -69,17 +69,15 @@ func recorderCreate(c *cli.Context) error {
 	retPolicy := c.String("retention")
 	evictPolicy := c.String("eviction")
 
-	// TODO: Check namespace if required
-
 	recorder := &crd.Recorder{
 		Metadata: metav1.ObjectMeta{
 			Name: recName,
-			Namespace: "default",		// TODO
+			Namespace: "default",
 		},
 		Spec: fission.RecorderSpec{
 			Name:            recName,
-			Function:        fnName, 	// TODO; type
-			Triggers:        triggers,	// TODO; type
+			Function:        fnName,
+			Triggers:        triggers,
 			RetentionPolicy: retPolicy,
 			EvictionPolicy:  evictPolicy,
 			Enabled:         true,
@@ -103,13 +101,12 @@ func recorderCreate(c *cli.Context) error {
 
 func recorderGet(c *cli.Context) error {
 	client := getClient(c.GlobalString("server"))
-	// TODO: Namespace
 
 	recName := c.String("name")
 
 	recorder, err := client.RecorderGet(&metav1.ObjectMeta{
 		Name: recName,
-		Namespace: "default", // TODO
+		Namespace: "default",
 	})
 
 	checkErr(err, "get recorder")
@@ -156,7 +153,7 @@ func recorderUpdate(c *cli.Context) error {
 
 	recorder, err := client.RecorderGet(&metav1.ObjectMeta{
 		Name: recName,
-		Namespace: "default",	// TODO
+		Namespace: "default",
 	})
 
 	updated := false
@@ -216,7 +213,7 @@ func recorderDelete(c *cli.Context) error {
 		log.Fatal("Need name of recorder to delete, use --name")
 	}
 
-	recNs := c.String("recorderns") // TODO: Namespace flag consistency with other commands
+	recNs := c.String("recorderns")
 
 	err := client.RecorderDelete(&metav1.ObjectMeta{
 		Name: recName,
@@ -231,7 +228,6 @@ func recorderDelete(c *cli.Context) error {
 
 func recorderList(c *cli.Context) error {
 	client := getClient(c.GlobalString("server"))
-	// TODO: Namespace
 
 	recorders, err := client.RecorderList("default")
 	checkErr(err, "list recorders")

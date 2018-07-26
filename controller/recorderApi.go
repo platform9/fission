@@ -28,12 +28,7 @@ import (
 )
 
 func (a *API) RecorderApiList(w http.ResponseWriter, r*http.Request) {
-	ns := a.extractQueryParamFromRequest(r, "namespace")
-	if len(ns) == 0 {
-		ns = metav1.NamespaceAll
-	}
-
-	recorders, err := a.fissionClient.Recorders(ns).List(metav1.ListOptions{})
+	recorders, err := a.fissionClient.Recorders(metav1.NamespaceAll).List(metav1.ListOptions{})
 	if err != nil {
 		a.respondWithError(w, err)
 		return
@@ -62,15 +57,6 @@ func (a *API) RecorderApiCreate(w http.ResponseWriter, r*http.Request) {
 		a.respondWithError(w, err)
 		return
 	}
-
-	// check if namespace exists, if not create it.
-	/*
-	err = a.createNsIfNotExists(mqTrigger.Metadata.Namespace)
-	if err != nil {
-		a.respondWithError(w, err)
-		return
-	}
-	*/
 
 	tnew, err := a.fissionClient.Recorders("default").Create(&recorder)
 	if err != nil {

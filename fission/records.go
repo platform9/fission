@@ -32,7 +32,7 @@ func recordsView(c *cli.Context) error {
 	if len(trigger) != 0 {
 		return recordsByTrigger(trigger, verbosity, c)
 	}
-	if len(from) != 0 {
+	if len(from) != 0 && len(to) != 0 {
 		return recordsByTime(from, to, verbosity, c)
 	}
 	err := recordsAll(verbosity, c)

@@ -197,7 +197,6 @@ func main() {
 		{Name: "list", Usage: "List message queue triggers", Flags: []cli.Flag{mqtMQTypeFlag, triggerNamespaceFlag}, Action: mqtList},
 	}
 
-	// TODO: Namespace flag?
 	// Recorders
 	recNameFlag := cli.StringFlag{Name: "name", Usage: "Recorder name"}
 	recFnFlag := cli.StringFlag{Name: "function", Usage: "Record Function name(s)"}

@@ -35,20 +35,9 @@ func EndRecord(triggerName string, recorderName string, reqUID string, request *
 	if len(reqUID) == 0 {
 		return
 	}
-	//replayed := request.Header.Get("X-Fission-Replayed")
-
-	log.Info("EndRecord: URL > ", originalUrl.String(), " with body: ", payload)
-
-	//if replayed == "true" {
-	//	log.Info("This was a replayed request.")
-	//	return
-	//}
 
 	fullPath := originalUrl.String()
-
 	escPayload := string(json.RawMessage(payload))
-
-	log.Info("Escaped payload parsed: ", escPayload, " and FullPath > ", fullPath)
 
 	client := NewClient()
 

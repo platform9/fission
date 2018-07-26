@@ -114,7 +114,11 @@ func (rc *recorderClient) List(opts metav1.ListOptions) (*RecorderList, error) {
 	return &result, nil
 }
 
-// TODO: Implement this.
 func (rc *recorderClient) Watch(opts metav1.ListOptions) (watch.Interface, error) {
-	return nil, nil
+	return rc.client.Get().
+		Prefix("watch").
+		Namespace(rc.namespace).
+		Resource("recorder").
+		VersionedParams(&opts, scheme.ParameterCodec).
+		Watch()
 }

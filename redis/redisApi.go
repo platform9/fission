@@ -54,7 +54,7 @@ func RecordsListAll() ([]byte, error) {
 }
 
 // Input: `from` (hours ago, between 0 [today] and 5) and `to` (same units)
-// TODO: End range (validate as well)
+// TODO: Validate range
 // Note: Fractional values don't seem to work -- document that for the user
 func RecordsFilterByTime(from string, to string) ([]byte, error) {
 	rangeStart, rangeEnd, err := obtainInterval(from, to)

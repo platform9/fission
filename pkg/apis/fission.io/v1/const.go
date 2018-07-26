@@ -69,11 +69,6 @@ const (
 )
 
 const (
-	RecorderBackendTypeRedis = "redis"
-	RecorderBackendTypeMongoDB = "mongoDB"
-)
-
-const (
 	// FunctionReferenceFunctionName means that the function
 	// reference is simply by function name.
 	FunctionReferenceTypeFunctionName = "name"

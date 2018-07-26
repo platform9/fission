@@ -38,8 +38,8 @@ func MakeRecorderSet(parent *HTTPTriggerSet, crdClient *rest.RESTClient) (*Recor
 }
 
 func (rs *RecorderSet) initRecorderController() (k8sCache.Store, k8sCache.Controller) {
-	resyncPeriod := 100 * time.Second
-	//resyncPeriod := 0 * time.Second
+	resyncPeriod := 45 * time.Second
+
 	listWatch := k8sCache.NewListWatchFromClient(rs.crdClient, "recorders", metav1.NamespaceAll, fields.Everything())
 	store, controller := k8sCache.NewInformer(listWatch, &crd.Recorder{}, resyncPeriod,
 		k8sCache.ResourceEventHandlerFuncs{
@@ -97,9 +97,6 @@ func (rs *RecorderSet) newRecorder(r *crd.Recorder) {
 	// TODO: Should we force a reset here? If this is renabling a disabled recorder, we have to
 	// Reset doRecord
 	rs.parent.mutableRouter.updateRouter(rs.parent.getRouter())
-
-	//log.Info("See updated trigger map: ", keys(rs.triggerRecorderMap))
-	//log.Info("See updated function map: ", keys(rs.functionRecorderMap))
 }
 
 // TODO: Delete or disable?
@@ -118,7 +115,6 @@ func (rs *RecorderSet) disableRecorder(r *crd.Recorder) {
 	if len(triggers) != 0 {
 		for _, trigger := range triggers {
 			delete(rs.triggerRecorderMap, trigger)
-			// rs.triggerRecorderMap[trigger.Name] = nil
 		}
 	}
 
@@ -132,12 +128,6 @@ func (rs *RecorderSet) disableRecorder(r *crd.Recorder) {
 
 	// Reset doRecord
 	rs.parent.mutableRouter.updateRouter(rs.parent.getRouter())
-
-	//log.Info("See updated trigger map: ", keys(rs.triggerRecorderMap))
-	//log.Info("See updated function map: ", keys(rs.functionRecorderMap))
-
-	//log.Info("See updated trigger map: ", keys(rs.triggerRecorderMap))
-	//log.Info("See updated function map: ", keys(rs.functionRecorderMap))
 }
 
 func (rs *RecorderSet) updateRecorder(old *crd.Recorder, newer *crd.Recorder) {

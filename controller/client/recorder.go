@@ -30,11 +30,10 @@ import (
 )
 
 func (c *Client) RecorderCreate(r *crd.Recorder) (*metav1.ObjectMeta, error) {
-	//err := r.Validate()
-	// log.Info("This is the validation err: %v", err)
-	//if err != nil {
-	//	return nil, fv1.AggregateValidationErrors("Recorder", err)
-	//}
+	err := r.Validate()
+	if err != nil {
+		return nil, fv1.AggregateValidationErrors("Recorder", err)
+	}
 
 	reqbody, err := json.Marshal(r)
 	if err != nil {
@@ -127,11 +126,7 @@ func (c *Client) RecorderDelete(m *metav1.ObjectMeta) error {
 
 func (c *Client) RecorderList(ns string) ([]crd.Recorder, error) {
 	relativeUrl := "recorders"
-	/*
-	if len(backendType) > 0 {
-		relativeUrl += fmt.Sprintf("?backendtype=%v&namespace=%v", backendType, ns)
-	}
-	*/
+
 	resp, err := http.Get(c.url(relativeUrl))
 	if err != nil {
 		return nil, err
@@ -178,7 +173,6 @@ func (c *Client) RecordsByFunction(function string) ([]*redisCache.RecordedEntry
 	return records, nil
 }
 
-//func (c *Client) RecordsAll() ([]string, error) {
 func (c *Client) RecordsAll() ([]*redisCache.RecordedEntry, error) {
 	relativeUrl := "records"
 
@@ -193,8 +187,6 @@ func (c *Client) RecordsAll() ([]*redisCache.RecordedEntry, error) {
 		return nil, err
 	}
 
-	//records := make([]string, 0)
-	// Does this work?
 	records := make([]*redisCache.RecordedEntry, 0)
 	err = json.Unmarshal(body, &records)
 	if err != nil {
