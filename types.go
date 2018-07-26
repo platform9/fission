@@ -42,7 +42,6 @@ type (
 	ExecutionStrategy            = fv1.ExecutionStrategy
 	FunctionReferenceType        = fv1.FunctionReferenceType
 	FunctionReference            = fv1.FunctionReference
-	TriggerReference             = fv1.TriggerReference
 	Runtime                      = fv1.Runtime
 	Builder                      = fv1.Builder
 	EnvironmentSpec              = fv1.EnvironmentSpec

@@ -27,8 +27,6 @@ import (
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
-	"github.com/fission/fission/pkg/apis/fission.io/v1"
-
 	"strings"
 )
 
@@ -59,21 +57,12 @@ func recorderCreate(c *cli.Context) error {
 	}
 
 	// TODO: Validate here or elsewhere that all triggers belong to the same namespace
-	// TODO: Use strings to store function/triggers (name only) or another custom type (that includes the namespace)?
 
-	//var function v1.FunctionReference
-	//function = v1.FunctionReference{
-	//			Type: "name",
-	//			Name: fnName,
-	//		}
-
-	var triggers []v1.TriggerReference
+	var triggers []string
 	if len(triggersOriginal) != 0 {
 		ts := strings.Split(triggersOriginal[0], ",")
 		for _, name := range ts {
-			triggers = append(triggers, v1.TriggerReference{
-				Name: name,
-			})
+			triggers = append(triggers, name)
 		}
 	}
 	// TODO: Define appropriate set of policies and defaults
@@ -193,12 +182,10 @@ func recorderUpdate(c *cli.Context) error {
 	}
 
 	if len(triggers) > 0 {
-		var newTriggers []v1.TriggerReference
+		var newTriggers []string
 		triggs := strings.Split(triggers[0], ",")
 		for _, name := range triggs {
-			newTriggers = append(newTriggers, v1.TriggerReference{
-				Name: name,
-			})
+			newTriggers = append(newTriggers, name)
 		}
 		recorder.Spec.Triggers = newTriggers
 		updated = true

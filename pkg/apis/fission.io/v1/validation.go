@@ -338,14 +338,6 @@ func (ref FunctionReference) Validate() error {
 	return result.ErrorOrNil()
 }
 
-func (ref TriggerReference) Validate() error {
-	var result *multierror.Error
-	result = multierror.Append(result, ValidateKubeName("TriggerReference.Name", ref.Name))
-	// TODO: Remove debug line
-	//log.Info("In TriggerReference, validating %v, result: %v", ref.Name, result)
-	return result.ErrorOrNil()
-}
-
 func (runtime Runtime) Validate() error {
 	var result *multierror.Error
 
@@ -462,9 +454,10 @@ func (spec RecorderSpec) Validate() error {
 	//	result = multierror.Append(result, spec.Function.Validate())
 	//}
 
-	for _, triggerRef := range spec.Triggers {
-		result = multierror.Append(result, triggerRef.Validate())
-	}
+	// TODO: Triggers validation
+	//for _, trigger := range spec.Triggers {
+	//	result = multierror.Append(result, trigger.Validate())
+	//}
 
 	if len(spec.Name) == 0 {
 		result = multierror.Append(result, MakeValidationErr(ErrorInvalidValue, "RecorderSpec.Name", spec.Name, "not a valid name"))

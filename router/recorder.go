@@ -90,7 +90,7 @@ func (rs *RecorderSet) newRecorder(r *crd.Recorder) {
 	} else {
 		// Only record for the explicitly added triggers otherwise
 		for _, trigger := range triggers {
-			rs.triggerRecorderMap[trigger.Name] = r
+			rs.triggerRecorderMap[trigger] = r
 		}
 	}
 
@@ -117,7 +117,7 @@ func (rs *RecorderSet) disableRecorder(r *crd.Recorder) {
 	// Account for explicitly added triggers
 	if len(triggers) != 0 {
 		for _, trigger := range triggers {
-			delete(rs.triggerRecorderMap, trigger.Name)
+			delete(rs.triggerRecorderMap, trigger)
 			// rs.triggerRecorderMap[trigger.Name] = nil
 		}
 	}

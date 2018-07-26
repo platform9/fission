@@ -290,13 +290,6 @@ type (
 		FunctionReference FunctionReference `json:"functionref"`
 	}
 
-	// TODO: Is this needed?
-	TriggerReference struct {
-		Type 	  string `json:"type"`
-		Name      string `json:"name"`
-	}
-
-
 	KubernetesWatchTriggerSpec struct {
 		Namespace         string            `json:"namespace"`
 		Type              string            `json:"type"`
@@ -318,11 +311,11 @@ type (
 		ContentType       string            `json:"contentType"`
 	}
 
-	// RecorderSpec defines ...
+	// RecorderSpec defines a recorder
 	RecorderSpec struct {
 		Name              string
 		Function          string
-		Triggers          []TriggerReference
+		Triggers          []string
 		RetentionPolicy   string
 		EvictionPolicy    string
 		Enabled           bool
