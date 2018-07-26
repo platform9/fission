@@ -49,6 +49,8 @@ type tsRoundTripperParams struct {
 
 type functionHandler struct {
 	fmap                 *functionServiceMap
+	frmap                *functionRecorderMap
+	trmap                *triggerRecorderMap
 	executor             *executorClient.Client
 	function             *metav1.ObjectMeta
 	httpTrigger          *crd.HTTPTrigger

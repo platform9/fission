@@ -13,9 +13,6 @@ import (
 type RecorderSet struct {
 	parent *HTTPTriggerSet
 
-	functionRecorderMap map[string]*crd.Recorder
-	triggerRecorderMap  map[string]*crd.Recorder
-
 	crdClient *rest.RESTClient
 
 	recorders     []crd.Recorder
@@ -27,8 +24,6 @@ func MakeRecorderSet(parent *HTTPTriggerSet, crdClient *rest.RESTClient) (*Recor
 	var rStore k8sCache.Store
 	recorderSet := &RecorderSet{
 		parent:              parent,
-		functionRecorderMap: make(map[string]*crd.Recorder),
-		triggerRecorderMap:  make(map[string]*crd.Recorder),
 		crdClient:           crdClient,
 		recorders:           []crd.Recorder{},
 		recStore:            rStore,
@@ -74,23 +69,22 @@ func (rs *RecorderSet) newRecorder(r *crd.Recorder) {
 
 	log.Info("Creating/enabling recorder ! Need to track implicit triggers? ", needTrack)
 
-	rs.functionRecorderMap[function] = r
+	rs.parent.functionRecorderMap.assign(function, r)
+
 	if needTrack {
 		trackFunction[function] = true
 	}
 
-	// Account for implicitly added triggers
 	if needTrack {
 		for _, t := range rs.parent.triggerStore.List() {
 			trigger := *t.(*crd.HTTPTrigger)
 			if trackFunction[trigger.Spec.FunctionReference.Name] {
-				rs.triggerRecorderMap[trigger.Metadata.Name] = r
+				rs.parent.triggerRecorderMap.assign(trigger.Metadata.Name, r)
 			}
 		}
 	} else {
-		// Only record for the explicitly added triggers otherwise
 		for _, trigger := range triggers {
-			rs.triggerRecorderMap[trigger] = r
+			rs.parent.triggerRecorderMap.assign(trigger, r)
 		}
 	}
 
@@ -107,14 +101,19 @@ func (rs *RecorderSet) disableRecorder(r *crd.Recorder) {
 	log.Info("Disabling recorder!")
 
 	// Account for function
-	delete(rs.functionRecorderMap, function)
-
-	log.Info("Disable recorder !")
+	err := rs.parent.functionRecorderMap.remove(function)
+	if err != nil {
+		log.Error("Unable to disable recorder")
+	}
 
 	// Account for explicitly added triggers
 	if len(triggers) != 0 {
 		for _, trigger := range triggers {
-			delete(rs.triggerRecorderMap, trigger)
+			//delete(rs.triggerRecorderMap, trigger)
+			err := rs.parent.triggerRecorderMap.remove(trigger)
+			if err != nil {
+				log.Error("Failed to remove trigger from triggerRecorderMap: ", err)
+			}
 		}
 	}
 
@@ -122,7 +121,10 @@ func (rs *RecorderSet) disableRecorder(r *crd.Recorder) {
 	for _, t := range rs.parent.triggerStore.List() {
 		trigger := *t.(*crd.HTTPTrigger)
 		if trigger.Spec.FunctionReference.Name == function {
-			delete(rs.triggerRecorderMap, trigger.Metadata.Name) // Use function defined for this purpose below?
+			err := rs.parent.triggerRecorderMap.remove(trigger.Metadata.Name)
+			if err != nil {
+				log.Error("Failed to remove trigger from triggerRecorderMap: ", err)
+			}
 		}
 	}
 
@@ -139,9 +141,15 @@ func (rs *RecorderSet) updateRecorder(old *crd.Recorder, newer *crd.Recorder) {
 }
 
 func (rs *RecorderSet) TriggerDeleted(trigger *crd.HTTPTrigger) {
-	delete(rs.triggerRecorderMap, trigger.Metadata.Name)
+	err := rs.parent.triggerRecorderMap.remove(trigger.Metadata.Name)
+	if err != nil {
+		log.Error("Failed to remove trigger from triggerRecorderMap: ", err)
+	}
 }
 
 func (rs *RecorderSet) FunctionDeleted(function *crd.Function) {
-	delete(rs.functionRecorderMap, function.Metadata.Name)
+	err := rs.parent.functionRecorderMap.remove(function.Metadata.Name)
+	if err != nil {
+		log.Error("Failed to remove function from functionRecorderMap: ", err)
+	}
 }
