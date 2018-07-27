@@ -218,7 +218,6 @@ func (ts *HTTPTriggerSet) initTriggerController() (k8sCache.Store, k8sCache.Cont
 				recorder, err := ts.recorderSet.functionRecorderMap.lookup(fnRef)
 				if err == nil && recorder != nil {
 					if len(recorder.Spec.Triggers) == 0 {
-						//ts.recorderSet.triggerRecorderMap[trigger.Metadata.Name] = recorder
 						ts.recorderSet.triggerRecorderMap.assign(trigger.Metadata.Name, recorder)
 					}
 				} else {
@@ -229,7 +228,7 @@ func (ts *HTTPTriggerSet) initTriggerController() (k8sCache.Store, k8sCache.Cont
 				ts.syncTriggers()
 				trigger := obj.(*crd.HTTPTrigger)
 				go deleteIngress(trigger, ts.kubeClient)
-				go ts.recorderSet.TriggerDeleted(trigger)
+				go ts.recorderSet.DeleteTriggerFromRecorderMap(trigger)
 			},
 			UpdateFunc: func(oldObj interface{}, newObj interface{}) {
 				oldTrigger := oldObj.(*crd.HTTPTrigger)
@@ -252,7 +251,7 @@ func (ts *HTTPTriggerSet) initFunctionController() (k8sCache.Store, k8sCache.Con
 			DeleteFunc: func(obj interface{}) {
 				function := obj.(*crd.Function)
 				ts.syncTriggers()
-				go ts.recorderSet.FunctionDeleted(function)
+				go ts.recorderSet.DeleteFunctionFromRecorderMap(function)
 			},
 			UpdateFunc: func(oldObj interface{}, newObj interface{}) {
 				fn := newObj.(*crd.Function)

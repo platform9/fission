@@ -209,14 +209,14 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 				go roundTripper.funcHandler.tapService(serviceUrl)
 			}
 
-			trigger := "" // TODO: Better default, test case
+			trigger := "" // TODO: Better default, test
 			if roundTripper.funcHandler.httpTrigger != nil {
 				trigger = roundTripper.funcHandler.httpTrigger.Metadata.Name
 			} else {
 				log.Println("No trigger attached.") // Wording?
 			}
 
-			// TODO: Stop recording -- find the correct placement for this
+			// TODO: Stop recording
 			redis.EndRecord(
 				trigger,
 				roundTripper.funcHandler.recorderName,
