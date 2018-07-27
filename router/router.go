@@ -127,7 +127,7 @@ func Start(port int, executorUrl string) {
 		log.Fatalf("Failed to parse max retry times: %v", err)
 	}
 
-	triggers, _, fnStore, _ := makeHTTPTriggerSet(fmap, frmap, trmap, fissionClient, kubeClient, executor, restClient,
+	triggers, _, fnStore := makeHTTPTriggerSet(fmap, frmap, trmap, fissionClient, kubeClient, executor, restClient,
 		&tsRoundTripperParams{
 			timeout:         timeout,
 			timeoutExponent: timeoutExponent,

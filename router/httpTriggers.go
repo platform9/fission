@@ -36,8 +36,6 @@ import (
 
 type HTTPTriggerSet struct {
 	*functionServiceMap
-	*functionRecorderMap
-	*triggerRecorderMap
 	*mutableRouter
 
 	fissionClient     *crd.FissionClient
@@ -52,17 +50,14 @@ type HTTPTriggerSet struct {
 	funcStore         k8sCache.Store
 	funcController    k8sCache.Controller
 	recorderSet       *RecorderSet
-	recorderStore     k8sCache.Store
 
 	tsRoundTripperParams *tsRoundTripperParams
 }
 
 func makeHTTPTriggerSet(fmap *functionServiceMap, frmap *functionRecorderMap, trmap *triggerRecorderMap, fissionClient *crd.FissionClient,
-	kubeClient *kubernetes.Clientset, executor *executorClient.Client, crdClient *rest.RESTClient, params *tsRoundTripperParams) (*HTTPTriggerSet, k8sCache.Store, k8sCache.Store, k8sCache.Store) {
+	kubeClient *kubernetes.Clientset, executor *executorClient.Client, crdClient *rest.RESTClient, params *tsRoundTripperParams) (*HTTPTriggerSet, k8sCache.Store, k8sCache.Store) {
 	httpTriggerSet := &HTTPTriggerSet{
 		functionServiceMap:   fmap,
-		functionRecorderMap:  frmap,
-		triggerRecorderMap:   trmap,
 		triggers:             []crd.HTTPTrigger{},
 		fissionClient:        fissionClient,
 		kubeClient:           kubeClient,
@@ -80,11 +75,10 @@ func makeHTTPTriggerSet(fmap *functionServiceMap, frmap *functionRecorderMap, tr
 		fnStore, fnController = httpTriggerSet.initFunctionController()
 		httpTriggerSet.funcStore = fnStore
 		httpTriggerSet.funcController = fnController
-		recorderSet, rStore = MakeRecorderSet(httpTriggerSet, crdClient)
+		recorderSet = MakeRecorderSet(httpTriggerSet, crdClient, rStore, frmap, trmap)
 		httpTriggerSet.recorderSet = recorderSet
-		httpTriggerSet.recorderStore = rStore
 	}
-	return httpTriggerSet, tStore, fnStore, rStore
+	return httpTriggerSet, tStore, fnStore
 }
 
 func (ts *HTTPTriggerSet) subscribeRouter(ctx context.Context, mr *mutableRouter, resolver *functionReferenceResolver) {
@@ -134,7 +128,7 @@ func (ts *HTTPTriggerSet) getRouter() *mux.Router {
 		}
 
 		var recorderName string
-		recorder, err := ts.triggerRecorderMap.lookup(trigger.Metadata.Name)
+		recorder, err := ts.recorderSet.triggerRecorderMap.lookup(trigger.Metadata.Name)
 		if err == nil && recorder != nil {
 			recorderName = recorder.Spec.Name
 		}
@@ -148,8 +142,8 @@ func (ts *HTTPTriggerSet) getRouter() *mux.Router {
 
 		fh := &functionHandler{
 			fmap:                 ts.functionServiceMap,
-			frmap:                ts.functionRecorderMap,
-			trmap:                ts.triggerRecorderMap,
+			frmap:                ts.recorderSet.functionRecorderMap,
+			trmap:                ts.recorderSet.triggerRecorderMap,
 			function:             rr.functionMetadata,
 			executor:             ts.executor,
 			httpTrigger:          &trigger,
@@ -183,15 +177,15 @@ func (ts *HTTPTriggerSet) getRouter() *mux.Router {
 		m := function.Metadata
 
 		var recorderName string
-		recorder, err := ts.functionRecorderMap.lookup(m.Name)
+		recorder, err := ts.recorderSet.functionRecorderMap.lookup(m.Name)
 		if err == nil && recorder != nil {
 			recorderName = recorder.Spec.Name
 		}
 
 		fh := &functionHandler{
 			fmap:                 ts.functionServiceMap,
-			frmap:                ts.functionRecorderMap,
-			trmap:                ts.triggerRecorderMap,
+			frmap:                ts.recorderSet.functionRecorderMap,
+			trmap:                ts.recorderSet.triggerRecorderMap,
 			function:             &m,
 			executor:             ts.executor,
 			tsRoundTripperParams: ts.tsRoundTripperParams,
@@ -221,11 +215,11 @@ func (ts *HTTPTriggerSet) initTriggerController() (k8sCache.Store, k8sCache.Cont
 				ts.syncTriggers()
 				// Check if this trigger's function needs to be recorded
 				fnRef := trigger.Spec.FunctionReference.Name
-				recorder, err := ts.functionRecorderMap.lookup(fnRef)
+				recorder, err := ts.recorderSet.functionRecorderMap.lookup(fnRef)
 				if err == nil && recorder != nil {
 					if len(recorder.Spec.Triggers) == 0 {
 						//ts.recorderSet.triggerRecorderMap[trigger.Metadata.Name] = recorder
-						ts.triggerRecorderMap.assign(trigger.Metadata.Name, recorder)
+						ts.recorderSet.triggerRecorderMap.assign(trigger.Metadata.Name, recorder)
 					}
 				} else {
 					log.Print("Unable to lookup function in functionRecorderMap")

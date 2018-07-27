@@ -58,6 +58,13 @@ func RecordsListAll() ([]byte, error) {
 // Note: Fractional values don't seem to work -- document that for the user
 func RecordsFilterByTime(from string, to string) ([]byte, error) {
 	rangeStart, rangeEnd, err := obtainInterval(from, to)
+
+	if rangeStart >= rangeEnd {
+		log.Error("invalid chronology")
+	}
+
+	log.Info("Interval inferred: ", rangeStart, rangeEnd)
+
 	if err != nil {
 		return []byte{}, err
 	}
@@ -288,7 +295,7 @@ func validateSplit(timeInput string) (int64, time.Duration, error) {
 	}
 }
 
-func obtainInterval(to string, from string) (int64, int64, error) {
+func obtainInterval(from string, to string) (int64, int64, error) {
 	fromMultiplier, fromUnit, err := validateSplit(from)
 	if err != nil {
 		return -1, -1, err
