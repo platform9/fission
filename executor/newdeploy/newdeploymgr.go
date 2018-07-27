@@ -616,7 +616,7 @@ func (deploy *NewDeploy) IsValid(fsvc *fscache.FuncSvc) bool {
 // idleObjectReaper reaps objects after certain idle time
 func (deploy *NewDeploy) idleObjectReaper() {
 
-	pollSleep := time.Duration(2 * time.Minute)
+	pollSleep := time.Duration(deploy.idlePodReapTime)
 	for {
 		time.Sleep(pollSleep)
 
@@ -641,6 +641,8 @@ func (deploy *NewDeploy) idleObjectReaper() {
 				continue
 			}
 
+			// For function with the environment that no longer exists, executor
+			// scales down the deployment as usual and prints log to notify user.
 			if _, ok := envList[fsvc.Environment.Metadata.UID]; !ok {
 				log.Printf("Environment %v for function %v no longer exists",
 					fsvc.Environment.Metadata.Name, fsvc.Name)

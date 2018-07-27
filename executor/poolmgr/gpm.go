@@ -32,8 +32,8 @@ import (
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
-	"github.com/fission/fission/executor/cleanup"
 	"github.com/fission/fission/executor/fscache"
+	"github.com/fission/fission/executor/reaper"
 )
 
 type requestType int
@@ -94,6 +94,7 @@ func MakeGenericPoolManager(
 	}
 	go gpm.service()
 	go gpm.eagerPoolCreator()
+	go gpm.idleObjectReaper(gpm.kubernetesClient, gpm.fissionClient, gpm.fsCache, gpm.idlePodReapTime)
 
 	if len(os.Getenv("ENABLE_ISTIO")) > 0 {
 		istio, err := strconv.ParseBool(os.Getenv("ENABLE_ISTIO"))
@@ -114,7 +115,6 @@ func MakeGenericPoolManager(
 func (gpm *GenericPoolManager) Run(ctx context.Context) {
 	go gpm.funcController.Run(ctx.Done())
 	go gpm.pkgController.Run(ctx.Done())
-	go gpm.idleObjectReaper(gpm.kubernetesClient, gpm.fissionClient, gpm.fsCache, gpm.idlePodReapTime)
 }
 
 func (gpm *GenericPoolManager) service() {
@@ -255,7 +255,7 @@ func (gpm *GenericPoolManager) idleObjectReaper(kubeClient *kubernetes.Clientset
 	fsCache *fscache.FunctionServiceCache,
 	idlePodReapTime time.Duration) {
 
-	pollSleep := time.Duration(2 * time.Minute)
+	pollSleep := time.Duration(gpm.idlePodReapTime)
 	for {
 		time.Sleep(pollSleep)
 
@@ -280,6 +280,8 @@ func (gpm *GenericPoolManager) idleObjectReaper(kubeClient *kubernetes.Clientset
 				continue
 			}
 
+			// For function with the environment that no longer exists, executor
+			// cleanups the idle pod as usual and prints log to notify user.
 			if _, ok := envList[fsvc.Environment.Metadata.UID]; !ok {
 				log.Printf("Environment %v for function %v no longer exists",
 					fsvc.Environment.Metadata.Name, fsvc.Name)
@@ -299,7 +301,7 @@ func (gpm *GenericPoolManager) idleObjectReaper(kubeClient *kubernetes.Clientset
 			}
 
 			for _, kubeobj := range fsvc.KubernetesObjects {
-				cleanup.DeleteKubeObject(kubeClient, &kubeobj)
+				reaper.CleanupKubeObject(kubeClient, &kubeobj)
 			}
 		}
 	}

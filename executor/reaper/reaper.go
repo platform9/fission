@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cleanup
+package reaper
 
 import (
 	"fmt"
@@ -35,15 +35,15 @@ var (
 	delOpt            = meta_v1.DeleteOptions{PropagationPolicy: &deletePropagation}
 )
 
-// CleanupObjects cleans up resources created by old executortype instances
-func CleanupObjects(kubernetesClient *kubernetes.Clientset,
+// CleanupOldExecutorObjects cleans up resources created by old executor instances
+func CleanupOldExecutorObjects(kubernetesClient *kubernetes.Clientset,
 	namespace string,
 	instanceId string) {
 	go func() {
 		err := cleanup(kubernetesClient, namespace, instanceId)
 		if err != nil {
-			// TODO retry cleanup; logged and ignored for now
-			log.Printf("Failed to cleanup: %v", err)
+			// TODO retry reaper; logged and ignored for now
+			log.Printf("Failed to reaper: %v", err)
 		}
 	}()
 }
@@ -83,8 +83,8 @@ func cleanup(client *kubernetes.Clientset, namespace string, instanceId string) 
 	return nil
 }
 
-// DeleteKubeObject deletes given kubernetes object
-func DeleteKubeObject(kubeClient *kubernetes.Clientset, kubeobj *apiv1.ObjectReference) {
+// CleanupKubeObject deletes given kubernetes object
+func CleanupKubeObject(kubeClient *kubernetes.Clientset, kubeobj *apiv1.ObjectReference) {
 	switch strings.ToLower(kubeobj.Kind) {
 	case "pod":
 		err := kubeClient.CoreV1().Pods(kubeobj.Namespace).Delete(kubeobj.Name, nil)
@@ -329,7 +329,7 @@ func CleanupRoleBindings(client *kubernetes.Clientset, fissionClient *crd.Fissio
 			}
 		}
 
-		// some sleep before the next cleanup iteration
+		// some sleep before the next reaper iteration
 		time.Sleep(cleanupRoleBindingInterval)
 	}
 }
