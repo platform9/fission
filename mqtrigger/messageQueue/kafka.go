@@ -17,14 +17,15 @@ limitations under the License.
 package messageQueue
 
 import (
+	"io/ioutil"
+	"net/http"
+	"strings"
+
 	sarama "github.com/Shopify/sarama"
 	cluster "github.com/bsm/sarama-cluster"
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
 	log "github.com/sirupsen/logrus"
-	"io/ioutil"
-	"net/http"
-	"strings"
 )
 
 type (
@@ -110,7 +111,7 @@ func msgHandler1(kafka *Kafka, producer sarama.SyncProducer, trigger *crd.Messag
 			trigger.Spec.FunctionReference.Type, trigger.Metadata.Name)
 	}
 
-	url := kafka.routerUrl + "/" + strings.TrimPrefix(fission.UrlForFunction(trigger.Spec.FunctionReference.Name), "/")
+	url := kafka.routerUrl + "/" + strings.TrimPrefix(fission.UrlForFunction(trigger.Spec.FunctionReference.Name, "default"), "/")
 	log.Printf("Making HTTP request to %v", url)
 	headers := map[string]string{
 		"X-Fission-MQTrigger-Topic":     trigger.Spec.Topic,
