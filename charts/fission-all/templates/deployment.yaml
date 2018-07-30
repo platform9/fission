@@ -528,9 +528,8 @@ spec:
 #        args: ["proxy", "--port", "8001", "--address", "127.0.0.1"]
 #      serviceAccount: fission-svc
 
-
-{{- if .Values.messagequeues.nats.enabled }}
 ---
+{{- if .Values.nats.enabled }}
 {{- if eq .Values.messageQueue.type "nats-streaming" }}
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -598,8 +597,8 @@ spec:
         {{- end }}
       serviceAccount: fission-svc
 {{- end }}
-{{- if .Values.kafka.enabled }}
 ---
+{{- if .Values.kafka.enabled }}
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -624,7 +623,7 @@ spec:
         - name: MESSAGE_QUEUE_TYPE
           value: kafka
         - name: MESSAGE_QUEUE_URL
-          value: "{{.Values.messagequeues.kafka.brokers}}"
+          value: "{{.Values.kafka.brokers}}"
       serviceAccount: fission-svc
 {{- end }}
 ---

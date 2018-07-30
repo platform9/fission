@@ -50,7 +50,7 @@ func isTopicValidForKafka(topic string) bool {
 
 func (kafka Kafka) subscribe(trigger *crd.MessageQueueTrigger) (messageQueueSubscription, error) {
 	log.Infof("Inside kakfa subscribe", trigger)
-	log.Infof("borkers set to ", kafka.brokers)
+	log.Infof("brokers set to ", kafka.brokers)
 
 	// Create new consumer
 	consumerConfig := cluster.NewConfig()

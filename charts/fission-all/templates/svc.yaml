@@ -37,8 +37,8 @@ spec:
   selector:
     svc: controller
 
-{{- if .Values.messagequeues.nats.enabled }}
 ---
+{{- if .Values.nats.enabled }}
 {{- if eq .Values.messageQueue.type "nats-streaming" }}
 apiVersion: v1
 kind: Service
@@ -57,6 +57,7 @@ spec:
 {{ end }}
   selector:
     svc: nats-streaming
+{{- end }}
 {{- end }}
 ---
 apiVersion: v1

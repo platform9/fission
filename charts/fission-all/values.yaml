@@ -66,6 +66,9 @@ azureStorageQueue:
   key: ""
   accountName: ""
 
+kafka:
+  enabled: true
+  brokers: 'broker.kafka:9092'
 ## Persist data to a persistent volume.
 persistence:
   enabled: true
