@@ -164,6 +164,8 @@ func IsTopicValid(mqType MessageQueueType, topic string) bool {
 		return nsUtil.IsChannelNameValid(topic, false)
 	case MessageQueueTypeASQ:
 		return len(topic) >= 3 && len(topic) <= 63 && validAzureQueueName.MatchString(topic)
+	case MessageQueueTypeKafka:
+		return nsUtil.IsChannelNameValid(topic, false)
 	}
 	return false
 }
@@ -430,7 +432,7 @@ func (spec MessageQueueTriggerSpec) Validate() error {
 	result = multierror.Append(result, spec.FunctionReference.Validate())
 
 	switch spec.MessageQueueType {
-	case MessageQueueTypeNats, MessageQueueTypeASQ: // no op
+	case MessageQueueTypeNats, MessageQueueTypeASQ, MessageQueueTypeKafka: // no op
 	default:
 		result = multierror.Append(result, MakeValidationErr(ErrorUnsupportedType, "MessageQueueTriggerSpec.MessageQueueType", spec.MessageQueueType, "not a supported message queue type"))
 	}
