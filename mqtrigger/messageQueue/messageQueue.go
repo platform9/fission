@@ -20,12 +20,11 @@ import (
 	"errors"
 	"time"
 
+	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"github.com/fission/fission/crd"
 )
-
 
 const (
 	NATS  string = "nats-streaming"
@@ -228,8 +227,6 @@ func (mqt *MessageQueueTriggerManager) syncTriggers() {
 		time.Sleep(3 * time.Second)
 	}
 }
-<<<<<<< HEAD
-=======
 
 func IsTopicValid(mqType string, topic string) bool {
 	switch mqType {
@@ -240,4 +237,3 @@ func IsTopicValid(mqType string, topic string) bool {
 	}
 	return false
 }
->>>>>>> eb1bcf2... added support for kafka message queue

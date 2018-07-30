@@ -586,7 +586,6 @@ spec:
           value: {{ .Values.messageQueue.type }}
         {{- if eq .Values.messageQueue.type "nats-streaming" }}
         - name: MESSAGE_QUEUE_URL
-<<<<<<< HEAD
           value: nats://{{ .Values.nats.authToken }}@nats-streaming:4222
         {{- else if eq .Values.messageQueue.type "azure-storage-queue" }}
         - name: AZURE_STORAGE_ACCOUNT_NAME
@@ -597,12 +596,9 @@ spec:
               name: azure-storage-account-key
               key: key
         {{- end }}
-=======
-          value: nats://{{ .Values.messagequeues.nats.authToken }}@nats-streaming:4222
->>>>>>> f67af9f... Implement Kafka support based on work of @puneetguptanitj
       serviceAccount: fission-svc
 {{- end }}
-{{- if .Values.messagequeues.kafka.enabled }}
+{{- if .Values.kafka.enabled }}
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
