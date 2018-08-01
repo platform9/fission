@@ -6,6 +6,10 @@
     {
       "name": "Soam Vasani",
       "email": "soamvasani@platform9.com"
+    },
+    {
+      "name": "Gary Yeap",
+      "email": "contact@garyyeap.com"
     }
   ],
   "description": "NodeJS run container for the fission framework",
@@ -14,13 +18,10 @@
   },
   "dependencies": {
     "body-parser": "*",
-    "co": "~4.6.0",
     "express": "*",
     "minimist": "*",
     "morgan": "*",
-    "mz": "~2.7.0",
     "request": "^2.81.0",
-    "request-promise-native": "^1.0.3",
-    "underscore": ">=1.8.3"
+    "request-promise-native": "^1.0.3"
   }
 }
