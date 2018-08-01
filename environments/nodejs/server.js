@@ -7,36 +7,15 @@ const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
 const morgan = require('morgan');
+const argv = require('minimist')(process.argv.slice(1));// Command line opts
 
-// Command line opts
-const argv = require('minimist')(process.argv.slice(1));
-if (!argv.codepath) {
-    argv.codepath = "/userfunc/user";
-    console.log("Codepath defaulting to ", argv.codepath);
-}
 if (!argv.port) {
-    console.log("Port defaulting to 8888");
     argv.port = 8888;
 }
-
-
-// Node resolves module paths according to a file's location. We load
-// the file from argv.codepath, but tell users to put dependencies in
-// the server's package.json; this means the function's dependencies
-// are in /usr/src/app/node_modules.  We could be smarter and have the
-// function deps in the right place in argv.codepath; but for now we
-// just symlink the function's node_modules to the server's
-// node_modules.
-fs.symlinkSync('/usr/src/app/node_modules', `${path.dirname(argv.codepath)}/node_modules`);
 
 // User function.  Starts out undefined.
 let userFunction;
 
-//
-// Specialize this server to a given user function.  The user function
-// is read from argv.codepath; it's expected to be placed there by the
-// fission runtime.
-//
 function specialize(req, res) {
     // Make sure we're a generic container.  (No reuse of containers.
     // Once specialized, the container remains specialized.)
@@ -45,10 +24,34 @@ function specialize(req, res) {
         return;
     }
 
+    let modulepath;
+    // for V2 entrypoint, 'filename.funcname' => ['filename', 'funcname']
+    const funcname = req.body.functionName ? req.body.functionName.split('.') : [];
+    if (req.body.filepath) { // for V2, filepath is dynamic path
+        modulepath = path.join(req.body.filepath, funcname[0] || '');
+    } else { // v1
+        //
+        // Specialize this server to a given user function.  The user function
+        // is read from argv.codepath; it's expected to be placed there by the
+        // fission runtime.
+        //
+        modulepath = argv.codepath || '/userfunc/user';
+
+        // Node resolves module paths according to a file's location. We load
+        // the file from argv.codepath, but tell users to put dependencies in
+        // the server's package.json; this means the function's dependencies
+        // are in /usr/src/app/node_modules.  We could be smarter and have the
+        // function deps in the right place in argv.codepath; but for now we
+        // just symlink the function's node_modules to the server's
+        // node_modules.
+        fs.symlinkSync('/usr/src/app/node_modules', `${path.dirname(modulepath)}/node_modules`);
+    }
+
     // Read and load the code. It's placed there securely by the fission runtime.
     try {
         var startTime = process.hrtime();
-        userFunction = require(argv.codepath);
+        // support v1 codepath and v2 entrypoint like 'foo', '', 'index.hello'
+        userFunction = funcname[1] ? require(modulepath)[funcname[1]] : require(modulepath);
         var elapsed = process.hrtime(startTime);
         console.log(`user code loaded in ${elapsed[0]}sec ${elapsed[1]/1000000}ms`);
     } catch(e) {
@@ -69,6 +72,7 @@ app.use(bodyParser.raw());
 app.use(bodyParser.text({ type : "text/*" }));
 
 app.post('/specialize', specialize);
+app.post('/v2/specialize', specialize);
 
 // Generic route -- all http requests go to the user function.
 app.all('/', function (req, res) {
