@@ -22,7 +22,7 @@ type RecorderSet struct {
 	triggerRecorderMap  *triggerRecorderMap
 }
 
-func MakeRecorderSet(parent *HTTPTriggerSet, crdClient *rest.RESTClient, rStore k8sCache.Store, frmap *functionRecorderMap, trmap *triggerRecorderMap) (*RecorderSet) {
+func MakeRecorderSet(parent *HTTPTriggerSet, crdClient *rest.RESTClient, rStore k8sCache.Store, frmap *functionRecorderMap, trmap *triggerRecorderMap) *RecorderSet {
 	recorderSet := &RecorderSet{
 		triggerSet:          parent,
 		crdClient:           crdClient,
