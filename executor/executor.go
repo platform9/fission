@@ -17,6 +17,7 @@ limitations under the License.
 package executor
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"runtime/debug"
@@ -25,6 +26,7 @@ import (
 	"time"
 
 	"github.com/dchest/uniuri"
+	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -118,6 +120,12 @@ func (executor *Executor) serveCreateFuncServices() {
 
 				// get the function service from the cache
 				fsvc, err := executor.fsCache.GetByFunction(m)
+
+				// fsCache return error when the entry does not exist/expire.
+				// It normally happened if there are multiple requests are
+				// waiting for the same function and executor failed to cre-
+				// ate service for function.
+				err = errors.Wrap(err, fmt.Sprintf("Error getting service for function %v in namespace %v", m.Name, m.Namespace))
 				req.respChan <- &createFuncServiceResponse{
 					funcSvc: fsvc,
 					err:     err,
@@ -150,10 +158,12 @@ func (executor *Executor) createServiceForFunction(meta *metav1.ObjectMeta) (*fs
 		return nil, err
 	}
 
+	var fsvc *fscache.FuncSvc
+	var fsvcErr error
+
 	switch executorType {
 	case fission.ExecutorTypeNewdeploy:
-		fs, err := executor.ndm.GetFuncSvc(meta)
-		return fs, err
+		fsvc, fsvcErr = executor.ndm.GetFuncSvc(meta)
 	default:
 		pool, err := executor.gpm.GetPool(env)
 		if err != nil {
@@ -162,9 +172,15 @@ func (executor *Executor) createServiceForFunction(meta *metav1.ObjectMeta) (*fs
 		// from GenericPool -> get one function container
 		// (this also adds to the cache)
 		log.Printf("[%v] getting function service from pool", meta.Name)
-		fsvc, err := pool.GetFuncSvc(meta)
-		return fsvc, err
+		fsvc, fsvcErr = pool.GetFuncSvc(meta)
 	}
+
+	if fsvcErr != nil {
+		fsvcErr = errors.Wrap(fsvcErr, fmt.Sprintf("[%v] Error creating service for function", meta.Name))
+		log.Print(fsvcErr)
+	}
+
+	return fsvc, fsvcErr
 }
 
 func (executor *Executor) getFunctionEnv(m *metav1.ObjectMeta) (*crd.Environment, error) {

@@ -1,12 +1,13 @@
 package main
 
 import (
-	"go/vendordir/test"
 	"net/http"
+
+	"github.com/golang/example/stringutil"
 )
 
 // Handler is the entry point for this fission function
 func Handler(w http.ResponseWriter, r *http.Request) {
-	msg := test.Test()
+	msg := stringutil.Reverse(stringutil.Reverse("Vendor Example Test"))
 	w.Write([]byte(msg))
 }

@@ -8,7 +8,7 @@ Fission's builder can be used to create the binary artifact from source code. Cr
 
 ```
 $ zip -r java-src-pkg.zip *
-$ fission env create --name java --image fission/jvm-env --version 2 --keeparchive --builder fission/jvm-env-builder
+$ fission env create --name java --image fission/jvm-env --version 2 --keeparchive --builder fission/jvm-builder
 $ fission package create --sourcearchive java-src-pkg.zip --env java
 java-src-pkg-zip-tvd0
 $ fission package info --name java-src-pkg-zip-tvd0

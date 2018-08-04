@@ -1,4 +1,8 @@
 package: github.com/fission/fission
+excludeDirs:
+- examples
+- hack
+- test
 import:
 - package: github.com/sirupsen/logrus
   version: 68cec9f21fbf3ea8d8f98c044bc6ce05f17b267a

@@ -1,0 +1,8 @@
+version: v1beta2
+containers:
+- name: outyet
+  image: adg1/outyet
+  ports:
+  - name: http
+    hostPort: 80
+    containerPort: 8080
