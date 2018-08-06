@@ -2,7 +2,6 @@ package redis
 
 import (
 	"encoding/json"
-	"errors"
 	"github.com/fission/fission/crd"
 	"github.com/fission/fission/redis/build/gen"
 	"github.com/golang/protobuf/proto"
@@ -267,50 +266,22 @@ func deserializeReqResponse(value []byte, reqUID string) (*redisCache.RecordedEn
 	return transformed, nil
 }
 
-// Validates that time input follows formatting rules. Should be similar to 90h, 18s, 1d, etc.
-func validateSplit(timeInput string) (int64, time.Duration, error) {
-	num := timeInput[0 : len(timeInput)-1]
-	unit := string(timeInput[len(timeInput)-1:])
-
-	num2, err := strconv.Atoi(num)
-	if err != nil {
-		return -1, time.Hour, errors.New("unsupported time format; use digits and choose unit from " +
-			"one of [s, m, h, d] for seconds, minutes, hours, and days respectively, example 90s") // Return nil time struct?
-	}
-
-	num3 := int64(num2)
-
-	switch unit {
-	case "s":
-		return num3, time.Second, nil
-	case "m":
-		return num3, time.Minute, nil
-	case "h":
-		return num3, time.Hour, nil
-	case "d":
-		return num3, 24 * time.Hour, nil
-	default:
-		log.Info("Failed to default.")
-		return -1, time.Hour, errors.New("invalid time unit") //TODO: Think of this case
-	}
-}
-
 func obtainInterval(from string, to string) (int64, int64, error) {
-	fromMultiplier, fromUnit, err := validateSplit(from)
-	if err != nil {
-		return -1, -1, err
-	}
-
-	toMultiplier, toUnit, err := validateSplit(to)
-	if err != nil {
-		return -1, -1, err
-	}
-
 	now := time.Now()
-	then := now.Add(time.Duration(-fromMultiplier) * fromUnit) // Start search interval
+	parsedFrom, err := time.ParseDuration(from)
+	if err != nil {
+		return -1, -1, err
+	}
+
+	parsedTo, err := time.ParseDuration(to)
+	if err != nil {
+		return -1, -1, err
+	}
+
+	then := now.Add(-1 * parsedFrom) // Start search interval
 	rangeStart := then.UnixNano()
 
-	until := now.Add(time.Duration(-toMultiplier) * toUnit) // End search interval
+	until := now.Add(-1 * parsedTo) // End search interval
 	rangeEnd := until.UnixNano()
 
 	return rangeStart, rangeEnd, nil
