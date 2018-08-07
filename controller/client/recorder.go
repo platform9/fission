@@ -61,7 +61,6 @@ func (c *Client) RecorderCreate(r *crd.Recorder) (*metav1.ObjectMeta, error) {
 }
 
 func (c *Client) RecorderGet(m *metav1.ObjectMeta) (*crd.Recorder, error) {
-	// TODO: What urls should be used here?
 	relativeUrl := fmt.Sprintf("recorders/%v", m.Name)
 	relativeUrl += fmt.Sprintf("?namespace=%v", m.Namespace)
 
@@ -147,8 +146,7 @@ func (c *Client) RecorderList(ns string) ([]crd.Recorder, error) {
 
 // TODO: Move to different file?
 func (c *Client) RecordsByFunction(function string) ([]*redisCache.RecordedEntry, error) {
-	relativeUrl := "records/function/"
-	relativeUrl += fmt.Sprintf(function)
+	relativeUrl := fmt.Sprintf("records/function/%v", function)
 
 	resp, err := http.Get(c.url(relativeUrl))
 	if err != nil {
@@ -194,8 +192,7 @@ func (c *Client) RecordsAll() ([]*redisCache.RecordedEntry, error) {
 }
 
 func (c *Client) RecordsByTrigger(trigger string) ([]*redisCache.RecordedEntry, error) {
-	relativeUrl := "records/trigger/"
-	relativeUrl += fmt.Sprintf(trigger)
+	relativeUrl := fmt.Sprintf("records/trigger/%v", trigger)
 
 	resp, err := http.Get(c.url(relativeUrl))
 	if err != nil {

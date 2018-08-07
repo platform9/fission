@@ -55,18 +55,13 @@ func RecordsListAll() ([]byte, error) {
 }
 
 // Input: `from` (hours ago, between 0 [today] and 5) and `to` (same units)
-// TODO: Validate range
 // Note: Fractional values don't seem to work -- document that for the user
 func RecordsFilterByTime(from string, to string) ([]byte, error) {
 	rangeStart, rangeEnd, err := obtainInterval(from, to)
+	log.Debug("Interval inferred: ", rangeStart, rangeEnd)
 
 	if rangeStart >= rangeEnd {
-		log.Error("invalid chronology")
-	}
-
-	log.Info("Interval inferred: ", rangeStart, rangeEnd)
-
-	if err != nil {
+		log.Error("Invalid chronology")
 		return []byte{}, err
 	}
 

@@ -19,8 +19,7 @@ package crd
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
-	//"k8s.io/client-go/kubernetes/scheme"
-	log "github.com/sirupsen/logrus"
+
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 )
@@ -107,7 +106,6 @@ func (rc *recorderClient) List(opts metav1.ListOptions) (*RecorderList, error) {
 		Do().
 		Into(&result)
 	if err != nil {
-		log.Info("Issue in CRD file")
 		return nil, err
 	}
 	return &result, nil
@@ -117,7 +115,7 @@ func (rc *recorderClient) Watch(opts metav1.ListOptions) (watch.Interface, error
 	return rc.client.Get().
 		Prefix("watch").
 		Namespace(rc.namespace).
-		Resource("recorder").
+		Resource("recorders").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Watch()
 }

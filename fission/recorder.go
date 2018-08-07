@@ -1,5 +1,5 @@
 /*
-Copyrigtt 2017 The Fission Authors.
+Copyright 2018 The Fission Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,28 +18,21 @@ package main
 
 import (
 	"fmt"
-	"github.com/satori/go.uuid"
-	"github.com/urfave/cli"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"log"
 	"os"
+	"strings"
 	"text/tabwriter"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/satori/go.uuid"
+	"github.com/urfave/cli"
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
-	"strings"
 )
 
 func recorderCreate(c *cli.Context) error {
 	client := getClient(c.GlobalString("server"))
-
-	enable := c.Bool("enable")
-	disable := c.Bool("disable")
-
-	// There is no point in creating a disabled recorder
-	if enable || disable {
-		log.Fatal("Newly created recorders will be enabled, to disable an existing recorder use `recorder update` instead")
-	}
 
 	recName := c.String("name")
 	if len(recName) == 0 {
@@ -122,7 +115,6 @@ func recorderGet(c *cli.Context) error {
 	return nil
 }
 
-// TODO: Functions
 func recorderUpdate(c *cli.Context) error {
 	client := getClient(c.GlobalString("server"))
 

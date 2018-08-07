@@ -199,12 +199,12 @@ func main() {
 
 	// Recorders
 	recNameFlag := cli.StringFlag{Name: "name", Usage: "Recorder name"}
-	recFnFlag := cli.StringFlag{Name: "function", Usage: "Record Function name(s)"}
-	recTriggersFlag := cli.StringSliceFlag{Name: "trigger", Usage: "Record Trigger name(s)"}
+	recFnFlag := cli.StringFlag{Name: "function", Usage: "Record Function name(s): --function=fnA"}
+	recTriggersFlag := cli.StringSliceFlag{Name: "trigger", Usage: "Record Trigger name(s): --trigger=trigger1,trigger2,trigger3"}
 	recRetentionPolFlag := cli.StringFlag{Name: "retention", Usage: "Retention policy (number of days)"}
 	recEvictionPolFlag := cli.StringFlag{Name: "eviction", Usage: "Eviction policy (default LRU)"}
-	recEnabled := cli.BoolFlag{Name: "enable", Usage: "Recorder enable"}
-	recDisabled := cli.BoolFlag{Name: "disable", Usage: "Recorder disable"}
+	recEnabled := cli.BoolFlag{Name: "enable", Usage: "Enable recorder"}
+	recDisabled := cli.BoolFlag{Name: "disable", Usage: "Disable recorder"}
 	recSubcommands := []cli.Command{
 		{Name: "create", Aliases: []string{"add"}, Usage: "Create recorder", Flags: []cli.Flag{recNameFlag, recFnFlag, recTriggersFlag, recRetentionPolFlag, recEvictionPolFlag, specSaveFlag}, Action: recorderCreate},
 		{Name: "get", Usage: "Get recorder", Flags: []cli.Flag{recNameFlag}, Action: recorderGet},

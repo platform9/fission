@@ -21,7 +21,6 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"github.com/gorilla/mux"
 
@@ -47,7 +46,6 @@ func (a *API) RecorderApiCreate(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
 
 	if err != nil {
-		log.Info("In RecoderApiCreate, error with ioutil.ReadAll") // TODO: Remove later
 		a.respondWithError(w, err)
 		return
 	}
@@ -55,7 +53,6 @@ func (a *API) RecorderApiCreate(w http.ResponseWriter, r *http.Request) {
 	var recorder crd.Recorder
 	err = json.Unmarshal(body, &recorder)
 	if err != nil {
-		log.Info("In RecoderApiCreate, error with json.Unmarshal")
 		a.respondWithError(w, err)
 		return
 	}
