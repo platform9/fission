@@ -31,16 +31,17 @@ function loadFunction(modulepath, funcname) {
     }
 }
 
-function withMakesureGeneric(_specialize) {
-    // Make sure we're a generic container.  (No reuse of containers.
-    // Once specialized, the container remains specialized.)
-    if (userFunction) {
-        return function () {
-          res.status(400).send("Not a generic container");
-        };
-    }
+function withMakesureGeneric(func) {
+    return function(req, res) {
+        // Make sure we're a generic container.  (No reuse of containers.
+        // Once specialized, the container remains specialized.)
+        if (userFunction) {
+            res.status(400).send("Not a generic container");
+            return;
+        }
 
-    return _specialize;
+        func(req, res);
+    }
 }
 
 function specializeV2(req, res) {
