@@ -153,7 +153,6 @@ type (
 		Items []MessageQueueTrigger `json:"items"`
 	}
 
-	// TODO: Above comment
 	// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 	Recorder struct {
 		metav1.TypeMeta `json:",inline"`

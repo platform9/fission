@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Fission Authors.
+Copyright 2018 The Fission Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -58,7 +58,7 @@ func (a *API) RecorderApiCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tnew, err := a.fissionClient.Recorders("default").Create(&recorder)
+	tnew, err := a.fissionClient.Recorders(recorder.Metadata.Namespace).Create(&recorder)
 	if err != nil {
 		a.respondWithError(w, err)
 		return
