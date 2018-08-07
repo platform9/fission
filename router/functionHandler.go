@@ -44,7 +44,6 @@ type tsRoundTripperParams struct {
 	timeoutExponent int
 	keepAlive       time.Duration
 	maxRetries      int
-	reqUID          string
 }
 
 type functionHandler struct {
@@ -220,7 +219,7 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 			redis.Record(
 				trigger,
 				roundTripper.funcHandler.recorderName,
-				roundTripper.funcHandler.tsRoundTripperParams.reqUID, req, originalUrl, postedBody, resp, roundTripper.funcHandler.function.Namespace,
+				req.Header.Get("X-Fission-ReqUID"), req, originalUrl, postedBody, resp, roundTripper.funcHandler.function.Namespace,
 				time.Now().UnixNano(),
 			)
 
@@ -279,7 +278,7 @@ func (fh *functionHandler) handler(responseWriter http.ResponseWriter, request *
 		logrus.Info("Begin recording!")
 		UID := strings.ToLower(uuid.NewV4().String())
 		reqUID = "REQ" + UID
-		request.Header.Add("X-Fission-Recorder", reqUID)
+		request.Header.Add("X-Fission-ReqUID", reqUID)
 	} else {
 		logrus.Info("Don't begin recording.")
 	}
@@ -293,8 +292,6 @@ func (fh *functionHandler) handler(responseWriter http.ResponseWriter, request *
 			req.Header.Set("User-Agent", "")
 		}
 	}
-
-	fh.tsRoundTripperParams.reqUID = reqUID // If reqUID
 
 	proxy := &httputil.ReverseProxy{
 		Director: director,
