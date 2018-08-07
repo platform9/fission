@@ -217,7 +217,7 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 			}
 
 			// TODO: Stop recording
-			redis.EndRecord(
+			redis.Record(
 				trigger,
 				roundTripper.funcHandler.recorderName,
 				roundTripper.funcHandler.tsRoundTripperParams.reqUID, req, originalUrl, postedBody, resp, roundTripper.funcHandler.function.Namespace,

@@ -20,17 +20,19 @@ func NewClient() redis.Conn {
 	redisUrl := fmt.Sprintf("%s:%s", rd, rdport)
 
 	if len(redisUrl) == 0 {
-		log.Fatal("Could not reach Redis in cluster at IP ", redisUrl)
+		log.Error("Could not reach Redis in cluster at IP ", redisUrl)
+		return nil
 	}
 
 	c, err := redis.Dial("tcp", redisUrl)
 	if err != nil {
-		log.Fatalf("Could not connect to Redis: %v\n", err)
+		log.Error("Could not connect to Redis: %v\n", err)
+		return nil
 	}
 	return c
 }
 
-func EndRecord(triggerName string, recorderName string, reqUID string, request *http.Request, originalUrl url.URL, payload string, response *http.Response, namespace string, timestamp int64) {
+func Record(triggerName string, recorderName string, reqUID string, request *http.Request, originalUrl url.URL, payload string, response *http.Response, namespace string, timestamp int64) {
 	// Case where the function should not have been recorded
 	if len(reqUID) == 0 {
 		return
@@ -40,10 +42,13 @@ func EndRecord(triggerName string, recorderName string, reqUID string, request *
 	escPayload := string(json.RawMessage(payload))
 
 	client := NewClient()
+	if client == nil {
+		return
+	}
 
 	url := make(map[string]string)
 	url["Host"] = request.URL.Host
-	url["Path"] = fullPath // Previously originalUrl.String()	// Previously request.URL.Path
+	url["Path"] = fullPath
 	url["Payload"] = escPayload
 
 	header := make(map[string]string)
@@ -78,24 +83,24 @@ func EndRecord(triggerName string, recorderName string, reqUID string, request *
 	ureq := &redisCache.UniqueRequest{
 		Req:     req,
 		Resp:    resp,
-		Trigger: triggerName, // TODO: Why is this here when Trigger is set as a separate field?
+		Trigger: triggerName,
 	}
-
-	log.Info("Trying to record this UniqueRequest: ")
-	log.Info(ureq.String())
 
 	data, err := proto.Marshal(ureq)
 	if err != nil {
-		log.Fatal("Marshalling UniqueRequest error: ", err)
+		log.Error("Error marshalling request: ", err)
+		return
 	}
 
 	_, err = client.Do("HMSET", reqUID, "ReqResponse", data, "Timestamp", timestamp, "Trigger", triggerName)
 	if err != nil {
-		panic(err)
+		log.Error("Error saving request: ", err)
+		return
 	}
 
 	_, err = client.Do("LPUSH", recorderName, reqUID)
 	if err != nil {
-		panic(err)
+		log.Error("Error saving recorder-request pair: ", err)
+		return
 	}
 }
