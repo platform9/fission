@@ -15,8 +15,8 @@ import (
 )
 
 func NewClient() redis.Conn {
-	rd := os.Getenv("REDIS_PORT_6379_TCP_ADDR") // TODO: Do this here or somewhere earlier?
-	rdport := os.Getenv("REDIS_PORT_6379_TCP_PORT")
+	rd := os.Getenv("REDIS_SERVICE_HOST") // TODO: Do this here or somewhere earlier?
+	rdport := os.Getenv("REDIS_SERVICE_PORT")
 	redisUrl := fmt.Sprintf("%s:%s", rd, rdport)
 
 	if len(redisUrl) == 0 {

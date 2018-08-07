@@ -48,7 +48,6 @@ type (
 	API struct {
 		fissionClient     *crd.FissionClient
 		kubernetesClient  *kubernetes.Clientset
-		redisUrl          string
 		storageServiceUrl string
 		builderManagerUrl string
 		workflowApiUrl    string
@@ -92,12 +91,6 @@ func MakeAPI() (*API, error) {
 		api.functionNamespace = fnNs
 	} else {
 		api.functionNamespace = "fission-function"
-	}
-
-	rd := os.Getenv("REDIS_PORT_6379_TCP_ADDR")
-	rdport := os.Getenv("REDIS_PORT_6379_TCP_PORT")
-	if len(rd) > 0 && len(rdport) > 0 {
-		api.redisUrl = fmt.Sprintf("%s:%s", rd, rdport)
 	}
 
 	return api, err
