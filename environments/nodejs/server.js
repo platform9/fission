@@ -16,50 +16,63 @@ if (!argv.port) {
 // User function.  Starts out undefined.
 let userFunction;
 
-function specialize(req, res) {
-    // Make sure we're a generic container.  (No reuse of containers.
-    // Once specialized, the container remains specialized.)
-    if (userFunction) {
-        res.status(400).send("Not a generic container");
-        return;
-    }
-
-    let modulepath;
-    // for V2 entrypoint, 'filename.funcname' => ['filename', 'funcname']
-    const funcname = req.body.functionName ? req.body.functionName.split('.') : [];
-    if (req.body.filepath) { // for V2, filepath is dynamic path
-        modulepath = path.join(req.body.filepath, funcname[0] || '');
-    } else { // v1
-        //
-        // Specialize this server to a given user function.  The user function
-        // is read from argv.codepath; it's expected to be placed there by the
-        // fission runtime.
-        //
-        modulepath = argv.codepath || '/userfunc/user';
-
-        // Node resolves module paths according to a file's location. We load
-        // the file from argv.codepath, but tell users to put dependencies in
-        // the server's package.json; this means the function's dependencies
-        // are in /usr/src/app/node_modules.  We could be smarter and have the
-        // function deps in the right place in argv.codepath; but for now we
-        // just symlink the function's node_modules to the server's
-        // node_modules.
-        fs.symlinkSync('/usr/src/app/node_modules', `${path.dirname(modulepath)}/node_modules`);
-    }
-
+function loadFunction(modulepath, funcname) {
     // Read and load the code. It's placed there securely by the fission runtime.
     try {
         var startTime = process.hrtime();
         // support v1 codepath and v2 entrypoint like 'foo', '', 'index.hello'
-        userFunction = funcname[1] ? require(modulepath)[funcname[1]] : require(modulepath);
+        userFunction = funcname ? require(modulepath)[funcname] : require(modulepath);
         var elapsed = process.hrtime(startTime);
         console.log(`user code loaded in ${elapsed[0]}sec ${elapsed[1]/1000000}ms`);
+        return true;
     } catch(e) {
         console.error(`user code load error: ${e}`);
-        res.status(500).send(JSON.stringify(e));
-        return;
+        return false;
     }
-    res.status(202).send();
+}
+
+function withMakesureGeneric(_specialize) {
+    // Make sure we're a generic container.  (No reuse of containers.
+    // Once specialized, the container remains specialized.)
+    if (userFunction) {
+        return function () {
+          res.status(400).send("Not a generic container");
+        };
+    }
+
+    return _specialize;
+}
+
+function specializeV2(req, res) {
+    // for V2 entrypoint, 'filename.funcname' => ['filename', 'funcname']
+    const entrypoint = req.body.functionName ? req.body.functionName.split('.') : [];
+    // for V2, filepath is dynamic path
+    const modulepath = path.join(req.body.filepath, entrypoint[0] || '');
+
+    if(loadFunction(modulepath, entrypoint[1])){
+      res.status(202).send();
+    } else {
+      res.status(500).send(JSON.stringify(e));
+    }
+}
+
+function specialize(req, res) {
+    // Specialize this server to a given user function.  The user function
+    // is read from argv.codepath; it's expected to be placed there by the
+    // fission runtime.
+    //
+    const modulepath = argv.codepath || '/userfunc/user';
+
+    // Node resolves module paths according to a file's location. We load
+    // the file from argv.codepath, but tell users to put dependencies in
+    // the server's package.json; this means the function's dependencies
+    // are in /usr/src/app/node_modules.  We could be smarter and have the
+    // function deps in the right place in argv.codepath; b ut for now we
+    // just symlink the function's node_modules to the server's
+    // node_modules.
+    fs.symlinkSync('/usr/src/app/node_modules', `${path.dirname(modulepath)}/node_modules`);
+
+    loadFunction(modulepath);
 }
 
 
@@ -71,8 +84,8 @@ app.use(bodyParser.json());
 app.use(bodyParser.raw());
 app.use(bodyParser.text({ type : "text/*" }));
 
-app.post('/specialize', specialize);
-app.post('/v2/specialize', specialize);
+app.post('/specialize', withMakesureGeneric(specialize));
+app.post('/v2/specialize', withMakesureGeneric(specializeV2));
 
 // Generic route -- all http requests go to the user function.
 app.all('/', function (req, res) {
