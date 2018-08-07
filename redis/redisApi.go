@@ -2,14 +2,16 @@ package redis
 
 import (
 	"encoding/json"
-	"github.com/fission/fission/crd"
-	"github.com/fission/fission/redis/build/gen"
-	"github.com/golang/protobuf/proto"
-	"github.com/gomodule/redigo/redis"
-	log "github.com/sirupsen/logrus"
 	"strconv"
 	"strings"
 	"time"
+
+	log "github.com/sirupsen/logrus"
+	"github.com/golang/protobuf/proto"
+	"github.com/gomodule/redigo/redis"
+
+	"github.com/fission/fission/crd"
+	"github.com/fission/fission/redis/build/gen"
 )
 
 func RecordsListAll() ([]byte, error) {

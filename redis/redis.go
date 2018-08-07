@@ -1,17 +1,18 @@
 package redis
 
 import (
-	"net/http"
-
 	"encoding/json"
 	"fmt"
-	"github.com/fission/fission/redis/build/gen"
-	"github.com/golang/protobuf/proto"
-	"github.com/gomodule/redigo/redis"
-	log "github.com/sirupsen/logrus"
+	"net/http"
 	"net/url"
 	"os"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
+	"github.com/golang/protobuf/proto"
+	"github.com/gomodule/redigo/redis"
+
+	"github.com/fission/fission/redis/build/gen"
 )
 
 func NewClient() redis.Conn {

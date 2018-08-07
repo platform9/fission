@@ -18,13 +18,15 @@ package controller
 
 import (
 	"encoding/json"
+	"io/ioutil"
+	"net/http"
+
+	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/gorilla/mux"
+
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
-	"github.com/gorilla/mux"
-	log "github.com/sirupsen/logrus"
-	"io/ioutil"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"net/http"
 )
 
 func (a *API) RecorderApiList(w http.ResponseWriter, r *http.Request) {
