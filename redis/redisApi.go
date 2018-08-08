@@ -1,3 +1,19 @@
+/*
+Copyright 2018 The Fission Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package redis
 
 import (
@@ -33,11 +49,13 @@ func RecordsListAll() ([]byte, error) {
 			if strings.HasPrefix(key, "REQ") {
 				val, err := redis.Bytes(client.Do("HGET", key, "ReqResponse"))
 				if err != nil {
-					log.Fatal(err) // TODO: Fatal log or return err to be handled by caller?
+					log.Error("Error retrieving request from Redis: ", err)
+					return []byte{}, err
 				}
 				entry, err := deserializeReqResponse(val, key)
 				if err != nil {
-					log.Fatal(err)
+					log.Error("Error deserializing request: ", err)
+					return []byte{}, err
 				}
 				filtered = append(filtered, entry)
 			}
@@ -81,18 +99,25 @@ func RecordsFilterByTime(from string, to string) ([]byte, error) {
 			if strings.HasPrefix(key, "REQ") {
 				val, err := redis.Strings(client.Do("HMGET", key, "Timestamp"))
 				if err != nil {
-					log.Fatal(err)
+					log.Error("Error retrieving timestamp from Redis: ", err)
+					return []byte{}, err
 				}
-				tsO, _ := strconv.Atoi(val[0])
+				tsO, err := strconv.Atoi(val[0])
+				if err != nil {
+					log.Error("Error converting timestamp to int: ", err)
+					return []byte{}, err
+				}
 				ts := int64(tsO)
-				if ts > rangeStart && ts < rangeEnd {
+				if ts >= rangeStart && ts <= rangeEnd {
 					val2, err := redis.Bytes(client.Do("HGET", key, "ReqResponse"))
 					if err != nil {
-						log.Fatal(err)
+						log.Error("Error retrieving request from Redis: ", err)
+						return []byte{}, err
 					}
 					entry, err := deserializeReqResponse(val2, key)
 					if err != nil {
-						log.Fatal(err)
+						log.Error("Error deserializing request: ", err)
+						return []byte{}, err
 					}
 					filtered = append(filtered, entry)
 				}
@@ -111,24 +136,25 @@ func RecordsFilterByTime(from string, to string) ([]byte, error) {
 	return resp, nil
 }
 
-func RecordsFilterByTrigger(queried string, recorders *crd.RecorderList, triggers *crd.HTTPTriggerList) ([]byte, error) {
+func RecordsFilterByTrigger(queriedTriggerName string, recorders *crd.RecorderList, triggers *crd.HTTPTriggerList) ([]byte, error) {
 	matchingRecorders := make(map[string]bool)
 
 	// Implicit triggers:
 	// Sometimes triggers are not explicitly attached to recorders but we still want to be able to
-	// filter records by those triggers; we do so by identifying the functionReference the queried trigger has
+	// filter records by those triggers; we do so by identifying the functionReference the queriedTriggerName trigger has
 	// and finding recorder(s) for that function
 
 	var correspFunction string
 	for _, trigger := range triggers.Items {
-		if trigger.Metadata.Name == queried {
+		if trigger.Metadata.Name == queriedTriggerName {
 			correspFunction = trigger.Spec.FunctionReference.Name
+			break
 		}
 	}
 
 	for _, recorder := range recorders.Items {
 		if len(recorder.Spec.Triggers) > 0 {
-			if includesTrigger(recorder.Spec.Triggers, queried) {
+			if includesTrigger(recorder.Spec.Triggers, queriedTriggerName) {
 				matchingRecorders[recorder.Spec.Name] = true
 			}
 		}
@@ -136,8 +162,6 @@ func RecordsFilterByTrigger(queried string, recorders *crd.RecorderList, trigger
 			matchingRecorders[recorder.Spec.Name] = true
 		}
 	}
-
-	log.Info("Matching recorders: ", matchingRecorders)
 
 	client := NewClient()
 
@@ -153,17 +177,20 @@ func RecordsFilterByTrigger(queried string, recorders *crd.RecorderList, trigger
 		for _, reqUID := range val {
 			val, err := redis.Strings(client.Do("HMGET", reqUID, "Trigger")) // 1-to-1 reqUID - trigger?
 			if err != nil {
-				log.Fatal(err)
+				log.Error("Error retrieving trigger for a request from Redis: ", err)
+				return []byte{}, err
 			}
-			if val[0] == queried {
+			if val[0] == queriedTriggerName {
 				// TODO: Reconsider multiple commands
 				val, err := redis.Bytes(client.Do("HGET", reqUID, "ReqResponse"))
 				if err != nil {
-					log.Fatal(err)
+					log.Error("Error retrieving request from Redis: ", err)
+					return []byte{}, err
 				}
 				entry, err := deserializeReqResponse(val, reqUID)
 				if err != nil {
-					log.Fatal(err)
+					log.Error("Error deserializing request: ", err)
+					return []byte{}, err
 				}
 				filtered = append(filtered, entry)
 			}
@@ -177,7 +204,7 @@ func RecordsFilterByTrigger(queried string, recorders *crd.RecorderList, trigger
 	return resp, nil
 }
 
-func RecordsFilterByFunction(query string, recorders *crd.RecorderList, triggers *crd.HTTPTriggerList) ([]byte, error) {
+func RecordsFilterByFunction(queriedFunctionName string, recorders *crd.RecorderList, triggers *crd.HTTPTriggerList) ([]byte, error) {
 
 	// Implicit functions:
 	// Sometimes functions are not explicitly attached to recorders but we still want to be able to
@@ -192,21 +219,19 @@ func RecordsFilterByFunction(query string, recorders *crd.RecorderList, triggers
 	matchingRecorders := make(map[string]bool)
 
 	for _, recorder := range recorders.Items {
-		if len(recorder.Spec.Function) > 0 && recorder.Spec.Function == query {
+		if len(recorder.Spec.Function) > 0 && recorder.Spec.Function == queriedFunctionName {
 			matchingRecorders[recorder.Spec.Name] = true
 		} else {
 			for _, trigger := range recorder.Spec.Triggers {
 				validTrigger, ok := triggerMap[trigger]
 				if ok {
-					if validTrigger.Spec.FunctionReference.Name == query {
+					if validTrigger.Spec.FunctionReference.Name == queriedFunctionName {
 						matchingRecorders[recorder.Spec.Name] = true
 					}
 				}
 			}
 		}
 	}
-
-	log.Info("Matching recorders: ", matchingRecorders)
 
 	client := NewClient()
 
@@ -228,11 +253,13 @@ func RecordsFilterByFunction(query string, recorders *crd.RecorderList, triggers
 			if exists > 0 {
 				val, err := redis.Bytes(client.Do("HGET", reqUID, "ReqResponse"))
 				if err != nil {
-					log.Fatal(err)
+					log.Error("Error retrieving request from Redis: ", err)
+					return []byte{}, err
 				}
 				entry, err := deserializeReqResponse(val, reqUID)
 				if err != nil {
-					log.Fatal(err)
+					log.Error("Error deserializing request: ", err)
+					return []byte{}, err
 				}
 				filtered = append(filtered, entry)
 			}
@@ -251,7 +278,8 @@ func deserializeReqResponse(value []byte, reqUID string) (*redisCache.RecordedEn
 	data := &redisCache.UniqueRequest{}
 	err := proto.Unmarshal(value, data)
 	if err != nil {
-		log.Fatal("Unmarshalling ReqResponse error: ", err)
+		log.Error("Error unmarshalling request: ", err)
+		return nil, err
 	}
 	log.Info("Parsed protobuf bytes: ", data)
 	transformed := &redisCache.RecordedEntry{

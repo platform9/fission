@@ -272,6 +272,29 @@ func (ts *HTTPTriggerSet) initFunctionController() (k8sCache.Store, k8sCache.Con
 	return store, controller
 }
 
+func (ts *HTTPTriggerSet) initRecorderController() (k8sCache.Store, k8sCache.Controller) {
+	resyncPeriod := 30 * time.Second
+	listWatch := k8sCache.NewListWatchFromClient(ts.crdClient, "recorders", metav1.NamespaceAll, fields.Everything())
+	store, controller := k8sCache.NewInformer(listWatch, &crd.Recorder{}, resyncPeriod,
+		k8sCache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				recorder := obj.(*crd.Recorder)
+				ts.recorderSet.newRecorder(recorder)
+			},
+			DeleteFunc: func(obj interface{}) {
+				recorder := obj.(*crd.Recorder)
+				ts.recorderSet.disableRecorder(recorder)
+			},
+			UpdateFunc: func(oldObj, newObj interface{}) {
+				oldRecorder := oldObj.(*crd.Recorder)
+				newRecorder := newObj.(*crd.Recorder)
+				ts.recorderSet.updateRecorder(oldRecorder, newRecorder)
+			},
+		},
+	)
+	return store, controller
+}
+
 func (ts *HTTPTriggerSet) runWatcher(ctx context.Context, controller k8sCache.Controller) {
 	go func() {
 		controller.Run(ctx.Done())

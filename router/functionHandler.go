@@ -17,26 +17,26 @@ limitations under the License.
 package router
 
 import (
+	"bytes"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"bytes"
-	"github.com/fission/fission"
-	"github.com/fission/fission/crd"
-	executorClient "github.com/fission/fission/executor/client"
-	"github.com/fission/fission/redis"
 	"github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
-	"io/ioutil"
-	"strings"
+
+	executorClient "github.com/fission/fission/executor/client"
+	"github.com/fission/fission"
+	"github.com/fission/fission/crd"
+	"github.com/fission/fission/redis"
 )
 
 type tsRoundTripperParams struct {
@@ -96,17 +96,21 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 	var originalUrl url.URL
 	originalUrl = *req.URL
 
+	// Iff this request needs to be recorded, we save the body
 	var postedBody string
-	if req.ContentLength > 0 {
-		p := make([]byte, req.ContentLength) // Will this always work?
-		buf, _ := ioutil.ReadAll(req.Body)
-		rdr1 := ioutil.NopCloser(bytes.NewBuffer(buf))
-		rdr2 := ioutil.NopCloser(bytes.NewBuffer(buf))
+	if len(roundTripper.funcHandler.recorderName) > 0 {
+		if req.ContentLength > 0 {
+			p := make([]byte, req.ContentLength)
+			buf, _ := ioutil.ReadAll(req.Body)
+			// We need two io readers because a single reader will drain the buffer, hence we keep a replacement copy
+			rdr1 := ioutil.NopCloser(bytes.NewBuffer(buf))
+			rdr2 := ioutil.NopCloser(bytes.NewBuffer(buf))
 
-		rdr1.Read(p)
-		postedBody = string(p)
-		logrus.Info(fmt.Sprintf("%v", postedBody))
-		req.Body = rdr2
+			rdr1.Read(p)
+			postedBody = string(p)
+			logrus.Info(fmt.Sprintf("%v", postedBody))
+			req.Body = rdr2
+		}
 	}
 
 	// Metrics stuff
@@ -208,20 +212,21 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 				go roundTripper.funcHandler.tapService(serviceUrl)
 			}
 
-			trigger := "" // TODO: Better default, test
+			trigger := ""
 			if roundTripper.funcHandler.httpTrigger != nil {
 				trigger = roundTripper.funcHandler.httpTrigger.Metadata.Name
 			} else {
 				log.Println("No trigger attached.") // Wording?
 			}
 
-			// TODO: Stop recording
-			redis.Record(
-				trigger,
-				roundTripper.funcHandler.recorderName,
-				req.Header.Get("X-Fission-ReqUID"), req, originalUrl, postedBody, resp, roundTripper.funcHandler.function.Namespace,
-				time.Now().UnixNano(),
-			)
+			if len(roundTripper.funcHandler.recorderName) > 0 {
+				redis.Record(
+					trigger,
+					roundTripper.funcHandler.recorderName,
+					req.Header.Get("X-Fission-ReqUID"), req, originalUrl, postedBody, resp, roundTripper.funcHandler.function.Namespace,
+					time.Now().UnixNano(),
+				)
+			}
 
 			// return response back to user
 			return resp, nil
@@ -274,13 +279,11 @@ func (fh *functionHandler) handler(responseWriter http.ResponseWriter, request *
 	}
 
 	var reqUID string
-	if fh.recorderName != "" {
-		logrus.Info("Begin recording!")
+	if len(fh.recorderName) > 0 {
 		UID := strings.ToLower(uuid.NewV4().String())
 		reqUID = "REQ" + UID
 		request.Header.Add("X-Fission-ReqUID", reqUID)
-	} else {
-		logrus.Info("Don't begin recording.")
+		log.Print("Record request with ReqUID: ", reqUID)
 	}
 
 	// system params
