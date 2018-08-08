@@ -19,19 +19,19 @@ let userFunction;
 function loadFunction(modulepath, funcname) {
     // Read and load the code. It's placed there securely by the fission runtime.
     try {
-        var startTime = process.hrtime();
+        let startTime = process.hrtime();
         // support v1 codepath and v2 entrypoint like 'foo', '', 'index.hello'
-        userFunction = funcname ? require(modulepath)[funcname] : require(modulepath);
-        var elapsed = process.hrtime(startTime);
+        let userFunction = funcname ? require(modulepath)[funcname] : require(modulepath);
+        let elapsed = process.hrtime(startTime);
         console.log(`user code loaded in ${elapsed[0]}sec ${elapsed[1]/1000000}ms`);
-        return true;
+        return userFunction;
     } catch(e) {
         console.error(`user code load error: ${e}`);
-        return false;
+        return e;
     }
 }
 
-function withMakesureGeneric(func) {
+function withEnsureGeneric(func) {
     return function(req, res) {
         // Make sure we're a generic container.  (No reuse of containers.
         // Once specialized, the container remains specialized.)
@@ -44,16 +44,22 @@ function withMakesureGeneric(func) {
     }
 }
 
+function isFunction(func) {
+    return func && func.constructor && func.call && func.apply;
+}
+
 function specializeV2(req, res) {
     // for V2 entrypoint, 'filename.funcname' => ['filename', 'funcname']
     const entrypoint = req.body.functionName ? req.body.functionName.split('.') : [];
     // for V2, filepath is dynamic path
     const modulepath = path.join(req.body.filepath, entrypoint[0] || '');
+    const result = loadFunction(modulepath, entrypoint[1]);
 
-    if(loadFunction(modulepath, entrypoint[1])){
-      res.status(202).send();
+    if(isFunction(result)){
+        userFunction = result;
+        res.status(202).send();
     } else {
-      res.status(500).send(JSON.stringify(e));
+        res.status(500).send(JSON.stringify(result));
     }
 }
 
@@ -73,7 +79,14 @@ function specialize(req, res) {
     // node_modules.
     fs.symlinkSync('/usr/src/app/node_modules', `${path.dirname(modulepath)}/node_modules`);
 
-    loadFunction(modulepath);
+    const result = loadFunction(modulepath);
+
+    if(isFunction(result)){
+        userFunction = result;
+        res.status(202).send();
+    } else {
+        res.status(500).send(JSON.stringify(result));
+    }
 }
 
 
@@ -85,8 +98,8 @@ app.use(bodyParser.json());
 app.use(bodyParser.raw());
 app.use(bodyParser.text({ type : "text/*" }));
 
-app.post('/specialize', withMakesureGeneric(specialize));
-app.post('/v2/specialize', withMakesureGeneric(specializeV2));
+app.post('/specialize', withEnsureGeneric(specialize));
+app.post('/v2/specialize', withEnsureGeneric(specializeV2));
 
 // Generic route -- all http requests go to the user function.
 app.all('/', function (req, res) {
