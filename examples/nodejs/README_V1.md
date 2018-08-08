@@ -1,19 +1,19 @@
 # Fission Node.js Examples
 
-This is V2 example, check [here](README_V1.md) for V1.
-
 This directory contains several examples to get you started using Node.js with Fission.
+
+## Environment
 
 Before running any of these functions, make sure you have created a `nodejs` Fission environment:
 
-```bash
-# Create an environment with default nodejs images
-$ fission env create --name nodeenv --image fission/node-env:latest --builder fission/node-builder:latest
-# Create zip file from our example
-$ zip -jr nodejs.zip nodejs/
-# Create a package with the zip file
-$ fission pkg create --sourcearchive nodejs.zip --env nodeenv
 ```
+$ fission env create --name nodejs --image fission/node-env
+```
+
+Note: The default `fission/node-env` image is based on Alpine, which is much smaller than the main Debian Node image (65MB vs 680MB) while still being suitable for most use cases.
+If you need to use the full Debian image use the `fission/node-env-debian` image instead.
+See the [official Node docker hub repo](https://hub.docker.com/_/node/) for considerations
+relating to this choice.
 
 ## Function signature
 
@@ -27,54 +27,28 @@ module.exports = async function(context) {
         headers: {
             'Foo': 'Bar'
         }
-    }
+    }    
 }
 ```
+
+Since it is an `async` function, you can `await` `Promise`s, as demonstrated in the `weather.js` function.
+
 ## hello.js
 
 This is a basic "Hello, World!" example. It simply returns a status of `200` and text body.
 
 ### Usage
-Since it is an `async` function, you can `await` `Promise`s, as demonstrated in the `weather.js` function.
 
 ```bash
-# Create a function
-$ fission fn create --name hello --env nodeenv --deploy nodejs.zip --entrypoint "hello"
+# Upload your function code to fission
+$ fission function create --name hello --env nodejs --code hello.js
 
-# Test the function
-$ fission fn test --name hello
-```
+# Map GET /hello to your new function
+$ fission route create --method GET --url /hello --function hello
 
-## index.js
-
-This file does nothing but for demonstrating `require` feature.
-
-### Usage
-```bash
-# Create a function, you can skip `--entrypoint` as node will look for `index.js` by default
-$ fission fn create --name index --env nodeenv --deploy nodejs.zip
-
-# Test the function
-$ fission fn test --name index
-```
-
-## multi-entry.js
-
-This is a multiple exports example. There are two exports: entry1 and entry2
-
-### Usage
-```bash
-# Create a function for entry1
-$ fission fn create --name entry1 --env nodeenv --deploy nodejs.zip  --entrypoint "multi-entry.entry1"
-
-# Test the function
-$ fission fn test --name entry1
-
-# Create a function for entry2
-$ fission fn create --name entry2 --env nodeenv --deploy nodejs.zip  --entrypoint "multi-entry.entry2"
-
-# Test the function
-$ fission fn test --name entry2
+# Run the function.
+$ curl http://$FISSION_ROUTER/hello
+Hello, world!
 ```
 
 ## hello-callback.js
@@ -86,8 +60,8 @@ This is a basic "Hello, World!" example implemented with the legacy callback imp
 ### Usage
 
 ```bash
-# Create a function
-$ fission fn create --name hello-callback --env nodeenv --deploy nodejs.zip --entrypoint "hello-callback"
+# Upload your function code to fission
+$ fission function create --name hello-callback --env nodejs --code hello-callback.js
 
 # Map GET /hello-callback to your new function
 $ fission route create --method GET --url /hello-callback --function hello-callback
@@ -105,7 +79,7 @@ This example watches Kubernetes events and sends them to a Slack channel. To use
 
 ```bash
 # Upload your function code to fission
-$ fission fn create --name kubeEventsSlack --env nodejs --entrypoint "hello-callback"
+$ fission fn create --name kubeEventsSlack --env nodejs --code kubeEventsSlack.js
 
 # Watch all services in the default namespace:
 $ fission watch create --function kubeEventsSlack --type service --ns default
@@ -119,7 +93,7 @@ In this example, the Yahoo Weather API is used to current weather at a given loc
 
 ```bash
 # Upload your function code to fission
-$ fission function create --name weather --env nodejs --entrypoint "weather"
+$ fission function create --name weather --env nodejs --code weather.js
 
 # Map GET /stock to your new function
 $ fission route create --method POST --url /weather --function weather
