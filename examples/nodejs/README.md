@@ -39,7 +39,7 @@ Since it is an `async` function, you can `await` `Promise`s, as demonstrated in 
 
 ```bash
 # Create a function
-$ fission fn create --name hello --env nodeenv --deploy nodejs.zip --entrypoint "hello"
+$ fission fn create --name hello --pkg [pkgname] --entrypoint "hello"
 
 # Test the function
 $ fission fn test --name hello
@@ -52,7 +52,7 @@ This file does nothing but for demonstrating `require` feature.
 ### Usage
 ```bash
 # Create a function, you can skip `--entrypoint` as node will look for `index.js` by default
-$ fission fn create --name index --env nodeenv --deploy nodejs.zip
+$ fission fn create --name index --pkg [pkgname]
 
 # Test the function
 $ fission fn test --name index
@@ -65,13 +65,13 @@ This is a multiple exports example. There are two exports: entry1 and entry2
 ### Usage
 ```bash
 # Create a function for entry1
-$ fission fn create --name entry1 --env nodeenv --deploy nodejs.zip  --entrypoint "multi-entry.entry1"
+$ fission fn create --name entry1 --pkg [pkgname]  --entrypoint "multi-entry.entry1"
 
 # Test the function
 $ fission fn test --name entry1
 
 # Create a function for entry2
-$ fission fn create --name entry2 --env nodeenv --deploy nodejs.zip  --entrypoint "multi-entry.entry2"
+$ fission fn create --name entry2 --pkg [pkgname]  --entrypoint "multi-entry.entry2"
 
 # Test the function
 $ fission fn test --name entry2
@@ -87,7 +87,7 @@ This is a basic "Hello, World!" example implemented with the legacy callback imp
 
 ```bash
 # Create a function
-$ fission fn create --name hello-callback --env nodeenv --deploy nodejs.zip --entrypoint "hello-callback"
+$ fission fn create --name hello-callback --pkg [pkgname] --entrypoint "hello-callback"
 
 # Map GET /hello-callback to your new function
 $ fission route create --method GET --url /hello-callback --function hello-callback
@@ -105,7 +105,7 @@ This example watches Kubernetes events and sends them to a Slack channel. To use
 
 ```bash
 # Upload your function code to fission
-$ fission fn create --name kubeEventsSlack --env nodejs --entrypoint "hello-callback"
+$ fission fn create --name kubeEventsSlack --pkg [pkgname] --entrypoint "hello-callback"
 
 # Watch all services in the default namespace:
 $ fission watch create --function kubeEventsSlack --type service --ns default
@@ -119,7 +119,7 @@ In this example, the Yahoo Weather API is used to current weather at a given loc
 
 ```bash
 # Upload your function code to fission
-$ fission function create --name weather --env nodejs --entrypoint "weather"
+$ fission function create --name weather --pkg [pkgname] --entrypoint "weather"
 
 # Map GET /stock to your new function
 $ fission route create --method POST --url /weather --function weather
