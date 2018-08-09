@@ -19,10 +19,12 @@ package router
 import (
 	"log"
 	"net/url"
+	"sync"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/fission/fission"
 	"github.com/fission/fission/cache"
 )
 
@@ -79,4 +81,25 @@ func (fmap *functionServiceMap) assign(f *metav1.ObjectMeta, serviceUrl *url.URL
 func (fmap *functionServiceMap) remove(f *metav1.ObjectMeta) error {
 	mk := keyFromMetadata(f)
 	return fmap.cache.Delete(*mk)
+}
+
+func (fmap *functionServiceMap) grabUpdateLock(f *metav1.ObjectMeta, wg *sync.WaitGroup) (*sync.WaitGroup, error) {
+	mk := f.Namespace + f.Name
+	err, old := fmap.cache.Set(mk, wg)
+	if err == nil {
+		log.Printf("Add update lock for function %v", f.Name)
+		return wg, nil
+	}
+	// return wg created by the first goroutine who grabbed the lock
+	if e, ok := err.(fission.Error); ok && e.Code == fission.ErrorNameExists {
+		return old.(*sync.WaitGroup), err
+	}
+
+	return nil, err
+}
+
+func (fmap *functionServiceMap) removeUpdateLock(f *metav1.ObjectMeta) error {
+	mk := f.Namespace + f.Name
+	log.Printf("Remove update lock for function %v", f.Name)
+	return fmap.cache.Delete(mk)
 }
