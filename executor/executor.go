@@ -142,13 +142,6 @@ func (executor *Executor) getFunctionExecutorType(meta *metav1.ObjectMeta) (fiss
 func (executor *Executor) createServiceForFunction(meta *metav1.ObjectMeta) (*fscache.FuncSvc, error) {
 	log.Printf("[%v] No cached function service found, creating one", meta.Name)
 
-	// from Func -> get Env
-	log.Printf("[%v] getting environment for function", meta.Name)
-	env, err := executor.getFunctionEnv(meta)
-	if err != nil {
-		return nil, err
-	}
-
 	executorType, err := executor.getFunctionExecutorType(meta)
 	if err != nil {
 		return nil, err
@@ -161,6 +154,13 @@ func (executor *Executor) createServiceForFunction(meta *metav1.ObjectMeta) (*fs
 	case fission.ExecutorTypeNewdeploy:
 		fsvc, fsvcErr = executor.ndm.GetFuncSvc(meta)
 	default:
+		// from Func -> get Env
+		log.Printf("[%v] getting environment for function", meta.Name)
+		env, err := executor.getFunctionEnv(meta)
+		if err != nil {
+			return nil, err
+		}
+
 		pool, err := executor.gpm.GetPool(env)
 		if err != nil {
 			return nil, err
