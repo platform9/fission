@@ -226,7 +226,7 @@ func main() {
 	}
 
 	// Replay records
-	reqIDFlag := cli.StringFlag{Name: "requid", Usage: "Replay a particular request by providing the reqUID (to view reqUIDs, do `fission records view`)"}
+	reqIDFlag := cli.StringFlag{Name: "requid", Usage: "Replay a particular request by providing the reqUID (to view reqUIDs, do 'fission records view')"}
 
 	// environments
 	envNameFlag := cli.StringFlag{Name: "name", Usage: "Environment name"}
