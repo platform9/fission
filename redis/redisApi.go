@@ -38,7 +38,7 @@ import (
 func RecordsListAll() ([]byte, error) {
 	client := NewClient()
 	if client == nil {
-		return []byte{}, errors.New("failed to create redis client")
+		return nil, errors.New("failed to create redis client")
 	}
 
 	iter := 0
@@ -49,7 +49,7 @@ func RecordsListAll() ([]byte, error) {
 		// Redis tells us there are no keys left to traverse.
 		arr, err := redis.Values(client.Do("SCAN", iter))
 		if err != nil {
-			return []byte{}, err
+			return nil, err
 		}
 		// SCAN return value is an array of two values: the first value is the new cursor to use in the next call,
 		// the second value is an array of elements.
@@ -60,12 +60,12 @@ func RecordsListAll() ([]byte, error) {
 				val, err := redis.Bytes(client.Do("HGET", key, "ReqResponse"))
 				if err != nil {
 					log.Error("Error retrieving request from Redis: ", err)
-					return []byte{}, err
+					return nil, err
 				}
 				entry, err := deserializeReqResponse(val, key)
 				if err != nil {
 					log.Error("Error deserializing request: ", err)
-					return []byte{}, err
+					return nil, err
 				}
 				filtered = append(filtered, entry)
 			}
@@ -77,7 +77,7 @@ func RecordsListAll() ([]byte, error) {
 
 	resp, err := json.Marshal(filtered)
 	if err != nil {
-		return []byte{}, err
+		return nil, err
 	}
 	return resp, nil
 }
@@ -90,12 +90,12 @@ func RecordsFilterByTime(from string, to string) ([]byte, error) {
 
 	if rangeStart >= rangeEnd {
 		log.Error("Invalid chronology")
-		return []byte{}, err
+		return nil, err
 	}
 
 	client := NewClient()
 	if client == nil {
-		return []byte{}, errors.New("failed to create redis client")
+		return nil, errors.New("failed to create redis client")
 	}
 
 	iter := 0
@@ -104,7 +104,7 @@ func RecordsFilterByTime(from string, to string) ([]byte, error) {
 	for {
 		arr, err := redis.Values(client.Do("SCAN", iter))
 		if err != nil {
-			return []byte{}, err
+			return nil, err
 		}
 		// SCAN return value is an array of two values: the first value is the new cursor to use in the next call,
 		// the second value is an array of elements.
@@ -115,24 +115,24 @@ func RecordsFilterByTime(from string, to string) ([]byte, error) {
 				val, err := redis.Strings(client.Do("HMGET", key, "Timestamp"))
 				if err != nil {
 					log.Error("Error retrieving timestamp from Redis: ", err)
-					return []byte{}, err
+					return nil, err
 				}
 				tsO, err := strconv.Atoi(val[0])
 				if err != nil {
 					log.Error("Error converting timestamp to int: ", err)
-					return []byte{}, err
+					return nil, err
 				}
 				ts := int64(tsO)
 				if ts >= rangeStart && ts <= rangeEnd {
 					val2, err := redis.Bytes(client.Do("HGET", key, "ReqResponse"))
 					if err != nil {
 						log.Error("Error retrieving request from Redis: ", err)
-						return []byte{}, err
+						return nil, err
 					}
 					entry, err := deserializeReqResponse(val2, key)
 					if err != nil {
 						log.Error("Error deserializing request: ", err)
-						return []byte{}, err
+						return nil, err
 					}
 					filtered = append(filtered, entry)
 				}
@@ -146,7 +146,7 @@ func RecordsFilterByTime(from string, to string) ([]byte, error) {
 
 	resp, err := json.Marshal(filtered)
 	if err != nil {
-		return []byte{}, err
+		return nil, err
 	}
 	return resp, nil
 }
@@ -180,7 +180,7 @@ func RecordsFilterByTrigger(queriedTriggerName string, recorders *crd.RecorderLi
 
 	client := NewClient()
 	if client == nil {
-		return []byte{}, errors.New("failed to create redis client")
+		return nil, errors.New("failed to create redis client")
 	}
 
 	var filtered []*redisCache.RecordedEntry
@@ -190,25 +190,25 @@ func RecordsFilterByTrigger(queriedTriggerName string, recorders *crd.RecorderLi
 		val, err := redis.Strings(client.Do("LRANGE", key, "0", "-1")) // TODO: Prefix that distinguishes recorder lists
 		if err != nil {
 			// TODO: Handle deleted recorder? Or is this a non-issue because our list of recorders is up to date?
-			return []byte{}, err
+			return nil, err
 		}
 		for _, reqUID := range val {
 			val, err := redis.Strings(client.Do("HMGET", reqUID, "Trigger")) // 1-to-1 reqUID - trigger?
 			if err != nil {
 				log.Error("Error retrieving trigger for a request from Redis: ", err)
-				return []byte{}, err
+				return nil, err
 			}
 			if val[0] == queriedTriggerName {
 				// TODO: Reconsider multiple commands
 				val, err := redis.Bytes(client.Do("HGET", reqUID, "ReqResponse"))
 				if err != nil {
 					log.Error("Error retrieving request from Redis: ", err)
-					return []byte{}, err
+					return nil, err
 				}
 				entry, err := deserializeReqResponse(val, reqUID)
 				if err != nil {
 					log.Error("Error deserializing request: ", err)
-					return []byte{}, err
+					return nil, err
 				}
 				filtered = append(filtered, entry)
 			}
@@ -217,7 +217,7 @@ func RecordsFilterByTrigger(queriedTriggerName string, recorders *crd.RecorderLi
 
 	resp, err := json.Marshal(filtered)
 	if err != nil {
-		return []byte{}, err
+		return nil, err
 	}
 	return resp, nil
 }
@@ -253,7 +253,7 @@ func RecordsFilterByFunction(queriedFunctionName string, recorders *crd.Recorder
 
 	client := NewClient()
 	if client == nil {
-		return []byte{}, errors.New("failed to create redis client")
+		return nil, errors.New("failed to create redis client")
 	}
 
 	var filtered []*redisCache.RecordedEntry
@@ -261,7 +261,7 @@ func RecordsFilterByFunction(queriedFunctionName string, recorders *crd.Recorder
 	for key := range matchingRecorders {
 		val, err := redis.Strings(client.Do("LRANGE", key, "0", "-1")) // TODO: Prefix that distinguishes recorder lists
 		if err != nil {
-			return []byte{}, err
+			return nil, err
 		}
 
 		for _, reqUID := range val {
@@ -274,12 +274,12 @@ func RecordsFilterByFunction(queriedFunctionName string, recorders *crd.Recorder
 				val, err := redis.Bytes(client.Do("HGET", reqUID, "ReqResponse"))
 				if err != nil {
 					log.Error("Error retrieving request from Redis: ", err)
-					return []byte{}, err
+					return nil, err
 				}
 				entry, err := deserializeReqResponse(val, reqUID)
 				if err != nil {
 					log.Error("Error deserializing request: ", err)
-					return []byte{}, err
+					return nil, err
 				}
 				filtered = append(filtered, entry)
 			}
@@ -288,7 +288,7 @@ func RecordsFilterByFunction(queriedFunctionName string, recorders *crd.Recorder
 
 	resp, err := json.Marshal(filtered)
 	if err != nil {
-		return []byte{}, err
+		return nil, err
 	}
 	return resp, nil
 }
