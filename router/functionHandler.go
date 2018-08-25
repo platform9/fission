@@ -36,9 +36,22 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission"
+	"github.com/fission/fission/cache"
 	"github.com/fission/fission/crd"
 	executorClient "github.com/fission/fission/executor/client"
 	"github.com/fission/fission/redis"
+
+	_ "net/http/pprof"
+)
+
+func init() {
+	if updateLocks == nil {
+		updateLocks = cache.MakeCache(0, 0)
+	}
+}
+
+var (
+	updateLocks *cache.Cache
 )
 
 const (
@@ -47,10 +60,11 @@ const (
 )
 
 type tsRoundTripperParams struct {
-	timeout         time.Duration
-	timeoutExponent int
-	keepAlive       time.Duration
-	maxRetries      int
+	timeout           time.Duration
+	timeoutExponent   int
+	keepAlive         time.Duration
+	maxRetries        int
+	svcAddrRetryCount int
 }
 
 type functionHandler struct {
@@ -65,6 +79,11 @@ type functionHandler struct {
 	tsRoundTripperParams     *tsRoundTripperParams
 	recorderName             string
 	isDebugEnv               bool
+}
+
+type updateLock struct {
+	wg        *sync.WaitGroup
+	timestamp time.Time
 }
 
 // A layer on top of http.DefaultTransport, with retries.
@@ -106,7 +125,7 @@ func init() {
 func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *http.Response, err error) {
 	var serviceUrlFromExecutor bool
 	var serviceUrl *url.URL
-	var failCounter int
+	var retryCounter int
 
 	// Set forwarded host header if not exists
 	addForwardedHostHeader(req)
@@ -132,11 +151,13 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 		}
 	}
 
+	fnMeta := roundTripper.funcHandler.function
+
 	// Metrics stuff
 	startTime := time.Now()
 	funcMetricLabels := &functionLabels{
-		namespace: roundTripper.funcHandler.function.Namespace,
-		name:      roundTripper.funcHandler.function.Name,
+		namespace: fnMeta.Namespace,
+		name:      fnMeta.Name,
 	}
 	httpMetricLabels := &httpLabels{
 		method: req.Method,
@@ -148,22 +169,23 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 
 	// set the timeout for transport context
 	transport := http.DefaultTransport.(*http.Transport)
+
 	// Disables caching, Please refer to issue and specifically comment: https://github.com/fission/fission/issues/723#issuecomment-398781995
 	transport.DisableKeepAlives = true
 
 	executingTimeout := roundTripper.funcHandler.tsRoundTripperParams.timeout
 
-	// release update lock so that other goroutine can take over the responsibility
-	// of updating the service map.
-	releaseUpdateLock := func(wg *sync.WaitGroup) {
-		roundTripper.funcHandler.fmap.removeUpdateLock(roundTripper.funcHandler.function)
-		wg.Done()
-	}
-
-	// cache lookup to get serviceUrl
-	serviceUrl, err = roundTripper.funcHandler.fmap.lookup(roundTripper.funcHandler.function)
-
 	for i := 0; i < roundTripper.funcHandler.tsRoundTripperParams.maxRetries-1; i++ {
+
+		// cache lookup to get serviceUrl
+		serviceUrl, err = roundTripper.funcHandler.fmap.lookup(fnMeta)
+		if err != nil {
+			if e, ok := err.(fission.Error); ok && e.Code != fission.ErrorNotFound {
+				return nil, errors.Wrap(err, fmt.Sprintf("Error getting function %v;s service entry from cache", fnMeta.Name))
+			}
+		} else {
+			serviceUrlFromExecutor = true
+		}
 
 		if serviceUrl != nil {
 			// modify the request to reflect the service url
@@ -217,7 +239,7 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 					redis.Record(
 						trigger,
 						roundTripper.funcHandler.recorderName,
-						req.Header.Get("X-Fission-ReqUID"), req, originalUrl, postedBody, resp, roundTripper.funcHandler.function.Namespace,
+						req.Header.Get("X-Fission-ReqUID"), req, originalUrl, postedBody, resp, fnMeta.Namespace,
 						time.Now().UnixNano(),
 					)
 				}
@@ -228,20 +250,31 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 
 			// if transport.RoundTrip returns a non-network dial error, then relay it back to user
 			if !fission.IsNetworkDialError(err) {
-				err = errors.Wrapf(err, "Error sending request to function %v",
-					roundTripper.funcHandler.function.Name)
+				err = errors.Wrapf(err, "Error sending request to function %v", fnMeta.Name)
 				return resp, err
 			}
 
 			// timeout or dial error goes here
-			if failCounter < 3 {
+
+			// The reason for request failure may vary from case to case.
+			// After some investigation, found most of the failure are due to
+			// network timeout or target function is under heavy workload. In
+			// such cases, if router keeps trying to get new function service
+			// will increase executor burden and cause 502 error.
+			//
+			// The "retryCounter" was introduced to solve this problem by retrying
+			// requests for "limited threshold". Once a request's retryCounter higher
+			// than the predefined threshold, reset retryCounter and remove service
+			// cache, then retry to get new svc record from executor again.
+			if retryCounter < roundTripper.funcHandler.tsRoundTripperParams.svcAddrRetryCount {
+				retryCounter++
+
 				executingTimeout = executingTimeout * time.Duration(roundTripper.funcHandler.tsRoundTripperParams.timeoutExponent)
-				failCounter++
 
 				log.Printf("request to %s errored out. backing off for %v before retrying",
 					req.URL.Host, executingTimeout)
 
-				time.Sleep(10 * time.Millisecond)
+				time.Sleep(executingTimeout)
 
 				if serviceUrlFromExecutor {
 					continue
@@ -249,13 +282,11 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 			} else {
 				// if transport.RoundTrip returns a network dial error and serviceUrl was from cache,
 				// it means, the entry in router cache is stale, so invalidate it.
-				// also set needExecutor to true so a new service can be requested for function.
 				log.Printf("request to %s errored out. removing function : %s from router's cache "+
 					"and requesting a new service for function",
-					req.URL.Host, roundTripper.funcHandler.function.Name)
-				roundTripper.funcHandler.fmap.remove(roundTripper.funcHandler.function)
-				serviceUrl = nil
-				failCounter = 0
+					req.URL.Host, fnMeta.Name)
+				roundTripper.funcHandler.fmap.remove(fnMeta)
+				retryCounter = 0
 			}
 		}
 
@@ -265,12 +296,25 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 		}
 
 		// cache miss or nil entry in cache
-		wg, err := roundTripper.funcHandler.fmap.grabUpdateLock(roundTripper.funcHandler.function, &sync.WaitGroup{})
-		if err == nil {
-			// This goroutine is the first one to grab update lock
-			wg.Add(1)
+		lock, ableToUpdate, err := roundTripper.funcHandler.grabUpdateEntryLock(fnMeta)
+		if err != nil {
+			log.Printf("Error grabbing update lock for function %v: %v", fnMeta, err)
+			continue
+		}
 
-			log.Printf("Calling getServiceForFunction for function: %s", roundTripper.funcHandler.function.Name)
+		// prevent deadlock case
+		if !ableToUpdate && time.Since(lock.timestamp) > 30*time.Second {
+			roundTripper.funcHandler.releaseUpdateEntryLock(fnMeta)
+			continue
+		}
+
+		if !ableToUpdate {
+			// This goroutine wait for update of service map to finish.
+			lock.Wait()
+		} else {
+			// This goroutine is the first one to grab update lock
+
+			log.Printf("Calling getServiceForFunction for function: %s", fnMeta.Name)
 
 			// send a request to executor to specialize a new pod
 			service, err := roundTripper.funcHandler.executor.GetServiceForFunction(
@@ -295,7 +339,7 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 					}, nil
 				}
 
-				releaseUpdateLock(wg)
+				roundTripper.funcHandler.releaseUpdateEntryLock(fnMeta)
 				return nil, err
 			}
 
@@ -303,34 +347,18 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 			serviceUrl, err = url.Parse(fmt.Sprintf("http://%v", service))
 			if err != nil {
 				log.Printf("Error parsing service url (%v): %v", serviceUrl, err)
-				releaseUpdateLock(wg)
+				roundTripper.funcHandler.releaseUpdateEntryLock(fnMeta)
 				return nil, err
 			}
 
 			// add the address in router's cache
-			log.Printf("assigning serviceUrl : %s for function : %s", serviceUrl, roundTripper.funcHandler.function.Name)
+			log.Printf("Assigning serviceUrl : %s for function : %s", serviceUrl, roundTripper.funcHandler.function.Name)
 			roundTripper.funcHandler.fmap.assign(roundTripper.funcHandler.function, serviceUrl)
 
 			// flag denotes that service was not obtained from cache, instead, created just now by executor
 			serviceUrlFromExecutor = true
 
-			releaseUpdateLock(wg)
-
-		} else if err != nil && wg != nil {
-			// This goroutine wait for update of service map to finish.
-			wg.Wait()
-
-			serviceUrl, err = roundTripper.funcHandler.fmap.lookup(roundTripper.funcHandler.function)
-			if err != nil || serviceUrl == nil {
-				continue
-			}
-
-			serviceUrlFromExecutor = false
-
-		} else {
-			log.Printf("Error grabbing update lock for function %v: %v",
-				roundTripper.funcHandler.function.Name, err)
-			return nil, err
+			roundTripper.funcHandler.releaseUpdateEntryLock(fnMeta)
 		}
 	}
 
@@ -338,7 +366,7 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 	resp, err = http.DefaultTransport.RoundTrip(req)
 	if err != nil {
 		log.Printf("Error getting response from function %v: %v",
-			roundTripper.funcHandler.function.Name, err)
+			fnMeta.Name, err)
 	}
 
 	return resp, err
@@ -472,4 +500,47 @@ func addForwardedHostHeader(req *http.Request) {
 
 	req.Header.Set(FORWARDED, host)
 	req.Header.Set(X_FORWARDED_HOST, req.Host)
+}
+
+// grabUpdateEntryLock helps goroutine to grab update lock for updating function service cache.
+// If the update lock exists, return old waitGroup.
+func (fh *functionHandler) grabUpdateEntryLock(fnMeta *metav1.ObjectMeta) (lock *updateLock, ableToUpdate bool, err error) {
+	lock = newUpdateLock()
+
+	err, old := updateLocks.Set(crd.CacheKey(fnMeta), lock)
+	if err == nil {
+		// first goroutine to get the update lock
+		return lock, true, nil
+	} else if e, ok := err.(fission.Error); ok && e.Code == fission.ErrorNameExists {
+		// another is updating sevice function cache now
+		return old.(*updateLock), false, nil
+	}
+
+	// unexpected error
+	return nil, false, err
+}
+
+// releaseUpdateEntryLock release update lock so that other goroutine can take over the responsibility
+// of updating the service map.
+func (fh *functionHandler) releaseUpdateEntryLock(fnMeta *metav1.ObjectMeta) {
+	val, err := updateLocks.Get(crd.CacheKey(fnMeta))
+	if err == nil {
+		updateLocks.Delete(crd.CacheKey(fnMeta))
+		val.(*updateLock).wg.Done()
+	} else if e, ok := err.(fission.Error); ok && e.Code != fission.ErrorNotFound {
+		log.Printf("Error releasing %v'swaitGroup: %v", fnMeta, err)
+	}
+}
+
+func newUpdateLock() *updateLock {
+	lock := &updateLock{
+		wg:        &sync.WaitGroup{},
+		timestamp: time.Now(),
+	}
+	lock.wg.Add(1)
+	return lock
+}
+
+func (lock *updateLock) Wait() {
+	lock.wg.Wait()
 }

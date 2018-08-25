@@ -199,6 +199,8 @@ spec:
             value: {{ .Values.routerRoundTripMaxRetries | default 10 | quote }}
           - name: DEBUG_ENV
             value: {{ .Values.debugEnv | quote }}
+          - name: ROUTER_ROUND_TRIP_SVC_ADDRESS_MAX_RETRIES
+            value: {{ .Values.routerRoundTripSvcAddressMaxRetries | default 5 | quote }}
         readinessProbe:
           httpGet:
             path: "/router-healthz"
