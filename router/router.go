@@ -124,11 +124,18 @@ func Start(port int, executorUrl string) {
 		log.Fatalf("Failed to parse max retry times: %v", err)
 	}
 
+	svcAddrRetryCount, err := strconv.Atoi(os.Getenv("ROUTER_ROUND_TRIP_SVC_ADDRESS_MAX_RETRIES"))
+	if err != nil {
+		svcAddrRetryCount = 5
+		log.Printf("Failed to parse svc address retry conunt, set it to default value(5): %v", err)
+	}
+
 	triggers, _, fnStore := makeHTTPTriggerSet(fmap, frmap, trmap, fissionClient, kubeClient, executor, restClient, &tsRoundTripperParams{
-		timeout:         timeout,
-		timeoutExponent: timeoutExponent,
-		keepAlive:       keepAlive,
-		maxRetries:      maxRetries,
+		timeout:           timeout,
+		timeoutExponent:   timeoutExponent,
+		keepAlive:         keepAlive,
+		maxRetries:        maxRetries,
+		svcAddrRetryCount: svcAddrRetryCount,
 	})
 
 	resolver := makeFunctionReferenceResolver(fnStore)
