@@ -38,7 +38,7 @@ import (
 	"github.com/fission/fission/crd"
 	"github.com/fission/fission/fission/log"
 	"github.com/fission/fission/fission/logdb"
-	"github.com/fission/fission/fission/portforward"
+	"github.com/fission/fission/fission/util"
 )
 
 func printPodLogs(c *cli.Context) error {
@@ -47,16 +47,16 @@ func printPodLogs(c *cli.Context) error {
 		log.Fatal("Need --name argument.")
 	}
 
-	queryURL, err := url.Parse(getServerUrl())
-	checkErr(err, "parse the base URL")
+	queryURL, err := url.Parse(util.GetServerUrl())
+	util.CheckErr(err, "parse the base URL")
 	queryURL.Path = fmt.Sprintf("/proxy/logs/%s", fnName)
 
 	req, err := http.NewRequest("POST", queryURL.String(), nil)
-	checkErr(err, "create logs request")
+	util.CheckErr(err, "create logs request")
 
 	httpClient := http.Client{}
 	resp, err := httpClient.Do(req)
-	checkErr(err, "execute get logs request")
+	util.CheckErr(err, "execute get logs request")
 
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
@@ -64,7 +64,7 @@ func printPodLogs(c *cli.Context) error {
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
-	checkErr(err, "read the response body")
+	util.CheckErr(err, "read the response body")
 	fmt.Println(string(body))
 	return nil
 }
@@ -120,7 +120,7 @@ func getTargetCPU(c *cli.Context) int {
 
 // From this change onwards, we mandate that a function should reference a secret, config map and package in its own ns
 func fnCreate(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
+	client := util.GetApiClient(c.GlobalString("server"))
 
 	fnNamespace := c.String("fnNamespace")
 	envNamespace := c.String("envNamespace")
@@ -140,7 +140,7 @@ func fnCreate(c *cli.Context) error {
 
 	// check for unique function names within a namespace
 	fnList, err := client.FunctionList(fnNamespace)
-	checkErr(err, "get function list")
+	util.CheckErr(err, "get function list")
 	// check function existence before creating package
 	for _, fn := range fnList {
 		if fn.Metadata.Name == fnName {
@@ -162,7 +162,7 @@ func fnCreate(c *cli.Context) error {
 			Namespace: fnNamespace,
 			Name:      pkgName,
 		})
-		checkErr(err, fmt.Sprintf("read package in '%v' in Namespace: %s. Package needs to be present in the same namespace as function", pkgName, fnNamespace))
+		util.CheckErr(err, fmt.Sprintf("read package in '%v' in Namespace: %s. Package needs to be present in the same namespace as function", pkgName, fnNamespace))
 		pkgMetadata = &pkg.Metadata
 		envName = pkg.Spec.Environment.Name
 		envNamespace = pkg.Spec.Environment.Namespace
@@ -182,7 +182,7 @@ func fnCreate(c *cli.Context) error {
 			if e, ok := err.(fission.Error); ok && e.Code == fission.ErrorNotFound {
 				fmt.Printf("Environment \"%v\" does not exist. Please create the environment before executing the function. \nFor example: `fission env create --name %v --envns %v --image <image>`\n", envName, envName, envNamespace)
 			} else {
-				checkErr(err, "retrieve environment information")
+				util.CheckErr(err, "retrieve environment information")
 			}
 		}
 
@@ -274,13 +274,13 @@ func fnCreate(c *cli.Context) error {
 	// if we're writing a spec, don't create the function
 	if spec {
 		err = specSave(*function, specFile)
-		checkErr(err, "create function spec")
+		util.CheckErr(err, "create function spec")
 		return nil
 
 	}
 
 	_, err = client.FunctionCreate(function)
-	checkErr(err, "create function")
+	util.CheckErr(err, "create function")
 
 	fmt.Printf("function '%v' created\n", fnName)
 
@@ -313,14 +313,14 @@ func fnCreate(c *cli.Context) error {
 		},
 	}
 	_, err = client.HTTPTriggerCreate(ht)
-	checkErr(err, "create HTTP trigger")
+	util.CheckErr(err, "create HTTP trigger")
 	fmt.Printf("route created: %v %v -> %v\n", method, triggerUrl, fnName)
 
 	return err
 }
 
 func fnGet(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
+	client := util.GetApiClient(c.GlobalString("server"))
 
 	fnName := c.String("name")
 	if len(fnName) == 0 {
@@ -332,20 +332,20 @@ func fnGet(c *cli.Context) error {
 		Namespace: fnNamespace,
 	}
 	fn, err := client.FunctionGet(m)
-	checkErr(err, "get function")
+	util.CheckErr(err, "get function")
 
 	pkg, err := client.PackageGet(&metav1.ObjectMeta{
 		Name:      fn.Spec.Package.PackageRef.Name,
 		Namespace: fn.Spec.Package.PackageRef.Namespace,
 	})
-	checkErr(err, "get package")
+	util.CheckErr(err, "get package")
 
 	os.Stdout.Write(pkg.Spec.Deployment.Literal)
 	return err
 }
 
 func fnGetMeta(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
+	client := util.GetApiClient(c.GlobalString("server"))
 
 	fnName := c.String("name")
 	if len(fnName) == 0 {
@@ -359,7 +359,7 @@ func fnGetMeta(c *cli.Context) error {
 	}
 
 	f, err := client.FunctionGet(m)
-	checkErr(err, "get function")
+	util.CheckErr(err, "get function")
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
 	fmt.Fprintf(w, "%v\t%v\t%v\n", "NAME", "UID", "ENV")
@@ -370,7 +370,7 @@ func fnGetMeta(c *cli.Context) error {
 }
 
 func fnUpdate(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
+	client := util.GetApiClient(c.GlobalString("server"))
 
 	if len(c.String("package")) > 0 {
 		log.Fatal("--package is deprecated, please use --deploy instead.")
@@ -390,7 +390,7 @@ func fnUpdate(c *cli.Context) error {
 		Name:      fnName,
 		Namespace: fnNamespace,
 	})
-	checkErr(err, fmt.Sprintf("read function '%v'", fnName))
+	util.CheckErr(err, fmt.Sprintf("read function '%v'", fnName))
 
 	envName := c.String("env")
 	envNamespace := c.String("envNamespace")
@@ -483,20 +483,20 @@ func fnUpdate(c *cli.Context) error {
 		Namespace: fnNamespace,
 		Name:      pkgName,
 	})
-	checkErr(err, fmt.Sprintf("read package '%v.%v'. Pkg should be present in the same ns as the function", pkgName, fnNamespace))
+	util.CheckErr(err, fmt.Sprintf("read package '%v.%v'. Pkg should be present in the same ns as the function", pkgName, fnNamespace))
 
 	pkgMetadata := &pkg.Metadata
 
 	if len(deployArchiveName) != 0 || len(srcArchiveName) != 0 || len(buildcmd) != 0 || len(envName) != 0 || len(envNamespace) != 0 {
 		fnList, err := getFunctionsByPackage(client, pkg.Metadata.Name, pkg.Metadata.Namespace)
-		checkErr(err, "get function list")
+		util.CheckErr(err, "get function list")
 
 		if !force && len(fnList) > 1 {
 			log.Fatal("Package is used by multiple functions, use --force to force update")
 		}
 
 		pkgMetadata, err = updatePackage(client, pkg, envName, envNamespace, srcArchiveName, deployArchiveName, buildcmd, false)
-		checkErr(err, fmt.Sprintf("update package '%v'", pkgName))
+		util.CheckErr(err, fmt.Sprintf("update package '%v'", pkgName))
 
 		fmt.Printf("package '%v' updated\n", pkgMetadata.GetName())
 
@@ -506,7 +506,7 @@ func fnUpdate(c *cli.Context) error {
 			if fn.Metadata.Name != fnName {
 				fn.Spec.Package.PackageRef.ResourceVersion = pkgMetadata.ResourceVersion
 				_, err := client.FunctionUpdate(&fn)
-				checkErr(err, "update function")
+				util.CheckErr(err, "update function")
 			}
 		}
 	}
@@ -570,14 +570,14 @@ func fnUpdate(c *cli.Context) error {
 	}
 
 	_, err = client.FunctionUpdate(function)
-	checkErr(err, "update function")
+	util.CheckErr(err, "update function")
 
 	fmt.Printf("function '%v' updated\n", fnName)
 	return err
 }
 
 func fnDelete(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
+	client := util.GetApiClient(c.GlobalString("server"))
 
 	fnName := c.String("name")
 	if len(fnName) == 0 {
@@ -591,18 +591,18 @@ func fnDelete(c *cli.Context) error {
 	}
 
 	err := client.FunctionDelete(m)
-	checkErr(err, fmt.Sprintf("delete function '%v'", fnName))
+	util.CheckErr(err, fmt.Sprintf("delete function '%v'", fnName))
 
 	fmt.Printf("function '%v' deleted\n", fnName)
 	return err
 }
 
 func fnList(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
+	client := util.GetApiClient(c.GlobalString("server"))
 	ns := c.String("fnNamespace")
 
 	fns, err := client.FunctionList(ns)
-	checkErr(err, "list functions")
+	util.CheckErr(err, "list functions")
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
 
@@ -628,7 +628,7 @@ func fnList(c *cli.Context) error {
 
 func fnLogs(c *cli.Context) error {
 
-	client := getClient(c.GlobalString("server"))
+	client := util.GetApiClient(c.GlobalString("server"))
 
 	fnName := c.String("name")
 	if len(fnName) == 0 {
@@ -653,10 +653,10 @@ func fnLogs(c *cli.Context) error {
 	}
 
 	f, err := client.FunctionGet(m)
-	checkErr(err, "get function")
+	util.CheckErr(err, "get function")
 
 	// request the controller to establish a proxy server to the database.
-	logDB, err := logdb.GetLogDB(dbType, getServerUrl())
+	logDB, err := logdb.GetLogDB(dbType, util.GetServerUrl())
 	if err != nil {
 		log.Fatal("failed to connect log database")
 	}
@@ -718,8 +718,8 @@ func fnTest(c *cli.Context) error {
 	routerURL := os.Getenv("FISSION_ROUTER")
 	if len(routerURL) == 0 {
 		// Portforward to the fission router
-		localRouterPort := portforward.Setup(getKubeConfigPath(),
-			getFissionNamespace(), "application=fission-router")
+		localRouterPort := util.SetupPortForward(util.GetKubeConfigPath(),
+			util.GetFissionNamespace(), "application=fission-router")
 		routerURL = "127.0.0.1:" + localRouterPort
 	} else {
 		routerURL = strings.TrimPrefix(routerURL, "http://")
@@ -757,14 +757,14 @@ func fnTest(c *cli.Context) error {
 	resp := httpRequest(c.String("method"), functionUrl.String(), c.String("body"), c.StringSlice("header"))
 	if resp.StatusCode < 400 {
 		body, err := ioutil.ReadAll(resp.Body)
-		checkErr(err, "Function test")
+		util.CheckErr(err, "Function test")
 		fmt.Print(string(body))
 		defer resp.Body.Close()
 		return nil
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
-	checkErr(err, "read log response from pod")
+	util.CheckErr(err, "read log response from pod")
 	fmt.Printf("Error calling function %s: %d %s", fnName, resp.StatusCode, string(body))
 	defer resp.Body.Close()
 	err = printPodLogs(c)
@@ -773,4 +773,34 @@ func fnTest(c *cli.Context) error {
 	}
 
 	return nil
+}
+
+func httpRequest(method, url, body string, headers []string) *http.Response {
+	if method == "" {
+		method = "GET"
+	}
+
+	if method != http.MethodGet &&
+		method != http.MethodDelete &&
+		method != http.MethodPost &&
+		method != http.MethodPut {
+		log.Fatal(fmt.Sprintf("Invalid HTTP method '%s'.", method))
+	}
+
+	req, err := http.NewRequest(method, url, strings.NewReader(body))
+	util.CheckErr(err, "create HTTP request")
+
+	for _, header := range headers {
+		headerKeyValue := strings.SplitN(header, ":", 2)
+		if len(headerKeyValue) != 2 {
+			util.CheckErr(errors.New(""), "create request without appropriate headers")
+		}
+		req.Header.Set(headerKeyValue[0], headerKeyValue[1])
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	util.CheckErr(err, "execute HTTP request")
+
+	return resp
 }

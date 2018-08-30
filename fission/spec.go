@@ -40,6 +40,7 @@ import (
 	"github.com/fission/fission/controller/client"
 	"github.com/fission/fission/crd"
 	"github.com/fission/fission/fission/log"
+	"github.com/fission/fission/fission/util"
 )
 
 const SPEC_API_VERSION = "fission.io/v1"
@@ -158,15 +159,15 @@ func specInit(c *cli.Context) error {
 	if len(name) == 0 {
 		// come up with a name using the current dir
 		dir, err := filepath.Abs(".")
-		checkErr(err, "get current working directory")
+		util.CheckErr(err, "get current working directory")
 		basename := filepath.Base(dir)
-		name = kubifyName(basename)
+		name = util.KubifyName(basename)
 	}
 
 	// Create spec dir
 	fmt.Printf("Creating fission spec directory '%v'\n", specDir)
 	err := os.MkdirAll(specDir, 0755)
-	checkErr(err, fmt.Sprintf("create spec directory '%v'", specDir))
+	util.CheckErr(err, fmt.Sprintf("create spec directory '%v'", specDir))
 
 	// Add a bit of documentation to the spec dir here
 	err = ioutil.WriteFile(filepath.Join(specDir, "README"), []byte(SPEC_README), 0644)
@@ -188,7 +189,7 @@ func specInit(c *cli.Context) error {
 		UID: uuid.NewV4().String(),
 	}
 	err = writeDeploymentConfig(specDir, &dc)
-	checkErr(err, "write deployment config")
+	util.CheckErr(err, "write deployment config")
 
 	// Other possible things to do here:
 	// - add example specs to the dir to make it easy to manually
@@ -226,7 +227,7 @@ func specValidate(c *cli.Context) error {
 	// this will error on parse errors and on duplicates
 	specDir := getSpecDir(c)
 	fr, err := readSpecs(specDir)
-	checkErr(err, "read specs")
+	util.CheckErr(err, "read specs")
 
 	// this does the rest of the checks, like dangling refs
 	err = fr.validate()
@@ -631,7 +632,7 @@ func waitForFileWatcherToSettleDown(watcher *fsnotify.Watcher) error {
 // etc, while doing an apply, they will get a partially applied deployment.  However,
 // they can retry their apply command once they're back online.
 func specApply(c *cli.Context) error {
-	fclient := getClient(c.GlobalString("server"))
+	fclient := util.GetApiClient(c.GlobalString("server"))
 	specDir := getSpecDir(c)
 
 	deleteResources := c.Bool("delete")
@@ -649,35 +650,35 @@ func specApply(c *cli.Context) error {
 	if watchResources {
 		var err error
 		watcher, err = fsnotify.NewWatcher()
-		checkErr(err, "create file watcher")
+		util.CheckErr(err, "create file watcher")
 
 		// add watches
 		rootDir := filepath.Clean(specDir + "/..")
 		err = filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
-			checkErr(err, "scan project files")
+			util.CheckErr(err, "scan project files")
 
 			if ignoreFile(path) {
 				return nil
 			}
 			err = watcher.Add(path)
-			checkErr(err, fmt.Sprintf("watch path %v", path))
+			util.CheckErr(err, fmt.Sprintf("watch path %v", path))
 			return nil
 		})
-		checkErr(err, "scan files to watch")
+		util.CheckErr(err, "scan files to watch")
 	}
 
 	for {
 		// read all specs
 		fr, err := readSpecs(specDir)
-		checkErr(err, "read specs")
+		util.CheckErr(err, "read specs")
 
 		// validate
 		err = fr.validate()
-		checkErr(err, "validate specs")
+		util.CheckErr(err, "validate specs")
 
 		// make changes to the cluster based on the specs
 		pkgMetas, as, err := applyResources(fclient, specDir, fr, deleteResources)
-		checkErr(err, "apply specs")
+		util.CheckErr(err, "apply specs")
 		printApplyStatus(as)
 
 		if watchResources || waitForBuild {
@@ -718,11 +719,11 @@ func specApply(c *cli.Context) error {
 				pkgWatchCancel()
 
 				err = waitForFileWatcherToSettleDown(watcher)
-				checkErr(err, "watching files")
+				util.CheckErr(err, "watching files")
 
 				break waitloop
 			case err := <-watcher.Errors:
-				checkErr(err, "watching files")
+				util.CheckErr(err, "watching files")
 			}
 		}
 	}
@@ -775,14 +776,14 @@ func pluralize(num int, word string) string {
 
 // specDestroy destroys everything in the spec.
 func specDestroy(c *cli.Context) error {
-	fclient := getClient(c.GlobalString("server"))
+	fclient := util.GetApiClient(c.GlobalString("server"))
 
 	// get specdir
 	specDir := getSpecDir(c)
 
 	// read everything
 	fr, err := readSpecs(specDir)
-	checkErr(err, "read specs")
+	util.CheckErr(err, "read specs")
 
 	// set desired state to nothing, but keep the UID so "apply" can find it
 	emptyFr := FissionResources{}
@@ -790,7 +791,7 @@ func specDestroy(c *cli.Context) error {
 
 	// "apply" the empty state
 	_, _, err = applyResources(fclient, specDir, &emptyFr, true)
-	checkErr(err, "delete resources")
+	util.CheckErr(err, "delete resources")
 
 	return nil
 }

@@ -29,10 +29,11 @@ import (
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
+	"github.com/fission/fission/fission/util"
 )
 
 func recorderCreate(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
+	client := util.GetApiClient(c.GlobalString("server"))
 
 	recName := c.String("name")
 	if len(recName) == 0 {
@@ -81,19 +82,19 @@ func recorderCreate(c *cli.Context) error {
 	if c.Bool("spec") {
 		specFile := fmt.Sprintf("recorder-%v.yaml", recName)
 		err := specSave(*recorder, specFile)
-		checkErr(err, "create recorder spec")
+		util.CheckErr(err, "create recorder spec")
 		return nil
 	}
 
 	_, err := client.RecorderCreate(recorder)
-	checkErr(err, "create recorder")
+	util.CheckErr(err, "create recorder")
 
 	fmt.Printf("recorder '%s' created\n", recName)
 	return err
 }
 
 func recorderGet(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
+	client := util.GetApiClient(c.GlobalString("server"))
 
 	recName := c.String("name")
 
@@ -102,7 +103,7 @@ func recorderGet(c *cli.Context) error {
 		Namespace: "default",
 	})
 
-	checkErr(err, "get recorder")
+	util.CheckErr(err, "get recorder")
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
 
@@ -116,7 +117,7 @@ func recorderGet(c *cli.Context) error {
 }
 
 func recorderUpdate(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
+	client := util.GetApiClient(c.GlobalString("server"))
 
 	recName := c.String("name")
 	enable := c.Bool("enable")
@@ -190,14 +191,14 @@ func recorderUpdate(c *cli.Context) error {
 	}
 
 	_, err = client.RecorderUpdate(recorder)
-	checkErr(err, "update recorder")
+	util.CheckErr(err, "update recorder")
 
 	fmt.Printf("recorder '%v' updated\n", recName)
 	return nil
 }
 
 func recorderDelete(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
+	client := util.GetApiClient(c.GlobalString("server"))
 
 	recName := c.String("name")
 
@@ -212,17 +213,17 @@ func recorderDelete(c *cli.Context) error {
 		Namespace: recNs,
 	})
 
-	checkErr(err, "delete recorder")
+	util.CheckErr(err, "delete recorder")
 
 	fmt.Printf("recorder '%v' deleted\n", recName)
 	return nil
 }
 
 func recorderList(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
+	client := util.GetApiClient(c.GlobalString("server"))
 
 	recorders, err := client.RecorderList("default")
-	checkErr(err, "list recorders")
+	util.CheckErr(err, "list recorders")
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
 

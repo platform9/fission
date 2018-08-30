@@ -18,13 +18,23 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
+	"io/ioutil"
+	"net/http"
 	"net/url"
 	"os"
+	"path"
+	"path/filepath"
 	"strings"
 	"text/tabwriter"
 
+	"github.com/dchest/uniuri"
+	"github.com/fission/fission/fission/util"
+	storageSvcClient "github.com/fission/fission/storagesvc/client"
+	"github.com/satori/go.uuid"
 	"github.com/urfave/cli"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -59,12 +69,12 @@ func downloadStoragesvcURL(client *client.Client, fileUrl string) io.ReadCloser 
 	fileDownloadUrl := strings.TrimSuffix(client.Url, "/") + "/proxy/storage/" + u.RequestURI()
 	reader, err := downloadURL(fileDownloadUrl)
 
-	checkErr(err, fmt.Sprintf("download from storage service url: %v", fileUrl))
+	util.CheckErr(err, fmt.Sprintf("download from storage service url: %v", fileUrl))
 	return reader
 }
 
 func pkgCreate(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
+	client := util.GetApiClient(c.GlobalString("server"))
 
 	pkgNamespace := c.String("pkgNamespace")
 	envName := c.String("env")
@@ -87,7 +97,7 @@ func pkgCreate(c *cli.Context) error {
 }
 
 func pkgUpdate(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
+	client := util.GetApiClient(c.GlobalString("server"))
 
 	pkgName := c.String("name")
 	if len(pkgName) == 0 {
@@ -115,7 +125,7 @@ func pkgUpdate(c *cli.Context) error {
 		Namespace: pkgNamespace,
 		Name:      pkgName,
 	})
-	checkErr(err, "get package")
+	util.CheckErr(err, "get package")
 
 	// if the new env specified is the same as the old one, no need to update package
 	// same is true for all update parameters, but, for now, we dont check all of them - because, its ok to
@@ -129,7 +139,7 @@ func pkgUpdate(c *cli.Context) error {
 	}
 
 	fnList, err := getFunctionsByPackage(client, pkg.Metadata.Name, pkg.Metadata.Namespace)
-	checkErr(err, "get function list")
+	util.CheckErr(err, "get function list")
 
 	if !force && len(fnList) > 1 {
 		log.Fatal("Package is used by multiple functions, use --force to force update")
@@ -138,14 +148,14 @@ func pkgUpdate(c *cli.Context) error {
 	newPkgMeta, err := updatePackage(client, pkg,
 		envName, envNamespace, srcArchiveName, deployArchiveName, buildcmd, false)
 	if err != nil {
-		checkErr(err, "update package")
+		util.CheckErr(err, "update package")
 	}
 
 	// update resource version of package reference of functions that shared the same package
 	for _, fn := range fnList {
 		fn.Spec.Package.PackageRef.ResourceVersion = newPkgMeta.ResourceVersion
 		_, err := client.FunctionUpdate(&fn)
-		checkErr(err, "update function")
+		util.CheckErr(err, "update function")
 	}
 
 	fmt.Printf("Package '%v' updated\n", newPkgMeta.GetName())
@@ -197,13 +207,13 @@ func updatePackage(client *client.Client, pkg *crd.Package, envName, envNamespac
 	}
 
 	newPkgMeta, err := client.PackageUpdate(pkg)
-	checkErr(err, "update package")
+	util.CheckErr(err, "update package")
 
 	return newPkgMeta, err
 }
 
 func pkgSourceGet(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
+	client := util.GetApiClient(c.GlobalString("server"))
 
 	pkgName := c.String("name")
 	if len(pkgName) == 0 {
@@ -240,7 +250,7 @@ func pkgSourceGet(c *cli.Context) error {
 }
 
 func pkgDeployGet(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
+	client := util.GetApiClient(c.GlobalString("server"))
 
 	pkgName := c.String("name")
 	if len(pkgName) == 0 {
@@ -277,7 +287,7 @@ func pkgDeployGet(c *cli.Context) error {
 }
 
 func pkgInfo(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
+	client := util.GetApiClient(c.GlobalString("server"))
 
 	pkgName := c.String("name")
 	if len(pkgName) == 0 {
@@ -304,7 +314,7 @@ func pkgInfo(c *cli.Context) error {
 }
 
 func pkgList(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
+	client := util.GetApiClient(c.GlobalString("server"))
 	// option for the user to list all orphan packages (not referenced by any function)
 	listOrphans := c.Bool("orphan")
 	pkgNamespace := c.String("pkgNamespace")
@@ -319,7 +329,7 @@ func pkgList(c *cli.Context) error {
 	if listOrphans {
 		for _, pkg := range pkgList {
 			fnList, err := getFunctionsByPackage(client, pkg.Metadata.Name, pkg.Metadata.Namespace)
-			checkErr(err, fmt.Sprintf("get functions sharing package %s", pkg.Metadata.Name))
+			util.CheckErr(err, fmt.Sprintf("get functions sharing package %s", pkg.Metadata.Name))
 			if len(fnList) == 0 {
 				fmt.Fprintf(w, "%v\t%v\t%v\n", pkg.Metadata.Name, pkg.Status.BuildStatus, pkg.Spec.Environment.Name)
 			}
@@ -345,7 +355,7 @@ func deleteOrphanPkgs(client *client.Client, pkgNamespace string) error {
 	// range through all packages and find out the ones not referenced by any function
 	for _, pkg := range pkgList {
 		fnList, err := getFunctionsByPackage(client, pkg.Metadata.Name, pkgNamespace)
-		checkErr(err, fmt.Sprintf("get functions sharing package %s", pkg.Metadata.Name))
+		util.CheckErr(err, fmt.Sprintf("get functions sharing package %s", pkg.Metadata.Name))
 		if len(fnList) == 0 {
 			err = deletePackage(client, pkg.Metadata.Name, pkgNamespace)
 			if err != nil {
@@ -364,7 +374,7 @@ func deletePackage(client *client.Client, pkgName string, pkgNamespace string) e
 }
 
 func pkgDelete(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
+	client := util.GetApiClient(c.GlobalString("server"))
 
 	pkgName := c.String("name")
 	pkgNamespace := c.String("pkgNamespace")
@@ -386,7 +396,7 @@ func pkgDelete(c *cli.Context) error {
 			Namespace: pkgNamespace,
 			Name:      pkgName,
 		})
-		checkErr(err, "find package")
+		util.CheckErr(err, "find package")
 
 		fnList, err := getFunctionsByPackage(client, pkgName, pkgNamespace)
 
@@ -402,7 +412,7 @@ func pkgDelete(c *cli.Context) error {
 		fmt.Printf("Package '%v' deleted\n", pkgName)
 	} else {
 		err := deleteOrphanPkgs(client, pkgNamespace)
-		checkErr(err, "error deleting orphan packages")
+		util.CheckErr(err, "error deleting orphan packages")
 		fmt.Println("Orphan packages deleted")
 	}
 
@@ -410,7 +420,7 @@ func pkgDelete(c *cli.Context) error {
 }
 
 func pkgRebuild(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
+	client := util.GetApiClient(c.GlobalString("server"))
 
 	pkgName := c.String("name")
 	if len(pkgName) == 0 {
@@ -422,7 +432,7 @@ func pkgRebuild(c *cli.Context) error {
 		Name:      pkgName,
 		Namespace: pkgNamespace,
 	})
-	checkErr(err, "find package")
+	util.CheckErr(err, "find package")
 
 	if pkg.Status.BuildStatus != fission.BuildStatusFailed {
 		log.Fatal(fmt.Sprintf("Package %v is not in %v state.",
@@ -430,9 +440,215 @@ func pkgRebuild(c *cli.Context) error {
 	}
 
 	_, err = updatePackage(client, pkg, "", "", "", "", "", true)
-	checkErr(err, "update package")
+	util.CheckErr(err, "update package")
 
 	fmt.Printf("Retrying build for pkg %v. Use \"fission pkg info --name %v\" to view status.\n", pkg.Metadata.Name, pkg.Metadata.Name)
 
 	return nil
+}
+
+func fileSize(filePath string) int64 {
+	info, err := os.Stat(filePath)
+	util.CheckErr(err, fmt.Sprintf("stat %v", filePath))
+	return info.Size()
+}
+
+func fileChecksum(fileName string) (*fission.Checksum, error) {
+	f, err := os.Open(fileName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file %v: %v", fileName, err)
+	}
+	defer f.Close()
+
+	h := sha256.New()
+	_, err = io.Copy(h, f)
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate checksum for %v", fileName)
+	}
+
+	return &fission.Checksum{
+		Type: fission.ChecksumTypeSHA256,
+		Sum:  hex.EncodeToString(h.Sum(nil)),
+	}, nil
+}
+
+// upload a file and return a fission.Archive
+func createArchive(client *client.Client, fileName string, specFile string) *fission.Archive {
+	var archive fission.Archive
+
+	// fetch archive from arbitrary url if fileName is a url
+	if strings.HasPrefix(fileName, "http://") || strings.HasPrefix(fileName, "https://") {
+		fileName = downloadToTempFile(fileName)
+	}
+
+	if len(specFile) > 0 {
+		// create an ArchiveUploadSpec and reference it from the archive
+		aus := &ArchiveUploadSpec{
+			Name:         util.KubifyName(path.Base(fileName)),
+			IncludeGlobs: []string{fileName},
+		}
+		// save the uploadspec
+		err := specSave(*aus, specFile)
+		util.CheckErr(err, fmt.Sprintf("write spec file %v", specFile))
+		// create the archive
+		ar := &fission.Archive{
+			Type: fission.ArchiveTypeUrl,
+			URL:  fmt.Sprintf("%v%v", ARCHIVE_URL_PREFIX, aus.Name),
+		}
+		return ar
+	}
+
+	if fileSize(fileName) < fission.ArchiveLiteralSizeLimit {
+		contents := getContents(fileName)
+		archive.Type = fission.ArchiveTypeLiteral
+		archive.Literal = contents
+	} else {
+		u := strings.TrimSuffix(client.Url, "/") + "/proxy/storage"
+		ssClient := storageSvcClient.MakeClient(u)
+
+		// TODO add a progress bar
+		id, err := ssClient.Upload(fileName, nil)
+		util.CheckErr(err, fmt.Sprintf("upload file %v", fileName))
+
+		storageSvc, err := client.GetSvcURL("application=fission-storage")
+		storageSvcURL := "http://" + storageSvc
+		util.CheckErr(err, "get fission storage service name")
+
+		// We make a new client with actual URL of Storage service so that the URL is not
+		// pointing to 127.0.0.1 i.e. proxy. DON'T reuse previous ssClient
+		pkgClient := storageSvcClient.MakeClient(storageSvcURL)
+		archiveURL := pkgClient.GetUrl(id)
+
+		archive.Type = fission.ArchiveTypeUrl
+		archive.URL = archiveURL
+
+		csum, err := fileChecksum(fileName)
+		util.CheckErr(err, fmt.Sprintf("calculate checksum for file %v", fileName))
+
+		archive.Checksum = *csum
+	}
+	return &archive
+}
+
+func createPackage(client *client.Client, pkgNamespace, envName, envNamespace, srcArchiveName, deployArchiveName, buildcmd string, specFile string) *metav1.ObjectMeta {
+	pkgSpec := fission.PackageSpec{
+		Environment: fission.EnvironmentReference{
+			Namespace: envNamespace,
+			Name:      envName,
+		},
+	}
+	var pkgStatus fission.BuildStatus = fission.BuildStatusSucceeded
+
+	var pkgName string
+	if len(deployArchiveName) > 0 {
+		if len(specFile) > 0 { // we should do this in all cases, i think
+			pkgStatus = fission.BuildStatusNone
+		}
+		pkgSpec.Deployment = *createArchive(client, deployArchiveName, specFile)
+		pkgName = util.KubifyName(fmt.Sprintf("%v-%v", path.Base(deployArchiveName), uniuri.NewLen(4)))
+	}
+	if len(srcArchiveName) > 0 {
+		pkgSpec.Source = *createArchive(client, srcArchiveName, specFile)
+		// set pending status to package
+		pkgStatus = fission.BuildStatusPending
+		pkgName = util.KubifyName(fmt.Sprintf("%v-%v", path.Base(srcArchiveName), uniuri.NewLen(4)))
+	}
+
+	if len(buildcmd) > 0 {
+		pkgSpec.BuildCommand = buildcmd
+	}
+
+	if len(pkgName) == 0 {
+		pkgName = strings.ToLower(uuid.NewV4().String())
+	}
+	pkg := &crd.Package{
+		Metadata: metav1.ObjectMeta{
+			Name:      pkgName,
+			Namespace: pkgNamespace,
+		},
+		Spec: pkgSpec,
+		Status: fission.PackageStatus{
+			BuildStatus: pkgStatus,
+		},
+	}
+
+	if len(specFile) > 0 {
+		err := specSave(*pkg, specFile)
+		util.CheckErr(err, "save package spec")
+		return &pkg.Metadata
+	} else {
+		pkgMetadata, err := client.PackageCreate(pkg)
+		util.CheckErr(err, "create package")
+		return pkgMetadata
+	}
+}
+
+func getContents(filePath string) []byte {
+	var code []byte
+	var err error
+
+	code, err = ioutil.ReadFile(filePath)
+	util.CheckErr(err, fmt.Sprintf("read %v", filePath))
+	return code
+}
+
+func writeArchiveToFile(fileName string, reader io.Reader) error {
+	tmpDir, err := fission.GetTempDir()
+	if err != nil {
+		return err
+	}
+
+	path := filepath.Join(tmpDir, fileName+".tmp")
+	w, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	_, err = io.Copy(w, reader)
+	if err != nil {
+		return err
+	}
+	err = os.Chmod(path, 0644)
+	if err != nil {
+		return err
+	}
+
+	err = os.Rename(path, fileName)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// downloadToTempFile fetches archive file from arbitrary url
+// and write it to temp file for further usage
+func downloadToTempFile(fileUrl string) string {
+	reader, err := downloadURL(fileUrl)
+	defer reader.Close()
+	util.CheckErr(err, fmt.Sprintf("download from url: %v", fileUrl))
+
+	tmpDir, err := fission.GetTempDir()
+	util.CheckErr(err, "create temp directory")
+
+	tmpFilename := uuid.NewV4().String()
+	destination := filepath.Join(tmpDir, tmpFilename)
+	err = os.Mkdir(tmpDir, 0744)
+	util.CheckErr(err, "create temp directory")
+
+	err = writeArchiveToFile(destination, reader)
+	util.CheckErr(err, "write archive to file")
+
+	return destination
+}
+
+// downloadURL downloads file from given url
+func downloadURL(fileUrl string) (io.ReadCloser, error) {
+	resp, err := http.Get(fileUrl)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("%v - HTTP response returned non 200 status", resp.StatusCode)
+	}
+	return resp.Body, nil
 }

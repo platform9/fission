@@ -19,56 +19,17 @@ package main
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
-	"github.com/ghodss/yaml"
 	"github.com/urfave/cli"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/fission/log"
 	"github.com/fission/fission/fission/plugin"
-	"github.com/fission/fission/fission/portforward"
+	"github.com/fission/fission/fission/supporttool"
+	"github.com/fission/fission/fission/util"
 )
-
-func getFissionNamespace() string {
-	fissionNamespace := os.Getenv("FISSION_NAMESPACE")
-	return fissionNamespace
-}
-
-func getKubeConfigPath() string {
-	kubeConfig := os.Getenv("KUBECONFIG")
-	if len(kubeConfig) == 0 {
-		home := os.Getenv("HOME")
-		kubeConfig = filepath.Join(home, ".kube", "config")
-
-		if _, err := os.Stat(kubeConfig); os.IsNotExist(err) {
-			log.Fatal("Couldn't find kubeconfig file. " +
-				"Set the KUBECONFIG environment variable to your kubeconfig's path.")
-		}
-	}
-	return kubeConfig
-}
-
-func getServerUrl() string {
-	return getApplicationUrl("application=fission-api")
-}
-
-func getApplicationUrl(selector string) string {
-	var serverUrl string
-	// Use FISSION_URL env variable if set; otherwise, port-forward to controller.
-	fissionUrl := os.Getenv("FISSION_URL")
-	if len(fissionUrl) == 0 {
-		fissionNamespace := getFissionNamespace()
-		kubeConfig := getKubeConfigPath()
-		localPort := portforward.Setup(kubeConfig, fissionNamespace, "application=fission-api")
-		serverUrl = "http://127.0.0.1:" + localPort
-	} else {
-		serverUrl = fissionUrl
-	}
-	return serverUrl
-}
 
 func cliHook(c *cli.Context) error {
 	log.Verbosity = c.Int("verbosity")
@@ -303,6 +264,13 @@ func main() {
 		{Name: "helm", Usage: "Create a helm chart from the app specification", Flags: []cli.Flag{specDirFlag}, Action: specHelm},
 	}
 
+	// support
+	supportDumpFlag := cli.StringFlag{Name: "dumpdir", Value: supporttool.DEFAULT_DUMP_DIR, Usage: "Directory to place dump archive"}
+	supportFileFlag := cli.BoolFlag{Name: "file", Usage: "Save dump information into multiple files"}
+	supportSubCommands := []cli.Command{
+		{Name: "dump", Usage: "Collect & dump all necessary for troubleshooting", Flags: []cli.Flag{supportDumpFlag, supportFileFlag}, Action: supporttool.DumpInfo},
+	}
+
 	app.Commands = []cli.Command{
 		{Name: "function", Aliases: []string{"fn"}, Usage: "Create, update and manage functions", Subcommands: fnSubcommands},
 		{Name: "httptrigger", Aliases: []string{"ht", "route"}, Usage: "Manage HTTP triggers (routes) for functions", Subcommands: htSubcommands},
@@ -316,6 +284,7 @@ func main() {
 		{Name: "package", Aliases: []string{"pkg"}, Usage: "Manage packages", Subcommands: pkgSubCommands},
 		{Name: "spec", Aliases: []string{"specs"}, Usage: "Manage a declarative app specification", Subcommands: specSubCommands},
 		{Name: "upgrade", Aliases: []string{}, Usage: "Upgrade tool from fission v0.1", Subcommands: upgradeSubCommands},
+		{Name: "support", Usage: "Support tool to collect information and basic diagnostic", Subcommands: supportSubCommands},
 		cmdPlugin,
 	}
 	app.Before = cliHook
@@ -361,40 +330,10 @@ To install it for your local Fission CLI:
 	}
 }
 
-// Versions is a container of versions of the client (and its plugins) and server (and its plugins).
-type Versions struct {
-	Client map[string]fission.BuildMeta `json:"client"`
-	Server map[string]fission.BuildMeta `json:"server"`
-}
-
 func versionPrinter(_ *cli.Context) {
-	serverInfo, err := getClient(getServerUrl()).ServerInfo()
-	if err != nil {
-		log.Warn(fmt.Sprintf("Error getting Fission API version: %v", err))
-	}
-
-	// Fetch client versions
-	versions := Versions{
-		Client: map[string]fission.BuildMeta{
-			"fission/core": fission.BuildInfo(),
-		},
-	}
-	for _, pmd := range plugin.FindAll() {
-		versions.Client[pmd.Name] = fission.BuildMeta{
-			Version: pmd.Version,
-		}
-	}
-
-	// Fetch server versions
-	versions.Server = map[string]fission.BuildMeta{
-		"fission/core": serverInfo.Build,
-	}
-	// FUTURE: fetch versions of plugins server-side
-	bs, err := yaml.Marshal(versions)
-	if err != nil {
-		log.Fatal("Failed to format versions: " + err.Error())
-	}
-	fmt.Print(string(bs))
+	client := util.GetApiClient(util.GetServerUrl())
+	ver := util.GetVersion(client)
+	fmt.Print(string(ver))
 }
 
 var helpTemplate = `NAME:

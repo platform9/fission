@@ -24,6 +24,7 @@ import (
 
 	"github.com/urfave/cli"
 
+	"github.com/fission/fission/fission/util"
 	"github.com/fission/fission/redis/build/gen"
 )
 
@@ -59,15 +60,15 @@ func recordsView(c *cli.Context) error {
 		return recordsByTime(from, to, verbosity, c)
 	}
 	err := recordsAll(verbosity, c)
-	checkErr(err, "view records")
+	util.CheckErr(err, "view records")
 	return nil
 }
 
 func recordsAll(verbosity int, c *cli.Context) error {
-	fc := getClient(c.GlobalString("server"))
+	fc := util.GetApiClient(c.GlobalString("server"))
 
 	records, err := fc.RecordsAll()
-	checkErr(err, "view records")
+	util.CheckErr(err, "view records")
 
 	showRecords(records, verbosity)
 
@@ -75,10 +76,10 @@ func recordsAll(verbosity int, c *cli.Context) error {
 }
 
 func recordsByTrigger(trigger string, verbosity int, c *cli.Context) error {
-	fc := getClient(c.GlobalString("server"))
+	fc := util.GetApiClient(c.GlobalString("server"))
 
 	records, err := fc.RecordsByTrigger(trigger)
-	checkErr(err, "view records")
+	util.CheckErr(err, "view records")
 
 	showRecords(records, verbosity)
 
@@ -87,10 +88,10 @@ func recordsByTrigger(trigger string, verbosity int, c *cli.Context) error {
 
 // TODO: More accurate function name (function filter)
 func recordsByFunction(function string, verbosity int, c *cli.Context) error {
-	fc := getClient(c.GlobalString("server"))
+	fc := util.GetApiClient(c.GlobalString("server"))
 
 	records, err := fc.RecordsByFunction(function)
-	checkErr(err, "view records")
+	util.CheckErr(err, "view records")
 
 	showRecords(records, verbosity)
 
@@ -98,10 +99,10 @@ func recordsByFunction(function string, verbosity int, c *cli.Context) error {
 }
 
 func recordsByTime(from string, to string, verbosity int, c *cli.Context) error {
-	fc := getClient(c.GlobalString("server"))
+	fc := util.GetApiClient(c.GlobalString("server"))
 
 	records, err := fc.RecordsByTime(from, to)
-	checkErr(err, "view records")
+	util.CheckErr(err, "view records")
 
 	showRecords(records, verbosity)
 

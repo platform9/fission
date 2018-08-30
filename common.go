@@ -22,14 +22,19 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime/debug"
 	"strings"
 	"syscall"
 
 	"github.com/gorilla/handlers"
 	"github.com/imdario/mergo"
+	"github.com/mholt/archiver"
+	uuid "github.com/satori/go.uuid"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/fission/fission/fission/log"
 )
 
 func UrlForFunction(name, namespace string) string {
@@ -122,4 +127,32 @@ func IsReadyPod(pod *apiv1.Pod) bool {
 	}
 
 	return true
+}
+
+// GetTempDir creates and return a temporary directory
+func GetTempDir() (string, error) {
+	tmpDir := uuid.NewV4().String()
+	tmpPath := filepath.Join(os.TempDir(), tmpDir)
+	err := os.Mkdir(tmpPath, 0755)
+	return tmpPath, err
+}
+
+func MakeArchive(targetName string, globs ...string) (string, error) {
+	files := make([]string, 0)
+	for _, glob := range globs {
+		f, err := filepath.Glob(glob)
+		if err != nil {
+			log.Warn(fmt.Sprintf("Invalid glob %v: %v", glob, err))
+			return "", err
+		}
+		files = append(files, f...)
+	}
+
+	// zip up the file list
+	err := archiver.Zip.Make(targetName, files)
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Abs(targetName)
 }

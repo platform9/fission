@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package portforward
+package util
 
 import (
 	"fmt"
@@ -27,8 +27,6 @@ import (
 
 	"k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/transport/spdy"
 
@@ -41,7 +39,7 @@ import (
 // is found by looking for a service in the same namespace and using
 // its targetPort. Once the port forward is started, wait for it to
 // start accepting connections before returning.
-func Setup(kubeConfig, namespace, labelSelector string) string {
+func SetupPortForward(kubeConfig, namespace, labelSelector string) string {
 	log.Verbose(2, "Setting up port forward to %s in namespace %s using the kubeconfig at %s",
 		labelSelector, namespace, kubeConfig)
 
@@ -104,15 +102,7 @@ func findFreePort() (string, error) {
 
 // runPortForward creates a local port forward to the specified pod
 func runPortForward(kubeConfig string, labelSelector string, localPort string, ns string) error {
-	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
-	if err != nil {
-		log.Fatal(fmt.Sprintf("Failed to connect to Kubernetes: %s", err))
-	}
-
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		log.Fatal(fmt.Sprintf("Failed to connect to Kubernetes: %s", err))
-	}
+	config, clientset := GetKubernetesClient(kubeConfig)
 
 	log.Verbose(2, "Connected to Kubernetes API")
 

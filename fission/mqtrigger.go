@@ -21,6 +21,7 @@ import (
 	"os"
 	"text/tabwriter"
 
+	"github.com/fission/fission/fission/util"
 	"github.com/satori/go.uuid"
 	"github.com/urfave/cli"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,7 +33,7 @@ import (
 )
 
 func mqtCreate(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
+	client := util.GetApiClient(c.GlobalString("server"))
 
 	mqtName := c.String("name")
 	if len(mqtName) == 0 {
@@ -107,12 +108,12 @@ func mqtCreate(c *cli.Context) error {
 	if c.Bool("spec") {
 		specFile := fmt.Sprintf("mqtrigger-%v.yaml", mqtName)
 		err := specSave(*mqt, specFile)
-		checkErr(err, "create message queue trigger spec")
+		util.CheckErr(err, "create message queue trigger spec")
 		return nil
 	}
 
 	_, err := client.MessageQueueTriggerCreate(mqt)
-	checkErr(err, "create message queue trigger")
+	util.CheckErr(err, "create message queue trigger")
 
 	fmt.Printf("trigger '%s' created\n", mqtName)
 	return err
@@ -123,7 +124,7 @@ func mqtGet(c *cli.Context) error {
 }
 
 func mqtUpdate(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
+	client := util.GetApiClient(c.GlobalString("server"))
 	mqtName := c.String("name")
 	if len(mqtName) == 0 {
 		log.Fatal("Need name of trigger, use --name")
@@ -141,7 +142,7 @@ func mqtUpdate(c *cli.Context) error {
 		Name:      mqtName,
 		Namespace: mqtNs,
 	})
-	checkErr(err, "get Time trigger")
+	util.CheckErr(err, "get Time trigger")
 
 	// TODO : Find out if we can make a call to checkIfFunctionExists, in the same ns more importantly.
 
@@ -178,14 +179,14 @@ func mqtUpdate(c *cli.Context) error {
 	}
 
 	_, err = client.MessageQueueTriggerUpdate(mqt)
-	checkErr(err, "update Time trigger")
+	util.CheckErr(err, "update Time trigger")
 
 	fmt.Printf("trigger '%v' updated\n", mqtName)
 	return nil
 }
 
 func mqtDelete(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
+	client := util.GetApiClient(c.GlobalString("server"))
 	mqtName := c.String("name")
 	if len(mqtName) == 0 {
 		log.Fatal("Need name of trigger to delete, use --name")
@@ -196,18 +197,18 @@ func mqtDelete(c *cli.Context) error {
 		Name:      mqtName,
 		Namespace: mqtNs,
 	})
-	checkErr(err, "delete trigger")
+	util.CheckErr(err, "delete trigger")
 
 	fmt.Printf("trigger '%v' deleted\n", mqtName)
 	return nil
 }
 
 func mqtList(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
+	client := util.GetApiClient(c.GlobalString("server"))
 	mqtNs := c.String("triggerns")
 
 	mqts, err := client.MessageQueueTriggerList(c.String("mqtype"), mqtNs)
-	checkErr(err, "list message queue triggers")
+	util.CheckErr(err, "list message queue triggers")
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
 

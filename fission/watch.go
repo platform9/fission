@@ -28,10 +28,11 @@ import (
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
 	"github.com/fission/fission/fission/log"
+	"github.com/fission/fission/fission/util"
 )
 
 func wCreate(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
+	client := util.GetApiClient(c.GlobalString("server"))
 
 	fnName := c.String("function")
 	if len(fnName) == 0 {
@@ -83,12 +84,12 @@ func wCreate(c *cli.Context) error {
 	if c.Bool("spec") {
 		specFile := fmt.Sprintf("kubewatch-%v.yaml", watchName)
 		err := specSave(*w, specFile)
-		checkErr(err, "create kubernetes watch spec")
+		util.CheckErr(err, "create kubernetes watch spec")
 		return nil
 	}
 
 	_, err := client.WatchCreate(w)
-	checkErr(err, "create watch")
+	util.CheckErr(err, "create watch")
 
 	fmt.Printf("watch '%v' created\n", w.Metadata.Name)
 	return err
@@ -107,7 +108,7 @@ func wUpdate(c *cli.Context) error {
 }
 
 func wDelete(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
+	client := util.GetApiClient(c.GlobalString("server"))
 
 	wName := c.String("name")
 	if len(wName) == 0 {
@@ -119,19 +120,19 @@ func wDelete(c *cli.Context) error {
 		Name:      wName,
 		Namespace: wNs,
 	})
-	checkErr(err, "delete watch")
+	util.CheckErr(err, "delete watch")
 
 	fmt.Printf("watch '%v' deleted\n", wName)
 	return nil
 }
 
 func wList(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
+	client := util.GetApiClient(c.GlobalString("server"))
 
 	wNs := c.String("triggerns")
 
 	ws, err := client.WatchList(wNs)
-	checkErr(err, "list watches")
+	util.CheckErr(err, "list watches")
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
 

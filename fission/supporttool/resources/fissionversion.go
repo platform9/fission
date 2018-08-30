@@ -14,38 +14,27 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package resources
 
 import (
 	"fmt"
-	"log"
-	"os"
-	"text/tabwriter"
+	"path/filepath"
 
+	"github.com/fission/fission/controller/client"
 	"github.com/fission/fission/fission/util"
-	"github.com/urfave/cli"
 )
 
-func replay(c *cli.Context) error {
-	fc := util.GetApiClient(c.GlobalString("server"))
+type FissionVersion struct {
+	client    *client.Client
+	namespace string
+}
 
-	reqUID := c.String("reqUID")
-	if len(reqUID) == 0 {
-		log.Fatal("Need a reqUID, use --reqUID flag to specify")
-	}
+func NewFissionVersion(client *client.Client) Resource {
+	return FissionVersion{client: client}
+}
 
-	responses, err := fc.ReplayByReqUID(reqUID)
-	util.CheckErr(err, "replay records")
-
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
-
-	for _, resp := range responses {
-		fmt.Fprintf(w, "%v",
-			resp,
-		)
-	}
-
-	w.Flush()
-
-	return nil
+func (res FissionVersion) Dump(dumpDir string) {
+	ver := util.GetVersion(res.client)
+	file := filepath.Clean(fmt.Sprintf("%v/%v", dumpDir, "fission-version.txt"))
+	writeToFile(file, ver)
 }

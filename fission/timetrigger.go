@@ -31,6 +31,7 @@ import (
 	"github.com/fission/fission/controller/client"
 	"github.com/fission/fission/crd"
 	"github.com/fission/fission/fission/log"
+	"github.com/fission/fission/fission/util"
 )
 
 func getAPITimeInfo(client *client.Client) time.Time {
@@ -58,7 +59,7 @@ func getCronNextNActivationTime(cronSpec string, serverTime time.Time, round int
 }
 
 func ttCreate(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
+	client := util.GetApiClient(c.GlobalString("server"))
 
 	name := c.String("name")
 	if len(name) == 0 {
@@ -94,17 +95,17 @@ func ttCreate(c *cli.Context) error {
 	if c.Bool("spec") {
 		specFile := fmt.Sprintf("timetrigger-%v.yaml", name)
 		err := specSave(*tt, specFile)
-		checkErr(err, "create time trigger spec")
+		util.CheckErr(err, "create time trigger spec")
 		return nil
 	}
 
 	_, err := client.TimeTriggerCreate(tt)
-	checkErr(err, "create Time trigger")
+	util.CheckErr(err, "create Time trigger")
 
 	fmt.Printf("trigger '%v' created\n", name)
 
 	err = getCronNextNActivationTime(cronSpec, getAPITimeInfo(client), 1)
-	checkErr(err, "pass cron spec examination")
+	util.CheckErr(err, "pass cron spec examination")
 
 	return err
 }
@@ -114,7 +115,7 @@ func ttGet(c *cli.Context) error {
 }
 
 func ttUpdate(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
+	client := util.GetApiClient(c.GlobalString("server"))
 	ttName := c.String("name")
 	if len(ttName) == 0 {
 		log.Fatal("Need name of trigger, use --name")
@@ -125,7 +126,7 @@ func ttUpdate(c *cli.Context) error {
 		Name:      ttName,
 		Namespace: ttNs,
 	})
-	checkErr(err, "get time trigger")
+	util.CheckErr(err, "get time trigger")
 
 	updated := false
 	newCron := c.String("cron")
@@ -148,18 +149,18 @@ func ttUpdate(c *cli.Context) error {
 	}
 
 	_, err = client.TimeTriggerUpdate(tt)
-	checkErr(err, "update Time trigger")
+	util.CheckErr(err, "update Time trigger")
 
 	fmt.Printf("trigger '%v' updated\n", ttName)
 
 	err = getCronNextNActivationTime(newCron, getAPITimeInfo(client), 1)
-	checkErr(err, "pass cron spec examination")
+	util.CheckErr(err, "pass cron spec examination")
 
 	return nil
 }
 
 func ttDelete(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
+	client := util.GetApiClient(c.GlobalString("server"))
 	ttName := c.String("name")
 	if len(ttName) == 0 {
 		log.Fatal("Need name of trigger to delete, use --name")
@@ -170,18 +171,18 @@ func ttDelete(c *cli.Context) error {
 		Name:      ttName,
 		Namespace: ttNs,
 	})
-	checkErr(err, "delete trigger")
+	util.CheckErr(err, "delete trigger")
 
 	fmt.Printf("trigger '%v' deleted\n", ttName)
 	return nil
 }
 
 func ttList(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
+	client := util.GetApiClient(c.GlobalString("server"))
 	ttNs := c.String("triggerns")
 
 	tts, err := client.TimeTriggerList(ttNs)
-	checkErr(err, "list Time triggers")
+	util.CheckErr(err, "list Time triggers")
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
 
@@ -196,7 +197,7 @@ func ttList(c *cli.Context) error {
 }
 
 func ttTest(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
+	client := util.GetApiClient(c.GlobalString("server"))
 
 	round := c.Int("round")
 	cronSpec := c.String("cron")
@@ -205,7 +206,7 @@ func ttTest(c *cli.Context) error {
 	}
 
 	err := getCronNextNActivationTime(cronSpec, getAPITimeInfo(client), round)
-	checkErr(err, "pass cron spec examination")
+	util.CheckErr(err, "pass cron spec examination")
 
 	return nil
 }

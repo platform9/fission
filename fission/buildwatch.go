@@ -26,6 +26,7 @@ import (
 	"github.com/fission/fission"
 	"github.com/fission/fission/controller/client"
 	"github.com/fission/fission/crd"
+	"github.com/fission/fission/fission/util"
 )
 
 type (
@@ -67,7 +68,7 @@ func (w *packageBuildWatcher) watch(ctx context.Context) {
 
 		// poll list of packages (TODO: convert to watch)
 		pkgs, err := w.fclient.PackageList(metav1.NamespaceAll)
-		checkErr(err, "Getting list of packages")
+		util.CheckErr(err, "Getting list of packages")
 
 		// find packages that (a) are in the app spec and (b) have an interesting
 		// build status (either succeeded or failed; not "none")
