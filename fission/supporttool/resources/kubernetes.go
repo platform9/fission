@@ -25,9 +25,13 @@ import (
 	"path/filepath"
 	"sync"
 
+	appsv1 "k8s.io/api/apps/v1"
+	autoscalingv2beta1 "k8s.io/api/autoscaling/v2beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/fission/fission"
 )
 
 const (
@@ -82,11 +86,12 @@ func (res KubernetesObjectDumper) Dump(dumpDir string) {
 			return
 		}
 
-		for _, obj := range objs.Items {
-			go func() {
+		for _, item := range objs.Items {
+			go func(obj corev1.Service) {
+				obj = serviceClean(obj)
 				f := getFileName(dumpDir, obj.ObjectMeta)
 				writeToFile(f, obj)
-			}()
+			}(item)
 		}
 
 	case KubernetesDeployment:
@@ -96,11 +101,11 @@ func (res KubernetesObjectDumper) Dump(dumpDir string) {
 			return
 		}
 
-		for _, obj := range objs.Items {
-			go func() {
+		for _, item := range objs.Items {
+			go func(obj appsv1.Deployment) {
 				f := getFileName(dumpDir, obj.ObjectMeta)
 				writeToFile(f, obj)
-			}()
+			}(item)
 		}
 
 	case KubernetesPod:
@@ -110,11 +115,11 @@ func (res KubernetesObjectDumper) Dump(dumpDir string) {
 			return
 		}
 
-		for _, obj := range objs.Items {
-			go func() {
+		for _, item := range objs.Items {
+			go func(obj corev1.Pod) {
 				f := getFileName(dumpDir, obj.ObjectMeta)
 				writeToFile(f, obj)
-			}()
+			}(item)
 		}
 
 	case KubernetesHPA:
@@ -124,11 +129,11 @@ func (res KubernetesObjectDumper) Dump(dumpDir string) {
 			return
 		}
 
-		for _, obj := range objs.Items {
-			go func() {
+		for _, item := range objs.Items {
+			go func(obj autoscalingv2beta1.HorizontalPodAutoscaler) {
 				f := getFileName(dumpDir, obj.ObjectMeta)
 				writeToFile(f, obj)
-			}()
+			}(item)
 		}
 
 	case KubernetesNode:
@@ -138,18 +143,42 @@ func (res KubernetesObjectDumper) Dump(dumpDir string) {
 			return
 		}
 
-		for _, obj := range objs.Items {
-			go func() {
+		for _, item := range objs.Items {
+			go func(obj corev1.Node) {
+				obj = nodeClean(obj)
 				// Node doesn't have namespace value, use name here
 				f := filepath.Clean(fmt.Sprintf("%v/%v", dumpDir, obj.Name))
 				getFileName(dumpDir, obj.ObjectMeta)
 				writeToFile(f, obj)
-			}()
+			}(item)
 		}
 
 	default:
 		log.Printf("Unknown type: %v", res.objType)
 	}
+}
+
+// serviceClean remove sensitive data(e.g. public IP, external name) from service objects
+func serviceClean(svc corev1.Service) corev1.Service {
+	svc.Spec.ExternalIPs = []string{}
+	svc.Spec.LoadBalancerIP = ""
+	svc.Spec.LoadBalancerSourceRanges = []string{}
+	svc.Spec.ExternalName = ""
+	return svc
+}
+
+func nodeClean(node corev1.Node) corev1.Node {
+
+	var nodeAddresses []corev1.NodeAddress
+	for _, address := range node.Status.Addresses {
+		// use whitelist to filter the necessary information for debugging
+		if address.Type == "InternalIP" || address.Type == "Hostname" {
+			nodeAddresses = append(nodeAddresses, address)
+		}
+	}
+	node.Status.Addresses = nodeAddresses
+
+	return node
 }
 
 type KubernetesPodLogDumper struct {
@@ -180,6 +209,11 @@ func (res KubernetesPodLogDumper) Dump(dumpDir string) {
 
 		go func(pod corev1.Pod) {
 			defer wg.Done()
+
+			if !fission.IsReadyPod(&pod) {
+				fmt.Printf("Pod %v is not in ready state, ignore it\n", pod.Name)
+				return
+			}
 
 			// dump logs from each containers
 			for _, container := range append(pod.Spec.Containers, pod.Spec.InitContainers...) {

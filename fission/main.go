@@ -265,10 +265,10 @@ func main() {
 	}
 
 	// support
-	supportDumpFlag := cli.StringFlag{Name: "dumpdir", Value: supporttool.DEFAULT_DUMP_DIR, Usage: "Directory to place dump archive"}
-	supportFileFlag := cli.BoolFlag{Name: "file", Usage: "Save dump information into multiple files"}
+	supportOutputFlag := cli.StringFlag{Name: "output, o", Value: supporttool.DEFAULT_OUTPUT_DIR, Usage: "Output directory to save dump archive/files"}
+	supportNoZipFlag := cli.BoolFlag{Name: "nozip", Usage: "Save dump information into multiple files instead of single zip file"}
 	supportSubCommands := []cli.Command{
-		{Name: "dump", Usage: "Collect & dump all necessary for troubleshooting", Flags: []cli.Flag{supportDumpFlag, supportFileFlag}, Action: supporttool.DumpInfo},
+		{Name: "dump", Usage: "Collect & dump all necessary for troubleshooting", Flags: []cli.Flag{supportOutputFlag, supportNoZipFlag}, Action: supporttool.DumpInfo},
 	}
 
 	app.Commands = []cli.Command{

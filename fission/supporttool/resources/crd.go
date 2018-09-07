@@ -57,10 +57,10 @@ func (res CrdDumper) Dump(dumpDir string) {
 		}
 
 		for _, item := range items {
-			go func() {
+			go func(obj crd.Environment) {
 				f := getFileName(dumpDir, item.Metadata)
 				writeToFile(f, item)
-			}()
+			}(item)
 		}
 
 	case CrdFunction:
@@ -71,10 +71,10 @@ func (res CrdDumper) Dump(dumpDir string) {
 		}
 
 		for _, item := range items {
-			go func() {
+			go func(obj crd.Function) {
 				f := getFileName(dumpDir, item.Metadata)
 				writeToFile(f, item)
-			}()
+			}(item)
 		}
 
 	case CrdPackage:
@@ -84,11 +84,12 @@ func (res CrdDumper) Dump(dumpDir string) {
 			return
 		}
 
-		for _, item := range pkgClean(items) {
-			go func() {
+		for _, item := range items {
+			go func(obj crd.Package) {
+				item = pkgClean(item)
 				f := getFileName(dumpDir, item.Metadata)
 				writeToFile(f, item)
-			}()
+			}(item)
 		}
 
 	case CrdHttpTrigger:
@@ -99,10 +100,10 @@ func (res CrdDumper) Dump(dumpDir string) {
 		}
 
 		for _, item := range items {
-			go func() {
+			go func(obj crd.HTTPTrigger) {
 				f := getFileName(dumpDir, item.Metadata)
 				writeToFile(f, item)
-			}()
+			}(item)
 		}
 
 	case CrdKubeWatcher:
@@ -113,10 +114,10 @@ func (res CrdDumper) Dump(dumpDir string) {
 		}
 
 		for _, item := range items {
-			go func() {
+			go func(obj crd.KubernetesWatchTrigger) {
 				f := getFileName(dumpDir, item.Metadata)
 				writeToFile(f, item)
-			}()
+			}(item)
 		}
 
 	case CrdMessageQueueTrigger:
@@ -132,10 +133,10 @@ func (res CrdDumper) Dump(dumpDir string) {
 		}
 
 		for _, item := range triggers {
-			go func() {
+			go func(obj crd.MessageQueueTrigger) {
 				f := getFileName(dumpDir, item.Metadata)
 				writeToFile(f, item)
-			}()
+			}(item)
 		}
 
 	case CrdTimeTrigger:
@@ -146,10 +147,10 @@ func (res CrdDumper) Dump(dumpDir string) {
 		}
 
 		for _, item := range items {
-			go func() {
+			go func(obj crd.TimeTrigger) {
 				f := getFileName(dumpDir, item.Metadata)
 				writeToFile(f, item)
-			}()
+			}(item)
 		}
 
 	default:
@@ -157,16 +158,14 @@ func (res CrdDumper) Dump(dumpDir string) {
 	}
 }
 
-func pkgClean(pkgs []crd.Package) []crd.Package {
-	for i := range pkgs {
-		// mask the sensitive information
-		// use "-" as mask value to indicate the field wasn't empty
-		if pkgs[i].Spec.Source.Literal != nil {
-			pkgs[i].Spec.Source.Literal = []byte("-")
-		}
-		if pkgs[i].Spec.Deployment.Literal != nil {
-			pkgs[i].Spec.Deployment.Literal = []byte("-")
-		}
+func pkgClean(pkg crd.Package) crd.Package {
+	// mask the sensitive information
+	// use "-" as mask value to indicate the field wasn't empty
+	if pkg.Spec.Source.Literal != nil {
+		pkg.Spec.Source.Literal = []byte("-")
 	}
-	return pkgs
+	if pkg.Spec.Deployment.Literal != nil {
+		pkg.Spec.Deployment.Literal = []byte("-")
+	}
+	return pkg
 }

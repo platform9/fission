@@ -20,9 +20,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/pkg/errors"
-	"github.com/satori/go.uuid"
 	"github.com/urfave/cli"
 
 	"github.com/fission/fission"
@@ -31,20 +31,21 @@ import (
 )
 
 const (
-	DEFAULT_DUMP_DIR = "fission-dump"
+	DUMP_ARCHIVE_PREFIX = "fission-dump"
+	DEFAULT_OUTPUT_DIR  = "fission-dump"
 )
 
 func DumpInfo(c *cli.Context) error {
 
 	fmt.Println("Start dumping process...")
 
-	toFile := c.Bool("file")
-	dumpdir := c.String("dumpdir")
+	nozip := c.Bool("nozip")
+	outputDir := c.String("output")
 
 	// check whether the dump directory exists.
-	_, err := os.Stat(dumpdir)
+	_, err := os.Stat(outputDir)
 	if err != nil && os.IsNotExist(err) {
-		err = os.Mkdir(dumpdir, 0744)
+		err = os.Mkdir(outputDir, 0755)
 		if err != nil {
 			panic(err)
 		}
@@ -52,7 +53,7 @@ func DumpInfo(c *cli.Context) error {
 		panic(errors.Wrap(err, "Error checking dump directory status"))
 	}
 
-	dumpdir, err = filepath.Abs(dumpdir)
+	outputDir, err = filepath.Abs(outputDir)
 	if err != nil {
 		panic(errors.Wrap(err, "Error creating dump directory for dumping files"))
 	}
@@ -85,7 +86,7 @@ func DumpInfo(c *cli.Context) error {
 		"fission-builder-pod-log":         resources.NewKubernetesPodLogDumper(k8sClient, "owner=buildermgr"),
 
 		// fission function logs & spec
-		"fission-function-svc":             resources.NewKubernetesObjectDumper(k8sClient, resources.KubernetesService, "executorType=newdeploy"),
+		"fission-function-svc-sepc":        resources.NewKubernetesObjectDumper(k8sClient, resources.KubernetesService, "executorType=newdeploy"),
 		"fission-function-deployment-spec": resources.NewKubernetesObjectDumper(k8sClient, resources.KubernetesDeployment, "executorType in (poolmgr, newdeploy)"),
 		"fission-function-pod-spec":        resources.NewKubernetesObjectDumper(k8sClient, resources.KubernetesPod, "executorType in (poolmgr, newdeploy)"),
 		"fission-function-pod-log":         resources.NewKubernetesPodLogDumper(k8sClient, "executorType in (poolmgr, newdeploy)"),
@@ -100,19 +101,11 @@ func DumpInfo(c *cli.Context) error {
 		"fission-crd-timetriggers": resources.NewCrdDumper(client, resources.CrdTimeTrigger),
 	}
 
-	var targetDir string
-
-	if !toFile {
-		dir, err := fission.GetTempDir()
-		if err != nil {
-			panic(err)
-		}
-		targetDir = dir
-		defer os.Remove(dir)
-	}
+	dumpName := fmt.Sprintf("%v_%v", DUMP_ARCHIVE_PREFIX, time.Now().Unix())
+	dumpDir := filepath.Join(outputDir, dumpName)
 
 	for key, res := range ress {
-		dir := fmt.Sprintf("%v/%v/", targetDir, key)
+		dir := fmt.Sprintf("%v/%v/", dumpDir, key)
 		if _, err := os.Stat(dir); os.IsNotExist(err) {
 			err = os.MkdirAll(dir, 0755)
 			if err != nil {
@@ -122,16 +115,17 @@ func DumpInfo(c *cli.Context) error {
 		res.Dump(dir)
 	}
 
-	if !toFile {
-		path := filepath.Join(dumpdir, fmt.Sprintf("%v.zip", uuid.NewV4().String()))
-		_, err := fission.MakeArchive(path, targetDir)
+	if !nozip {
+		defer os.Remove(dumpDir)
+		path := filepath.Join(outputDir, fmt.Sprintf("%v.zip", dumpName))
+		_, err := fission.MakeArchive(path, dumpDir)
 		if err != nil {
 			fmt.Printf("Error creating archive for dump files: %v", err)
 			return nil
 		}
 		fmt.Printf("The archive dump file is %v\n", path)
 	} else {
-		fmt.Printf("The dump files are placed at %v\n", dumpdir)
+		fmt.Printf("The dump files are placed at %v\n", dumpDir)
 	}
 
 	return nil

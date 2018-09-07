@@ -156,3 +156,18 @@ func MakeArchive(targetName string, globs ...string) (string, error) {
 
 	return filepath.Abs(targetName)
 }
+
+// GetValidBytes remove empty byte(\x00) from input byte slice and return a new byte slice
+// This function is trying to fix the problem that empty byte will fail os.Openfile
+// For more information, please visit:
+// 1. https://github.com/golang/go/issues/24195
+// 2. https://play.golang.org/p/5F9ykC2tlbc
+func GetValidBytes(src []byte) []byte {
+	var bs []byte
+	for _, v := range src {
+		if v != 0 {
+			bs = append(bs, v)
+		}
+	}
+	return bs
+}

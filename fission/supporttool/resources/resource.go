@@ -24,6 +24,8 @@ import (
 
 	"github.com/ghodss/yaml"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/fission/fission"
 )
 
 type Resource interface {
@@ -41,6 +43,12 @@ func writeToFile(file string, obj interface{}) {
 		log.Printf("Error encoding object: %v", err)
 		return
 	}
+
+	// Due to unknown reason, the kubernetes objectMeta fields contain
+	// empty byte and will fail os.Create/os.Openfile with error message
+	// "open <file> invalid argument". To fix the problem, we need to
+	// remove the empty byte from string.
+	file = string(fission.GetValidBytes([]byte(file)))
 
 	err = ioutil.WriteFile(file, bs, 0644)
 	if err != nil {
