@@ -20,6 +20,7 @@ import (
 	"context"
 	log "github.com/sirupsen/logrus"
 	"time"
+	"fmt"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,7 +29,6 @@ import (
 	"k8s.io/client-go/rest"
 	k8sCache "k8s.io/client-go/tools/cache"
 
-	"fmt"
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
 )
