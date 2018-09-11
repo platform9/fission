@@ -18,10 +18,6 @@ cleanup() {
     fission canary-config delete --name canary-2 || true
 }
 
-log() {
-echo $1
-
-}
 success_scenario() {
     log "Creating nodejs env"
     fission env create --name nodejs --image fission/node-env --graceperiod 1
@@ -56,7 +52,7 @@ success_scenario() {
 failure_scenario() {
     log "updating fn-v2 to return status code 400"
     cp $ROOT/examples/nodejs/hello.js hello_400.js
-    sed -i '' 's/200/400/' hello_400.js
+    sed -i 's/200/400/' hello_400.js
 
     log "Creating function version-3"
     fission fn create --name fn-v3 --env nodejs --code hello_400.js
