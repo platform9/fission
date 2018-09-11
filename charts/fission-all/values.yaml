@@ -60,11 +60,13 @@ messageQueue:
 nats:
   authToken: "defaultFissionAuthToken"
   clusterID: "fissionMQTrigger"
+  enabled: true
 
 ## Required if messageQueue type is azure-storage-queue
 azureStorageQueue:
   key: ""
   accountName: ""
+  enabled: false
 
 kafka:
   enabled: true

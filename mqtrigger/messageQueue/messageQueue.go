@@ -22,13 +22,10 @@ import (
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
-	log "github.com/sirupsen/logrus"
+	fv1 "github.com/fission/fission/pkg/apis/fission.io/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-)
 
-const (
-	NATS  string = "nats-streaming"
-	KAFKA string = "kafka"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -230,9 +227,9 @@ func (mqt *MessageQueueTriggerManager) syncTriggers() {
 
 func IsTopicValid(mqType string, topic string) bool {
 	switch mqType {
-	case NATS:
+	case fv1.MessageQueueTypeNats:
 		return isTopicValidForNats(topic)
-	case KAFKA:
+	case fv1.MessageQueueTypeKafka:
 		return isTopicValidForKafka(topic)
 	}
 	return false

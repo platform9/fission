@@ -1,9 +1,7 @@
 hash: b26f975bf145378e939db833fa4b6a142fa04b884463d8173622b30f95191d42
 updated: 2018-08-13T13:12:57.58715-07:00
-=======
 hash: 1f595f5cdf8dc629d9046f82869cb77811dac21ce5f58e4f81e89d21181f6c34
 updated: 2018-05-24T22:39:34.860206+08:00
->>>>>>> Implement Kafka support based on work of @puneetguptanitj
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
