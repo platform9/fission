@@ -62,7 +62,7 @@ The following table lists the configurable parameters of the Fission chart and t
 | `azureStorageQueue.accountName` | Azure storage account name  | None (required if `messageQueue` is `azure-storage-queue`) |
 | `azureStorageQueue.key`         | Azure storage access key    | None (required if `messageQueue` is `azure-storage-queue`) |
 | `messagequeues.kafka.enabled`  | Kafka trigger enabled           | `false`                    |
-| `messagequeues.kafka.brokers`  | Kafka brokers uri               | `kafka-0.kafka`            |
+| `messagequeues.kafka.brokers`  | Kafka brokers uri               | `broker.kafka:9092`            |
 
 
 

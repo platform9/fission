@@ -21,11 +21,13 @@ import (
 	"net/http"
 	"strings"
 
-	sarama "github.com/Shopify/sarama"
-	cluster "github.com/bsm/sarama-cluster"
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
+
 	log "github.com/sirupsen/logrus"
+
+	sarama "github.com/Shopify/sarama"
+	cluster "github.com/bsm/sarama-cluster"
 )
 
 type (
@@ -91,7 +93,7 @@ func (kafka Kafka) subscribe(trigger *crd.MessageQueueTrigger) (messageQueueSubs
 	go func() {
 		for msg := range consumer.Messages() {
 			log.Infof("Calling message handler with value " + string(msg.Value[:]))
-			if msgHandler1(&kafka, producer, trigger, string(msg.Value[:])) {
+			if msgHandler(&kafka, producer, trigger, string(msg.Value[:])) {
 				consumer.MarkOffset(msg, "") // mark message as processed
 			}
 		}
@@ -104,30 +106,52 @@ func (kafka Kafka) unsubscribe(subscription messageQueueSubscription) error {
 	return subscription.(*cluster.Consumer).Close()
 }
 
-func msgHandler1(kafka *Kafka, producer sarama.SyncProducer, trigger *crd.MessageQueueTrigger, value string) bool {
+func msgHandler(kafka *Kafka, producer sarama.SyncProducer, trigger *crd.MessageQueueTrigger, value string) bool {
 	// Support other function ref types
 	if trigger.Spec.FunctionReference.Type != fission.FunctionReferenceTypeFunctionName {
 		log.Fatalf("Unsupported function reference type (%v) for trigger %v",
 			trigger.Spec.FunctionReference.Type, trigger.Metadata.Name)
 	}
 
-	url := kafka.routerUrl + "/" + strings.TrimPrefix(fission.UrlForFunction(trigger.Spec.FunctionReference.Name, "default"), "/")
+	url := kafka.routerUrl + "/" + strings.TrimPrefix(fission.UrlForFunction(trigger.Spec.FunctionReference.Name, trigger.Spec.FunctionReference.Namespace), "/")
 	log.Printf("Making HTTP request to %v", url)
 	headers := map[string]string{
-		"X-Fission-MQTrigger-Topic":     trigger.Spec.Topic,
-		"X-Fission-MQTrigger-RespTopic": trigger.Spec.ResponseTopic,
-		"Content-Type":                  trigger.Spec.ContentType,
+		"X-Fission-MQTrigger-Topic":      trigger.Spec.Topic,
+		"X-Fission-MQTrigger-RespTopic":  trigger.Spec.ResponseTopic,
+		"X-Fission-MQTrigger-ErrorTopic": trigger.Spec.ErrorTopic,
+		"Content-Type":                   trigger.Spec.ContentType,
 	}
 	// Create request
 	req, err := http.NewRequest("POST", url, strings.NewReader(value))
+	if err != nil {
+		log.Warningf("Request creation failed: %v", url)
+		return false
+	}
+
 	for k, v := range headers {
 		req.Header.Add(k, v)
 	}
 	// Make the request
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		log.Warningf("Request failed: %v", url)
-		return false
+	var resp *http.Response
+	for attempt := 0; attempt <= trigger.Spec.MaxRetries; attempt++ {
+		// Make the request
+		resp, err = http.DefaultClient.Do(req)
+		if err != nil {
+			log.Error("Error invoking function for trigger %v: %v", trigger.Metadata.Name, err)
+			continue
+		}
+		if resp == nil {
+			continue
+		}
+		if err == nil && resp.StatusCode == http.StatusOK {
+			// Success, quit retrying
+			break
+		}
+	}
+
+	if resp == nil {
+		log.Warning("Every retry failed; final retry gave empty response.")
+		return
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)

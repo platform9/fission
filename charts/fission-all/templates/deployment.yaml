@@ -530,7 +530,6 @@ spec:
 
 ---
 {{- if .Values.nats.enabled }}
-{{- if eq .Values.messageQueue.type "nats-streaming" }}
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -548,8 +547,8 @@ spec:
       - name: nats-streaming
         image: nats-streaming
         args: [
-          "--cluster_id", "{{ .Values.messagequeues.nats.clusterID }}",
-          "--auth", "{{ .Values.messagequeues.nats.authToken }}",
+          "--cluster_id", "{{ .Values.nats.clusterID }}",
+          "--auth", "{{ .Values.nats.authToken }}",
           "--max_channels", "0"
         ]
 
@@ -557,8 +556,6 @@ spec:
         - containerPort: 4222
           hostPort: 4222
           protocol: TCP
-{{- end }}
-
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -582,19 +579,9 @@ spec:
         args: ["--mqt", "--routerUrl", "http://router.{{ .Release.Namespace }}"]
         env:
         - name: MESSAGE_QUEUE_TYPE
-          value: {{ .Values.messageQueue.type }}
-        {{- if eq .Values.messageQueue.type "nats-streaming" }}
+          value: nats-streaming
         - name: MESSAGE_QUEUE_URL
           value: nats://{{ .Values.nats.authToken }}@nats-streaming:4222
-        {{- else if eq .Values.messageQueue.type "azure-storage-queue" }}
-        - name: AZURE_STORAGE_ACCOUNT_NAME
-          value: {{ required "An Azure storage account name is required." .Values.azureStorageQueue.accountName }}
-        - name: AZURE_STORAGE_ACCOUNT_KEY
-          valueFrom:
-            secretKeyRef:
-              name: azure-storage-account-key
-              key: key
-        {{- end }}
       serviceAccount: fission-svc
 {{- end }}
 ---
@@ -624,6 +611,40 @@ spec:
           value: kafka
         - name: MESSAGE_QUEUE_URL
           value: "{{.Values.kafka.brokers}}"
+      serviceAccount: fission-svc
+{{- end }}
+---
+{{- if .Values.azureStorageQueue.enabled }}
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: mqtrigger-nats-streaming
+  labels:
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        svc: mqtrigger
+        messagequeue: azure-storage-queue
+    spec:
+      containers:
+      - name: mqtrigger
+        image: "{{ .Values.image }}:{{ .Values.imageTag }}"
+        imagePullPolicy: {{ .Values.pullPolicy }}
+        command: ["/fission-bundle"]
+        args: ["--mqt", "--routerUrl", "http://router.{{ .Release.Namespace }}"]
+        env:
+        - name: MESSAGE_QUEUE_TYPE
+          value: azure-storage-queue
+        - name: AZURE_STORAGE_ACCOUNT_NAME
+          value: {{ required "An Azure storage account name is required." .Values.azureStorageQueue.accountName }}
+        - name: AZURE_STORAGE_ACCOUNT_KEY
+          valueFrom:
+            secretKeyRef:
+              name: azure-storage-account-key
+              key: key
       serviceAccount: fission-svc
 {{- end }}
 ---
