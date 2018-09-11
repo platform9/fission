@@ -260,17 +260,6 @@ func (ts *HTTPTriggerSet) initTriggerController() (k8sCache.Store, k8sCache.Cont
 	return store, controller
 }
 
-//func needResolverCacheInvalidation(key namespacedFunctionReference, rr resolveResult, fn *metav1.ObjectMeta) bool {
-//	if key.refType == fission.FunctionReferenceTypeFunctionWeights &&
-//		rr.functionMap[fn.Name].weight != 0 &&
-//		rr.functionMap[fn.Name].metadata.ResourceVersion != fn.ResourceVersion {
-//		return true
-//	}
-//
-//	//log.Printf("needResolverCacheInvalidation decides to not invalidate the cache")
-//	return false
-//}
-
 func (ts *HTTPTriggerSet) initFunctionController() (k8sCache.Store, k8sCache.Controller) {
 	resyncPeriod := 30 * time.Second
 	listWatch := k8sCache.NewListWatchFromClient(ts.crdClient, "functions", metav1.NamespaceAll, fields.Everything())
