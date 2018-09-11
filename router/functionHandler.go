@@ -92,6 +92,9 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 	var needExecutor, serviceUrlFromExecutor bool
 	var serviceUrl *url.URL
 
+	// Set forwarded host header
+	addForwardedHostHeader(req)
+
 	// TODO: Keep? --> Needed for queries encoded in URL before they're stripped by the proxy
 	var originalUrl url.URL
 	originalUrl = *req.URL
@@ -304,4 +307,35 @@ func (fh *functionHandler) handler(responseWriter http.ResponseWriter, request *
 	}
 
 	proxy.ServeHTTP(responseWriter, request)
+}
+
+// addForwardedHostHeader add "forwarded host" to request header
+func addForwardedHostHeader(req *http.Request) {
+	// for more detailed information, please visit:
+	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Forwarded
+
+	var isIPv6 bool
+	var host string
+
+	// check whether a host is ipv4 or ipv6 or FQDN
+	ip := net.ParseIP(req.Host)
+	// The order here matters, To16() converts an IPv4 address
+	// to IPv6 format address. To prevent accidentally append
+	// IPv4 address to header need to check whether To4() is nil first.
+	if ip.To4() != nil {
+		isIPv6 = false
+	} else if v := ip.To16(); v != nil {
+		isIPv6 = true
+	}
+
+	if isIPv6 {
+		// For the "Forwarded" header, if a host is an IPv6 address
+		// it should be quoted and enclosed in square brackets
+		host = fmt.Sprintf("\"[%v]\"", req.Host)
+	} else {
+		host = req.Host
+	}
+
+	req.Header.Set("Forwarded", "host="+host)
+	req.Header.Set("X-Forwarded-Host", req.Host)
 }
