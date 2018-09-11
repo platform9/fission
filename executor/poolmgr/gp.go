@@ -473,7 +473,6 @@ func (gp *GenericPool) createPool() error {
 	if gp.env.Spec.TerminationGracePeriod > 0 {
 		gracePeriodSeconds = gp.env.Spec.TerminationGracePeriod
 	}
-	//gracePeriodSeconds := int64(0)
 
 	podAnnotations := gp.env.Metadata.Annotations
 	if podAnnotations == nil {
