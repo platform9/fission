@@ -20,12 +20,12 @@ import (
 	"errors"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
 	fv1 "github.com/fission/fission/pkg/apis/fission.io/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	log "github.com/sirupsen/logrus"
 )
 
 const (

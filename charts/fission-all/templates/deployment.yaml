@@ -618,7 +618,7 @@ spec:
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  name: mqtrigger-nats-streaming
+  name: mqtrigger-azure-storage-queue
   labels:
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
 spec:

@@ -17,17 +17,17 @@ limitations under the License.
 package messageQueue
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
 
-	"github.com/fission/fission"
-	"github.com/fission/fission/crd"
-
-	log "github.com/sirupsen/logrus"
-
 	sarama "github.com/Shopify/sarama"
 	cluster "github.com/bsm/sarama-cluster"
+	log "github.com/sirupsen/logrus"
+
+	"github.com/fission/fission"
+	"github.com/fission/fission/crd"
 )
 
 type (
@@ -157,11 +157,11 @@ func msgHandler(kafka *Kafka, producer sarama.SyncProducer, trigger *crd.Message
 	body, err := ioutil.ReadAll(resp.Body)
 	log.Infof("Got response " + string(body))
 	if err != nil {
-		log.Warningf("Request body error: %v", string(body))
+		errorHandler(trigger, producer, fmt.Sprintf("Request body error: %v", string(body)))
 		return false
 	}
 	if resp.StatusCode != 200 {
-		log.Printf("Request returned failure: %v", resp.StatusCode)
+		errorHandler(trigger, producer, fmt.Sprintf("Request returned failure: %v", resp.StatusCode))
 		return false
 	}
 	if len(trigger.Spec.ResponseTopic) > 0 {
@@ -175,4 +175,19 @@ func msgHandler(kafka *Kafka, producer sarama.SyncProducer, trigger *crd.Message
 		}
 	}
 	return true
+}
+
+func errorHandler(trigger *crd.MessageQueueTrigger, producer sarama.SyncProducer, body string) {
+	if len(trigger.Spec.ErrorTopic) > 0 {
+		_, _, err := producer.SendMessage(&sarama.ProducerMessage{
+			Topic: trigger.Spec.ErrorTopic,
+			Value: sarama.StringEncoder(body),
+		})
+		if err != nil {
+			log.Warningf("Failed to publish message to error topic %s: %v", trigger.Spec.ErrorTopic, err)
+			return false
+		}
+	} else {
+		log.Printf(body)
+	}
 }

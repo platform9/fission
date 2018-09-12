@@ -59,13 +59,13 @@ The following table lists the configurable parameters of the Fission chart and t
 | `nats.enabled`                | Nats streaming enabled   | `true`                                  |
 | `nats.authToken`                | Nats streaming auth token   | `defaultFissionAuthToken`(required if `nats.enabled` is `true`) |
 | `nats.clusterID`                | Nats streaming clusterID    | `fissionMQTrigger`(required if `nats.enabled` is `true`) |
-| `azureStorageQueue.enabled` | Azure storage account name  | false |
+| `azureStorageQueue.enabled` * | Azure storage account name  | false |
 | `azureStorageQueue.accountName` | Azure storage account name  | None (required if `azureStorageQueue.enabled` is `true`) |
 | `azureStorageQueue.key`         | Azure storage access key    | None (required if `azureStorageQueue.enabled` is `true`) |
-| `kafka.enabled`  | Kafka trigger enabled           | `false`                    |
+| `kafka.enabled` *  | Kafka trigger enabled           | `false`                    |
 | `kafka.brokers`  | Kafka brokers uri               | `broker.kafka:9092`  (required if `kafka.enabled` is `true`)          |
 
-
+* - Please note that deploying of Azure Storage Queue or Kafka is not done by Fission chart and you will have to explicitly deploy them.
 
 Specify each parameter using the `--set key=value[,key=value]` argument to `helm install`. For example,
 
