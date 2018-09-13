@@ -117,7 +117,6 @@ func htCreate(c *cli.Context) error {
 	}
 
 	triggerName := c.String("name")
-	fmt.Sprintf("triggerName : %s", triggerName)
 	fnNamespace := c.String("fnNamespace")
 	spec := c.Bool("spec")
 
