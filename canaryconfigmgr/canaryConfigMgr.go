@@ -141,6 +141,13 @@ func (canaryCfgMgr *canaryConfigMgr) IncrementWeightOrRollback(canaryConfig *crd
 	// get the http trigger object associated with this canary config
 	triggerObj, err := canaryCfgMgr.fissionClient.HTTPTriggers(canaryConfig.Metadata.Namespace).Get(canaryConfig.Spec.Trigger)
 	if err != nil {
+		// if the http trigger is not found, then give up processing this config.
+		if k8serrors.IsNotFound(err) {
+			log.Printf("Http trigger object : %v.%v missing", canaryConfig.Spec.Trigger, canaryConfig.Metadata.Namespace)
+			close(quit)
+			return
+		}
+
 		// just silently ignore. wait for next window to increment weight
 		log.Printf("Error fetching http trigger object, err : %v", err)
 		return

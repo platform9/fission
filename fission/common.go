@@ -341,3 +341,25 @@ func kubifyName(old string) string {
 
 	return newName
 }
+
+// given a list of functions, this checks if the functions actually exist on the cluster
+func checkFunctionExistence(fissionClient *client.Client, functions []string, fnNamespace string) (err error) {
+	fnMissing := make([]string, 0)
+	for _, fnName := range functions {
+		meta := &metav1.ObjectMeta{
+			Name:      fnName,
+			Namespace: fnNamespace,
+		}
+
+		_, err := fissionClient.FunctionGet(meta)
+		if err != nil {
+			fnMissing = append(fnMissing, fnName)
+		}
+	}
+
+	if len(fnMissing) > 0 {
+		return fmt.Errorf("function(s) %s, not present in namespace : %s", fnMissing, fnNamespace)
+	}
+
+	return nil
+}

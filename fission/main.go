@@ -158,10 +158,9 @@ func main() {
 
 	// httptriggers
 	htNameFlag := cli.StringFlag{Name: "name", Usage: "HTTP Trigger name"}
-	//htFnNameFlag := cli.StringFlag{Name: "function", Usage: "Function name"}
 	htHostFlag := cli.StringFlag{Name: "host", Usage: "FQDN of the network host for route"}
 	htIngressFlag := cli.BoolFlag{Name: "createingress", Usage: "Creates ingress with same URL, defaults to false"}
-	htFnNameFlag := cli.StringSliceFlag{Name: "function", Usage: "Function name. Multiple functions can be supplied by reusing this flag multiple times for canary deployment"}
+	htFnNameFlag := cli.StringSliceFlag{Name: "function", Usage: "Name(s) of the function for this trigger. If 2 functions are supplied with this flag, traffic gets routed to them based on weights supplied with --weight flag."}
 	htFnWeightFlag := cli.IntSliceFlag{Name: "weight", Usage: "Weight for each function supplied with --function flag, in the same order. Used for canary deployment"}
 
 	htSubcommands := []cli.Command{
@@ -308,19 +307,19 @@ func main() {
 	}
 
 	// canary configs
-	canaryConfigNameFlag := cli.StringFlag{Name: "name", Usage: "CanaryConfig name"}
-	triggerNameFlag := cli.StringFlag{Name: "trigger", Usage: "http trigger that this config references"}
-	funcNFlag := cli.StringFlag{Name: "funcN", Usage: "new version of the function"}
-	funcNminus1Flag := cli.StringFlag{Name: "funcN-1", Usage: "old stable version of the function"}
-	weightIncrementFlag := cli.IntFlag{Name: "increment-step", Usage: "weight increment step for function"}
-	incrementIntervalFlag := cli.StringFlag{Name: "increment-interval", Usage: "weight increment interval, string representation of time.Duration, ex : 1m, 2h, 2d"}
-	failureThresholdFlag := cli.IntFlag{Name: "failure-threshold", Usage: "threshold in percentage beyond which the new version of the function is considered unstable"}
+	canaryConfigNameFlag := cli.StringFlag{Name: "name", Usage: "Name for the canary config"}
+	triggerNameFlag := cli.StringFlag{Name: "httptrigger", Usage: "Http trigger that this config references"}
+	funcNFlag := cli.StringFlag{Name: "funcN", Usage: "New version of the function"}
+	funcNminus1Flag := cli.StringFlag{Name: "funcN-1", Usage: "Old stable version of the function"}
+	weightIncrementFlag := cli.IntFlag{Name: "increment-step", Value: 20, Usage: "Weight increment step for function"}
+	incrementIntervalFlag := cli.StringFlag{Name: "increment-interval", Value: "2m", Usage: "Weight increment interval, string representation of time.Duration, ex : 1m, 2h, 2d"}
+	failureThresholdFlag := cli.IntFlag{Name: "failure-threshold", Value: 10, Usage: "Threshold in percentage beyond which the new version of the function is considered unstable"}
 	canarySubCommands := []cli.Command{
-		{Name: "create", Usage: "create a canary config", Flags: []cli.Flag{canaryConfigNameFlag, triggerNameFlag, funcNFlag, funcNminus1Flag, fnNamespaceFlag, weightIncrementFlag, incrementIntervalFlag, failureThresholdFlag}, Action: canaryConfigCreate},
-		{Name: "get", Usage: "view parameters in a canary config", Flags: []cli.Flag{canaryConfigNameFlag, canaryNamespaceFlag}, Action: canaryConfigGet},
-		{Name: "update", Usage: "update parameters of a canary config", Flags: []cli.Flag{canaryConfigNameFlag, canaryNamespaceFlag, incrementIntervalFlag, weightIncrementFlag, failureThresholdFlag}, Action: canaryConfigUpdate},
-		{Name: "delete", Usage: "delete a canary config", Flags: []cli.Flag{canaryConfigNameFlag, canaryNamespaceFlag}, Action: canaryConfigDelete},
-		{Name: "list", Usage: "list all canary configs in a namespace", Flags: []cli.Flag{canaryNamespaceFlag}, Action: canaryConfigList},
+		{Name: "create", Usage: "Create a canary config", Flags: []cli.Flag{canaryConfigNameFlag, triggerNameFlag, funcNFlag, funcNminus1Flag, fnNamespaceFlag, weightIncrementFlag, incrementIntervalFlag, failureThresholdFlag}, Action: canaryConfigCreate},
+		{Name: "get", Usage: "View parameters in a canary config", Flags: []cli.Flag{canaryConfigNameFlag, canaryNamespaceFlag}, Action: canaryConfigGet},
+		{Name: "update", Usage: "Update parameters of a canary config", Flags: []cli.Flag{canaryConfigNameFlag, canaryNamespaceFlag, incrementIntervalFlag, weightIncrementFlag, failureThresholdFlag}, Action: canaryConfigUpdate},
+		{Name: "delete", Usage: "Delete a canary config", Flags: []cli.Flag{canaryConfigNameFlag, canaryNamespaceFlag}, Action: canaryConfigDelete},
+		{Name: "list", Usage: "List all canary configs in a namespace", Flags: []cli.Flag{canaryNamespaceFlag}, Action: canaryConfigList},
 	}
 
 	app.Commands = []cli.Command{
@@ -337,7 +336,7 @@ func main() {
 		{Name: "spec", Aliases: []string{"specs"}, Usage: "Manage a declarative app specification", Subcommands: specSubCommands},
 		{Name: "upgrade", Aliases: []string{}, Usage: "Upgrade tool from fission v0.1", Subcommands: upgradeSubCommands},
 		cmdPlugin,
-		{Name: "canary-config", Aliases: []string{}, Usage: "canary config", Subcommands: canarySubCommands},
+		{Name: "canary-config", Aliases: []string{}, Usage: "Create, Update and manage Canary Configs", Subcommands: canarySubCommands},
 	}
 	app.Before = cliHook
 	app.CommandNotFound = handleCommandNotFound

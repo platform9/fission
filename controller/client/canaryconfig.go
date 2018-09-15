@@ -28,8 +28,6 @@ import (
 )
 
 func (c *Client) CanaryConfigCreate(canaryConf *crd.CanaryConfig) (*metav1.ObjectMeta, error) {
-	// TODO : Add validation
-
 	reqbody, err := json.Marshal(canaryConf)
 	if err != nil {
 		return nil, err
@@ -80,8 +78,6 @@ func (c *Client) CanaryConfigGet(m *metav1.ObjectMeta) (*crd.CanaryConfig, error
 }
 
 func (c *Client) CanaryConfigUpdate(canaryConf *crd.CanaryConfig) (*metav1.ObjectMeta, error) {
-	// TODO : Add validation
-
 	reqbody, err := json.Marshal(canaryConf)
 	if err != nil {
 		return nil, err

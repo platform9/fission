@@ -28,7 +28,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission"
-	"github.com/fission/fission/controller/client"
 	"github.com/fission/fission/crd"
 	"github.com/fission/fission/fission/log"
 )
@@ -57,27 +56,6 @@ func getMethod(method string) string {
 	}
 	log.Fatal(fmt.Sprintf("Invalid HTTP Method %v", method))
 	return ""
-}
-
-func checkFunctionExistence(fissionClient *client.Client, functions []string, fnNamespace string) (err error) {
-	fnMissing := make([]string, 0)
-	for _, fnName := range functions {
-		meta := &metav1.ObjectMeta{
-			Name:      fnName,
-			Namespace: fnNamespace,
-		}
-
-		_, err := fissionClient.FunctionGet(meta)
-		if err != nil {
-			fnMissing = append(fnMissing, fnName)
-		}
-	}
-
-	if len(fnMissing) > 0 {
-		return fmt.Errorf("function(s) %s, not present in namespace : %s", fnMissing, fnNamespace)
-	}
-
-	return nil
 }
 
 func htCreate(c *cli.Context) error {
@@ -240,8 +218,6 @@ func htUpdate(c *cli.Context) error {
 	if c.IsSet("function") {
 		ht.Spec.FunctionReference.Name = c.String("function")
 	}
-
-	//checkFunctionExistence(client, ht.Spec.FunctionReference.Name, triggerNamespace)
 
 	if c.IsSet("createingress") {
 		ht.Spec.CreateIngress = c.Bool("createingress")

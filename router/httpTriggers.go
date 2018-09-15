@@ -121,8 +121,6 @@ func (ts *HTTPTriggerSet) getRouter() *mux.Router {
 		// resolve function reference
 		rr, err := ts.resolver.resolve(trigger)
 		if err != nil {
-			//log.Printf("Error resolving trigger: %s, err : %v", trigger.Metadata.Name, err)
-
 			// Unresolvable function reference. Report the error via
 			// the trigger's status.
 			go ts.updateTriggerStatusFailed(&trigger, err)
@@ -136,8 +134,6 @@ func (ts *HTTPTriggerSet) getRouter() *mux.Router {
 		if err == nil && recorder != nil {
 			recorderName = recorder.Spec.Name
 		}
-
-		//log.Printf("The trigger %v should be recorded: %v", trigger.Metadata.Name, doRecord)
 
 		if rr.resolveResultType != resolveResultSingleFunction && rr.resolveResultType != resolveResultMultipleFunctions {
 			// not implemented yet
@@ -156,15 +152,11 @@ func (ts *HTTPTriggerSet) getRouter() *mux.Router {
 			recorderName:             recorderName,
 		}
 
-		//log.Printf("Dumping fh object : %+v", fh)
-
 		if rr.resolveResultType == resolveResultSingleFunction {
 			for _, metadata := range fh.functionMetadataMap {
 				fh.function = metadata
 			}
 		}
-
-		//log.Printf("Setting up url %s handler %+v", trigger.Spec.RelativeURL, *fh)
 
 		ht := muxRouter.HandleFunc(trigger.Spec.RelativeURL, fh.handler)
 		ht.Methods(trigger.Spec.Method)

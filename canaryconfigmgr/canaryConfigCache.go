@@ -44,8 +44,8 @@ func makecanaryConfigCancelFuncMap() *canaryConfigCancelFuncMap {
 	}
 }
 
-func keyFromMetadata(m *metav1.ObjectMeta) *metadataKey {
-	return &metadataKey{
+func keyFromMetadata(m *metav1.ObjectMeta) metadataKey {
+	return metadataKey{
 		Name:      m.Name,
 		Namespace: m.Namespace,
 	}
@@ -53,7 +53,7 @@ func keyFromMetadata(m *metav1.ObjectMeta) *metadataKey {
 
 func (cancelFuncMap *canaryConfigCancelFuncMap) lookup(f *metav1.ObjectMeta) (*context.CancelFunc, error) {
 	mk := keyFromMetadata(f)
-	item, err := cancelFuncMap.cache.Get(*mk)
+	item, err := cancelFuncMap.cache.Get(mk)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +63,7 @@ func (cancelFuncMap *canaryConfigCancelFuncMap) lookup(f *metav1.ObjectMeta) (*c
 
 func (cancelFuncMap *canaryConfigCancelFuncMap) assign(f *metav1.ObjectMeta, cancelFunc *context.CancelFunc) {
 	mk := keyFromMetadata(f)
-	err, _ := cancelFuncMap.cache.Set(*mk, cancelFunc)
+	err, _ := cancelFuncMap.cache.Set(mk, cancelFunc)
 	if err != nil {
 		// ignore error
 		log.Printf("error caching cancelFunc for canaryConfig %s, err : %v", f.Name, err)
@@ -73,5 +73,5 @@ func (cancelFuncMap *canaryConfigCancelFuncMap) assign(f *metav1.ObjectMeta, can
 
 func (cancelFuncMap *canaryConfigCancelFuncMap) remove(f *metav1.ObjectMeta) error {
 	mk := keyFromMetadata(f)
-	return cancelFuncMap.cache.Delete(*mk)
+	return cancelFuncMap.cache.Delete(mk)
 }
