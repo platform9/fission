@@ -56,19 +56,13 @@ type (
 	// a distribution of requests across two functions.
 	resolveResult struct {
 		resolveResultType
-		//functionMetadata *metav1.ObjectMeta
 		functionMetadataMap        map[string]*metav1.ObjectMeta
 		functionWtDistributionList []FunctionWeightDistribution
 	}
 
-	// TODO : Change the comments to reflect final design.
-	// had to change this because of the new addition of function -> weights map.
-	// the key of any cache cannot be a map or a slice.
-
-	// namespacedFunctionReference is just a function reference plus a
-	// namespace. Since a function reference works on names, it's only
-	// meaningful within a namespace.
-	namespacedFunctionReference struct {
+	// namespacedTriggerReference is just a trigger reference plus a
+	// namespace.
+	namespacedTriggerReference struct {
 		namespace              string
 		triggerName            string
 		triggerResourceVersion string
@@ -105,7 +99,7 @@ func makeK8SCache(crdClient *rest.RESTClient) (k8sCache.Store, k8sCache.Controll
 
 // resolve translates a trigger's function reference to a resolveResult.
 func (frr *functionReferenceResolver) resolve(trigger crd.HTTPTrigger) (*resolveResult, error) {
-	nfr := namespacedFunctionReference{
+	nfr := namespacedTriggerReference{
 		namespace:              trigger.Metadata.Namespace,
 		triggerName:            trigger.Metadata.Name,
 		triggerResourceVersion: trigger.Metadata.ResourceVersion,
@@ -214,7 +208,7 @@ func (frr *functionReferenceResolver) resolveByFunctionWeights(namespace string,
 }
 
 func (frr *functionReferenceResolver) delete(namespace string, triggerName, triggerRV string) error {
-	nfr := namespacedFunctionReference{
+	nfr := namespacedTriggerReference{
 		namespace:              namespace,
 		triggerName:            triggerName,
 		triggerResourceVersion: triggerRV,
@@ -222,10 +216,10 @@ func (frr *functionReferenceResolver) delete(namespace string, triggerName, trig
 	return frr.refCache.Delete(nfr)
 }
 
-func (frr *functionReferenceResolver) copy() map[namespacedFunctionReference]resolveResult {
-	cache := make(map[namespacedFunctionReference]resolveResult)
+func (frr *functionReferenceResolver) copy() map[namespacedTriggerReference]resolveResult {
+	cache := make(map[namespacedTriggerReference]resolveResult)
 	for k, v := range frr.refCache.Copy() {
-		key := k.(namespacedFunctionReference)
+		key := k.(namespacedTriggerReference)
 		val := v.(resolveResult)
 		cache[key] = val
 	}

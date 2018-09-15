@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# this script is useful to demo canary deployment when the latest function starts receiving 100% of the traffic
+
 DEMO_RUN_FAST=1
 ROOT_DIR=$(dirname $0)/..
 . $ROOT_DIR/util.sh

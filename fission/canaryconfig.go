@@ -39,7 +39,7 @@ func canaryConfigCreate(c *cli.Context) error {
 		log.Fatal("Need a name, use --name.")
 	}
 
-	trigger := c.String("trigger")
+	trigger := c.String("httptrigger")
 	funcN := c.String("funcN")
 	funcNminus1 := c.String("funcN-1")
 	ns := c.String("fnNamespace")
@@ -79,24 +79,10 @@ func canaryConfigCreate(c *cli.Context) error {
 	}
 
 	// check that the functions exist in the same namespace
-	m = &metav1.ObjectMeta{
-		Name:      funcN,
-		Namespace: ns,
-	}
-
-	_, err = client.FunctionGet(m)
+	fns := []string{funcN, funcNminus1}
+	err = checkFunctionExistence(client, fns, ns)
 	if err != nil {
-		log.Fatal(fmt.Sprintf("Function: %s.%s referenced in the canary config is not created", funcN, ns))
-	}
-
-	m = &metav1.ObjectMeta{
-		Name:      funcNminus1,
-		Namespace: ns,
-	}
-
-	_, err = client.FunctionGet(m)
-	if err != nil {
-		log.Fatal(fmt.Sprintf("Function: %s.%s referenced in the canary config is not created", funcNminus1, ns))
+		log.Fatal(fmt.Sprintf("checkFunctionExistence err : %v", err))
 	}
 
 	// finally create canaryCfg in the same namespace as the functions referenced
@@ -178,15 +164,15 @@ func canaryConfigUpdate(c *cli.Context) error {
 	canaryCfg, err := client.CanaryConfigGet(m)
 	checkErr(err, "get canary config")
 
-	if incrementStep != 0 {
+	if incrementStep != canaryCfg.Spec.WeightIncrement {
 		canaryCfg.Spec.WeightIncrement = incrementStep
 	}
 
-	if failureThreshold != 0 {
+	if failureThreshold != canaryCfg.Spec.FailureThreshold {
 		canaryCfg.Spec.FailureThreshold = failureThreshold
 	}
 
-	if len(incrementInterval) > 0 {
+	if incrementInterval != canaryCfg.Spec.WeightIncrementDuration {
 		canaryCfg.Spec.WeightIncrementDuration = incrementInterval
 	}
 
