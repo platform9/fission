@@ -24,9 +24,9 @@ import (
 	"testing"
 	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func createBackendService(testResponseString string) *url.URL {
@@ -57,15 +57,14 @@ func TestFunctionProxying(t *testing.T) {
 	fmap := makeFunctionServiceMap(0)
 	fmap.assign(fn, backendURL)
 
-
 	httpTrigger := &crd.HTTPTrigger{
 		Metadata: metav1.ObjectMeta{
 			Name:            "xxx",
 			Namespace:       metav1.NamespaceDefault,
 			ResourceVersion: "1234",
 		},
-		Spec: fission.HTTPTriggerSpec {
-			FunctionReference: fission.FunctionReference {
+		Spec: fission.HTTPTriggerSpec{
+			FunctionReference: fission.FunctionReference{
 				Type: fission.FunctionReferenceTypeFunctionName,
 			},
 		},
