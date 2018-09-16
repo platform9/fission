@@ -46,18 +46,6 @@ func TestRouter(t *testing.T) {
 	fmap := makeFunctionServiceMap(0)
 	fmap.assign(fn, testServiceUrl)
 
-	// set up the resolver's cache for this function
-	frr := makeFunctionReferenceResolver(nil)
-	nfr := namespacedFunctionReference{
-		namespace:         metav1.NamespaceDefault,
-		functionReference: fr,
-	}
-	rr := resolveResult{
-		resolveResultType: resolveResultSingleFunction,
-		functionMetadata:  fn,
-	}
-	frr.refCache.Set(nfr, rr)
-
 	frmap := makeFunctionRecorderMap(time.Minute)
 
 	trmap := makeTriggerRecorderMap(time.Minute)
@@ -74,8 +62,9 @@ func TestRouter(t *testing.T) {
 	triggers.triggers = append(triggers.triggers,
 		crd.HTTPTrigger{
 			Metadata: metav1.ObjectMeta{
-				Name:      "xxx",
-				Namespace: metav1.NamespaceDefault,
+				Name:            "xxx",
+				Namespace:       metav1.NamespaceDefault,
+				ResourceVersion: "1234",
 			},
 			Spec: fission.HTTPTriggerSpec{
 				RelativeURL:       triggerUrl,
@@ -83,6 +72,23 @@ func TestRouter(t *testing.T) {
 				Method:            "GET",
 			},
 		})
+
+	// set up the resolver's cache for this function
+	frr := makeFunctionReferenceResolver(nil)
+	nfr := namespacedTriggerReference{
+		namespace:              metav1.NamespaceDefault,
+		triggerName:            "xxx",
+		triggerResourceVersion: "1234",
+	}
+
+	fnMetaMap := make(map[string]*metav1.ObjectMeta, 1)
+	fnMetaMap[fn.Name] = fn
+
+	rr := resolveResult{
+		resolveResultType:   resolveResultSingleFunction,
+		functionMetadataMap: fnMetaMap,
+	}
+	frr.refCache.Set(nfr, rr)
 
 	// run the router
 	port := 4242

@@ -51,8 +51,8 @@ type (
 		sumPrefix int
 	}
 
-	// resolveResult is the result of resolving a function reference; for now
-	// it's just the metadata of one function, but in the future could support
+	// resolveResult is the result of resolving a function reference;
+	// it could be the metadata of one function or
 	// a distribution of requests across two functions.
 	resolveResult struct {
 		resolveResultType
