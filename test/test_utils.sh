@@ -205,8 +205,8 @@ helm_install_fission() {
         sleep 5
     done
 
-    echo "helm dependency update"
-    helm dependency update
+#    echo "helm dependency update"
+#    helm dependency update
 
     echo "Installing fission"
     helm install		\
