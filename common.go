@@ -18,6 +18,7 @@ package fission
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -132,9 +133,8 @@ func IsReadyPod(pod *apiv1.Pod) bool {
 // GetTempDir creates and return a temporary directory
 func GetTempDir() (string, error) {
 	tmpDir := uuid.NewV4().String()
-	tmpPath := filepath.Join(os.TempDir(), tmpDir)
-	err := os.Mkdir(tmpPath, 0755)
-	return tmpPath, err
+	dir, err := ioutil.TempDir("", tmpDir)
+	return dir, err
 }
 
 func MakeArchive(targetName string, globs ...string) (string, error) {
@@ -157,12 +157,12 @@ func MakeArchive(targetName string, globs ...string) (string, error) {
 	return filepath.Abs(targetName)
 }
 
-// GetValidBytes remove empty byte(\x00) from input byte slice and return a new byte slice
+// RemoveZeroBytes remove empty byte(\x00) from input byte slice and return a new byte slice
 // This function is trying to fix the problem that empty byte will fail os.Openfile
 // For more information, please visit:
 // 1. https://github.com/golang/go/issues/24195
 // 2. https://play.golang.org/p/5F9ykC2tlbc
-func GetValidBytes(src []byte) []byte {
+func RemoveZeroBytes(src []byte) []byte {
 	var bs []byte
 	for _, v := range src {
 		if v != 0 {
