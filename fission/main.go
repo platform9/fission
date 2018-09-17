@@ -27,7 +27,7 @@ import (
 	"github.com/fission/fission"
 	"github.com/fission/fission/fission/log"
 	"github.com/fission/fission/fission/plugin"
-	"github.com/fission/fission/fission/supporttool"
+	"github.com/fission/fission/fission/support"
 	"github.com/fission/fission/fission/util"
 )
 
@@ -265,10 +265,10 @@ func main() {
 	}
 
 	// support
-	supportOutputFlag := cli.StringFlag{Name: "output, o", Value: supporttool.DEFAULT_OUTPUT_DIR, Usage: "Output directory to save dump archive/files"}
+	supportOutputFlag := cli.StringFlag{Name: "output, o", Value: support.DEFAULT_OUTPUT_DIR, Usage: "Output directory to save dump archive/files"}
 	supportNoZipFlag := cli.BoolFlag{Name: "nozip", Usage: "Save dump information into multiple files instead of single zip file"}
 	supportSubCommands := []cli.Command{
-		{Name: "dump", Usage: "Collect & dump all necessary for troubleshooting", Flags: []cli.Flag{supportOutputFlag, supportNoZipFlag}, Action: supporttool.DumpInfo},
+		{Name: "dump", Usage: "Collect & dump all necessary for troubleshooting", Flags: []cli.Flag{supportOutputFlag, supportNoZipFlag}, Action: support.DumpInfo},
 	}
 
 	app.Commands = []cli.Command{
@@ -284,7 +284,7 @@ func main() {
 		{Name: "package", Aliases: []string{"pkg"}, Usage: "Manage packages", Subcommands: pkgSubCommands},
 		{Name: "spec", Aliases: []string{"specs"}, Usage: "Manage a declarative app specification", Subcommands: specSubCommands},
 		{Name: "upgrade", Aliases: []string{}, Usage: "Upgrade tool from fission v0.1", Subcommands: upgradeSubCommands},
-		{Name: "support", Usage: "Support tool to collect information and basic diagnostic", Subcommands: supportSubCommands},
+		{Name: "support", Usage: "Collect an archive of diagnostic information for support", Subcommands: supportSubCommands},
 		cmdPlugin,
 	}
 	app.Before = cliHook

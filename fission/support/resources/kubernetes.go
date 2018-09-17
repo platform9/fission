@@ -25,8 +25,6 @@ import (
 	"path/filepath"
 	"sync"
 
-	appsv1 "k8s.io/api/apps/v1"
-	autoscalingv2beta1 "k8s.io/api/autoscaling/v2beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -87,11 +85,9 @@ func (res KubernetesObjectDumper) Dump(dumpDir string) {
 		}
 
 		for _, item := range objs.Items {
-			go func(obj corev1.Service) {
-				obj = serviceClean(obj)
-				f := getFileName(dumpDir, obj.ObjectMeta)
-				writeToFile(f, obj)
-			}(item)
+			item = serviceClean(item)
+			f := getFileName(dumpDir, item.ObjectMeta)
+			writeToFile(f, item)
 		}
 
 	case KubernetesDeployment:
@@ -102,10 +98,8 @@ func (res KubernetesObjectDumper) Dump(dumpDir string) {
 		}
 
 		for _, item := range objs.Items {
-			go func(obj appsv1.Deployment) {
-				f := getFileName(dumpDir, obj.ObjectMeta)
-				writeToFile(f, obj)
-			}(item)
+			f := getFileName(dumpDir, item.ObjectMeta)
+			writeToFile(f, item)
 		}
 
 	case KubernetesPod:
@@ -116,10 +110,8 @@ func (res KubernetesObjectDumper) Dump(dumpDir string) {
 		}
 
 		for _, item := range objs.Items {
-			go func(obj corev1.Pod) {
-				f := getFileName(dumpDir, obj.ObjectMeta)
-				writeToFile(f, obj)
-			}(item)
+			f := getFileName(dumpDir, item.ObjectMeta)
+			writeToFile(f, item)
 		}
 
 	case KubernetesHPA:
@@ -130,10 +122,8 @@ func (res KubernetesObjectDumper) Dump(dumpDir string) {
 		}
 
 		for _, item := range objs.Items {
-			go func(obj autoscalingv2beta1.HorizontalPodAutoscaler) {
-				f := getFileName(dumpDir, obj.ObjectMeta)
-				writeToFile(f, obj)
-			}(item)
+			f := getFileName(dumpDir, item.ObjectMeta)
+			writeToFile(f, item)
 		}
 
 	case KubernetesNode:
@@ -144,13 +134,11 @@ func (res KubernetesObjectDumper) Dump(dumpDir string) {
 		}
 
 		for _, item := range objs.Items {
-			go func(obj corev1.Node) {
-				obj = nodeClean(obj)
-				// Node doesn't have namespace value, use name here
-				f := filepath.Clean(fmt.Sprintf("%v/%v", dumpDir, obj.Name))
-				getFileName(dumpDir, obj.ObjectMeta)
-				writeToFile(f, obj)
-			}(item)
+			item = nodeClean(item)
+			// Node doesn't have namespace value, use name here
+			f := filepath.Clean(fmt.Sprintf("%v/%v", dumpDir, item.Name))
+			getFileName(dumpDir, item.ObjectMeta)
+			writeToFile(f, item)
 		}
 
 	default:
@@ -164,6 +152,7 @@ func serviceClean(svc corev1.Service) corev1.Service {
 	svc.Spec.LoadBalancerIP = ""
 	svc.Spec.LoadBalancerSourceRanges = []string{}
 	svc.Spec.ExternalName = ""
+	svc.Status.LoadBalancer = corev1.LoadBalancerStatus{}
 	return svc
 }
 

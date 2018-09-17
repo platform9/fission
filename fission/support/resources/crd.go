@@ -57,10 +57,8 @@ func (res CrdDumper) Dump(dumpDir string) {
 		}
 
 		for _, item := range items {
-			go func(obj crd.Environment) {
-				f := getFileName(dumpDir, item.Metadata)
-				writeToFile(f, item)
-			}(item)
+			f := getFileName(dumpDir, item.Metadata)
+			writeToFile(f, item)
 		}
 
 	case CrdFunction:
@@ -71,10 +69,8 @@ func (res CrdDumper) Dump(dumpDir string) {
 		}
 
 		for _, item := range items {
-			go func(obj crd.Function) {
-				f := getFileName(dumpDir, item.Metadata)
-				writeToFile(f, item)
-			}(item)
+			f := getFileName(dumpDir, item.Metadata)
+			writeToFile(f, item)
 		}
 
 	case CrdPackage:
@@ -85,11 +81,9 @@ func (res CrdDumper) Dump(dumpDir string) {
 		}
 
 		for _, item := range items {
-			go func(obj crd.Package) {
-				item = pkgClean(item)
-				f := getFileName(dumpDir, item.Metadata)
-				writeToFile(f, item)
-			}(item)
+			item = pkgClean(item)
+			f := getFileName(dumpDir, item.Metadata)
+			writeToFile(f, item)
 		}
 
 	case CrdHttpTrigger:
@@ -100,10 +94,8 @@ func (res CrdDumper) Dump(dumpDir string) {
 		}
 
 		for _, item := range items {
-			go func(obj crd.HTTPTrigger) {
-				f := getFileName(dumpDir, item.Metadata)
-				writeToFile(f, item)
-			}(item)
+			f := getFileName(dumpDir, item.Metadata)
+			writeToFile(f, item)
 		}
 
 	case CrdKubeWatcher:
@@ -114,10 +106,8 @@ func (res CrdDumper) Dump(dumpDir string) {
 		}
 
 		for _, item := range items {
-			go func(obj crd.KubernetesWatchTrigger) {
-				f := getFileName(dumpDir, item.Metadata)
-				writeToFile(f, item)
-			}(item)
+			f := getFileName(dumpDir, item.Metadata)
+			writeToFile(f, item)
 		}
 
 	case CrdMessageQueueTrigger:
@@ -133,10 +123,8 @@ func (res CrdDumper) Dump(dumpDir string) {
 		}
 
 		for _, item := range triggers {
-			go func(obj crd.MessageQueueTrigger) {
-				f := getFileName(dumpDir, item.Metadata)
-				writeToFile(f, item)
-			}(item)
+			f := getFileName(dumpDir, item.Metadata)
+			writeToFile(f, item)
 		}
 
 	case CrdTimeTrigger:
@@ -147,10 +135,8 @@ func (res CrdDumper) Dump(dumpDir string) {
 		}
 
 		for _, item := range items {
-			go func(obj crd.TimeTrigger) {
-				f := getFileName(dumpDir, item.Metadata)
-				writeToFile(f, item)
-			}(item)
+			f := getFileName(dumpDir, item.Metadata)
+			writeToFile(f, item)
 		}
 
 	default:

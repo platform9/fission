@@ -48,7 +48,7 @@ func writeToFile(file string, obj interface{}) {
 	// empty byte and will fail os.Create/os.Openfile with error message
 	// "open <file> invalid argument". To fix the problem, we need to
 	// remove the empty byte from string.
-	file = string(fission.GetValidBytes([]byte(file)))
+	file = string(fission.RemoveZeroBytes([]byte(file)))
 
 	err = ioutil.WriteFile(file, bs, 0644)
 	if err != nil {

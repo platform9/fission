@@ -14,19 +14,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package supporttool
+package support
 
 import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 
 	"github.com/fission/fission"
-	"github.com/fission/fission/fission/supporttool/resources"
+	"github.com/fission/fission/fission/support/resources"
 	"github.com/fission/fission/fission/util"
 )
 
@@ -104,6 +105,8 @@ func DumpInfo(c *cli.Context) error {
 	dumpName := fmt.Sprintf("%v_%v", DUMP_ARCHIVE_PREFIX, time.Now().Unix())
 	dumpDir := filepath.Join(outputDir, dumpName)
 
+	wg := &sync.WaitGroup{}
+
 	for key, res := range ress {
 		dir := fmt.Sprintf("%v/%v/", dumpDir, key)
 		if _, err := os.Stat(dir); os.IsNotExist(err) {
@@ -112,8 +115,14 @@ func DumpInfo(c *cli.Context) error {
 				panic(err)
 			}
 		}
-		res.Dump(dir)
+		go func(res resources.Resource, dir string) {
+			wg.Add(1)
+			defer wg.Done()
+			res.Dump(dir)
+		}(res, dir)
 	}
+
+	wg.Wait()
 
 	if !nozip {
 		defer os.Remove(dumpDir)

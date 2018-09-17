@@ -295,7 +295,7 @@ func fnCreate(c *cli.Context) error {
 
 	method := c.String("method")
 	if len(method) == 0 {
-		method = "GET"
+		method = http.MethodGet
 	}
 	triggerName := uuid.NewV4().String()
 	ht := &crd.HTTPTrigger{
@@ -783,7 +783,8 @@ func httpRequest(method, url, body string, headers []string) *http.Response {
 	if method != http.MethodGet &&
 		method != http.MethodDelete &&
 		method != http.MethodPost &&
-		method != http.MethodPut {
+		method != http.MethodPut &&
+		method != http.MethodOptions {
 		log.Fatal(fmt.Sprintf("Invalid HTTP method '%s'.", method))
 	}
 
@@ -793,7 +794,7 @@ func httpRequest(method, url, body string, headers []string) *http.Response {
 	for _, header := range headers {
 		headerKeyValue := strings.SplitN(header, ":", 2)
 		if len(headerKeyValue) != 2 {
-			util.CheckErr(errors.New(""), "create request without appropriate headers")
+			log.Fatal("Failed to create request without appropriate headers")
 		}
 		req.Header.Set(headerKeyValue[0], headerKeyValue[1])
 	}
