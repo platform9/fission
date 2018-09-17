@@ -171,7 +171,10 @@ func TestHTTPTriggerApi(t *testing.T) {
 
 	tr, err := g.client.HTTPTriggerGet(m)
 	panicIf(err)
-	assert(testTrigger.Spec == tr.Spec, "trigger should match after reading")
+	assert(testTrigger.Spec.Method == tr.Spec.Method &&
+		testTrigger.Spec.RelativeURL == tr.Spec.RelativeURL &&
+		testTrigger.Spec.FunctionReference.Type == tr.Spec.FunctionReference.Type &&
+		testTrigger.Spec.FunctionReference.Name == tr.Spec.FunctionReference.Name, "trigger should match after reading")
 
 	testTrigger.Metadata.ResourceVersion = m.ResourceVersion
 	testTrigger.Spec.RelativeURL = "/hi"
@@ -272,7 +275,8 @@ func TestWatchApi(t *testing.T) {
 	panicIf(err)
 	assert(testWatch.Spec.Namespace == w.Spec.Namespace &&
 		testWatch.Spec.Type == w.Spec.Type &&
-		testWatch.Spec.FunctionReference == w.Spec.FunctionReference, "watch should match after reading")
+		testWatch.Spec.FunctionReference.Type == w.Spec.FunctionReference.Type &&
+		testWatch.Spec.FunctionReference.Name == w.Spec.FunctionReference.Name, "watch should match after reading")
 
 	testWatch.Metadata.Name = "yyy"
 	m2, err := g.client.WatchCreate(testWatch)
@@ -310,7 +314,9 @@ func TestTimeTriggerApi(t *testing.T) {
 
 	tr, err := g.client.TimeTriggerGet(m)
 	panicIf(err)
-	assert(testTrigger.Spec == tr.Spec, "trigger should match after reading")
+	assert(testTrigger.Spec.Cron == tr.Spec.Cron &&
+		testTrigger.Spec.FunctionReference.Type == tr.Spec.FunctionReference.Type &&
+		testTrigger.Spec.FunctionReference.Name == tr.Spec.FunctionReference.Name, "trigger should match after reading")
 
 	testTrigger.Metadata.ResourceVersion = m.ResourceVersion
 	testTrigger.Spec.Cron = "@hourly"
@@ -338,7 +344,7 @@ func TestMain(m *testing.M) {
 		return
 	}
 
-	go Start(8888)
+	go Start(8888, "http://localhost:9090")
 
 	time.Sleep(5 * time.Second)
 	g.client = client.MakeClient("http://localhost:8888")
