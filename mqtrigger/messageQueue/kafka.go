@@ -93,7 +93,7 @@ func (kafka Kafka) subscribe(trigger *crd.MessageQueueTrigger) (messageQueueSubs
 	go func() {
 		for msg := range consumer.Messages() {
 			log.Infof("Calling message handler with value " + string(msg.Value[:]))
-			if msgHandler(&kafka, producer, trigger, string(msg.Value[:])) {
+			if kafkaMsgHandler(&kafka, producer, trigger, string(msg.Value[:])) {
 				consumer.MarkOffset(msg, "") // mark message as processed
 			}
 		}
@@ -106,14 +106,14 @@ func (kafka Kafka) unsubscribe(subscription messageQueueSubscription) error {
 	return subscription.(*cluster.Consumer).Close()
 }
 
-func msgHandler(kafka *Kafka, producer sarama.SyncProducer, trigger *crd.MessageQueueTrigger, value string) bool {
+func kafkaMsgHandler(kafka *Kafka, producer sarama.SyncProducer, trigger *crd.MessageQueueTrigger, value string) bool {
 	// Support other function ref types
 	if trigger.Spec.FunctionReference.Type != fission.FunctionReferenceTypeFunctionName {
 		log.Fatalf("Unsupported function reference type (%v) for trigger %v",
 			trigger.Spec.FunctionReference.Type, trigger.Metadata.Name)
 	}
 
-	url := kafka.routerUrl + "/" + strings.TrimPrefix(fission.UrlForFunction(trigger.Spec.FunctionReference.Name, trigger.Spec.FunctionReference.Namespace), "/")
+	url := kafka.routerUrl + "/" + strings.TrimPrefix(fission.UrlForFunction(trigger.Spec.FunctionReference.Name, trigger.Metadata.Namespace), "/")
 	log.Printf("Making HTTP request to %v", url)
 	headers := map[string]string{
 		"X-Fission-MQTrigger-Topic":      trigger.Spec.Topic,
@@ -151,7 +151,7 @@ func msgHandler(kafka *Kafka, producer sarama.SyncProducer, trigger *crd.Message
 
 	if resp == nil {
 		log.Warning("Every retry failed; final retry gave empty response.")
-		return
+		return false
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
@@ -185,7 +185,7 @@ func errorHandler(trigger *crd.MessageQueueTrigger, producer sarama.SyncProducer
 		})
 		if err != nil {
 			log.Warningf("Failed to publish message to error topic %s: %v", trigger.Spec.ErrorTopic, err)
-			return false
+			return
 		}
 	} else {
 		log.Printf(body)
