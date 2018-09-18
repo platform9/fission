@@ -296,8 +296,7 @@ func (fh functionHandler) handler(responseWriter http.ResponseWriter, request *h
 		log.Print("Record request with ReqUID: ", reqUID)
 	}
 
-	if fh.httpTrigger.Spec.FunctionReference.Type == fission.FunctionReferenceTypeFunctionWeights {
-		log.Printf("fnRefType is weight")
+	if fh.httpTrigger != nil && fh.httpTrigger.Spec.FunctionReference.Type == fission.FunctionReferenceTypeFunctionWeights {
 		// canary deployment. need to determine the function to send request to now
 		fnMetadata := getCanaryBackend(fh.functionMetadataMap, fh.fnWeightDistributionList)
 		if fnMetadata == nil {
