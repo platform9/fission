@@ -36,6 +36,7 @@ const (
 
 var (
 	validAzureQueueName = regexp.MustCompile("^[a-z0-9][a-z0-9\\-]*[a-z0-9]$")
+	validKafkaTopicName = regexp.MustCompile(`\w+\d+.?_?-?`)
 )
 
 type (
@@ -165,9 +166,27 @@ func IsTopicValid(mqType MessageQueueType, topic string) bool {
 	case MessageQueueTypeASQ:
 		return len(topic) >= 3 && len(topic) <= 63 && validAzureQueueName.MatchString(topic)
 	case MessageQueueTypeKafka:
-		return nsUtil.IsChannelNameValid(topic, false)
+		return IsValidKafkaTopic(topic)
 	}
 	return false
+}
+
+// The validation is based on Kafka's internal implementation: https://github.com/apache/kafka/blob/trunk/clients/src/main/java/org/apache/kafka/common/internals/Topic.java
+func IsValidKafkaTopic(topic string) bool {
+
+	if len(topic) == 0 {
+		return false
+	}
+	if topic == "." || topic == ".." {
+		return false
+	}
+	if len(topic) > 249 {
+		return false
+	}
+	if !validKafkaTopicName.MatchString(topic) {
+		return false
+	}
+	return true
 }
 
 func IsValidCronSpec(spec string) error {

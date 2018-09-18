@@ -17,6 +17,7 @@ limitations under the License.
 package messageQueue
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -38,6 +39,9 @@ type (
 )
 
 func makeKafkaMessageQueue(routerUrl string, mqCfg MessageQueueConfig) (MessageQueue, error) {
+	if len(routerUrl) == 0 || len(mqCfg.Url) == 0 {
+		return nil, errors.New("The router URL or MQ URL is empty")
+	}
 	kafka := Kafka{
 		routerUrl: routerUrl,
 		brokers:   strings.Split(mqCfg.Url, ","),
