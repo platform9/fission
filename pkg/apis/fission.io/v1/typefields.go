@@ -345,4 +345,9 @@ type (
 		FailureThreshold        int         `json:"failurethreshold"`
 		FailureType             FailureType `json:"failureType"`
 	}
+
+	// CanaryConfig Status
+	CanaryConfigStatus struct {
+		Status string `json:"status"`
+	}
 )

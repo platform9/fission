@@ -31,11 +31,15 @@ success_scenario() {
     log "Create a route for the version-1 of the function with weight 100% and version-2 with weight 0%"
     fission route create --name route-success --method GET --url /success --function fn-v1 --weight 100 --function fn-v2 --weight 0
 
-    log "Create a canary config to gradually increment the weight of version-2 by a step of 30 every 30s"
+    log "Create a canary config to gradually increment the weight of version-2 by a step of 50 every 1m"
     fission canary-config create --name canary-1 --funcN fn-v2 --funcN-1 fn-v1 --httptrigger route-success --increment-step 50 --increment-interval 1m --failure-threshold 10
 
+    sleep 60
+
     log "Fire requests to the route"
-    ab -n 10000 -c 1 http://$FISSION_ROUTER/success
+    ab -n 300 -c 1 http://$FISSION_ROUTER/success
+
+    sleep 60
 
     log "verify that version-2 of the function is receiving 100% traffic"
     weight=`kubectl get httptrigger route-success -o jsonpath='{.spec.functionref.functionweights.fn-v2}'`
@@ -50,22 +54,25 @@ success_scenario() {
 }
 
 failure_scenario() {
-    log "updating fn-v2 to return status code 400"
     cp $ROOT/examples/nodejs/hello.js hello_400.js
     sed -i 's/200/400/' hello_400.js
 
     log "Creating function version-3"
     fission fn create --name fn-v3 --env nodejs --code hello_400.js
 
-    log "Create a route for the version-1 of the function with weight 100% and version-2 with weight 0%"
+    log "Create a route for the version-1 of the function with weight 100% and version-3 with weight 0%"
     fission route create --name route-fail --method GET --url /fail --function fn-v1 --weight 100 --function fn-v3 --weight 0
     sleep 5
 
-    log "Create a canary config to gradually increment the weight of version-2 by a step of 30 every 30s"
+    log "Create a canary config to gradually increment the weight of version-2 by a step of 50 every 1m"
     fission canary-config create --name canary-2 --funcN fn-v3 --funcN-1 fn-v1 --httptrigger route-fail --increment-step 50 --increment-interval 1m --failure-threshold 10
+
+    sleep 60
 
     log "Fire requests to the route"
     ab -n 300 -c 1 http://$FISSION_ROUTER/fail
+
+    sleep 60
 
     log "verify that version-3 of the function is receiving 0% traffic because of rollback"
     weight=`kubectl get httptrigger route-fail -o jsonpath='{.spec.functionref.functionweights.fn-v3}'`

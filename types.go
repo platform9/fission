@@ -53,6 +53,7 @@ type (
 	TimeTriggerSpec              = fv1.TimeTriggerSpec
 	RecorderSpec                 = fv1.RecorderSpec
 	CanaryConfigSpec             = fv1.CanaryConfigSpec
+	CanaryConfigStatus           = fv1.CanaryConfigStatus
 	FailureType                  = fv1.FailureType
 )
 
@@ -201,5 +202,10 @@ const (
 )
 
 const (
-	FailureTypeStatusCode = fv1.FailureTypeStatusCode
+	FailureTypeStatusCode        = fv1.FailureTypeStatusCode
+	CanaryConfigStatusPending    = fv1.CanaryConfigStatusPending
+	CanaryConfigStatusSucceeded  = fv1.CanaryConfigStatusSucceeded
+	CanaryConfigStatusFailed     = fv1.CanaryConfigStatusFailed
+	CanaryConfigStatusAborted    = fv1.CanaryConfigStatusAborted
+	MaxIterationsForCanaryConfig = fv1.MaxIterationsForCanaryConfig
 )

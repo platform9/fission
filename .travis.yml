@@ -2,9 +2,9 @@ sudo: required
 
 dist: trusty
 
-branches:
-  only:
-  - master
+#branches:
+#  only:
+#  - master
 
 language: go
 

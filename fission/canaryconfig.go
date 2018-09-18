@@ -100,6 +100,9 @@ func canaryConfigCreate(c *cli.Context) error {
 			FailureThreshold:        failureThreshold,
 			FailureType:             fission.FailureTypeStatusCode,
 		},
+		Status: fission.CanaryConfigStatus{
+			Status: fission.CanaryConfigStatusPending,
+		},
 	}
 
 	fmt.Printf("Canary config name : %s, ns : %s, trigger : %s", canaryConfigName, ns, trigger)
@@ -161,23 +164,31 @@ func canaryConfigUpdate(c *cli.Context) error {
 		Namespace: ns,
 	}
 
+	var updateNeeded bool
 	canaryCfg, err := client.CanaryConfigGet(m)
 	checkErr(err, "get canary config")
 
 	if incrementStep != canaryCfg.Spec.WeightIncrement {
 		canaryCfg.Spec.WeightIncrement = incrementStep
+		updateNeeded = true
 	}
 
 	if failureThreshold != canaryCfg.Spec.FailureThreshold {
 		canaryCfg.Spec.FailureThreshold = failureThreshold
+		updateNeeded = true
 	}
 
 	if incrementInterval != canaryCfg.Spec.WeightIncrementDuration {
 		canaryCfg.Spec.WeightIncrementDuration = incrementInterval
+		updateNeeded = true
 	}
 
-	_, err = client.CanaryConfigUpdate(canaryCfg)
-	checkErr(err, "update canary config")
+	if updateNeeded {
+		canaryCfg.Status.Status = fission.CanaryConfigStatusPending
+
+		_, err = client.CanaryConfigUpdate(canaryCfg)
+		checkErr(err, "update canary config")
+	}
 
 	return nil
 }

@@ -171,8 +171,9 @@ type (
 	// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 	CanaryConfig struct {
 		metav1.TypeMeta `json:",inline"`
-		Metadata        metav1.ObjectMeta `json:"metadata"`
-		Spec            CanaryConfigSpec  `json:"spec"`
+		Metadata        metav1.ObjectMeta  `json:"metadata"`
+		Spec            CanaryConfigSpec   `json:"spec"`
+		Status          CanaryConfigStatus `json:"status"`
 	}
 
 	// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

@@ -70,7 +70,9 @@ func (canaryCfgMgr *canaryConfigMgr) initCanaryConfigController() (k8sCache.Stor
 		k8sCache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				canaryConfig := obj.(*crd.CanaryConfig)
-				go canaryCfgMgr.addCanaryConfig(canaryConfig)
+				if canaryConfig.Status.Status == fission.CanaryConfigStatusPending {
+					go canaryCfgMgr.addCanaryConfig(canaryConfig)
+				}
 			},
 			DeleteFunc: func(obj interface{}) {
 				canaryConfig := obj.(*crd.CanaryConfig)
@@ -79,7 +81,9 @@ func (canaryCfgMgr *canaryConfigMgr) initCanaryConfigController() (k8sCache.Stor
 			UpdateFunc: func(oldObj interface{}, newObj interface{}) {
 				oldConfig := oldObj.(*crd.CanaryConfig)
 				newConfig := newObj.(*crd.CanaryConfig)
-				if oldConfig.Metadata.ResourceVersion != newConfig.Metadata.ResourceVersion {
+				if oldConfig.Metadata.ResourceVersion != newConfig.Metadata.ResourceVersion &&
+					newConfig.Status.Status == fission.CanaryConfigStatusPending {
+					log.Printf("update canary config invoked for : %s.%s, newConfig.Status.Status=%s", newConfig.Metadata.Name, newConfig.Metadata.Namespace, newConfig.Status.Status)
 					go canaryCfgMgr.updateCanaryConfig(oldConfig, newConfig)
 				}
 				go canaryCfgMgr.reSyncCanaryConfigs()
@@ -98,7 +102,11 @@ func (canaryCfgMgr *canaryConfigMgr) Run(ctx context.Context) {
 func (canaryCfgMgr *canaryConfigMgr) addCanaryConfig(canaryConfig *crd.CanaryConfig) {
 	log.Printf("addCanaryConfig called for %s", canaryConfig.Metadata.Name)
 	ctx, cancel := context.WithCancel(context.Background())
-	canaryCfgMgr.canaryCfgCancelFuncMap.assign(&canaryConfig.Metadata, &cancel)
+	err := canaryCfgMgr.canaryCfgCancelFuncMap.assign(&canaryConfig.Metadata, &cancel)
+	if err != nil {
+		log.Printf("Error caching canary config : %s.%s. err : %v", canaryConfig.Metadata.Name, canaryConfig.Metadata.Namespace, err)
+		return
+	}
 	canaryCfgMgr.processCanaryConfig(&ctx, canaryConfig)
 }
 
@@ -109,10 +117,11 @@ func (canaryCfgMgr *canaryConfigMgr) processCanaryConfig(ctx *context.Context, c
 			canaryConfig.Metadata.Name, canaryConfig.Metadata.Namespace)
 		return
 	}
+
 	ticker := time.NewTicker(interval)
 	quit := make(chan struct{})
 
-	for {
+	for i := 0; i < fission.MaxIterationsForCanaryConfig; i++ {
 		select {
 		case <-(*ctx).Done():
 			// this case when someone deleted their canary config in the middle of it being processed
@@ -132,8 +141,22 @@ func (canaryCfgMgr *canaryConfigMgr) processCanaryConfig(ctx *context.Context, c
 			// or we rolled back to send all 100% traffic to old function
 			log.Printf("Quit processing canaryConfig : %s", canaryConfig.Metadata.Name)
 			ticker.Stop()
+			err = canaryCfgMgr.canaryCfgCancelFuncMap.remove(&canaryConfig.Metadata)
+			if err != nil {
+				log.Printf("error removing canary config: %s from map, err : %v", canaryConfig.Metadata.Name, err)
+			}
 			return
 		}
+	}
+
+	// This is to prevent infinitely processing a canary config
+	log.Printf("Reached max iterations for CanaryConfig %s.%s, quitting", canaryConfig.Metadata.Name, canaryConfig.Metadata.Namespace)
+	close(quit)
+	err = canaryCfgMgr.updateCanaryConfigStatusWithRetries(canaryConfig.Metadata.Name, canaryConfig.Metadata.Namespace,
+		fission.CanaryConfigStatusAborted)
+	if err != nil {
+		log.Printf("Error updating the status of canary config : %s.%s to aborted after max retries. err : %v", canaryConfig.Metadata.Name, canaryConfig.Metadata.Namespace,
+			err)
 	}
 }
 
@@ -188,11 +211,14 @@ func (canaryCfgMgr *canaryConfigMgr) IncrementWeightOrRollback(canaryConfig *crd
 	}
 
 	if doneProcessingCanaryConfig {
-		//remove this canaryconfig from localmap
-		err := canaryCfgMgr.canaryCfgCancelFuncMap.remove(&canaryConfig.Metadata)
+		// update the status of canary config as done processing, we dont care if we arent able to update because
+		// resync takes care of the update
+		err = canaryCfgMgr.updateCanaryConfigStatusWithRetries(canaryConfig.Metadata.Name, canaryConfig.Metadata.Namespace,
+			fission.CanaryConfigStatusSucceeded)
 		if err != nil {
-			log.Printf("error removing canary config: %s from map, err : %v", canaryConfig.Metadata.Name, err)
-			return
+			// cant do much after max retries other than logging it.
+			log.Printf("Error updating canary config : %s.%s after max retries, err :%v", canaryConfig.Metadata.Name, canaryConfig.Metadata.Namespace,
+				err)
 		}
 
 		log.Printf("We're done processing canary config : %s. The new function is receiving all the traffic", canaryConfig.Metadata.Name)
@@ -228,12 +254,44 @@ func (canaryCfgMgr *canaryConfigMgr) updateHttpTriggerWithRetries(triggerName, t
 	return err
 }
 
+func (canaryCfgMgr *canaryConfigMgr) updateCanaryConfigStatusWithRetries(cfgName, cfgNamespace string, status string) (err error) {
+	for i := 0; i < fission.MaxRetries; i++ {
+		canaryCfgObj, err := canaryCfgMgr.fissionClient.CanaryConfigs(cfgNamespace).Get(cfgName)
+		if err != nil {
+			log.Printf("Error getting http Canary Config object : %v", err)
+			return err
+		}
+
+		log.Printf("Updating status of canaryCfg : %s.%s to %s", cfgName, cfgNamespace, status)
+		canaryCfgObj.Status.Status = status
+
+		_, err = canaryCfgMgr.fissionClient.CanaryConfigs(cfgNamespace).Update(canaryCfgObj)
+		switch {
+		case err == nil:
+			log.Printf("Updated Canary Config : %s.%s", cfgName, cfgNamespace)
+			return nil
+		case k8serrors.IsConflict(err):
+			log.Printf("Conflict in updating Canary Config : %s.%s, retrying", cfgName, cfgNamespace)
+			continue
+		default:
+			log.Printf("Error updating Canary Config : %s.%s = %v", cfgName, cfgNamespace, err)
+			return err
+		}
+	}
+
+	return err
+}
+
 func (canaryCfgMgr *canaryConfigMgr) rollback(canaryConfig *crd.CanaryConfig, trigger *crd.HTTPTrigger) error {
 	functionWeights := trigger.Spec.FunctionReference.FunctionWeights
 	functionWeights[canaryConfig.Spec.FunctionN] = 0
 	functionWeights[canaryConfig.Spec.FunctionNminus1] = 100
 
 	err := canaryCfgMgr.updateHttpTriggerWithRetries(trigger.Metadata.Name, trigger.Metadata.Namespace, functionWeights)
+
+	err = canaryCfgMgr.updateCanaryConfigStatusWithRetries(canaryConfig.Metadata.Name, canaryConfig.Metadata.Namespace,
+		fission.CanaryConfigStatusFailed)
+
 	return err
 }
 
@@ -261,11 +319,14 @@ func (canaryCfgMgr *canaryConfigMgr) incrementWeights(canaryConfig *crd.CanaryCo
 }
 
 func (canaryCfgMgr *canaryConfigMgr) reSyncCanaryConfigs() {
-	for _, canaryConfig := range canaryCfgMgr.canaryConfigStore.List() {
-		cancelFunc, err := canaryCfgMgr.canaryCfgCancelFuncMap.lookup(&canaryConfig.(*crd.CanaryConfig).Metadata)
-		if err != nil || cancelFunc == nil {
+	for _, obj := range canaryCfgMgr.canaryConfigStore.List() {
+		canaryConfig := obj.(*crd.CanaryConfig)
+		cancelFunc, err := canaryCfgMgr.canaryCfgCancelFuncMap.lookup(&canaryConfig.Metadata)
+		if err != nil || cancelFunc == nil || canaryConfig.Status.Status == fission.CanaryConfigStatusPending {
+			log.Printf("Adding canary config : %s.%s from resync loop", canaryConfig.Metadata.Name, canaryConfig.Metadata.Namespace)
+
 			// new canaryConfig detected, add it to our cache and start processing it
-			go canaryCfgMgr.addCanaryConfig(canaryConfig.(*crd.CanaryConfig))
+			go canaryCfgMgr.addCanaryConfig(canaryConfig)
 		}
 	}
 }

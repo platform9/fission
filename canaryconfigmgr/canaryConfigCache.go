@@ -18,7 +18,6 @@ package canaryconfigmgr
 
 import (
 	"context"
-	"log"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -57,18 +56,14 @@ func (cancelFuncMap *canaryConfigCancelFuncMap) lookup(f *metav1.ObjectMeta) (*c
 	if err != nil {
 		return nil, err
 	}
-	ctx := item.(*context.CancelFunc)
-	return ctx, nil
+	cancelFunc := item.(*context.CancelFunc)
+	return cancelFunc, nil
 }
 
-func (cancelFuncMap *canaryConfigCancelFuncMap) assign(f *metav1.ObjectMeta, cancelFunc *context.CancelFunc) {
+func (cancelFuncMap *canaryConfigCancelFuncMap) assign(f *metav1.ObjectMeta, cancelFunc *context.CancelFunc) error {
 	mk := keyFromMetadata(f)
 	err, _ := cancelFuncMap.cache.Set(mk, cancelFunc)
-	if err != nil {
-		// ignore error
-		log.Printf("error caching cancelFunc for canaryConfig %s, err : %v", f.Name, err)
-	}
-	return
+	return err
 }
 
 func (cancelFuncMap *canaryConfigCancelFuncMap) remove(f *metav1.ObjectMeta) error {

@@ -171,7 +171,7 @@ set_environment() {
 }
 
 generate_test_id() {
-    echo $(date|md5sum|cut -c1-6)
+    echo $(cat /dev/urandom | tr -dc 'a-z' | fold -w 6 | head -n 1)
 }
 
 helm_install_fission() {
@@ -507,7 +507,7 @@ install_and_test() {
     clean_crd_resources
     
     id=$(generate_test_id)
-    trap "helm_uninstall_fission $id" EXIT
+#    trap "helm_uninstall_fission $id" EXIT
     helm_install_fission $id $image $imageTag $fetcherImage $fetcherImageTag $controllerPort $routerPort $fluentdImage $fluentdImageTag $pruneInterval $routerServiceType $serviceType $preUpgradeCheckImage
     helm status $id | grep STATUS | grep -i deployed
     if [ $? -ne 0 ]; then
