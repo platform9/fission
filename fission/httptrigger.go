@@ -123,7 +123,7 @@ func htCreate(c *cli.Context) error {
 
 	// For Specs, the spec validate checks for function reference
 	if !spec {
-		err = checkFunctionExistence(client, functionList, fnNamespace)
+		err = util.CheckFunctionExistence(client, functionList, fnNamespace)
 		if err != nil {
 			log.Warn(fmt.Sprintf(err.Error()))
 		}

@@ -28,10 +28,11 @@ import (
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
 	"github.com/fission/fission/fission/log"
+	"github.com/fission/fission/fission/util"
 )
 
 func canaryConfigCreate(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
+	client := util.GetApiClient(c.GlobalString("server"))
 
 	canaryConfigName := c.String("name")
 	// canary configs can be created for functions in the same namespace
@@ -49,7 +50,7 @@ func canaryConfigCreate(c *cli.Context) error {
 
 	// check for time parsing
 	_, err := time.ParseDuration(incrementInterval)
-	checkErr(err, "parsing time duration.")
+	util.CheckErr(err, "parsing time duration.")
 
 	// check that the trigger exists in the same namespace.
 	m := &metav1.ObjectMeta{
@@ -59,7 +60,7 @@ func canaryConfigCreate(c *cli.Context) error {
 
 	htTrigger, err := client.HTTPTriggerGet(m)
 	if err != nil {
-		checkErr(err, "Trigger referenced in the canary config is not created")
+		util.CheckErr(err, "Trigger referenced in the canary config is not created")
 	}
 
 	// check that the trigger has function reference type function weights
@@ -79,8 +80,8 @@ func canaryConfigCreate(c *cli.Context) error {
 	}
 
 	// check that the functions exist in the same namespace
-	fns := []string{funcN, funcNminus1}
-	err = checkFunctionExistence(client, fns, ns)
+	fnList := []string{funcN, funcNminus1}
+	err = util.CheckFunctionExistence(client, fnList, ns)
 	if err != nil {
 		log.Fatal(fmt.Sprintf("checkFunctionExistence err : %v", err))
 	}
@@ -108,14 +109,14 @@ func canaryConfigCreate(c *cli.Context) error {
 	fmt.Printf("Canary config name : %s, ns : %s, trigger : %s", canaryConfigName, ns, trigger)
 
 	_, err = client.CanaryConfigCreate(canaryCfg)
-	checkErr(err, "create canary config")
+	util.CheckErr(err, "create canary config")
 
 	fmt.Printf("canary config '%v' created\n", canaryConfigName)
 	return err
 }
 
 func canaryConfigGet(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
+	client := util.GetApiClient(c.GlobalString("server"))
 
 	name := c.String("name")
 	if len(name) == 0 {
@@ -129,7 +130,7 @@ func canaryConfigGet(c *cli.Context) error {
 	}
 
 	canaryCfg, err := client.CanaryConfigGet(m)
-	checkErr(err, "get canary config")
+	util.CheckErr(err, "get canary config")
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
 	fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", "NAME", "TRIGGER", "FUNCTION-N", "FUNCTION-N-1", "WEIGHT-INCREMENT", "INTERVAL", "FAILURE-THRESHOLD", "FAILURE-TYPE")
@@ -142,7 +143,7 @@ func canaryConfigGet(c *cli.Context) error {
 }
 
 func canaryConfigUpdate(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
+	client := util.GetApiClient(c.GlobalString("server"))
 
 	canaryConfigName := c.String("name")
 	ns := c.String("canaryNamespace")
@@ -156,7 +157,7 @@ func canaryConfigUpdate(c *cli.Context) error {
 
 	// check for time parsing
 	_, err := time.ParseDuration(incrementInterval)
-	checkErr(err, "parsing time duration.")
+	util.CheckErr(err, "parsing time duration.")
 
 	// get the current config
 	m := &metav1.ObjectMeta{
@@ -166,7 +167,7 @@ func canaryConfigUpdate(c *cli.Context) error {
 
 	var updateNeeded bool
 	canaryCfg, err := client.CanaryConfigGet(m)
-	checkErr(err, "get canary config")
+	util.CheckErr(err, "get canary config")
 
 	if incrementStep != canaryCfg.Spec.WeightIncrement {
 		canaryCfg.Spec.WeightIncrement = incrementStep
@@ -187,14 +188,14 @@ func canaryConfigUpdate(c *cli.Context) error {
 		canaryCfg.Status.Status = fission.CanaryConfigStatusPending
 
 		_, err = client.CanaryConfigUpdate(canaryCfg)
-		checkErr(err, "update canary config")
+		util.CheckErr(err, "update canary config")
 	}
 
 	return nil
 }
 
 func canaryConfigDelete(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
+	client := util.GetApiClient(c.GlobalString("server"))
 
 	canaryConfigName := c.String("name")
 	ns := c.String("canaryNamespace")
@@ -209,19 +210,19 @@ func canaryConfigDelete(c *cli.Context) error {
 	}
 
 	err := client.CanaryConfigDelete(m)
-	checkErr(err, fmt.Sprintf("delete function '%v.%v'", canaryConfigName, ns))
+	util.CheckErr(err, fmt.Sprintf("delete function '%v.%v'", canaryConfigName, ns))
 
 	fmt.Printf("canaryconfig '%v.%v' deleted\n", canaryConfigName, ns)
 	return err
 }
 
 func canaryConfigList(c *cli.Context) error {
-	client := getClient(c.GlobalString("server"))
+	client := util.GetApiClient(c.GlobalString("server"))
 
 	ns := c.String("canaryNamespace")
 
 	canaryCfgs, err := client.CanaryConfigList(ns)
-	checkErr(err, "list canary config")
+	util.CheckErr(err, "list canary config")
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
 	fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", "NAME", "TRIGGER", "FUNCTION-N", "FUNCTION-N-1", "WEIGHT-INCREMENT", "INTERVAL", "FAILURE-THRESHOLD", "FAILURE-TYPE")
