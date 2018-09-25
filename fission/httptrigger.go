@@ -223,6 +223,7 @@ func htUpdate(c *cli.Context) error {
 	if c.IsSet("function") {
 		ht.Spec.FunctionReference.Name = c.String("function")
 	}
+	util.CheckFunctionExistence(client, []string{ht.Spec.FunctionReference.Name}, triggerNamespace)
 
 	if c.IsSet("createingress") {
 		ht.Spec.CreateIngress = c.Bool("createingress")

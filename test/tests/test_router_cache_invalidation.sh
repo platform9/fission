@@ -43,11 +43,11 @@ fission fn create --name $fn --env python --code testDir-$fn/hello.py
 log "rm testDir-$fn"
 rm -rf testDir-$fn
 
-log "Waiting for router to update cache"
-sleep 3
-
 log "Creating route"
 fission route create --function $fn --url /$fn --method GET
+
+log "Waiting for router to update cache"
+sleep 5
 
 http_status=`curl -sw "%{http_code}" http://$FISSION_ROUTER/$fn -o /dev/null`
 log "http_status: $http_status"
