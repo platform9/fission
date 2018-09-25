@@ -33,6 +33,9 @@ routerPort: 31314
 ## Port at which NATS streaming service should be exposed
 natsStreamingPort: 31316
 
+## Set to false if you create the namespaces manually
+createNamespace: true
+
 ## Namespace in which to run fission functions (this is different from
 ## the release namespace)
 functionNamespace: fission-function

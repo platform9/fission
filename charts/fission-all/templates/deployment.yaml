@@ -1,4 +1,5 @@
 ---
+{{- if .Values.createNamespace }}
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -21,7 +22,7 @@ metadata:
     {{- if .Values.enableIstio }}
     istio-injection: enabled
     {{- end }}
-
+{{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
