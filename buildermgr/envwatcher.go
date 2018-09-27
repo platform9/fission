@@ -616,7 +616,7 @@ func (envw *environmentWatcher) createBuilderDeployment(env *crd.Environment, ns
 							},
 						},
 					},
-					ServiceAccountName: "fission-builder",
+					ServiceAccountName: fission.FissionBuilderSA,
 				},
 			},
 		},

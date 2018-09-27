@@ -352,7 +352,7 @@ func (deploy *NewDeploy) getDeploymentSpec(fn *crd.Function, env *crd.Environmen
 							},
 						},
 					},
-					ServiceAccountName:            "fission-fetcher",
+					ServiceAccountName:            fission.FissionFetcherSA,
 					TerminationGracePeriodSeconds: &gracePeriodSeconds,
 				},
 			},

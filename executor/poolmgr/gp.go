@@ -547,7 +547,7 @@ func (gp *GenericPool) createPool() error {
 							},
 						},
 					},
-					ServiceAccountName: "fission-fetcher",
+					ServiceAccountName: fission.FissionFetcherSA,
 					// TerminationGracePeriodSeconds should be equal to the
 					// sleep time of preStop to make sure that SIGTERM is sent
 					// to pod after 6 mins.
