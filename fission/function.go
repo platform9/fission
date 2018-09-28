@@ -188,7 +188,7 @@ func fnCreate(c *cli.Context) error {
 			}
 		}
 
-		srcArchiveName := c.String("src")
+		srcArchiveName := c.StringSlice("src")
 		deployArchiveName := c.String("code")
 		if len(deployArchiveName) == 0 {
 			deployArchiveName = c.String("deploy")
@@ -411,7 +411,7 @@ func fnUpdate(c *cli.Context) error {
 	if len(deployArchiveName) == 0 {
 		deployArchiveName = c.String("deploy")
 	}
-	srcArchiveName := c.String("src")
+	srcArchiveName := c.StringSlice("src")
 	pkgName := c.String("pkg")
 	entrypoint := c.String("entrypoint")
 	buildcmd := c.String("buildcmd")

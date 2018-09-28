@@ -30,6 +30,7 @@ import (
 	"path/filepath"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/dchest/uniuri"
 	"github.com/fission/fission/fission/util"
@@ -82,15 +83,15 @@ func pkgCreate(c *cli.Context) error {
 		log.Fatal("Need --env argument.")
 	}
 	envNamespace := c.String("envNamespace")
-	srcArchiveName := c.String("src")
-	deployArchiveName := c.String("deploy")
+	srcArchive := c.StringSlice("src")
+	deployArchive := c.String("deploy")
 	buildcmd := c.String("buildcmd")
 
-	if len(srcArchiveName) == 0 && len(deployArchiveName) == 0 {
+	if len(srcArchive) == 0 && len(deployArchive) == 0 {
 		log.Fatal("Need --src to specify source archive, or use --deploy to specify deployment archive.")
 	}
 
-	meta := createPackage(client, pkgNamespace, envName, envNamespace, srcArchiveName, deployArchiveName, buildcmd, "")
+	meta := createPackage(client, pkgNamespace, envName, envNamespace, srcArchive, deployArchive, buildcmd, "")
 	fmt.Printf("Package '%v' created\n", meta.GetName())
 
 	return nil
@@ -108,15 +109,15 @@ func pkgUpdate(c *cli.Context) error {
 	force := c.Bool("f")
 	envName := c.String("env")
 	envNamespace := c.String("envNamespace")
-	srcArchiveName := c.String("src")
-	deployArchiveName := c.String("deploy")
+	srcArchive := c.StringSlice("src")
+	deployArchive := c.String("deploy")
 	buildcmd := c.String("buildcmd")
 
-	if len(srcArchiveName) > 0 && len(deployArchiveName) > 0 {
+	if len(srcArchive) > 0 && len(deployArchive) > 0 {
 		log.Fatal("Need either of --src or --deploy and not both arguments.")
 	}
 
-	if len(srcArchiveName) == 0 && len(deployArchiveName) == 0 &&
+	if len(srcArchive) == 0 && len(deployArchive) == 0 &&
 		len(envName) == 0 && len(buildcmd) == 0 {
 		log.Fatal("Need --env or --src or --deploy or --buildcmd argument.")
 	}
@@ -146,7 +147,7 @@ func pkgUpdate(c *cli.Context) error {
 	}
 
 	newPkgMeta, err := updatePackage(client, pkg,
-		envName, envNamespace, srcArchiveName, deployArchiveName, buildcmd, false)
+		envName, envNamespace, srcArchive, deployArchive, buildcmd, false)
 	if err != nil {
 		util.CheckErr(err, "update package")
 	}
@@ -163,8 +164,8 @@ func pkgUpdate(c *cli.Context) error {
 	return nil
 }
 
-func updatePackage(client *client.Client, pkg *crd.Package, envName, envNamespace,
-	srcArchiveName, deployArchiveName, buildcmd string, forceRebuild bool) (*metav1.ObjectMeta, error) {
+func updatePackage(client *client.Client, pkg *crd.Package, envName, envNamespace string,
+	srcArchive []string, deployArchive, buildcmd string, forceRebuild bool) (*metav1.ObjectMeta, error) {
 
 	var srcArchiveMetadata, deployArchiveMetadata *fission.Archive
 	needToBuild := false
@@ -184,14 +185,14 @@ func updatePackage(client *client.Client, pkg *crd.Package, envName, envNamespac
 		needToBuild = true
 	}
 
-	if len(srcArchiveName) > 0 {
-		srcArchiveMetadata = createArchive(client, srcArchiveName, "")
+	if len(srcArchive) > 0 {
+		srcArchiveMetadata = createArchive(client, srcArchive, "")
 		pkg.Spec.Source = *srcArchiveMetadata
 		needToBuild = true
 	}
 
-	if len(deployArchiveName) > 0 {
-		deployArchiveMetadata = createArchive(client, deployArchiveName, "")
+	if len(deployArchive) > 0 {
+		deployArchiveMetadata = createArchive(client, deployArchive, "")
 		pkg.Spec.Deployment = *deployArchiveMetadata
 		// Users may update the env, envNS and deploy archive at the same time,
 		// but without the source archive. In this case, we should set needToBuild to false
@@ -530,7 +531,7 @@ func createArchive(client *client.Client, fileName string, specFile string) *fis
 	return &archive
 }
 
-func createPackage(client *client.Client, pkgNamespace, envName, envNamespace, srcArchiveName, deployArchiveName, buildcmd string, specFile string) *metav1.ObjectMeta {
+func createPackage(client *client.Client, pkgNamespace string, envName string, envNamespace string, srcArchive []string, deployArchive, buildcmd string, specFile string) *metav1.ObjectMeta {
 	pkgSpec := fission.PackageSpec{
 		Environment: fission.EnvironmentReference{
 			Namespace: envNamespace,
@@ -540,14 +541,18 @@ func createPackage(client *client.Client, pkgNamespace, envName, envNamespace, s
 	var pkgStatus fission.BuildStatus = fission.BuildStatusSucceeded
 
 	var pkgName string
-	if len(deployArchiveName) > 0 {
+	if len(deployArchive) > 0 {
 		if len(specFile) > 0 { // we should do this in all cases, i think
 			pkgStatus = fission.BuildStatusNone
 		}
-		pkgSpec.Deployment = *createArchive(client, deployArchiveName, specFile)
-		pkgName = util.KubifyName(fmt.Sprintf("%v-%v", path.Base(deployArchiveName), uniuri.NewLen(4)))
+		pkgSpec.Deployment = *createArchive(client, deployArchive, specFile)
+		pkgName = util.KubifyName(fmt.Sprintf("%v-%v", path.Base(deployArchive), uniuri.NewLen(4)))
 	}
-	if len(srcArchiveName) > 0 {
+	if len(srcArchive) > 0 {
+		srcArchiveName, err := fission.MakeArchive(fmt.Sprintf("%v-%v", envName, time.Now().Unix()), strings.Join(srcArchive[:], ","))
+		if err != nil {
+			util.CheckErr(err, "create archive file")
+		}
 		pkgSpec.Source = *createArchive(client, srcArchiveName, specFile)
 		// set pending status to package
 		pkgStatus = fission.BuildStatusPending
@@ -581,6 +586,10 @@ func createPackage(client *client.Client, pkgNamespace, envName, envNamespace, s
 		util.CheckErr(err, "create package")
 		return pkgMetadata
 	}
+}
+
+func createArchive() {
+	
 }
 
 func getContents(filePath string) []byte {

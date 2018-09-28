@@ -87,7 +87,7 @@ func main() {
 	fnEnvNameFlag := cli.StringFlag{Name: "env", Usage: "environment name for function"}
 	fnCodeFlag := cli.StringFlag{Name: "code", Usage: "local path or URL for source code"}
 	fnDeployArchiveFlag := cli.StringFlag{Name: "deployarchive, deploy", Usage: "local path or URL for deployment archive"}
-	fnSrcArchiveFlag := cli.StringFlag{Name: "sourcearchive, src", Usage: "local path or URL for source archive"}
+	fnSrcArchiveFlag := cli.StringSliceFlag{Name: "sourcearchive, src", Usage: "local path or URL for source archive"}
 	fnPkgNameFlag := cli.StringFlag{Name: "pkgname, pkg", Usage: "Name of the existing package (--deploy and --src and --env will be ignored), should be in the same namespace as the function"}
 	fnPodFlag := cli.StringFlag{Name: "pod", Usage: "function pod name, optional (use latest if unspecified)"}
 	fnFollowFlag := cli.BoolFlag{Name: "follow, f", Usage: "specify if the logs should be streamed"}
@@ -230,7 +230,7 @@ func main() {
 	pkgNameFlag := cli.StringFlag{Name: "name", Usage: "Package name"}
 	pkgForceFlag := cli.BoolFlag{Name: "force, f", Usage: "Force update a package even if it is used by one or more functions"}
 	pkgEnvironmentFlag := cli.StringFlag{Name: "env", Usage: "Environment name"}
-	pkgSrcArchiveFlag := cli.StringFlag{Name: "sourcearchive, src", Usage: "Local path or URL for source archive"}
+	pkgSrcArchiveFlag := cli.StringSliceFlag{Name: "sourcearchive, src", Usage: "Local path or URL for source archive"}
 	pkgDeployArchiveFlag := cli.StringFlag{Name: "deployarchive, deploy", Usage: "Local path or URL for binary archive"}
 	pkgBuildCmdFlag := cli.StringFlag{Name: "buildcmd", Usage: "Build command for builder to run with"}
 	pkgOutputFlag := cli.StringFlag{Name: "output, o", Usage: "Output filename to save archive content"}
