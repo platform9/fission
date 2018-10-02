@@ -19,7 +19,6 @@ package client
 import (
 	"bytes"
 	"encoding/json"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -47,30 +46,20 @@ func MakeClient(executorUrl string) *Client {
 	return c
 }
 
-func (c *Client) GetServiceForFunction(metadata *metav1.ObjectMeta) (string, error) {
+func (c *Client) GetServiceForFunction(metadata *metav1.ObjectMeta) (*http.Response, error) {
 	executorUrl := c.executorUrl + "/v2/getServiceForFunction"
 
 	body, err := json.Marshal(metadata)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	resp, err := http.Post(executorUrl, "application/json", bytes.NewReader(body))
 	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		return "", fission.MakeErrorFromHTTP(resp)
+		return nil, err
 	}
 
-	svcName, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-
-	return string(svcName), nil
+	return resp, nil
 }
 
 func (c *Client) service() {

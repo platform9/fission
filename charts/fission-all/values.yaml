@@ -99,3 +99,8 @@ pruneInterval: 60
 
 ## Fission pre-install/pre-upgrade checks live in this image
 preUpgradeChecksImage: fission/pre-upgrade-checks
+
+## the environment where fission is installed.
+## If its set to any other value other than production, then debug information is returned in http response for
+## fn test cli in case of fission internal errors.
+envType: production
