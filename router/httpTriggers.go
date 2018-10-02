@@ -52,10 +52,11 @@ type HTTPTriggerSet struct {
 	recorderSet                *RecorderSet
 	updateRouterRequestChannel chan struct{}
 	tsRoundTripperParams       *tsRoundTripperParams
+	envType                    string
 }
 
 func makeHTTPTriggerSet(fmap *functionServiceMap, frmap *functionRecorderMap, trmap *triggerRecorderMap, fissionClient *crd.FissionClient,
-	kubeClient *kubernetes.Clientset, executor *executorClient.Client, crdClient *rest.RESTClient, params *tsRoundTripperParams) (*HTTPTriggerSet, k8sCache.Store, k8sCache.Store) {
+	kubeClient *kubernetes.Clientset, executor *executorClient.Client, crdClient *rest.RESTClient, params *tsRoundTripperParams, envType string) (*HTTPTriggerSet, k8sCache.Store, k8sCache.Store) {
 	httpTriggerSet := &HTTPTriggerSet{
 		functionServiceMap:         fmap,
 		triggers:                   []crd.HTTPTrigger{},
@@ -65,6 +66,7 @@ func makeHTTPTriggerSet(fmap *functionServiceMap, frmap *functionRecorderMap, tr
 		crdClient:                  crdClient,
 		updateRouterRequestChannel: make(chan struct{}),
 		tsRoundTripperParams:       params,
+		envType:                    envType,
 	}
 	var tStore, fnStore, rStore k8sCache.Store
 	var tController, fnController k8sCache.Controller
@@ -150,6 +152,7 @@ func (ts *HTTPTriggerSet) getRouter() *mux.Router {
 			fnWeightDistributionList: rr.functionWtDistributionList,
 			tsRoundTripperParams:     ts.tsRoundTripperParams,
 			recorderName:             recorderName,
+			envType:                  ts.envType,
 		}
 
 		if rr.resolveResultType == resolveResultSingleFunction {
@@ -197,6 +200,7 @@ func (ts *HTTPTriggerSet) getRouter() *mux.Router {
 			executor:             ts.executor,
 			tsRoundTripperParams: ts.tsRoundTripperParams,
 			recorderName:         recorderName,
+			envType:              ts.envType,
 		}
 		muxRouter.HandleFunc(fission.UrlForFunction(function.Metadata.Name, function.Metadata.Namespace), fh.handler)
 	}

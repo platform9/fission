@@ -57,6 +57,8 @@ type functionHandler struct {
 	fnWeightDistributionList []FunctionWeightDistribution
 	tsRoundTripperParams     *tsRoundTripperParams
 	recorderName             string
+	envType                  string
+	debug                    bool
 }
 
 // A layer on top of http.DefaultTransport, with retries.
@@ -154,23 +156,37 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 			log.Printf("Calling getServiceForFunction for function: %s", roundTripper.funcHandler.function.Name)
 
 			// send a request to executor to specialize a new pod
-			service, err := roundTripper.funcHandler.executor.GetServiceForFunction(
+			resp, err := roundTripper.funcHandler.executor.GetServiceForFunction(
 				roundTripper.funcHandler.function)
+
 			if err != nil {
-				log.Printf("Err from GetServiceForFunction : %v", err)
+				log.Debugf("Err from GetServiceForFunction : %v", err)
 				// We might want a specific error code or header for fission failures as opposed to
 				// user function bugs.
 				return nil, err
 			}
 
+			if resp.StatusCode != http.StatusOK {
+				if roundTripper.funcHandler.envType != "production" && len(req.Header.Get(fission.FissionDebugHeader)) != 0 {
+					return resp, nil
+				}
+
+				return nil, fmt.Errorf("Internal Error")
+			}
+
+			svcName, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+
 			// parse the address into url
-			serviceUrl, err = url.Parse(fmt.Sprintf("http://%v", service))
+			serviceUrl, err = url.Parse(fmt.Sprintf("http://%v", string(svcName)))
 			if err != nil {
 				return nil, err
 			}
 
 			// add the address in router's cache
-			log.Printf("assigning serviceUrl : %s for function : %s", service, roundTripper.funcHandler.function.Name)
+			log.Printf("assigning serviceUrl : %s for function : %s", string(svcName), roundTripper.funcHandler.function.Name)
 			roundTripper.funcHandler.fmap.assign(roundTripper.funcHandler.function, serviceUrl)
 
 			// flag denotes that service was not obtained from cache, instead, created just now by executor
