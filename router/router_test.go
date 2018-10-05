@@ -57,7 +57,7 @@ func TestRouter(t *testing.T) {
 			timeoutExponent: 2,
 			keepAlive:       30 * time.Second,
 			maxRetries:      10,
-		}, "production")
+		}, false)
 	triggerUrl := "/foo"
 	triggers.triggers = append(triggers.triggers,
 		crd.HTTPTrigger{
