@@ -180,8 +180,8 @@ spec:
             value: {{ .Values.routerRoundTripKeepAliveTime | default "30s" | quote }}
           - name: ROUTER_ROUND_TRIP_MAX_RETRIES
             value: {{ .Values.routerRoundTripMaxRetries | default 10 | quote }}
-          - name: ENV_TYPE
-            value: {{ .Values.envType }}
+          - name: DEBUG_ENV
+            value: {{ .Values.debugEnv | quote }}
         readinessProbe:
           httpGet:
             path: "/router-healthz"

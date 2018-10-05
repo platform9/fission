@@ -757,10 +757,7 @@ func fnTest(c *cli.Context) error {
 	}
 
 	headers := c.StringSlice("header")
-	debug := c.Bool("debug")
-	if debug {
-		headers = append(headers, fmt.Sprintf("%s:true", fission.FissionDebugHeader))
-	}
+
 	resp := httpRequest(c.String("method"), functionUrl.String(), c.String("body"), headers)
 	if resp.StatusCode < 400 {
 		body, err := ioutil.ReadAll(resp.Body)

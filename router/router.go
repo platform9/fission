@@ -124,14 +124,17 @@ func Start(port int, executorUrl string) {
 		log.Fatalf("Failed to parse max retry times: %v", err)
 	}
 
-	envType := os.Getenv("ENV_TYPE")
+	isDebugEnv, err := strconv.ParseBool(os.Getenv("DEBUG_ENV"))
+	if err != nil {
+		log.Fatalf("Failed to parse DEBUG_ENV: %v", err)
+	}
 
 	triggers, _, fnStore := makeHTTPTriggerSet(fmap, frmap, trmap, fissionClient, kubeClient, executor, restClient, &tsRoundTripperParams{
 		timeout:         timeout,
 		timeoutExponent: timeoutExponent,
 		keepAlive:       keepAlive,
 		maxRetries:      maxRetries,
-	}, envType)
+	}, isDebugEnv)
 
 	resolver := makeFunctionReferenceResolver(fnStore)
 
