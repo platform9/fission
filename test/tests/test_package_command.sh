@@ -2,16 +2,25 @@
 
 set -euo pipefail
 
-# Use package command to create two packages one with source
-# archive and the other with deploy archive. Also, create a 
-# function to test the packages created by package command are 
+# Use package command to create packages of type:
+# 1) Multiple source files (multiple inputs, Using * expression, from a directory) # Currently only * expression implemented as a test
+# 2) Source archive file
+# TBD 3) Source file from a HTTP location
+# 4) Deployment files from a directory
+# 5) Deployment archive
+# TBD 6) Deployment archive from a HTTP location
+# Then create a function to test the packages created by package command are 
 # able to work.
 
 ROOT=$(dirname $0)/../..
 PYTHON_RUNTIME_IMAGE=gcr.io/fission-ci/python-env:test
 PYTHON_BUILDER_IMAGE=gcr.io/fission-ci/python-env-builder:test
 
-fn=python-srcbuild-$(date +%s)
+fn1=python-srcbuild1-$(date +%s)
+fn2=python-srcbuild2-$(date +%s)
+
+fn4=python-deploy4-$(date +%s)
+fn5=python-deploy5-$(date +%s)
 
 waitBuild() {
     log "Waiting for builder manager to finish the build"
@@ -55,7 +64,10 @@ export -f waitEnvBuilder
 cleanup() {
     log "Cleaning up..."
     fission env delete --name python || true
-    fission fn delete --name $fn || true
+    fission fn delete --name $fn1 || true
+    fission fn delete --name $fn2 || true
+    fission fn delete --name $fn4 || true
+    fission fn delete --name $fn5 || true
 }
 
 if [ -z "${TEST_NOCLEANUP:-}" ]; then
@@ -71,24 +83,62 @@ log "Creating python env"
 fission env create --name python --image $PYTHON_RUNTIME_IMAGE --builder $PYTHON_BUILDER_IMAGE
 
 timeout 180s bash -c "waitEnvBuilder python"
+# 1) Multiple source files (multiple inputs, Using * expression, from a directory)
+# Currently only * expression implemented as a test
 
-log "Creating pacakage with source archive"
-zip -jr demo-src-pkg.zip $ROOT/examples/python/sourcepkg/
-pkgName=$(fission package create --src demo-src-pkg.zip --env python --buildcmd "./build.sh"| cut -f2 -d' '| tr -d \')
+pkg1=$(fission package create --src "$ROOT/examples/python/sourcepkg/*" --env python --buildcmd "./build.sh"| cut -f2 -d' '| tr -d \')
 
 # wait for build to finish at most 60s
-timeout 60s bash -c "waitBuild $pkgName"
-
-log "Creating function " $fn
-fission fn create --name $fn --pkg $pkgName --entrypoint "user.main"
+timeout 60s bash -c "waitBuild $pkg1"
+log "Creating function " $fn1
+fission fn create --name $fn1 --pkg $pkg1 --entrypoint "user.main"
 
 log "Creating route"
-fission route create --function $fn --url /$fn --method GET
+fission route create --function $fn1 --url /$fn1 --method GET
 
 log "Waiting for router to catch up"
 sleep 3
   
-checkFunctionResponse $fn 'a: 1 b: {c: 3, d: 4}'
+checkFunctionResponse $fn1 'a: 1 b: {c: 3, d: 4}'
+
+# 2) Source archive file
+log "Creating pacakage with source archive"
+zip -jr demo-src-pkg.zip $ROOT/examples/python/sourcepkg/
+pkg2=$(fission package create --src demo-src-pkg.zip --env python --buildcmd "./build.sh"| cut -f2 -d' '| tr -d \')
+
+# wait for build to finish at most 60s
+timeout 60s bash -c "waitBuild $pkg2"
+
+log "Creating function " $fn2
+fission fn create --name $fn2 --pkg $pkg2 --entrypoint "user.main"
+
+log "Creating route"
+fission route create --function $fn2 --url /$fn2 --method GET
+
+log "Waiting for router to catch up"
+sleep 3
+  
+checkFunctionResponse $fn2 'a: 1 b: {c: 3, d: 4}'
+
+# 3) Source file from a HTTP location
+# TBD
+
+# 4) Deployment files from a directory
+
+pkg4=$(fission package create --deploy "$ROOT/examples/python/multifile/" --env python| cut -f2 -d' '| tr -d \')
+
+log "Creating function " $fn4
+fission fn create --name $fn4 --pkg $pkg4 --entrypoint "main.main"
+
+log "Creating route"
+fission route create --function $fn4 --url /$fn4 --method GET
+
+log "Waiting for router to catch up"
+sleep 3
+  
+checkFunctionResponse $fn4 'Hello, world!'
+
+# 5) Deployment archive
 
 log "Creating package with deploy archive"
 mkdir testDir
@@ -97,13 +147,20 @@ printf 'def main():\n    return "Hello, world!"' > testDir/hello.py
 zip -jr demo-deploy-pkg.zip testDir/
 pkgName=$(fission package create --deploy demo-deploy-pkg.zip --env python| cut -f2 -d' '| tr -d \')
 
-log "Updating function " $fn
-fission fn update --name $fn --pkg $pkgName --entrypoint "hello.main"
+
+log "Updating function " $fn5
+fission fn create --name $fn5 --pkg $pkgName --entrypoint "hello.main"
+
+log "Creating route"
+fission route create --function $fn5 --url /$fn5 --method GET
 
 log "Waiting for router to update cache"
 sleep 3
 
-checkFunctionResponse $fn 'Hello, world!'
+checkFunctionResponse $fn5 'Hello, world!'
+
+# 6) Deployment archive from a HTTP location
+# TBD
 
 # crappy cleanup, improve this later
 kubectl get httptrigger -o name | tail -1 | cut -f2 -d'/' | xargs kubectl delete httptrigger

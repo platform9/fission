@@ -35,6 +35,7 @@ import (
 	"github.com/dchest/uniuri"
 	"github.com/fission/fission/fission/util"
 	storageSvcClient "github.com/fission/fission/storagesvc/client"
+	"github.com/mholt/archiver"
 	"github.com/satori/go.uuid"
 	"github.com/urfave/cli"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -186,13 +187,15 @@ func updatePackage(client *client.Client, pkg *crd.Package, envName, envNamespac
 	}
 
 	if len(srcArchive) > 0 {
-		srcArchiveMetadata = createArchive(client, srcArchive, "")
+		srcArchiveName := sourceArchiveParser(srcArchive, envName)
+		srcArchiveMetadata = createArchive(client, srcArchiveName, "")
 		pkg.Spec.Source = *srcArchiveMetadata
 		needToBuild = true
 	}
 
 	if len(deployArchive) > 0 {
-		deployArchiveMetadata = createArchive(client, deployArchive, "")
+		deployArchiveName := deployArchiveParser(deployArchive, envName)
+		deployArchiveMetadata = createArchive(client, deployArchiveName, "")
 		pkg.Spec.Deployment = *deployArchiveMetadata
 		// Users may update the env, envNS and deploy archive at the same time,
 		// but without the source archive. In this case, we should set needToBuild to false
@@ -440,7 +443,7 @@ func pkgRebuild(c *cli.Context) error {
 			pkg.Metadata.Name, fission.BuildStatusFailed))
 	}
 
-	_, err = updatePackage(client, pkg, "", "", "", "", "", true)
+	_, err = updatePackage(client, pkg, "", "", nil, "", "", true)
 	util.CheckErr(err, "update package")
 
 	fmt.Printf("Retrying build for pkg %v. Use \"fission pkg info --name %v\" to view status.\n", pkg.Metadata.Name, pkg.Metadata.Name)
@@ -545,14 +548,13 @@ func createPackage(client *client.Client, pkgNamespace string, envName string, e
 		if len(specFile) > 0 { // we should do this in all cases, i think
 			pkgStatus = fission.BuildStatusNone
 		}
-		pkgSpec.Deployment = *createArchive(client, deployArchive, specFile)
-		pkgName = util.KubifyName(fmt.Sprintf("%v-%v", path.Base(deployArchive), uniuri.NewLen(4)))
+		deployArchiveName := deployArchiveParser(deployArchive, envName)
+
+		pkgSpec.Deployment = *createArchive(client, deployArchiveName, specFile)
+		pkgName = util.KubifyName(fmt.Sprintf("%v-%v", path.Base(deployArchiveName), uniuri.NewLen(4)))
 	}
 	if len(srcArchive) > 0 {
-		srcArchiveName, err := fission.MakeArchive(fmt.Sprintf("%v-%v", envName, time.Now().Unix()), strings.Join(srcArchive[:], ","))
-		if err != nil {
-			util.CheckErr(err, "create archive file")
-		}
+		srcArchiveName := sourceArchiveParser(srcArchive, envName)
 		pkgSpec.Source = *createArchive(client, srcArchiveName, specFile)
 		// set pending status to package
 		pkgStatus = fission.BuildStatusPending
@@ -586,10 +588,6 @@ func createPackage(client *client.Client, pkgNamespace string, envName string, e
 		util.CheckErr(err, "create package")
 		return pkgMetadata
 	}
-}
-
-func createArchive() {
-	
 }
 
 func getContents(filePath string) []byte {
@@ -660,4 +658,70 @@ func downloadURL(fileUrl string) (io.ReadCloser, error) {
 		return nil, fmt.Errorf("%v - HTTP response returned non 200 status", resp.StatusCode)
 	}
 	return resp.Body, nil
+}
+
+func deployArchiveParser(deployArchive string, envName string) string {
+	var deployArchiveName = ""
+
+	if strings.HasPrefix(deployArchive, "http://") || strings.HasPrefix(deployArchive, "https://") {
+		deployArchiveName = deployArchive
+	} else {
+		fileInfo, err := os.Stat(deployArchive)
+		if err != nil {
+			util.CheckErr(err, "inspect deploy archive")
+		}
+		if fileInfo.IsDir() {
+			deployArchiveName, err = fission.MakeArchive(fmt.Sprintf("%v-%v", envName, time.Now().Unix()), getDirGlobs(deployArchive)...)
+			if err != nil {
+				util.CheckErr(err, "create archive file")
+			}
+		} else {
+			deployArchiveName = deployArchive
+		}
+	}
+	return deployArchiveName
+}
+
+func sourceArchiveParser(srcArchive []string, envName string) string {
+	var srcArchiveName = ""
+	var err error
+	// Special case of  only one src argument
+	if len(srcArchive) == 1 {
+		singleSrcInput := srcArchive[0]
+		if archiver.Zip.Match(singleSrcInput) {
+			return singleSrcInput
+		}
+		if strings.HasPrefix(singleSrcInput, "http://") || strings.HasPrefix(singleSrcInput, "https://") {
+			return singleSrcInput
+		}
+		fileInfo, err := os.Stat(singleSrcInput)
+		if err != nil {
+			util.CheckErr(err, "inspect deploy archive")
+		}
+		if fileInfo.IsDir() {
+			srcArchiveName, err = fission.MakeArchive(fmt.Sprintf("%v-%v", envName, time.Now().Unix()), getDirGlobs(singleSrcInput)...)
+			if err != nil {
+				util.CheckErr(err, "create archive file")
+			}
+			return srcArchiveName
+		}
+	}
+	srcArchiveName, err = fission.MakeArchive(fmt.Sprintf("%v-%v", envName, time.Now().Unix()), srcArchive...)
+	if err != nil {
+		util.CheckErr(err, "create archive file")
+	}
+	return srcArchiveName
+}
+
+func getDirGlobs(deployArchive string) []string {
+	files, err := ioutil.ReadDir(deployArchive)
+	if err != nil {
+		util.CheckErr(err, "read files from directory")
+	}
+
+	var fileNames []string
+	for _, file := range files {
+		fileNames = append(fileNames, path.Join(deployArchive, file.Name()))
+	}
+	return fileNames
 }
