@@ -685,7 +685,7 @@ func deployArchiveParser(deployArchive string, envName string) string {
 func sourceArchiveParser(srcArchive []string, envName string) string {
 	var srcArchiveName = ""
 	var err error
-	// Special case of  only one src argument
+	// Special case of  only one src argument such as Zip file, HTTP file etc.
 	if len(srcArchive) == 1 {
 		singleSrcInput := srcArchive[0]
 		if archiver.Zip.Match(singleSrcInput) {

@@ -85,8 +85,8 @@ fission env create --name python --image $PYTHON_RUNTIME_IMAGE --builder $PYTHON
 timeout 180s bash -c "waitEnvBuilder python"
 # 1) Multiple source files (multiple inputs, Using * expression, from a directory)
 # Currently only * expression implemented as a test
-
-pkg1=$(fission package create --src "$ROOT/examples/python/sourcepkg/*" --env python --buildcmd "./build.sh"| cut -f2 -d' '| tr -d \')
+PYEX_HOMEDIR=`realpath $ROOT/examples/python/`
+pkg1=$(fission package create --src "$PYEX_HOMEDIR/sourcepkg/*" --env python --buildcmd "./build.sh"| cut -f2 -d' '| tr -d \')
 
 # wait for build to finish at most 60s
 timeout 60s bash -c "waitBuild $pkg1"
