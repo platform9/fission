@@ -45,6 +45,8 @@ type canaryConfigMgr struct {
 
 func MakeCanaryConfigMgr(fissionClient *crd.FissionClient, kubeClient *kubernetes.Clientset, crdClient *rest.RESTClient, prometheusSvc string) (*canaryConfigMgr, error) {
 	if prometheusSvc == "" {
+		// handle a case where there is a prometheus server is already installed, try to find the service from env variable
+
 		return nil, fmt.Errorf("prometheus service not found, cant create canary config manager")
 	}
 

@@ -53,6 +53,7 @@ type (
 		workflowApiUrl    string
 		functionNamespace string
 		useIstio          bool
+		featureStatus     map[string]bool
 	}
 
 	logDBConfig struct {
@@ -62,7 +63,7 @@ type (
 	}
 )
 
-func MakeAPI() (*API, error) {
+func MakeAPI(featureStatus map[string]bool) (*API, error) {
 	api, err := makeCRDBackedAPI()
 
 	u := os.Getenv("STORAGE_SERVICE_URL")
@@ -92,6 +93,8 @@ func MakeAPI() (*API, error) {
 	} else {
 		api.functionNamespace = "fission-function"
 	}
+
+	api.featureStatus = featureStatus
 
 	return api, err
 }

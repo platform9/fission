@@ -25,10 +25,16 @@ import (
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
 )
 
 func (a *API) CanaryConfigApiCreate(w http.ResponseWriter, r *http.Request) {
+	if !a.featureStatus[fission.CanaryFeatureName] {
+		a.respondWithError(w, fission.MakeError(http.StatusBadRequest, "Please enable canary feature while installing fission"))
+		return
+	}
+
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		a.respondWithError(w, err)
@@ -60,6 +66,11 @@ func (a *API) CanaryConfigApiCreate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) CanaryConfigApiGet(w http.ResponseWriter, r *http.Request) {
+	if !a.featureStatus[fission.CanaryFeatureName] {
+		a.respondWithError(w, fission.MakeError(http.StatusBadRequest, "Please enable canary feature while installing fission"))
+		return
+	}
+
 	vars := mux.Vars(r)
 	name := vars["canaryConfig"]
 
@@ -84,6 +95,11 @@ func (a *API) CanaryConfigApiGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) CanaryConfigApiList(w http.ResponseWriter, r *http.Request) {
+	if !a.featureStatus[fission.CanaryFeatureName] {
+		a.respondWithError(w, fission.MakeError(http.StatusBadRequest, "Please enable canary feature while installing fission"))
+		return
+	}
+
 	ns := a.extractQueryParamFromRequest(r, "namespace")
 	if len(ns) == 0 {
 		ns = metav1.NamespaceDefault
@@ -105,6 +121,11 @@ func (a *API) CanaryConfigApiList(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) CanaryConfigApiUpdate(w http.ResponseWriter, r *http.Request) {
+	if !a.featureStatus[fission.CanaryFeatureName] {
+		a.respondWithError(w, fission.MakeError(http.StatusBadRequest, "Please enable canary feature while installing fission"))
+		return
+	}
+
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		a.respondWithError(w, err)
@@ -134,6 +155,11 @@ func (a *API) CanaryConfigApiUpdate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) CanaryConfigApiDelete(w http.ResponseWriter, r *http.Request) {
+	if !a.featureStatus[fission.CanaryFeatureName] {
+		a.respondWithError(w, fission.MakeError(http.StatusBadRequest, "Please enable canary feature while installing fission"))
+		return
+	}
+
 	vars := mux.Vars(r)
 	name := vars["canaryConfig"]
 	ns := a.extractQueryParamFromRequest(r, "namespace")

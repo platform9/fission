@@ -344,7 +344,7 @@ func TestMain(m *testing.M) {
 		return
 	}
 
-	go Start(8888, "http://localhost:9090")
+	go Start(8888)
 
 	time.Sleep(5 * time.Second)
 	g.client = client.MakeClient("http://localhost:8888")

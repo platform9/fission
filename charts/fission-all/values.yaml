@@ -99,3 +99,9 @@ pruneInterval: 60
 
 ## Fission pre-install/pre-upgrade checks live in this image
 preUpgradeChecksImage: fission/pre-upgrade-checks
+
+canaryDeployment:
+  enabled: true
+  ## set this flag to true if prometheus needs to be deployed along with fission
+  prometheusDeploy: true
+

@@ -2,3 +2,4 @@ dependencies:
   - name: prometheus
     version: 7.1.0
     repository: https://kubernetes-charts.storage.googleapis.com
+    condition: canaryDeployment.prometheusDeploy

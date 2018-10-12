@@ -104,7 +104,6 @@ metadata:
   namespace: {{ .Values.builderNamespace }}
 
 ---
-# TODO : Configure controller with prometheus endpoint
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -124,7 +123,7 @@ spec:
         image: "{{ .Values.image }}:{{ .Values.imageTag }}"
         imagePullPolicy: {{ .Values.pullPolicy }}
         command: ["/fission-bundle"]
-        args: ["--controllerPort", "8888", "--prometheusSvc", "http://{{ .Release.Name }}-prometheus-server.{{ .Release.Namespace }}"]
+        args: ["--controllerPort", "8888"]
         env:
           - name: FISSION_FUNCTION_NAMESPACE
             value: "{{ .Values.functionNamespace }}"
@@ -145,8 +144,14 @@ spec:
             port: 8888
           initialDelaySeconds: 35
           periodSeconds: 5
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/config
       serviceAccount: fission-svc
-
+      volumes:
+      - name: config-volume
+        configMap:
+          name: feature-config
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment

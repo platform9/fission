@@ -210,3 +210,8 @@ const (
 	CanaryConfigStatusAborted    = fv1.CanaryConfigStatusAborted
 	MaxIterationsForCanaryConfig = fv1.MaxIterationsForCanaryConfig
 )
+
+const (
+	CanaryFeatureName         = fv1.CanaryFeatureName
+	FeatureConfigMapDirecotry = fv1.FeatureConfigMapDirectory
+)

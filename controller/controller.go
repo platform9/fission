@@ -21,11 +21,10 @@ import (
 	"log"
 
 	"github.com/fission/fission"
-	"github.com/fission/fission/canaryconfigmgr"
 	"github.com/fission/fission/crd"
 )
 
-func Start(port int, prometheusSvc string) {
+func Start(port int) {
 	// setup a signal handler for SIGTERM
 	fission.SetupStackTraceHandler()
 
@@ -44,16 +43,15 @@ func Start(port int, prometheusSvc string) {
 		log.Fatalf("Error waiting for CRDs: %v", err)
 	}
 
-	// create canary config manager
-	canaryCfgMgr, err := canaryconfigmgr.MakeCanaryConfigMgr(fc, kc, fc.GetCrdClient(), prometheusSvc)
-	if err != nil {
-		log.Fatalf("Failed to start canary config manager: %v", err)
-	}
+	// read feature config from config map and start the respective controllers
 	ctx, cancel := context.WithCancel(context.Background())
+	featureStatus, err := ConfigureFeatures(ctx, fc, kc)
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
 	defer cancel()
-	canaryCfgMgr.Run(ctx)
 
-	api, err := MakeAPI()
+	api, err := MakeAPI(featureStatus)
 	if err != nil {
 		log.Fatalf("Failed to start controller: %v", err)
 	}
