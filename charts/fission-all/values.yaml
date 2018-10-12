@@ -103,3 +103,10 @@ preUpgradeChecksImage: fission/pre-upgrade-checks
 ## if there are any pod specialization errors when a function is triggered and this flag is set to true, the error
 ## summary is returned as part of http response
 debugEnv: true
+
+## set this flag to true if prometheus needs to be deployed along with fission
+prometheusDeploy: true
+
+## set this flag to false if you dont need canary deployment feature
+canaryDeployment:
+  enabled: true
