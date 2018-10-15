@@ -44,8 +44,13 @@ func Start(port int) {
 	}
 
 	// read feature config from config map and start the respective controllers
+	configMgr := MakeFeatureConfigMgr(fc, kc)
+	if configMgr == nil {
+		log.Fatalf("Error creating the feature config manager : %v", err)
+	}
+	log.Printf("Made feature config manager")
 	ctx, cancel := context.WithCancel(context.Background())
-	featureStatus, err := ConfigureFeatures(ctx, fc, kc)
+	featureStatus, err := configMgr.ConfigureFeatures(ctx, fc, kc)
 	if err != nil {
 		log.Fatalf(err.Error())
 	}

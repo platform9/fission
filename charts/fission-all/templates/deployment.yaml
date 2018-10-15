@@ -104,6 +104,20 @@ metadata:
   namespace: {{ .Values.builderNamespace }}
 
 ---
+# this is a config map with feature configs for each of the features. It's mounted on controller pod.
+# if there is a new feature added in fission that can be turned on or off with each fission install :
+# 1. add a corresponding yaml file under featureConfig directory with the necessary config parameters
+# 2. define a corresponding config struct in controller/config.go and start the appropriate feature controllers
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: feature-config
+  namespace: {{ .Release.Namespace }}
+data:
+  "config.yaml": {{ include "config" . | b64enc }}
+
+---
+
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -146,7 +160,8 @@ spec:
           periodSeconds: 5
         volumeMounts:
         - name: config-volume
-          mountPath: /etc/config
+          mountPath: /etc/config/config.yaml
+          subPath: config.yaml
       serviceAccount: fission-svc
       volumes:
       - name: config-volume

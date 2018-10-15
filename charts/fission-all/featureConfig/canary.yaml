@@ -1,4 +1,0 @@
-enabled: {{ .Values.canaryDeployment.enabled }}
-{{- if .Values.canaryDeployment.prometheusDeploy }}
-prometheusSvc: "http://{{ .Release.Name }}-prometheus-server.{{ .Release.Namespace }}"
-{{- end }}
