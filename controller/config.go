@@ -42,8 +42,7 @@ type FeatureConfig struct {
 	CanaryConfig CanaryFeatureConfig `yaml:"canary"`
 }
 
-
-// with specific feature configs as struct members.
+// specific feature config
 type CanaryFeatureConfig struct {
 	IsEnabled     bool `yaml:"enabled"`
 	PrometheusSvc string `yaml:"prometheusSvc"`
@@ -71,8 +70,6 @@ func (fc *FeatureConfigMgr) ConfigCanaryFeature(context context.Context) error {
 
 // ConfigureFeatures walks through the configMap directory and configures the features that are enabled
 func (fc *FeatureConfigMgr) ConfigureFeatures(context context.Context, fissionClient *crd.FissionClient, kubeClient *kubernetes.Clientset) (map[string]bool, error) {
-	log.Printf("Called ConfigureFeatures")
-
 	// TODO : Change this
 	fileName := "/etc/config/config.yaml"
 	b64EncodedContent, err := ioutil.ReadFile(fileName)
@@ -83,10 +80,8 @@ func (fc *FeatureConfigMgr) ConfigureFeatures(context context.Context, fissionCl
 	// 3. b64 decode file
 	yamlContent, err := base64.StdEncoding.DecodeString(string(b64EncodedContent))
 	if err != nil {
-		return nil, fmt.Errorf("error b64 decoding the content : %v", err)
+		return nil, fmt.Errorf("error b64 decoding the config : %v", err)
 	}
-
-	log.Printf("Decoded string : %s", string(yamlContent))
 
 	// 1. unmarshal into appropriate config
 	fc.featureConfig = &FeatureConfig{}
@@ -95,9 +90,6 @@ func (fc *FeatureConfigMgr) ConfigureFeatures(context context.Context, fissionCl
 		return nil, fmt.Errorf("unmarshalling YAML config %v", err)
 	}
 
-	log.Printf("Unmarshall yaml into config : %+v", fc.featureConfig)
-
 	err = fc.ConfigCanaryFeature(context)
-
 	return fc.featureStatus, err
 }
