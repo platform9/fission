@@ -2,19 +2,18 @@ package controller
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
-	"encoding/base64"
 
+	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 	"k8s.io/client-go/kubernetes"
-	log "github.com/sirupsen/logrus"
 
-	"github.com/fission/fission/crd"
 	"github.com/fission/fission"
 	"github.com/fission/fission/canaryconfigmgr"
+	"github.com/fission/fission/crd"
 )
-
 
 // A config.yaml gets mounted on to controller pod with config parameters for optional features
 // To add new features with config parameters:
@@ -44,7 +43,7 @@ type FeatureConfig struct {
 
 // specific feature config
 type CanaryFeatureConfig struct {
-	IsEnabled     bool `yaml:"enabled"`
+	IsEnabled     bool   `yaml:"enabled"`
 	PrometheusSvc string `yaml:"prometheusSvc"`
 }
 

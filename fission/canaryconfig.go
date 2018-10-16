@@ -106,8 +106,6 @@ func canaryConfigCreate(c *cli.Context) error {
 		},
 	}
 
-	fmt.Printf("Canary config name : %s, ns : %s, trigger : %s", canaryConfigName, ns, trigger)
-
 	_, err = client.CanaryConfigCreate(canaryCfg)
 	util.CheckErr(err, "create canary config")
 

@@ -19,9 +19,11 @@ package canaryconfigmgr
 import (
 	"context"
 	"fmt"
-	log "github.com/sirupsen/logrus"
+	"os"
+	"strings"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -46,8 +48,19 @@ type canaryConfigMgr struct {
 func MakeCanaryConfigMgr(fissionClient *crd.FissionClient, kubeClient *kubernetes.Clientset, crdClient *rest.RESTClient, prometheusSvc string) (*canaryConfigMgr, error) {
 	if prometheusSvc == "" {
 		// handle a case where there is a prometheus server is already installed, try to find the service from env variable
+		envVars := os.Environ()
+		for _, envVar := range envVars {
+			if strings.Contains(envVar, "PROMETHEUS_SERVER_SERVICE_HOST") {
+				envVarSplit := strings.Split(envVar, "=")
+				prometheusSvc = envVarSplit[1]
+				log.Printf("PrometheusSvc = %s", prometheusSvc)
+				break
+			}
+		}
 
-		return nil, fmt.Errorf("prometheus service not found, cant create canary config manager")
+		if prometheusSvc == "" {
+			return nil, fmt.Errorf("prometheus service not found, cant create canary config manager")
+		}
 	}
 
 	configMgr := &canaryConfigMgr{

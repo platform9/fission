@@ -101,7 +101,8 @@ pruneInterval: 60
 preUpgradeChecksImage: fission/pre-upgrade-checks
 
 canaryDeployment:
-  enabled: true
+  ## set this flag to false if you dont need canary deployment feature
+  enabled: false
   ## set this flag to true if prometheus needs to be deployed along with fission
   prometheusDeploy: true
 
