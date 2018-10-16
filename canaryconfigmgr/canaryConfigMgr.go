@@ -121,12 +121,16 @@ func (canaryCfgMgr *canaryConfigMgr) processCanaryConfig(ctx *context.Context, c
 	ticker := time.NewTicker(interval)
 	quit := make(chan struct{})
 
-	for i := 0; i < fission.MaxIterationsForCanaryConfig; i++ {
+	for {
 		select {
 		case <-(*ctx).Done():
 			// this case when someone deleted their canary config in the middle of it being processed
 			log.Printf("Cancel Func called for canary config : %s", canaryConfig.Metadata.Name)
 			ticker.Stop()
+			err = canaryCfgMgr.canaryCfgCancelFuncMap.remove(&canaryConfig.Metadata)
+			if err != nil {
+				log.Printf("error removing canary config: %s from map, err : %v", canaryConfig.Metadata.Name, err)
+			}
 			return
 
 		case <-ticker.C:
@@ -147,16 +151,6 @@ func (canaryCfgMgr *canaryConfigMgr) processCanaryConfig(ctx *context.Context, c
 			}
 			return
 		}
-	}
-
-	// This is to prevent infinitely processing a canary config
-	log.Printf("Reached max iterations for CanaryConfig %s.%s, quitting", canaryConfig.Metadata.Name, canaryConfig.Metadata.Namespace)
-	close(quit)
-	err = canaryCfgMgr.updateCanaryConfigStatusWithRetries(canaryConfig.Metadata.Name, canaryConfig.Metadata.Namespace,
-		fission.CanaryConfigStatusAborted)
-	if err != nil {
-		log.Printf("Error updating the status of canary config : %s.%s to aborted after max retries. err : %v", canaryConfig.Metadata.Name, canaryConfig.Metadata.Namespace,
-			err)
 	}
 }
 
@@ -321,8 +315,8 @@ func (canaryCfgMgr *canaryConfigMgr) incrementWeights(canaryConfig *crd.CanaryCo
 func (canaryCfgMgr *canaryConfigMgr) reSyncCanaryConfigs() {
 	for _, obj := range canaryCfgMgr.canaryConfigStore.List() {
 		canaryConfig := obj.(*crd.CanaryConfig)
-		cancelFunc, err := canaryCfgMgr.canaryCfgCancelFuncMap.lookup(&canaryConfig.Metadata)
-		if err != nil || cancelFunc == nil || canaryConfig.Status.Status == fission.CanaryConfigStatusPending {
+		_, err := canaryCfgMgr.canaryCfgCancelFuncMap.lookup(&canaryConfig.Metadata)
+		if err != nil && canaryConfig.Status.Status == fission.CanaryConfigStatusPending {
 			log.Printf("Adding canary config : %s.%s from resync loop", canaryConfig.Metadata.Name, canaryConfig.Metadata.Namespace)
 
 			// new canaryConfig detected, add it to our cache and start processing it
