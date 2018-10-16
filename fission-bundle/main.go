@@ -20,7 +20,7 @@ import (
 )
 
 func runController(port int) {
-	controller.Start(port)
+	controller.Start(port, false)
 	log.Fatalf("Error: Controller exited.")
 }
 

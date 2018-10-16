@@ -68,12 +68,15 @@ func (fc *FeatureConfigMgr) ConfigCanaryFeature(context context.Context) error {
 }
 
 // ConfigureFeatures walks through the configMap directory and configures the features that are enabled
-func (fc *FeatureConfigMgr) ConfigureFeatures(context context.Context, fissionClient *crd.FissionClient, kubeClient *kubernetes.Clientset) (map[string]bool, error) {
-	// TODO : Change this
-	fileName := "/etc/config/config.yaml"
-	b64EncodedContent, err := ioutil.ReadFile(fileName)
+func (fc *FeatureConfigMgr) ConfigureFeatures(context context.Context, fissionClient *crd.FissionClient, kubeClient *kubernetes.Clientset, unitTestMode bool) (map[string]bool, error) {
+	if unitTestMode {
+		fc.featureStatus[fission.CanaryFeatureName] = false
+		return fc.featureStatus, nil
+	}
+
+	b64EncodedContent, err := ioutil.ReadFile(FeatureConfigFile)
 	if err != nil {
-		return nil, fmt.Errorf("reading YAML file %s: %v", fileName, err)
+		return nil, fmt.Errorf("reading YAML file %s: %v", FeatureConfigFile, err)
 	}
 
 	// 3. b64 decode file

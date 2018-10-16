@@ -24,7 +24,9 @@ import (
 	"github.com/fission/fission/crd"
 )
 
-func Start(port int) {
+const FeatureConfigFile = "/etc/config/config.yaml"
+
+func Start(port int, unitTestFlag bool) {
 	// setup a signal handler for SIGTERM
 	fission.SetupStackTraceHandler()
 
@@ -50,7 +52,7 @@ func Start(port int) {
 	}
 	log.Printf("Made feature config manager")
 	ctx, cancel := context.WithCancel(context.Background())
-	featureStatus, err := configMgr.ConfigureFeatures(ctx, fc, kc)
+	featureStatus, err := configMgr.ConfigureFeatures(ctx, fc, kc, unitTestFlag)
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
