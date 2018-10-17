@@ -235,14 +235,17 @@ build_yamls() {
     pushd ${DIR}/charts
     find . -iname *.~?~ | xargs -r rm
 
+    releaseName=fission-$(echo ${version} | sed 's/\./-/g')
+    
     for c in fission-all fission-core
     do
         # for minikube and other environment that don't support LoadBalancer
-        helm template ${c} -n ${c}-${version} --set serviceType=NodePort,routerServiceType=NodePort > ${c}-${version}-minikube.yaml
+        helm template ${c} -n ${releaseName} --set serviceType=NodePort,routerServiceType=NodePort > ${c}-${version}-minikube.yaml
         # for environments that support LoadBalancer
-        helm template ${c} -n ${c}-${version} > ${c}-${version}.yaml
+        helm template ${c} -n ${releaseName} > ${c}-${version}.yaml
         # for cases where prometheus installation along with fission is not preferred
-        helm template ${c} -n ${c}-${version} --set canaryDeployment.prometheusDeploy=false > ${c}-${version}-fission-only.yaml
+        helm template ${c} -n ${releaseName} --set canaryDeployment.prometheusDeploy=false > ${c}-${version}-fission-only.yaml
+
         mv *.yaml ${BUILDDIR}/yamls/
     done
 
