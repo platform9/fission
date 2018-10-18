@@ -39,7 +39,7 @@ func initFeatureStatus(featureStatus *map[string]bool) {
 	(*featureStatus)[fission.CanaryFeatureName] = false
 }
 
-// ConfigureFeatures walks through the configMap directory and configures the features that are enabled
+// ConfigureFeatures gets the feature config and configures the features that are enabled
 func ConfigureFeatures(context context.Context, unitTestMode bool, fissionClient *crd.FissionClient, kubeClient *kubernetes.Clientset) (map[string]bool, error) {
 	// create feature status map
 	featureStatus := make(map[string]bool)
