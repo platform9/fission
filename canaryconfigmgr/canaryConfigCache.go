@@ -22,6 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission/cache"
+	"time"
 )
 
 type (
@@ -34,6 +35,12 @@ type (
 	metadataKey struct {
 		Name      string
 		Namespace string
+	}
+
+	// value
+	CanaryProcessingInfo struct {
+		CancelFunc *context.CancelFunc
+		Ticker     *time.Ticker
 	}
 )
 
@@ -50,19 +57,19 @@ func keyFromMetadata(m *metav1.ObjectMeta) metadataKey {
 	}
 }
 
-func (cancelFuncMap *canaryConfigCancelFuncMap) lookup(f *metav1.ObjectMeta) (*context.CancelFunc, error) {
+func (cancelFuncMap *canaryConfigCancelFuncMap) lookup(f *metav1.ObjectMeta) (*CanaryProcessingInfo, error) {
 	mk := keyFromMetadata(f)
 	item, err := cancelFuncMap.cache.Get(mk)
 	if err != nil {
 		return nil, err
 	}
-	cancelFunc := item.(*context.CancelFunc)
-	return cancelFunc, nil
+	value := item.(*CanaryProcessingInfo)
+	return value, nil
 }
 
-func (cancelFuncMap *canaryConfigCancelFuncMap) assign(f *metav1.ObjectMeta, cancelFunc *context.CancelFunc) error {
+func (cancelFuncMap *canaryConfigCancelFuncMap) assign(f *metav1.ObjectMeta, value *CanaryProcessingInfo) error {
 	mk := keyFromMetadata(f)
-	err, _ := cancelFuncMap.cache.Set(mk, cancelFunc)
+	err, _ := cancelFuncMap.cache.Set(mk, value)
 	return err
 }
 

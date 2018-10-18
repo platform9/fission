@@ -67,14 +67,12 @@ func (promApiClient *PrometheusApiClient) GetFunctionFailurePercentage(path, met
 
 	// calculate the failure percentage of the function
 	failurePercentForFunc := (failedReqs / reqs) * 100
-	log.Printf("failurePercentForFunc for func: %v.%v is %v", funcName, funcNs, failurePercentForFunc)
 
 	return failurePercentForFunc, nil
 }
 
 func (promApiClient *PrometheusApiClient) GetRequestsToFuncInWindow(path string, method string, funcName string, funcNs string, window string) (float64, error) {
 	queryString := fmt.Sprintf("fission_function_calls_total{path=\"%s\",method=\"%s\",name=\"%s\",namespace=\"%s\"}[%v]", path, method, funcName, funcNs, window)
-	log.Printf("Querying total function calls for : %s ", queryString)
 
 	reqs, err := promApiClient.executeQuery(queryString)
 	if err != nil {
@@ -83,7 +81,6 @@ func (promApiClient *PrometheusApiClient) GetRequestsToFuncInWindow(path string,
 	}
 
 	queryString = fmt.Sprintf("fission_function_calls_total{path=\"%s\",method=\"%s\",name=\"%s\",namespace=\"%s\"} offset %v", path, method, funcName, funcNs, window)
-	log.Printf("Querying total function calls for : %s ", queryString)
 
 	reqsInPrevWindow, err := promApiClient.executeQuery(queryString)
 	if err != nil {
@@ -91,16 +88,14 @@ func (promApiClient *PrometheusApiClient) GetRequestsToFuncInWindow(path string,
 		return 0, err
 	}
 
-	log.Printf("reqs : %v, reqsInPrevWindow : %v", reqs, reqsInPrevWindow)
 	reqsInCurrentWindow := reqs - reqsInPrevWindow
-	log.Printf("reqsInCurrentWindow to this function %v : %v", funcName, reqsInCurrentWindow)
+	log.Printf("reqs : %v, reqsInPrevWindow : %v, reqsInCurrentWindow : %v to function %v", reqs, reqsInPrevWindow, reqsInCurrentWindow, funcName)
 
 	return reqsInCurrentWindow, nil
 }
 
 func (promApiClient *PrometheusApiClient) GetTotalFailedRequestsToFuncInWindow(funcName string, funcNs string, path string, method string, window string) (float64, error) {
 	queryString := fmt.Sprintf("fission_function_errors_total{name=\"%s\",namespace=\"%s\",path=\"%s\", method=\"%s\"}[%v]", funcName, funcNs, path, method, window)
-	log.Printf("Querying fission_function_errors_total qs : %s", queryString)
 
 	failedRequests, err := promApiClient.executeQuery(queryString)
 	if err != nil {
@@ -109,7 +104,6 @@ func (promApiClient *PrometheusApiClient) GetTotalFailedRequestsToFuncInWindow(f
 	}
 
 	queryString = fmt.Sprintf("fission_function_errors_total{name=\"%s\",namespace=\"%s\",path=\"%s\", method=\"%s\"} offset %v", funcName, funcNs, path, method, window)
-	log.Printf("Querying fission_function_errors_total qs : %s", queryString)
 
 	failedReqsInPrevWindow, err := promApiClient.executeQuery(queryString)
 	if err != nil {
@@ -117,9 +111,8 @@ func (promApiClient *PrometheusApiClient) GetTotalFailedRequestsToFuncInWindow(f
 		return 0, err
 	}
 
-	log.Printf("failedReqs : %v, failedReqsInPrevWindow : %v", failedRequests, failedReqsInPrevWindow)
 	failedReqsInCurrentWindow := failedRequests - failedReqsInPrevWindow
-	log.Printf("failedReqsInCurrentWindow to function: %v.%v : %v", funcName, funcNs, failedReqsInCurrentWindow)
+	log.Printf("failedReqs : %v, failedReqsInPrevWindow : %v, failedReqsInCurrentWindow : %v to function : %v", failedRequests, failedReqsInPrevWindow, failedReqsInCurrentWindow, funcName)
 
 	return failedReqsInCurrentWindow, nil
 }
