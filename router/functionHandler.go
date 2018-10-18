@@ -40,8 +40,6 @@ import (
 	"github.com/fission/fission/crd"
 	executorClient "github.com/fission/fission/executor/client"
 	"github.com/fission/fission/redis"
-
-	_ "net/http/pprof"
 )
 
 func init() {
