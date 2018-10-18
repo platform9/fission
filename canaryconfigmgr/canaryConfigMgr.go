@@ -102,10 +102,6 @@ func (canaryCfgMgr *canaryConfigMgr) Run(ctx context.Context) {
 func (canaryCfgMgr *canaryConfigMgr) addCanaryConfig(canaryConfig *crd.CanaryConfig) {
 	log.Printf("addCanaryConfig called for %s", canaryConfig.Metadata.Name)
 
-	// create a context cancel func for each canary config. this will be used to cancel the processing of this canary
-	// config in the event that it's deleted
-	ctx, cancel := context.WithCancel(context.Background())
-
 	// for each canary config, create a ticker with increment interval
 	interval, err := time.ParseDuration(canaryConfig.Spec.WeightIncrementDuration)
 	if err != nil {
@@ -114,6 +110,10 @@ func (canaryCfgMgr *canaryConfigMgr) addCanaryConfig(canaryConfig *crd.CanaryCon
 		return
 	}
 	ticker := time.NewTicker(interval)
+
+	// create a context cancel func for each canary config. this will be used to cancel the processing of this canary
+	// config in the event that it's deleted
+	ctx, cancel := context.WithCancel(context.Background())
 
 	cacheValue := &CanaryProcessingInfo{
 		CancelFunc: &cancel,
