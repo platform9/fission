@@ -98,6 +98,6 @@ const (
 )
 
 const (
-	FeatureConfigMapDirectory = "/etc/config"
-	CanaryFeatureName         = "canary"
+	FeatureConfigFile = "/etc/config/config.yaml"
+	CanaryFeatureName = "canary"
 )

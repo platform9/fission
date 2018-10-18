@@ -2,12 +2,9 @@ package controller
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
-	"io/ioutil"
 
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v2"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/fission/fission"
@@ -15,48 +12,15 @@ import (
 	"github.com/fission/fission/crd"
 )
 
-// A config.yaml gets mounted on to controller pod with config parameters for optional features
-// To add new features with config parameters:
-// 1. create a yaml block with feature name in charts/_helpers.tpl
-// 2. define a corresponding struct with the feature config for the yaml unmarshal below
-// 3. start the appropriate controllers needed for this feature
+func ConfigCanaryFeature(context context.Context, fissionClient *crd.FissionClient, kubeClient *kubernetes.Clientset, featureConfig *fission.FeatureConfig,
+	featureStatus *map[string]bool) error {
 
-type FeatureConfigMgr struct {
-	fissionClient *crd.FissionClient
-	kubeClient    *kubernetes.Clientset
-	featureStatus map[string]bool
-	featureConfig *FeatureConfig
-}
-
-func MakeFeatureConfigMgr(fissionClient *crd.FissionClient, kubeClient *kubernetes.Clientset) *FeatureConfigMgr {
-	return &FeatureConfigMgr{
-		fissionClient: fissionClient,
-		kubeClient:    kubeClient,
-		featureStatus: make(map[string]bool),
-	}
-}
-
-type FeatureConfig struct {
-	// In the future more such feature configs can be added here for each optional feature
-	CanaryConfig CanaryFeatureConfig `yaml:"canary"`
-}
-
-// specific feature config
-type CanaryFeatureConfig struct {
-	IsEnabled     bool   `yaml:"enabled"`
-	PrometheusSvc string `yaml:"prometheusSvc"`
-}
-
-func (fc *FeatureConfigMgr) ConfigCanaryFeature(context context.Context) error {
-	log.Printf("canary config : %+v", fc.featureConfig.CanaryConfig)
-
-	// set the feature status
-	fc.featureStatus[fission.CanaryFeatureName] = fc.featureConfig.CanaryConfig.IsEnabled
+	log.Printf("canary config : %+v", featureConfig.CanaryConfig)
 
 	// start the appropriate controller
-	if fc.featureConfig.CanaryConfig.IsEnabled {
-		canaryCfgMgr, err := canaryconfigmgr.MakeCanaryConfigMgr(fc.fissionClient, fc.kubeClient, fc.fissionClient.GetCrdClient(),
-			fc.featureConfig.CanaryConfig.PrometheusSvc)
+	if featureConfig.CanaryConfig.IsEnabled {
+		canaryCfgMgr, err := canaryconfigmgr.MakeCanaryConfigMgr(fissionClient, kubeClient, fissionClient.GetCrdClient(),
+			featureConfig.CanaryConfig.PrometheusSvc)
 		if err != nil {
 			return fmt.Errorf("failed to start canary config manager: %v", err)
 		}
@@ -64,34 +28,37 @@ func (fc *FeatureConfigMgr) ConfigCanaryFeature(context context.Context) error {
 		log.Printf("Started canary config manager")
 	}
 
+	// set the feature status once appropriate controllers are started
+	(*featureStatus)[fission.CanaryFeatureName] = featureConfig.CanaryConfig.IsEnabled
+
 	return nil
 }
 
+func initFeatureStatus(featureStatus *map[string]bool) {
+	// in the future when new optional features are added, we need to add them to this status map
+	(*featureStatus)[fission.CanaryFeatureName] = false
+}
+
 // ConfigureFeatures walks through the configMap directory and configures the features that are enabled
-func (fc *FeatureConfigMgr) ConfigureFeatures(context context.Context, fissionClient *crd.FissionClient, kubeClient *kubernetes.Clientset, unitTestMode bool) (map[string]bool, error) {
+func ConfigureFeatures(context context.Context, unitTestMode bool, fissionClient *crd.FissionClient, kubeClient *kubernetes.Clientset) (map[string]bool, error) {
+	// create feature status map
+	featureStatus := make(map[string]bool)
+	initFeatureStatus(&featureStatus)
+
+	// do nothing if unitTestMode
 	if unitTestMode {
-		fc.featureStatus[fission.CanaryFeatureName] = false
-		return fc.featureStatus, nil
+		return featureStatus, nil
 	}
 
-	b64EncodedContent, err := ioutil.ReadFile(FeatureConfigFile)
+	// get the featureConfig from config map mounted onto the file system
+	featureConfig, err := fission.GetFeatureConfig()
 	if err != nil {
-		return nil, fmt.Errorf("reading YAML file %s: %v", FeatureConfigFile, err)
+		log.Printf("Error getting feature config : %v", err)
+		return featureStatus, err
 	}
 
-	// 3. b64 decode file
-	yamlContent, err := base64.StdEncoding.DecodeString(string(b64EncodedContent))
-	if err != nil {
-		return nil, fmt.Errorf("error b64 decoding the config : %v", err)
-	}
-
-	// 1. unmarshal into appropriate config
-	fc.featureConfig = &FeatureConfig{}
-	err = yaml.UnmarshalStrict(yamlContent, fc.featureConfig)
-	if err != nil {
-		return nil, fmt.Errorf("unmarshalling YAML config %v", err)
-	}
-
-	err = fc.ConfigCanaryFeature(context)
-	return fc.featureStatus, err
+	// configure respective features
+	// in the future when new optional features are added, we need to add corresponding feature handlers.
+	ConfigCanaryFeature(context, fissionClient, kubeClient, featureConfig, &featureStatus)
+	return featureStatus, err
 }

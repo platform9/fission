@@ -17,6 +17,7 @@ limitations under the License.
 package fission
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -28,14 +29,15 @@ import (
 	"strings"
 	"syscall"
 
+	log "github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v2"
+
 	"github.com/gorilla/handlers"
 	"github.com/imdario/mergo"
 	"github.com/mholt/archiver"
 	uuid "github.com/satori/go.uuid"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/fission/fission/fission/log"
 )
 
 func UrlForFunction(name, namespace string) string {
@@ -177,4 +179,29 @@ func RemoveZeroBytes(src []byte) []byte {
 		}
 	}
 	return bs
+}
+
+// GetFeatureConfig reads the configMap file and unmarshals the config into a feature config struct
+func GetFeatureConfig() (*FeatureConfig, error) {
+	// read the file
+	b64EncodedContent, err := ioutil.ReadFile(FeatureConfigFile)
+	if err != nil {
+		return nil, fmt.Errorf("reading YAML file %s: %v", FeatureConfigFile, err)
+	}
+
+	// b64 decode file
+	yamlContent, err := base64.StdEncoding.DecodeString(string(b64EncodedContent))
+	if err != nil {
+		return nil, fmt.Errorf("error b64 decoding the config : %v", err)
+	}
+
+	// unmarshal into feature config
+	featureConfig := &FeatureConfig{}
+	err = yaml.UnmarshalStrict(yamlContent, featureConfig)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshalling YAML config %v", err)
+	}
+
+	log.Printf("Feature config: %+v", featureConfig)
+	return featureConfig, err
 }

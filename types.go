@@ -94,6 +94,25 @@ type (
 	}
 )
 
+type (
+	// config.yaml contains config parameters for optional features
+	// To add new features with config parameters:
+	// 1. create a yaml block with feature name in charts/_helpers.tpl
+	// 2. define a corresponding struct with the feature config for the yaml unmarshal below
+	// 3. start the appropriate controllers needed for this feature
+
+	FeatureConfig struct {
+		// In the future more such feature configs can be added here for each optional feature
+		CanaryConfig CanaryFeatureConfig `yaml:"canary"`
+	}
+
+	// specific feature config
+	CanaryFeatureConfig struct {
+		IsEnabled     bool   `yaml:"enabled"`
+		PrometheusSvc string `yaml:"prometheusSvc"`
+	}
+)
+
 const EXECUTOR_INSTANCEID_LABEL = fv1.EXECUTOR_INSTANCEID_LABEL
 const POOLMGR_INSTANCEID_LABEL = fv1.POOLMGR_INSTANCEID_LABEL
 
@@ -212,6 +231,6 @@ const (
 )
 
 const (
-	CanaryFeatureName         = fv1.CanaryFeatureName
-	FeatureConfigMapDirecotry = fv1.FeatureConfigMapDirectory
+	CanaryFeatureName = fv1.CanaryFeatureName
+	FeatureConfigFile = fv1.FeatureConfigFile
 )

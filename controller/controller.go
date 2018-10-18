@@ -24,8 +24,6 @@ import (
 	"github.com/fission/fission/crd"
 )
 
-const FeatureConfigFile = "/etc/config/config.yaml"
-
 func Start(port int, unitTestFlag bool) {
 	// setup a signal handler for SIGTERM
 	fission.SetupStackTraceHandler()
@@ -45,16 +43,10 @@ func Start(port int, unitTestFlag bool) {
 		log.Fatalf("Error waiting for CRDs: %v", err)
 	}
 
-	// read feature config from config map and start the respective controllers
-	configMgr := MakeFeatureConfigMgr(fc, kc)
-	if configMgr == nil {
-		log.Fatalf("Error creating the feature config manager : %v", err)
-	}
-	log.Printf("Made feature config manager")
 	ctx, cancel := context.WithCancel(context.Background())
-	featureStatus, err := configMgr.ConfigureFeatures(ctx, fc, kc, unitTestFlag)
+	featureStatus, err := ConfigureFeatures(ctx, unitTestFlag, fc, kc)
 	if err != nil {
-		log.Fatalf(err.Error())
+		log.Printf("Error configuring features : %v. Proceeding without optional features", err.Error())
 	}
 	defer cancel()
 
