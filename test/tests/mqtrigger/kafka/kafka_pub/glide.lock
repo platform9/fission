@@ -1,0 +1,26 @@
+hash: 1c2fb68841e4a62048d54923d75952578dc4812d9a5c060b031e7c4d47c4e97e
+updated: 2018-10-19T14:57:56.260957841+05:30
+imports:
+- name: github.com/davecgh/go-spew
+  version: 8991bc29aa16c548c550c7ff78260e27b9ab7c73
+  subpackages:
+  - spew
+- name: github.com/eapache/go-resiliency
+  version: ea41b0fad31007accc7f806884dcdf3da98b79ce
+  subpackages:
+  - breaker
+- name: github.com/eapache/go-xerial-snappy
+  version: 040cc1a32f578808623071247fdbd5cc43f37f5f
+- name: github.com/eapache/queue
+  version: 093482f3f8ce946c05bcba64badd2c82369e084d
+- name: github.com/golang/snappy
+  version: 2e65f85255dbc3072edf28d6b5b8efc472979f5a
+- name: github.com/pierrec/lz4
+  version: 6b9367c9ff401dbc54fabce3fb8d972e799b702d
+  subpackages:
+  - internal/xxh32
+- name: github.com/rcrowley/go-metrics
+  version: e2704e165165ec55d062f5919b4b29494e9fa790
+- name: github.com/Shopify/sarama
+  version: a6144ae922fd99dd0ea5046c8137acfb7fab0914
+testImports: []

@@ -1,0 +1,2 @@
+import:
+- package: github.com/Shopify/sarama
