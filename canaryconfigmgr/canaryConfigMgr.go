@@ -53,7 +53,6 @@ func MakeCanaryConfigMgr(fissionClient *crd.FissionClient, kubeClient *kubernete
 			if strings.Contains(envVar, "PROMETHEUS_SERVER_SERVICE_HOST") {
 				envVarSplit := strings.Split(envVar, "=")
 				prometheusSvc = envVarSplit[1]
-				log.Printf("PrometheusSvc = %s", prometheusSvc)
 				break
 			}
 		}

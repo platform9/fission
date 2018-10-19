@@ -30,7 +30,7 @@ import (
 )
 
 func (a *API) CanaryConfigApiCreate(w http.ResponseWriter, r *http.Request) {
-	if !a.featureStatus[fission.CanaryFeatureName] {
+	if !a.featureConfig.CanaryConfig.IsEnabled {
 		a.respondWithError(w, fission.MakeError(http.StatusBadRequest, "Please enable canary feature while installing fission"))
 		return
 	}
@@ -66,7 +66,7 @@ func (a *API) CanaryConfigApiCreate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) CanaryConfigApiGet(w http.ResponseWriter, r *http.Request) {
-	if !a.featureStatus[fission.CanaryFeatureName] {
+	if !a.featureConfig.CanaryConfig.IsEnabled {
 		a.respondWithError(w, fission.MakeError(http.StatusBadRequest, "Please enable canary feature while installing fission"))
 		return
 	}
@@ -95,7 +95,7 @@ func (a *API) CanaryConfigApiGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) CanaryConfigApiList(w http.ResponseWriter, r *http.Request) {
-	if !a.featureStatus[fission.CanaryFeatureName] {
+	if !a.featureConfig.CanaryConfig.IsEnabled {
 		a.respondWithError(w, fission.MakeError(http.StatusBadRequest, "Please enable canary feature while installing fission"))
 		return
 	}
@@ -121,7 +121,7 @@ func (a *API) CanaryConfigApiList(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) CanaryConfigApiUpdate(w http.ResponseWriter, r *http.Request) {
-	if !a.featureStatus[fission.CanaryFeatureName] {
+	if !a.featureConfig.CanaryConfig.IsEnabled {
 		a.respondWithError(w, fission.MakeError(http.StatusBadRequest, "Please enable canary feature while installing fission"))
 		return
 	}
@@ -155,7 +155,7 @@ func (a *API) CanaryConfigApiUpdate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) CanaryConfigApiDelete(w http.ResponseWriter, r *http.Request) {
-	if !a.featureStatus[fission.CanaryFeatureName] {
+	if !a.featureConfig.CanaryConfig.IsEnabled {
 		a.respondWithError(w, fission.MakeError(http.StatusBadRequest, "Please enable canary feature while installing fission"))
 		return
 	}

@@ -24,7 +24,7 @@ controller/config.go
 {{- define "config" -}}
 canary:
   enabled: {{ .Values.canaryDeployment.enabled }}
-  {{- if .Values.canaryDeployment.prometheusDeploy }}
+  {{- if .Values.prometheusDeploy }}
   prometheusSvc: "http://{{ .Release.Name }}-prometheus-server.{{ .Release.Namespace }}"
   {{- end }}
   {{- printf "\n" -}}

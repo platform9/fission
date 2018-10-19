@@ -96,8 +96,3 @@ const (
 	// set a max number for iterations to prevent infinite processing of canary config
 	MaxIterationsForCanaryConfig = 10
 )
-
-const (
-	FeatureConfigFile = "/etc/config/config.yaml"
-	CanaryFeatureName = "canary"
-)
