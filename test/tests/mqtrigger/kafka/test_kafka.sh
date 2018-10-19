@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # Create a function and trigger it using Kafka
-
+# test:disabled
+# This test requires Kafka & MQ-Kafka component of Fission installed in the cluster
 set -euo pipefail
 set +x
-
 
 nodeenv="node-kafka"
 goenv="go-kafka"
@@ -15,7 +15,6 @@ log() {
     echo $1
 }
 export -f log
-
 
 test_mqmessage() {
     echo "Checking for valid response"
@@ -56,7 +55,6 @@ export -f cleanup
 
 DIR=$(dirname $0)
 
-
 log "Creating ${nodeenv} environment"
 fission env create --name ${nodeenv} --image fission/node-env
 trap cleanup EXIT
@@ -66,7 +64,7 @@ fission env create --name ${goenv} --image fission/go-env --builder fission/go-b
 
 log "Creating package for Kafka producer"
 pushd $DIR/kafka_pub
-zip -r kafka.zip * 
+zip -qr kafka.zip * 
 pkgName=$(fission package create --env ${goenv} --src kafka.zip|cut -f2 -d' '| tr -d \')
 
 log "pkgName=${pkgName}"
@@ -80,6 +78,9 @@ fission fn create --name ${consumerfunc} --env ${nodeenv} --code hellokafka.js
 
 log "Creating function ${producerfunc}"
 fission fn create --name ${producerfunc} --env ${goenv} --pkg ${pkgName} --entrypoint Handler
+
+log "Creating "
+fission mqt create --name kafkatest --function ${consumerfunc} --mqtype kafka --topic testtopic --resptopic resptopic
 
 fission fn test --name ${producerfunc}
 
