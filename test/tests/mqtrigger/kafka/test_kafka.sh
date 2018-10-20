@@ -1,7 +1,7 @@
 #!/bin/bash
+#test:disabled
 
 # Create a function and trigger it using Kafka
-# test:disabled
 # This test requires Kafka & MQ-Kafka component of Fission installed in the cluster
 set -euo pipefail
 set +x
