@@ -26,7 +26,6 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -36,20 +35,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission"
-	"github.com/fission/fission/cache"
 	"github.com/fission/fission/crd"
 	executorClient "github.com/fission/fission/executor/client"
 	"github.com/fission/fission/redis"
-)
-
-func init() {
-	if updateLocks == nil {
-		updateLocks = cache.MakeCache(0, 0)
-	}
-}
-
-var (
-	updateLocks *cache.Cache
 )
 
 const (
@@ -77,11 +65,7 @@ type functionHandler struct {
 	tsRoundTripperParams     *tsRoundTripperParams
 	recorderName             string
 	isDebugEnv               bool
-}
-
-type updateLock struct {
-	wg        *sync.WaitGroup
-	timestamp time.Time
+	updateLocks              *updateSvcAddrLocks
 }
 
 // A layer on top of http.DefaultTransport, with retries.
@@ -294,17 +278,7 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 		}
 
 		// cache miss or nil entry in cache
-		lock, ableToUpdate, err := roundTripper.funcHandler.grabUpdateEntryLock(fnMeta)
-		if err != nil {
-			log.Printf("Error grabbing update lock for function %v: %v", fnMeta, err)
-			continue
-		}
-
-		// prevent deadlock case
-		if !ableToUpdate && time.Since(lock.timestamp) > 30*time.Second {
-			roundTripper.funcHandler.releaseUpdateEntryLock(fnMeta)
-			continue
-		}
+		lock, ableToUpdate := roundTripper.funcHandler.grabUpdateEntryLock(fnMeta)
 
 		if !ableToUpdate {
 			// This goroutine wait for update of service map to finish.
@@ -501,44 +475,13 @@ func addForwardedHostHeader(req *http.Request) {
 }
 
 // grabUpdateEntryLock helps goroutine to grab update lock for updating function service cache.
-// If the update lock exists, return old waitGroup.
-func (fh *functionHandler) grabUpdateEntryLock(fnMeta *metav1.ObjectMeta) (lock *updateLock, ableToUpdate bool, err error) {
-	lock = newUpdateLock()
-
-	err, old := updateLocks.Set(crd.CacheKey(fnMeta), lock)
-	if err == nil {
-		// first goroutine to get the update lock
-		return lock, true, nil
-	} else if e, ok := err.(fission.Error); ok && e.Code == fission.ErrorNameExists {
-		// another is updating sevice function cache now
-		return old.(*updateLock), false, nil
-	}
-
-	// unexpected error
-	return nil, false, err
+// If the update lock exists, return old updateSvcAddrLock.
+func (fh *functionHandler) grabUpdateEntryLock(fnMeta *metav1.ObjectMeta) (lock *updateSvcAddrLock, ableToUpdate bool) {
+	return fh.updateLocks.Get(fnMeta)
 }
 
-// releaseUpdateEntryLock release update lock so that other goroutine can take over the responsibility
+// releaseUpdateEntryLock release update lock so that other goroutines can take over the responsibility
 // of updating the service map.
 func (fh *functionHandler) releaseUpdateEntryLock(fnMeta *metav1.ObjectMeta) {
-	val, err := updateLocks.Get(crd.CacheKey(fnMeta))
-	if err == nil {
-		updateLocks.Delete(crd.CacheKey(fnMeta))
-		val.(*updateLock).wg.Done()
-	} else if e, ok := err.(fission.Error); ok && e.Code != fission.ErrorNotFound {
-		log.Printf("Error releasing %v'swaitGroup: %v", fnMeta, err)
-	}
-}
-
-func newUpdateLock() *updateLock {
-	lock := &updateLock{
-		wg:        &sync.WaitGroup{},
-		timestamp: time.Now(),
-	}
-	lock.wg.Add(1)
-	return lock
-}
-
-func (lock *updateLock) Wait() {
-	lock.wg.Wait()
+	fh.updateLocks.Delete(fnMeta)
 }
