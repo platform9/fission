@@ -53,11 +53,12 @@ type HTTPTriggerSet struct {
 	updateRouterRequestChannel chan struct{}
 	tsRoundTripperParams       *tsRoundTripperParams
 	isDebugEnv                 bool
-	updateLocks                *updateSvcAddrLocks
+	svcAddrUpdateLocks         *svcAddrUpdateLocks
 }
 
 func makeHTTPTriggerSet(fmap *functionServiceMap, frmap *functionRecorderMap, trmap *triggerRecorderMap, fissionClient *crd.FissionClient,
-	kubeClient *kubernetes.Clientset, executor *executorClient.Client, crdClient *rest.RESTClient, params *tsRoundTripperParams, isDebugEnv bool) (*HTTPTriggerSet, k8sCache.Store, k8sCache.Store) {
+	kubeClient *kubernetes.Clientset, executor *executorClient.Client, crdClient *rest.RESTClient, params *tsRoundTripperParams, isDebugEnv bool, locks *svcAddrUpdateLocks) (*HTTPTriggerSet, k8sCache.Store, k8sCache.Store) {
+
 	httpTriggerSet := &HTTPTriggerSet{
 		functionServiceMap:         fmap,
 		triggers:                   []crd.HTTPTrigger{},
@@ -68,7 +69,7 @@ func makeHTTPTriggerSet(fmap *functionServiceMap, frmap *functionRecorderMap, tr
 		updateRouterRequestChannel: make(chan struct{}),
 		tsRoundTripperParams:       params,
 		isDebugEnv:                 isDebugEnv,
-		updateLocks:                MakeUpdateLocks(),
+		svcAddrUpdateLocks:         locks,
 	}
 	var tStore, fnStore, rStore k8sCache.Store
 	var tController, fnController k8sCache.Controller
@@ -155,7 +156,7 @@ func (ts *HTTPTriggerSet) getRouter() *mux.Router {
 			tsRoundTripperParams:     ts.tsRoundTripperParams,
 			recorderName:             recorderName,
 			isDebugEnv:               ts.isDebugEnv,
-			updateLocks:              ts.updateLocks,
+			svcAddrUpdateLocks:       ts.svcAddrUpdateLocks,
 		}
 
 		if rr.resolveResultType == resolveResultSingleFunction {

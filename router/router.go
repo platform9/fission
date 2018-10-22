@@ -129,17 +129,19 @@ func Start(port int, executorUrl string) {
 		log.Fatalf("Failed to parse DEBUG_ENV: %v", err)
 	}
 
-	triggers, _, fnStore := makeHTTPTriggerSet(fmap, frmap, trmap, fissionClient, kubeClient, executor, restClient, &tsRoundTripperParams{
-		timeout:         timeout,
-		timeoutExponent: timeoutExponent,
-		keepAlive:       keepAlive,
-		maxRetries:      maxRetries,
-	}, isDebugEnv)
-
+	// svcAddrRetryCount is the max times for RetryingRoundTripper to retry with a specific service address
 	svcAddrRetryCount, err := strconv.Atoi(os.Getenv("ROUTER_ROUND_TRIP_SVC_ADDRESS_MAX_RETRIES"))
 	if err != nil {
 		svcAddrRetryCount = 5
 		log.Printf("Failed to parse svc address retry conunt, set it to default value(5): %v", err)
+	}
+
+	// svcAddrUpdateTimeout is the timeout setting for a goroutine to wait for the update of a service entry.
+	// If the update process cannot be done within the timeout window, consider it failed.
+	svcAddrUpdateTimeout, err := time.ParseDuration(os.Getenv("ROUTER_ROUND_TRIP_SVC_ADDRESS_UPDATE_TIMEOUT"))
+	if err != nil {
+		svcAddrUpdateTimeout = 30 * time.Second
+		log.Printf("Failed to parse svc address update timeout, set it to default value(30): %v", err)
 	}
 
 	triggers, _, fnStore := makeHTTPTriggerSet(fmap, frmap, trmap, fissionClient, kubeClient, executor, restClient, &tsRoundTripperParams{
@@ -148,7 +150,7 @@ func Start(port int, executorUrl string) {
 		keepAlive:         keepAlive,
 		maxRetries:        maxRetries,
 		svcAddrRetryCount: svcAddrRetryCount,
-	})
+	}, isDebugEnv, MakeUpdateLocks(svcAddrUpdateTimeout))
 
 	resolver := makeFunctionReferenceResolver(fnStore)
 

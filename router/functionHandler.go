@@ -46,10 +46,21 @@ const (
 )
 
 type tsRoundTripperParams struct {
-	timeout           time.Duration
-	timeoutExponent   int
-	keepAlive         time.Duration
-	maxRetries        int
+	timeout         time.Duration
+	timeoutExponent int
+	keepAlive       time.Duration
+
+	// maxRetires is the max times for RetryingRoundTripper to retry a request.
+	// Default maxRetries is 10, which means router will retry for
+	// up to 10 times and abort it if still not succeeded.
+	maxRetries int
+
+	// svcAddrRetryCount is the max times for RetryingRoundTripper to retry with a specific service address
+	// Router sends requests to a specific service address for each function.
+	// A service address is considered as an invalid one if amount of non-network
+	// errors router received is higher than svcAddrRetryCount. In this situation,
+	// remove it from cache and try to get a new one from executor.
+	// Default svcAddrRetryCount is 5.
 	svcAddrRetryCount int
 }
 
@@ -65,7 +76,7 @@ type functionHandler struct {
 	tsRoundTripperParams     *tsRoundTripperParams
 	recorderName             string
 	isDebugEnv               bool
-	updateLocks              *updateSvcAddrLocks
+	svcAddrUpdateLocks       *svcAddrUpdateLocks
 }
 
 // A layer on top of http.DefaultTransport, with retries.
@@ -105,7 +116,7 @@ func init() {
 // Earlier, GetServiceForFunction was called inside handler function and fission explicitly set http status code to 500
 // if it returned an error.
 func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *http.Response, err error) {
-	var serviceUrlFromExecutor bool
+	var serviceUrlFromCache bool
 	var serviceUrl *url.URL
 	var retryCounter int
 
@@ -166,7 +177,7 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 				return nil, errors.Wrap(err, fmt.Sprintf("Error getting function %v;s service entry from cache", fnMeta.Name))
 			}
 		} else {
-			serviceUrlFromExecutor = true
+			serviceUrlFromCache = true
 		}
 
 		if serviceUrl != nil {
@@ -196,7 +207,7 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 			overhead := time.Since(startTime)
 
 			// tapService before invoking roundTrip for the serviceUrl
-			if !serviceUrlFromExecutor {
+			if serviceUrlFromCache {
 				go roundTripper.funcHandler.tapService(serviceUrl)
 			}
 
@@ -205,25 +216,23 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 			if err == nil {
 				// Track metrics
 				httpMetricLabels.code = resp.StatusCode
-				funcMetricLabels.cached = !serviceUrlFromExecutor
+				funcMetricLabels.cached = serviceUrlFromCache
 
 				functionCallCompleted(funcMetricLabels, httpMetricLabels,
 					overhead, time.Since(startTime), resp.ContentLength)
 
-				trigger := ""
-				if roundTripper.funcHandler.httpTrigger != nil {
-					trigger = roundTripper.funcHandler.httpTrigger.Metadata.Name
-				} else {
-					log.Println("No trigger attached.") // Wording?
-				}
-
 				if len(roundTripper.funcHandler.recorderName) > 0 {
-					redis.Record(
-						trigger,
-						roundTripper.funcHandler.recorderName,
-						req.Header.Get("X-Fission-ReqUID"), req, originalUrl, postedBody, resp, fnMeta.Namespace,
-						time.Now().UnixNano(),
-					)
+					if roundTripper.funcHandler.httpTrigger != nil {
+						trigger := roundTripper.funcHandler.httpTrigger.Metadata.Name
+						redis.Record(
+							trigger,
+							roundTripper.funcHandler.recorderName,
+							req.Header.Get("X-Fission-ReqUID"), req, originalUrl, postedBody, resp, fnMeta.Namespace,
+							time.Now().UnixNano(),
+						)
+					} else {
+						log.Println("No http trigger attached for recorder: %v", roundTripper.funcHandler.recorderName)
+					}
 				}
 
 				// return response back to user
@@ -236,7 +245,7 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 				return resp, err
 			}
 
-			// timeout or dial error goes here
+			// dial timeout or dial network errors goes here
 
 			// The reason for request failure may vary from case to case.
 			// After some investigation, found most of the failure are due to
@@ -258,7 +267,7 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 
 				time.Sleep(executingTimeout)
 
-				if serviceUrlFromExecutor {
+				if serviceUrlFromCache {
 					continue
 				}
 			} else {
@@ -278,11 +287,15 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 		}
 
 		// cache miss or nil entry in cache
-		lock, ableToUpdate := roundTripper.funcHandler.grabUpdateEntryLock(fnMeta)
+		lock, ableToUpdateCache := roundTripper.funcHandler.grabUpdateEntryLock(fnMeta)
 
-		if !ableToUpdate {
+		if !ableToUpdateCache {
 			// This goroutine wait for update of service map to finish.
-			lock.Wait()
+			err = lock.Wait()
+			if err != nil {
+				log.Println(errors.Wrap(err,
+					fmt.Sprintf("Error updating service address entry for function %v_%v", fnMeta.Name, fnMeta.Namespace)))
+			}
 		} else {
 			// This goroutine is the first one to grab update lock
 
@@ -328,7 +341,7 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 			roundTripper.funcHandler.fmap.assign(roundTripper.funcHandler.function, serviceUrl)
 
 			// flag denotes that service was not obtained from cache, instead, created just now by executor
-			serviceUrlFromExecutor = true
+			serviceUrlFromCache = false
 
 			roundTripper.funcHandler.releaseUpdateEntryLock(fnMeta)
 		}
@@ -475,13 +488,13 @@ func addForwardedHostHeader(req *http.Request) {
 }
 
 // grabUpdateEntryLock helps goroutine to grab update lock for updating function service cache.
-// If the update lock exists, return old updateSvcAddrLock.
-func (fh *functionHandler) grabUpdateEntryLock(fnMeta *metav1.ObjectMeta) (lock *updateSvcAddrLock, ableToUpdate bool) {
-	return fh.updateLocks.Get(fnMeta)
+// If the update lock exists, return old svcAddrUpdateLock.
+func (fh *functionHandler) grabUpdateEntryLock(fnMeta *metav1.ObjectMeta) (lock *svcAddrUpdateLock, ableToUpdateCache bool) {
+	return fh.svcAddrUpdateLocks.Get(fnMeta)
 }
 
 // releaseUpdateEntryLock release update lock so that other goroutines can take over the responsibility
 // of updating the service map.
 func (fh *functionHandler) releaseUpdateEntryLock(fnMeta *metav1.ObjectMeta) {
-	fh.updateLocks.Delete(fnMeta)
+	fh.svcAddrUpdateLocks.Delete(fnMeta)
 }
