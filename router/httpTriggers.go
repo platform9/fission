@@ -157,6 +157,13 @@ func (ts *HTTPTriggerSet) getRouter() *mux.Router {
 			recorderName:             recorderName,
 			isDebugEnv:               ts.isDebugEnv,
 			svcAddrUpdateLocks:       ts.svcAddrUpdateLocks,
+
+			// Unlike functionHandler for non-HTTP request the function metadata was set before serving the requests.
+			// The function metadata of functionHandler for HTTP trigger is decided dynamically when functionHandler
+			// serve the request in order to support canary deployment. For more details, please check "handler"
+			// function of functionHandler.
+
+			// function: <fn metadata>
 		}
 
 		if rr.resolveResultType == resolveResultSingleFunction {
@@ -205,6 +212,7 @@ func (ts *HTTPTriggerSet) getRouter() *mux.Router {
 			tsRoundTripperParams: ts.tsRoundTripperParams,
 			recorderName:         recorderName,
 			isDebugEnv:           ts.isDebugEnv,
+			svcAddrUpdateLocks:   ts.svcAddrUpdateLocks,
 		}
 		muxRouter.HandleFunc(fission.UrlForFunction(function.Metadata.Name, function.Metadata.Namespace), fh.handler)
 	}
