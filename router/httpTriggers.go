@@ -157,14 +157,14 @@ func (ts *HTTPTriggerSet) getRouter() *mux.Router {
 			recorderName:             recorderName,
 			isDebugEnv:               ts.isDebugEnv,
 			svcAddrUpdateLocks:       ts.svcAddrUpdateLocks,
-
-			// Unlike functionHandler for non-HTTP request the function metadata was set before serving the requests.
-			// The function metadata of functionHandler for HTTP trigger is decided dynamically when functionHandler
-			// serve the request in order to support canary deployment. For more details, please check "handler"
-			// function of functionHandler.
-
-			// function: <fn metadata>
 		}
+
+		// The functionHandler for HTTP trigger with fn reference type "FunctionReferenceTypeFunctionName",
+		// it's function metadata is set here.
+
+		// The functionHandler For HTTP trigger with fn reference type "FunctionReferenceTypeFunctionWeights",
+		// it's function metadata is decided dynamically before proxying the request in order to support canary
+		// deployment. For more details, please check "handler" function of functionHandler.
 
 		if rr.resolveResultType == resolveResultSingleFunction {
 			for _, metadata := range fh.functionMetadataMap {
