@@ -168,6 +168,14 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 
 	executingTimeout := roundTripper.funcHandler.tsRoundTripperParams.timeout
 
+	var reqBody []byte
+	if req.Body != nil {
+		reqBody, err = ioutil.ReadAll(req.Body)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	for i := 0; i < roundTripper.funcHandler.tsRoundTripperParams.maxRetries-1; i++ {
 
 		// cache lookup to get serviceUrl
@@ -216,6 +224,9 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 			if serviceUrlFromCache {
 				go roundTripper.funcHandler.tapService(serviceUrl)
 			}
+
+			// reset the body before every retry
+			req.Body = ioutil.NopCloser(bytes.NewReader(reqBody))
 
 			// forward the request to the function service
 			resp, err = transport.RoundTrip(req)
