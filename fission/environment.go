@@ -323,10 +323,17 @@ func getResourceReq(c *cli.Context, resources v1.ResourceRequirements) v1.Resour
 		limitResources[v1.ResourceMemory] = memLimit
 	}
 
-	if limitResources[v1.ResourceCPU].Cmp(requestResources[v1.ResourceCPU]) < 0 {
+	limitCPU := limitResources[v1.ResourceCPU]
+	requestCPU := requestResources[v1.ResourceCPU]
+
+	if limitCPU.Cmp(requestCPU) < 0 {
 		log.Fatal(fmt.Sprintf("MinCPU (%v) cannot be greate than MaxCPU (%v)", limitResources[v1.ResourceCPU], requestResources[v1.ResourceCPU]))
 	}
-	if limitResources[v1.ResourceMemory].Cmp(requestResources[v1.ResourceMemory]) < 0 {
+
+	limitMem := limitResources[v1.ResourceMemory]
+	requestMem := requestResources[v1.ResourceMemory]
+
+	if limitMem.Cmp(requestMem) < 0 {
 		log.Fatal(fmt.Sprintf("MinMemory (%v) cannot be greate than MaxMemory (%v)", limitResources[v1.ResourceMemory], requestResources[v1.ResourceMemory]))
 	}
 
