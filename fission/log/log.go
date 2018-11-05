@@ -27,7 +27,7 @@ var (
 )
 
 func Fatal(msg interface{}) {
-	os.Stderr.WriteString(fmt.Sprintf("%v\n", msg))
+	os.Stderr.WriteString(fmt.Sprintf("[FATAL] %v\n", msg))
 	os.Exit(1)
 }
 

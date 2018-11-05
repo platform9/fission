@@ -71,6 +71,11 @@ func printPodLogs(c *cli.Context) error {
 
 func getInvokeStrategy(minScale int, maxScale int, executorType string, targetcpu int) fission.InvokeStrategy {
 
+	// set default minScale to 1
+	if minScale == 0 {
+		minScale = 1
+	}
+
 	if maxScale == 0 {
 		maxScale = 1
 	}
@@ -207,11 +212,13 @@ func fnCreate(c *cli.Context) error {
 	}
 
 	invokeStrategy := getInvokeStrategy(c.Int("minscale"), c.Int("maxscale"), c.String("executortype"), getTargetCPU(c))
-	resourceReq := getResourceReq(c, apiv1.ResourceRequirements{})
+
 	if (c.IsSet("mincpu") || c.IsSet("maxcpu") || c.IsSet("minmemory") || c.IsSet("maxmemory")) &&
 		invokeStrategy.ExecutionStrategy.ExecutorType == fission.ExecutorTypePoolmgr {
-		log.Warn("CPU/Memory specified for function with pool manager executor will be ignored in favor of resources specified at environment")
+		log.Fatal("To limit CPU/Memory for function with executor type \"poolmgr\", please specify resources limits when creating environment")
 	}
+
+	resourceReq := getResourceReq(c, apiv1.ResourceRequirements{})
 
 	var secrets []fission.SecretReference
 	var cfgmaps []fission.ConfigMapReference
@@ -527,38 +534,12 @@ func fnUpdate(c *cli.Context) error {
 
 	function.Spec.Resources = getResourceReq(c, function.Spec.Resources)
 
-	if c.IsSet("targetcpu") {
-		function.Spec.InvokeStrategy.ExecutionStrategy.TargetCPUPercent = getTargetCPU(c)
-	}
-
-	if c.IsSet("minscale") {
-		minscale := c.Int("minscale")
-		maxscale := c.Int("maxscale")
-		if c.IsSet("maxscale") && minscale > c.Int("maxscale") {
-			log.Fatal(fmt.Sprintf("Minscale's value %v can not be greater than maxscale value %v", minscale, maxscale))
-		}
-		if function.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType != fission.ExecutorTypePoolmgr &&
-			minscale > function.Spec.InvokeStrategy.ExecutionStrategy.MaxScale {
-			log.Fatal(fmt.Sprintf("Minscale provided: %v can not be greater than maxscale of existing function: %v", minscale,
-				function.Spec.InvokeStrategy.ExecutionStrategy.MaxScale))
-		}
-		function.Spec.InvokeStrategy.ExecutionStrategy.MinScale = minscale
-	}
-
-	if c.IsSet("maxscale") {
-		maxscale := c.Int("maxscale")
-		if maxscale < function.Spec.InvokeStrategy.ExecutionStrategy.MinScale {
-			log.Fatal(fmt.Sprintf("Function's minscale: %v can not be greater than maxscale provided: %v",
-				function.Spec.InvokeStrategy.ExecutionStrategy.MinScale, maxscale))
-		}
-		function.Spec.InvokeStrategy.ExecutionStrategy.MaxScale = maxscale
-	}
+	fnExecutor := function.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType
 
 	if c.IsSet("executortype") {
-		var fnExecutor fission.ExecutorType
 		switch c.String("executortype") {
 		case "":
-			fnExecutor = fission.ExecutorTypePoolmgr
+			fallthrough
 		case fission.ExecutorTypePoolmgr:
 			fnExecutor = fission.ExecutorTypePoolmgr
 		case fission.ExecutorTypeNewdeploy:
@@ -566,11 +547,41 @@ func fnUpdate(c *cli.Context) error {
 		default:
 			log.Fatal("Executor type must be one of 'poolmgr' or 'newdeploy', defaults to 'poolmgr'")
 		}
-		if (c.IsSet("mincpu") || c.IsSet("maxcpu") || c.IsSet("minmemory") || c.IsSet("maxmemory")) &&
+		if (c.IsSet("mincpu") || c.IsSet("maxcpu") || c.IsSet("minmemory") || c.IsSet("maxmemory") || c.IsSet("minscale") || c.IsSet("maxscale")) &&
 			fnExecutor == fission.ExecutorTypePoolmgr {
-			log.Warn("CPU/Memory specified for function with pool manager executor will be ignored in favor of resources specified at environment")
+			log.Fatal("To limit CPU/Memory for function with executor type \"poolmgr\", please specify resources limits when creating environment")
 		}
-		function.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType = fnExecutor
+	}
+
+	function.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType = fnExecutor
+
+	if fnExecutor == fission.ExecutorTypePoolmgr {
+		// remove existing executionStrategy value to avoid confusion
+		function.Spec.InvokeStrategy.ExecutionStrategy = fission.ExecutionStrategy{
+			ExecutorType: fission.ExecutorTypePoolmgr,
+		}
+	} else if fnExecutor == fission.ExecutorTypeNewdeploy {
+		exeStrategy := &function.Spec.InvokeStrategy.ExecutionStrategy
+
+		if c.IsSet("targetcpu") {
+			exeStrategy.TargetCPUPercent = getTargetCPU(c)
+		}
+
+		minscale := c.Int("minscale")
+		maxscale := c.Int("maxscale")
+
+		if c.IsSet("minscale") {
+			exeStrategy.MinScale = minscale
+		}
+
+		if c.IsSet("maxscale") {
+			exeStrategy.MaxScale = maxscale
+		}
+
+		if exeStrategy.MinScale > exeStrategy.MaxScale {
+			log.Fatal(fmt.Sprintf("Minscale provided: %v can not be greater than maxscale value %v", minscale,
+				exeStrategy.MaxScale))
+		}
 	}
 
 	_, err = client.FunctionUpdate(function)
