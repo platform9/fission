@@ -218,6 +218,10 @@ func envUpdate(c *cli.Context) error {
 
 	env.Spec.AllowAccessToExternalNetwork = envExternalNetwork
 
+	if c.IsSet("mincpu") || c.IsSet("maxcpu") || c.IsSet("minmemory") || c.IsSet("maxmemory") || c.IsSet("minscale") || c.IsSet("maxscale") {
+		log.Fatal("Currently it's not support to update resources limits/requests after creating the environment, please recreate it instead.")
+	}
+
 	_, err = client.EnvironmentUpdate(env)
 	util.CheckErr(err, "update environment")
 
@@ -317,6 +321,13 @@ func getResourceReq(c *cli.Context, resources v1.ResourceRequirements) v1.Resour
 			log.Fatal("Failed to parse maxmemory")
 		}
 		limitResources[v1.ResourceMemory] = memLimit
+	}
+
+	if limitResources[v1.ResourceCPU].Cmp(requestResources[v1.ResourceCPU]) < 0 {
+		log.Fatal(fmt.Sprintf("MinCPU (%v) cannot be greate than MaxCPU (%v)", limitResources[v1.ResourceCPU], requestResources[v1.ResourceCPU]))
+	}
+	if limitResources[v1.ResourceMemory].Cmp(requestResources[v1.ResourceMemory]) < 0 {
+		log.Fatal(fmt.Sprintf("MinMemory (%v) cannot be greate than MaxMemory (%v)", limitResources[v1.ResourceMemory], requestResources[v1.ResourceMemory]))
 	}
 
 	resources = v1.ResourceRequirements{
