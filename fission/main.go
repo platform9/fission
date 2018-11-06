@@ -74,12 +74,12 @@ func main() {
 	htUrlFlag := cli.StringFlag{Name: "url", Usage: "URL pattern (See gorilla/mux supported patterns)"}
 
 	// Resource & scale related flags (Used in env and function)
-	minCpu := cli.StringFlag{Name: "mincpu", Usage: "Minimum CPU to be assigned to pod (In millicore, minimum 1)"}
-	maxCpu := cli.StringFlag{Name: "maxcpu", Usage: "Maximum CPU to be assigned to pod (In millicore, minimum 1)"}
-	minMem := cli.StringFlag{Name: "minmemory", Usage: "Minimum memory to be assigned to pod (In megabyte)"}
-	maxMem := cli.StringFlag{Name: "maxmemory", Usage: "Maximum memory to be assigned to pod (In megabyte)"}
-	minScale := cli.StringFlag{Name: "minscale", Usage: "Minimum number of pods (Uses resource inputs to configure HPA)"}
-	maxScale := cli.StringFlag{Name: "maxscale", Usage: "Maximum number of pods (Uses resource inputs to configure HPA)"}
+	minCpu := cli.IntFlag{Name: "mincpu", Usage: "Minimum CPU to be assigned to pod (In millicore, minimum 1)"}
+	maxCpu := cli.IntFlag{Name: "maxcpu", Usage: "Maximum CPU to be assigned to pod (In millicore, minimum 1)"}
+	minMem := cli.IntFlag{Name: "minmemory", Usage: "Minimum memory to be assigned to pod (In megabyte)"}
+	maxMem := cli.IntFlag{Name: "maxmemory", Usage: "Maximum memory to be assigned to pod (In megabyte)"}
+	minScale := cli.IntFlag{Name: "minscale", Value: 1, Usage: "Minimum number of pods (Uses resource inputs to configure HPA)"}
+	maxScale := cli.IntFlag{Name: "maxscale", Usage: "Maximum number of pods (Uses resource inputs to configure HPA)"}
 	targetcpu := cli.IntFlag{Name: "targetcpu", Value: 80, Usage: "Target average CPU usage percentage across pods for scaling"}
 
 	// functions

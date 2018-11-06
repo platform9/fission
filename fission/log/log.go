@@ -27,12 +27,12 @@ var (
 )
 
 func Fatal(msg interface{}) {
-	os.Stderr.WriteString(fmt.Sprintf("[FATAL] %v\n", msg))
+	os.Stderr.WriteString(fmt.Sprintf("Fatal error: %v\n", msg))
 	os.Exit(1)
 }
 
 func Warn(msg interface{}) {
-	os.Stderr.WriteString(fmt.Sprintf("[WARNING] %v\n", msg))
+	os.Stderr.WriteString(fmt.Sprintf("Warning: %v\n", msg))
 }
 
 func Info(msg interface{}) {
