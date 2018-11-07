@@ -42,7 +42,7 @@ import (
 )
 
 const (
-	DEFAULT_MIN_SCALE = 1
+	DEFAULT_MIN_SCALE             = 1
 	DEFAULT_TARGET_CPU_PERCENTAGE = 80
 )
 
@@ -74,7 +74,7 @@ func printPodLogs(c *cli.Context) error {
 	return nil
 }
 
-func getInvokeStrategy(c *cli.Context, existingInvokeStrategy *fission.InvokeStrategy) (strategy fission.InvokeStrategy) {
+func getInvokeStrategy(c *cli.Context, existingInvokeStrategy *fission.InvokeStrategy) (strategy *fission.InvokeStrategy, err error) {
 
 	var fnExecutor, newFnExecutor fission.ExecutorType
 
@@ -86,7 +86,7 @@ func getInvokeStrategy(c *cli.Context, existingInvokeStrategy *fission.InvokeStr
 	case fission.ExecutorTypeNewdeploy:
 		newFnExecutor = fission.ExecutorTypeNewdeploy
 	default:
-		log.Fatal("Executor type must be one of 'poolmgr' or 'newdeploy', defaults to 'poolmgr'")
+		return nil, errors.New("Executor type must be one of 'poolmgr' or 'newdeploy', defaults to 'poolmgr'")
 	}
 
 	if existingInvokeStrategy != nil {
@@ -104,7 +104,7 @@ func getInvokeStrategy(c *cli.Context, existingInvokeStrategy *fission.InvokeStr
 		if c.IsSet("mincpu") || c.IsSet("maxcpu") || c.IsSet("minmemory") || c.IsSet("maxmemory") {
 			log.Warn("To limit CPU/Memory for function with executor type \"poolmgr\", please specify resources limits when creating environment")
 		}
-		strategy = fission.InvokeStrategy{
+		strategy = &fission.InvokeStrategy{
 			StrategyType: fission.StrategyTypeExecution,
 			ExecutionStrategy: fission.ExecutionStrategy{
 				ExecutorType: fission.ExecutorTypePoolmgr,
@@ -116,7 +116,7 @@ func getInvokeStrategy(c *cli.Context, existingInvokeStrategy *fission.InvokeStr
 		minScale := DEFAULT_MIN_SCALE
 		maxScale := minScale
 
-		if existingInvokeStrategy != nil && existingInvokeStrategy.StrategyType == fission.ExecutorTypeNewdeploy {
+		if existingInvokeStrategy != nil && existingInvokeStrategy.ExecutionStrategy.ExecutorType == fission.ExecutorTypeNewdeploy {
 			minScale = existingInvokeStrategy.ExecutionStrategy.MinScale
 			maxScale = existingInvokeStrategy.ExecutionStrategy.MaxScale
 			targetCPU = existingInvokeStrategy.ExecutionStrategy.TargetCPUPercent
@@ -133,17 +133,17 @@ func getInvokeStrategy(c *cli.Context, existingInvokeStrategy *fission.InvokeStr
 		if c.IsSet("maxscale") {
 			maxScale = c.Int("maxscale")
 			if maxScale <= 0 {
-				log.Fatal("Maxscale must be greater than 0")
+				return nil, errors.New("Maxscale must be greater than 0")
 			}
 		}
 
 		if minScale > maxScale {
-			log.Fatal(fmt.Sprintf("Minscale provided: %v can not be greater than maxscale value %v", minScale, maxScale))
+			return nil, errors.New(fmt.Sprintf("Minscale provided: %v can not be greater than maxscale value %v", minScale, maxScale))
 		}
 
 		// Right now a simple single case strategy implementation
 		// This will potentially get more sophisticated once we have more strategies in place
-		strategy = fission.InvokeStrategy{
+		strategy = &fission.InvokeStrategy{
 			StrategyType: fission.StrategyTypeExecution,
 			ExecutionStrategy: fission.ExecutionStrategy{
 				ExecutorType:     fnExecutor,
@@ -154,7 +154,7 @@ func getInvokeStrategy(c *cli.Context, existingInvokeStrategy *fission.InvokeStr
 		}
 	}
 
-	return strategy
+	return strategy, nil
 }
 
 func getTargetCPU(c *cli.Context) int {
@@ -205,7 +205,10 @@ func fnCreate(c *cli.Context) error {
 	secretName := c.String("secret")
 	cfgMapName := c.String("configmap")
 
-	invokeStrategy := getInvokeStrategy(c, nil)
+	invokeStrategy, err := getInvokeStrategy(c, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
 	resourceReq := getResourceReq(c, apiv1.ResourceRequirements{})
 
 	var pkgMetadata *metav1.ObjectMeta
@@ -318,7 +321,7 @@ func fnCreate(c *cli.Context) error {
 			Secrets:        secrets,
 			ConfigMaps:     cfgmaps,
 			Resources:      resourceReq,
-			InvokeStrategy: invokeStrategy,
+			InvokeStrategy: *invokeStrategy,
 		},
 	}
 
@@ -530,7 +533,11 @@ func fnUpdate(c *cli.Context) error {
 		pkgName = function.Spec.Package.PackageRef.Name
 	}
 
-	function.Spec.InvokeStrategy = getInvokeStrategy(c, &function.Spec.InvokeStrategy)
+	strategy, err := getInvokeStrategy(c, &function.Spec.InvokeStrategy)
+	if err != nil {
+		log.Fatal(err)
+	}
+	function.Spec.InvokeStrategy = *strategy
 	function.Spec.Resources = getResourceReq(c, function.Spec.Resources)
 
 	pkg, err := client.PackageGet(&metav1.ObjectMeta{

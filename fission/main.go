@@ -38,6 +38,11 @@ func cliHook(c *cli.Context) error {
 }
 
 func main() {
+	fmt.Println(os.Args)
+	newCliApp().Run(os.Args)
+}
+
+func newCliApp() *cli.App {
 	app := cli.NewApp()
 	app.Name = "fission"
 	app.Usage = "Serverless functions for Kubernetes"
@@ -309,7 +314,7 @@ func main() {
 	}
 	app.Before = cliHook
 	app.CommandNotFound = handleCommandNotFound
-	app.Run(os.Args)
+	return app
 }
 
 func handleCommandNotFound(ctx *cli.Context, subCommand string) {
