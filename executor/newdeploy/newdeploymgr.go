@@ -548,7 +548,7 @@ func (deploy *NewDeploy) fnDelete(fn *crd.Function) (*fscache.FuncSvc, error) {
 }
 
 func (deploy *NewDeploy) getObjName(fn *crd.Function) string {
-	return fmt.Sprintf("newdeploy-%v-%v", strings.ToLower(fn.Metadata.Name), deploy.instanceID)
+	return strings.ToLower(fmt.Sprintf("newdeploy-%v-%v", strings.ToLower(fn.Metadata.Name), deploy.instanceID))
 }
 
 func (deploy *NewDeploy) getDeployLabels(fn *crd.Function, env *crd.Environment) map[string]string {

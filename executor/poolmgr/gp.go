@@ -459,7 +459,7 @@ func (gp *GenericPool) specializePod(pod *apiv1.Pod, metadata *metav1.ObjectMeta
 // A pool is a deployment of generic containers for an env.  This
 // creates the pool but doesn't wait for any pods to be ready.
 func (gp *GenericPool) createPool() error {
-	poolDeploymentName := fmt.Sprintf("poolmgr-%v-%v", strings.ToLower(gp.env.Metadata.Name), gp.poolInstanceId)
+	poolDeploymentName := strings.ToLower(fmt.Sprintf("poolmgr-%v-%v", gp.env.Metadata.Name, gp.poolInstanceId))
 
 	fetcherResources, err := util.GetFetcherResources()
 	if err != nil {
