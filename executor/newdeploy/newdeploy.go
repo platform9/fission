@@ -203,8 +203,12 @@ func (deploy *NewDeploy) getDeploymentSpec(fn *crd.Function, env *crd.Environmen
 
 	deployment := &v1beta1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels: deployLabels,
 			Name:   deployName,
+			Labels: deployLabels,
+			Annotations: map[string]string{
+				"env-name": env.Metadata.Name,
+				"env-uuid": string(env.Metadata.UID),
+			},
 		},
 		Spec: v1beta1.DeploymentSpec{
 			Replicas: &replicas,
@@ -405,9 +409,8 @@ func (deploy *NewDeploy) createOrGetHpa(hpaName string, execStrategy *fission.Ex
 	if err != nil && k8s_err.IsNotFound(err) {
 		hpa := asv1.HorizontalPodAutoscaler{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      hpaName,
-				Namespace: depl.ObjectMeta.Namespace,
-				Labels:    depl.Labels,
+				Name:   hpaName,
+				Labels: depl.Labels,
 			},
 			Spec: asv1.HorizontalPodAutoscalerSpec{
 				ScaleTargetRef: asv1.CrossVersionObjectReference{
