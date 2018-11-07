@@ -41,6 +41,11 @@ import (
 	"github.com/fission/fission/fission/util"
 )
 
+const (
+	DEFAULT_MIN_SCALE = 1
+	DEFAULT_TARGET_CPU_PERCENTAGE = 80
+)
+
 func printPodLogs(c *cli.Context) error {
 	fnName := c.String("name")
 	if len(fnName) == 0 {
@@ -69,70 +74,84 @@ func printPodLogs(c *cli.Context) error {
 	return nil
 }
 
-func getInvokeStrategy(c *cli.Context, existingInvokeStrategy *fission.InvokeStrategy) fission.InvokeStrategy {
+func getInvokeStrategy(c *cli.Context, existingInvokeStrategy *fission.InvokeStrategy) (strategy fission.InvokeStrategy) {
 
-	var fnExecutor fission.ExecutorType
+	var fnExecutor, newFnExecutor fission.ExecutorType
+
+	switch c.String("executortype") {
+	case "":
+		fallthrough
+	case fission.ExecutorTypePoolmgr:
+		newFnExecutor = fission.ExecutorTypePoolmgr
+	case fission.ExecutorTypeNewdeploy:
+		newFnExecutor = fission.ExecutorTypeNewdeploy
+	default:
+		log.Fatal("Executor type must be one of 'poolmgr' or 'newdeploy', defaults to 'poolmgr'")
+	}
 
 	if existingInvokeStrategy != nil {
 		fnExecutor = existingInvokeStrategy.ExecutionStrategy.ExecutorType
-	}
 
-	if c.IsSet("executortype") {
-		switch c.String("executortype") {
-		case "":
-			fallthrough
-		case fission.ExecutorTypePoolmgr:
-			fnExecutor = fission.ExecutorTypePoolmgr
-		case fission.ExecutorTypeNewdeploy:
-			fnExecutor = fission.ExecutorTypeNewdeploy
-		default:
-			log.Fatal("Executor type must be one of 'poolmgr' or 'newdeploy', defaults to 'poolmgr'")
+		// override the executor type if user specified a new executor type
+		if c.IsSet("executortype") {
+			fnExecutor = newFnExecutor
 		}
+	} else {
+		fnExecutor = newFnExecutor
 	}
 
-	// Pool manager
 	if fnExecutor == fission.ExecutorTypePoolmgr {
 		if c.IsSet("mincpu") || c.IsSet("maxcpu") || c.IsSet("minmemory") || c.IsSet("maxmemory") {
 			log.Warn("To limit CPU/Memory for function with executor type \"poolmgr\", please specify resources limits when creating environment")
 		}
-		return fission.InvokeStrategy{
+		strategy = fission.InvokeStrategy{
 			StrategyType: fission.StrategyTypeExecution,
 			ExecutionStrategy: fission.ExecutionStrategy{
 				ExecutorType: fission.ExecutorTypePoolmgr,
 			},
 		}
-	}
+	} else {
+		// set default value
+		targetCPU := DEFAULT_TARGET_CPU_PERCENTAGE
+		minScale := DEFAULT_MIN_SCALE
+		maxScale := minScale
 
-	var minScale, maxScale, targetCPU int
+		if existingInvokeStrategy != nil && existingInvokeStrategy.StrategyType == fission.ExecutorTypeNewdeploy {
+			minScale = existingInvokeStrategy.ExecutionStrategy.MinScale
+			maxScale = existingInvokeStrategy.ExecutionStrategy.MaxScale
+			targetCPU = existingInvokeStrategy.ExecutionStrategy.TargetCPUPercent
+		}
 
-	if existingInvokeStrategy != nil {
-		minScale = existingInvokeStrategy.ExecutionStrategy.MinScale
-		maxScale = existingInvokeStrategy.ExecutionStrategy.MaxScale
-		targetCPU = existingInvokeStrategy.ExecutionStrategy.TargetCPUPercent
-	}
+		if c.IsSet("targetcpu") {
+			targetCPU = getTargetCPU(c)
+		}
 
-	if c.IsSet("minscale") {
-		minScale = c.Int("minscale")
-	}
+		if c.IsSet("minscale") {
+			minScale = c.Int("minscale")
+		}
 
-	if c.IsSet("maxscale") {
-		maxScale = c.Int("maxscale")
-	}
+		if c.IsSet("maxscale") {
+			maxScale = c.Int("maxscale")
+			if maxScale <= 0 {
+				log.Fatal("Maxscale must be greater than 0")
+			}
+		}
 
-	if c.IsSet("targetcpu") {
-		targetCPU = getTargetCPU(c)
-	}
+		if minScale > maxScale {
+			log.Fatal(fmt.Sprintf("Minscale provided: %v can not be greater than maxscale value %v", minScale, maxScale))
+		}
 
-	// Right now a simple single case strategy implementation
-	// This will potentially get more sophisticated once we have more strategies in place
-	strategy := fission.InvokeStrategy{
-		StrategyType: fission.StrategyTypeExecution,
-		ExecutionStrategy: fission.ExecutionStrategy{
-			ExecutorType:     fnExecutor,
-			MinScale:         minScale,
-			MaxScale:         maxScale,
-			TargetCPUPercent: targetCPU,
-		},
+		// Right now a simple single case strategy implementation
+		// This will potentially get more sophisticated once we have more strategies in place
+		strategy = fission.InvokeStrategy{
+			StrategyType: fission.StrategyTypeExecution,
+			ExecutionStrategy: fission.ExecutionStrategy{
+				ExecutorType:     fnExecutor,
+				MinScale:         minScale,
+				MaxScale:         maxScale,
+				TargetCPUPercent: targetCPU,
+			},
+		}
 	}
 
 	return strategy
@@ -146,7 +165,7 @@ func getTargetCPU(c *cli.Context) int {
 			log.Fatal("TargetCPU must be a value between 1 - 100")
 		}
 	} else {
-		targetCPU = 80
+		targetCPU = DEFAULT_TARGET_CPU_PERCENTAGE
 	}
 	return targetCPU
 }
