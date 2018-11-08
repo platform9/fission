@@ -38,7 +38,6 @@ func cliHook(c *cli.Context) error {
 }
 
 func main() {
-	fmt.Println(os.Args)
 	newCliApp().Run(os.Args)
 }
 
