@@ -205,10 +205,6 @@ func (deploy *NewDeploy) getDeploymentSpec(fn *crd.Function, env *crd.Environmen
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   deployName,
 			Labels: deployLabels,
-			Annotations: map[string]string{
-				"env-name": env.Metadata.Name,
-				"env-uuid": string(env.Metadata.UID),
-			},
 		},
 		Spec: v1beta1.DeploymentSpec{
 			Replicas: &replicas,
