@@ -165,6 +165,9 @@ func fnCreate(c *cli.Context) error {
 		util.CheckErr(err, fmt.Sprintf("read package in '%v' in Namespace: %s. Package needs to be present in the same namespace as function", pkgName, fnNamespace))
 		pkgMetadata = &pkg.Metadata
 		envName = pkg.Spec.Environment.Name
+		if envName != c.String("env") {
+			log.Warn("Function's environment is different than package's environment, package's environment will be used for creating function")
+		}
 		envNamespace = pkg.Spec.Environment.Namespace
 	} else {
 		// need to specify environment for creating new package
