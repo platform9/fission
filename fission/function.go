@@ -101,6 +101,10 @@ func getInvokeStrategy(c *cli.Context, existingInvokeStrategy *fission.InvokeStr
 	}
 
 	if fnExecutor == fission.ExecutorTypePoolmgr {
+		if c.IsSet("targetcpu") || c.IsSet("minscale") || c.IsSet("maxscale") {
+			log.Fatal("To set target CPU or min/max scale for function, please specify \"--executortype newdeploy\"")
+		}
+
 		if c.IsSet("mincpu") || c.IsSet("maxcpu") || c.IsSet("minmemory") || c.IsSet("maxmemory") {
 			log.Warn("To limit CPU/Memory for function with executor type \"poolmgr\", please specify resources limits when creating environment")
 		}
