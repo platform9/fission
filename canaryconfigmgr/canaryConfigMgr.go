@@ -158,7 +158,7 @@ func (canaryCfgMgr *canaryConfigMgr) processCanaryConfig(ctx *context.Context, c
 		case <-ticker.C:
 			// every weightIncrementDuration, check if failureThreshold has reached.
 			// if yes, rollback.
-			// else, increment the weight of funcN and decrement funcN-1 by `weightIncrement`
+			// else, increment the weight of new function and decrement old function by `weightIncrement`
 			log.Printf("Processing canary config : %s.%s", canaryConfig.Metadata.Name, canaryConfig.Metadata.Namespace)
 			canaryCfgMgr.RollForwardOrBack(canaryConfig, quit, ticker)
 
@@ -205,9 +205,9 @@ func (canaryCfgMgr *canaryConfigMgr) RollForwardOrBack(canaryConfig *crd.CanaryC
 	}
 
 	if triggerObj.Spec.FunctionReference.Type == fission.FunctionReferenceTypeFunctionWeights &&
-		triggerObj.Spec.FunctionReference.FunctionWeights[canaryConfig.Spec.FunctionN] != 0 {
+		triggerObj.Spec.FunctionReference.FunctionWeights[canaryConfig.Spec.NewFunction] != 0 {
 		failurePercent, err := canaryCfgMgr.promClient.GetFunctionFailurePercentage(triggerObj.Spec.RelativeURL, triggerObj.Spec.Method,
-			canaryConfig.Spec.FunctionN, canaryConfig.Metadata.Namespace, canaryConfig.Spec.WeightIncrementDuration)
+			canaryConfig.Spec.NewFunction, canaryConfig.Metadata.Namespace, canaryConfig.Spec.WeightIncrementDuration)
 
 		if err != nil {
 			// silently ignore. wait for next window to increment weight
@@ -314,8 +314,8 @@ func (canaryCfgMgr *canaryConfigMgr) updateCanaryConfigStatusWithRetries(cfgName
 
 func (canaryCfgMgr *canaryConfigMgr) rollback(canaryConfig *crd.CanaryConfig, trigger *crd.HTTPTrigger) error {
 	functionWeights := trigger.Spec.FunctionReference.FunctionWeights
-	functionWeights[canaryConfig.Spec.FunctionN] = 0
-	functionWeights[canaryConfig.Spec.FunctionNminus1] = 100
+	functionWeights[canaryConfig.Spec.NewFunction] = 0
+	functionWeights[canaryConfig.Spec.OldFunction] = 100
 
 	err := canaryCfgMgr.updateHttpTriggerWithRetries(trigger.Metadata.Name, trigger.Metadata.Namespace, functionWeights)
 
@@ -329,16 +329,16 @@ func (canaryCfgMgr *canaryConfigMgr) rollForward(canaryConfig *crd.CanaryConfig,
 	doneProcessingCanaryConfig := false
 
 	functionWeights := trigger.Spec.FunctionReference.FunctionWeights
-	if functionWeights[canaryConfig.Spec.FunctionN]+canaryConfig.Spec.WeightIncrement >= 100 {
+	if functionWeights[canaryConfig.Spec.NewFunction]+canaryConfig.Spec.WeightIncrement >= 100 {
 		doneProcessingCanaryConfig = true
-		functionWeights[canaryConfig.Spec.FunctionN] = 100
-		functionWeights[canaryConfig.Spec.FunctionNminus1] = 0
+		functionWeights[canaryConfig.Spec.NewFunction] = 100
+		functionWeights[canaryConfig.Spec.OldFunction] = 0
 	} else {
-		functionWeights[canaryConfig.Spec.FunctionN] += canaryConfig.Spec.WeightIncrement
-		if functionWeights[canaryConfig.Spec.FunctionNminus1]-canaryConfig.Spec.WeightIncrement < 0 {
-			functionWeights[canaryConfig.Spec.FunctionNminus1] = 0
+		functionWeights[canaryConfig.Spec.NewFunction] += canaryConfig.Spec.WeightIncrement
+		if functionWeights[canaryConfig.Spec.OldFunction]-canaryConfig.Spec.WeightIncrement < 0 {
+			functionWeights[canaryConfig.Spec.OldFunction] = 0
 		} else {
-			functionWeights[canaryConfig.Spec.FunctionNminus1] -= canaryConfig.Spec.WeightIncrement
+			functionWeights[canaryConfig.Spec.OldFunction] -= canaryConfig.Spec.WeightIncrement
 		}
 	}
 

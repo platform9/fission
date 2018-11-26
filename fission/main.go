@@ -277,13 +277,13 @@ func main() {
 	// canary configs
 	canaryConfigNameFlag := cli.StringFlag{Name: "name", Usage: "Name for the canary config"}
 	triggerNameFlag := cli.StringFlag{Name: "httptrigger", Usage: "Http trigger that this config references"}
-	funcNFlag := cli.StringFlag{Name: "funcN", Usage: "New version of the function"}
-	funcNminus1Flag := cli.StringFlag{Name: "funcN-1", Usage: "Old stable version of the function"}
+	newFunc := cli.StringFlag{Name: "newfunc", Usage: "New version of the function"}
+	oldFunc := cli.StringFlag{Name: "oldfunc", Usage: "Old stable version of the function"}
 	weightIncrementFlag := cli.IntFlag{Name: "increment-step", Value: 20, Usage: "Weight increment step for function"}
 	incrementIntervalFlag := cli.StringFlag{Name: "increment-interval", Value: "2m", Usage: "Weight increment interval, string representation of time.Duration, ex : 1m, 2h, 2d"}
 	failureThresholdFlag := cli.IntFlag{Name: "failure-threshold", Value: 10, Usage: "Threshold in percentage beyond which the new version of the function is considered unstable"}
 	canarySubCommands := []cli.Command{
-		{Name: "create", Usage: "Create a canary config", Flags: []cli.Flag{canaryConfigNameFlag, triggerNameFlag, funcNFlag, funcNminus1Flag, fnNamespaceFlag, weightIncrementFlag, incrementIntervalFlag, failureThresholdFlag}, Action: canaryConfigCreate},
+		{Name: "create", Usage: "Create a canary config", Flags: []cli.Flag{canaryConfigNameFlag, triggerNameFlag, newFunc, oldFunc, fnNamespaceFlag, weightIncrementFlag, incrementIntervalFlag, failureThresholdFlag}, Action: canaryConfigCreate},
 		{Name: "get", Usage: "View parameters in a canary config", Flags: []cli.Flag{canaryConfigNameFlag, canaryNamespaceFlag}, Action: canaryConfigGet},
 		{Name: "update", Usage: "Update parameters of a canary config", Flags: []cli.Flag{canaryConfigNameFlag, canaryNamespaceFlag, incrementIntervalFlag, weightIncrementFlag, failureThresholdFlag}, Action: canaryConfigUpdate},
 		{Name: "delete", Usage: "Delete a canary config", Flags: []cli.Flag{canaryConfigNameFlag, canaryNamespaceFlag}, Action: canaryConfigDelete},

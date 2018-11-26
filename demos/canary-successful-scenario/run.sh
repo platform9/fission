@@ -33,5 +33,5 @@ desc "Start sending requests to the route"
 run_bg "hey -n 100000 -c 1 http://$FISSION_ROUTER/canary"
 
 desc "Create a canary config: with an increment of 10 percent, every 1 minute, rolling back if 10% of requests fail"
-run "fission canary-config create --name canary-1 --funcN func-v2 --funcN-1 func-v1 --httptrigger route-canary --increment-step 10 --increment-interval 30s --failure-threshold 10"
+run "fission canary-config create --name canary-1 --newfunc func-v2 --oldfunc func-v1 --httptrigger route-canary --increment-step 10 --increment-interval 30s --failure-threshold 10"
 

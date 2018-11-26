@@ -32,7 +32,7 @@ success_scenario() {
     fission route create --name route-success --method GET --url /success --function fn-v1 --weight 100 --function fn-v2 --weight 0
 
     log "Create a canary config to gradually increment the weight of version-2 by a step of 50 every 1m"
-    fission canary-config create --name canary-1 --funcN fn-v2 --funcN-1 fn-v1 --httptrigger route-success --increment-step 50 --increment-interval 1m --failure-threshold 10
+    fission canary-config create --name canary-1 --newfunc fn-v2 --oldfunc fn-v1 --httptrigger route-success --increment-step 50 --increment-interval 1m --failure-threshold 10
 
     sleep 60
 
@@ -65,7 +65,7 @@ failure_scenario() {
     sleep 5
 
     log "Create a canary config to gradually increment the weight of version-2 by a step of 50 every 1m"
-    fission canary-config create --name canary-2 --funcN fn-v3 --funcN-1 fn-v1 --httptrigger route-fail --increment-step 50 --increment-interval 1m --failure-threshold 10
+    fission canary-config create --name canary-2 --newfunc fn-v3 --oldfunc fn-v1 --httptrigger route-fail --increment-step 50 --increment-interval 1m --failure-threshold 10
 
     sleep 60
 

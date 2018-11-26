@@ -41,8 +41,8 @@ func canaryConfigCreate(c *cli.Context) error {
 	}
 
 	trigger := c.String("httptrigger")
-	funcN := c.String("funcN")
-	funcNminus1 := c.String("funcN-1")
+	newFunc := c.String("newfunc")
+	oldFunc := c.String("oldfunc")
 	ns := c.String("fnNamespace")
 	incrementStep := c.Int("increment-step")
 	failureThreshold := c.Int("failure-threshold")
@@ -69,18 +69,18 @@ func canaryConfigCreate(c *cli.Context) error {
 	}
 
 	// check that the trigger references same functions in the function weights
-	_, ok := htTrigger.Spec.FunctionReference.FunctionWeights[funcN]
+	_, ok := htTrigger.Spec.FunctionReference.FunctionWeights[newFunc]
 	if !ok {
-		log.Fatal(fmt.Sprintf("HTTP Trigger doesn't reference the function %s in Canary Config", funcN))
+		log.Fatal(fmt.Sprintf("HTTP Trigger doesn't reference the function %s in Canary Config", newFunc))
 	}
 
-	_, ok = htTrigger.Spec.FunctionReference.FunctionWeights[funcNminus1]
+	_, ok = htTrigger.Spec.FunctionReference.FunctionWeights[oldFunc]
 	if !ok {
-		log.Fatal(fmt.Sprintf("HTTP Trigger doesn't reference the function %s in Canary Config", funcNminus1))
+		log.Fatal(fmt.Sprintf("HTTP Trigger doesn't reference the function %s in Canary Config", oldFunc))
 	}
 
 	// check that the functions exist in the same namespace
-	fnList := []string{funcN, funcNminus1}
+	fnList := []string{newFunc, oldFunc}
 	err = util.CheckFunctionExistence(client, fnList, ns)
 	if err != nil {
 		log.Fatal(fmt.Sprintf("checkFunctionExistence err : %v", err))
@@ -94,8 +94,8 @@ func canaryConfigCreate(c *cli.Context) error {
 		},
 		Spec: fission.CanaryConfigSpec{
 			Trigger:                 trigger,
-			FunctionN:               funcN,
-			FunctionNminus1:         funcNminus1,
+			NewFunction:             newFunc,
+			OldFunction:             oldFunc,
 			WeightIncrement:         incrementStep,
 			WeightIncrementDuration: incrementInterval,
 			FailureThreshold:        failureThreshold,
@@ -133,7 +133,7 @@ func canaryConfigGet(c *cli.Context) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
 	fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", "NAME", "TRIGGER", "FUNCTION-N", "FUNCTION-N-1", "WEIGHT-INCREMENT", "INTERVAL", "FAILURE-THRESHOLD", "FAILURE-TYPE", "STATUS")
 	fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n",
-		canaryCfg.Metadata.Name, canaryCfg.Spec.Trigger, canaryCfg.Spec.FunctionN, canaryCfg.Spec.FunctionNminus1, canaryCfg.Spec.WeightIncrement, canaryCfg.Spec.WeightIncrementDuration,
+		canaryCfg.Metadata.Name, canaryCfg.Spec.Trigger, canaryCfg.Spec.NewFunction, canaryCfg.Spec.OldFunction, canaryCfg.Spec.WeightIncrement, canaryCfg.Spec.WeightIncrementDuration,
 		canaryCfg.Spec.FailureThreshold, canaryCfg.Spec.FailureType, canaryCfg.Status.Status)
 
 	w.Flush()
@@ -226,7 +226,7 @@ func canaryConfigList(c *cli.Context) error {
 	fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", "NAME", "TRIGGER", "FUNCTION-N", "FUNCTION-N-1", "WEIGHT-INCREMENT", "INTERVAL", "FAILURE-THRESHOLD", "FAILURE-TYPE", "STATUS")
 	for _, canaryCfg := range canaryCfgs {
 		fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n",
-			canaryCfg.Metadata.Name, canaryCfg.Spec.Trigger, canaryCfg.Spec.FunctionN, canaryCfg.Spec.FunctionNminus1, canaryCfg.Spec.WeightIncrement, canaryCfg.Spec.WeightIncrementDuration,
+			canaryCfg.Metadata.Name, canaryCfg.Spec.Trigger, canaryCfg.Spec.NewFunction, canaryCfg.Spec.OldFunction, canaryCfg.Spec.WeightIncrement, canaryCfg.Spec.WeightIncrementDuration,
 			canaryCfg.Spec.FailureThreshold, canaryCfg.Spec.FailureType, canaryCfg.Status.Status)
 	}
 
