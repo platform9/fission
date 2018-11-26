@@ -529,7 +529,7 @@ func fnUpdate(c *cli.Context) error {
 	}
 
 	if function.Spec.Environment.Name != pkg.Spec.Environment.Name {
-		log.Warn("Function's environment is different than package's environment, package's environment will be used for creating function")
+		log.Warn("Function's environment is different than package's environment, package's environment will be used for updating function")
 		function.Spec.Environment.Name = pkg.Spec.Environment.Name
 		function.Spec.Environment.Namespace = pkg.Spec.Environment.Namespace
 	}
