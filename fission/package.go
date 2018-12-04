@@ -30,7 +30,6 @@ import (
 	"path/filepath"
 	"strings"
 	"text/tabwriter"
-	"time"
 
 	"github.com/dchest/uniuri"
 	"github.com/fission/fission/fission/util"
@@ -84,15 +83,15 @@ func pkgCreate(c *cli.Context) error {
 		log.Fatal("Need --env argument.")
 	}
 	envNamespace := c.String("envNamespace")
-	srcArchive := c.StringSlice("src")
-	deployArchive := c.StringSlice("deploy")
+	srcArchiveFiles := c.StringSlice("src")
+	deployArchiveFiles := c.StringSlice("deploy")
 	buildcmd := c.String("buildcmd")
 
-	if len(srcArchive) == 0 && len(deployArchive) == 0 {
+	if len(srcArchiveFiles) == 0 && len(deployArchiveFiles) == 0 {
 		log.Fatal("Need --src to specify source archive, or use --deploy to specify deployment archive.")
 	}
 
-	meta := createPackage(client, pkgNamespace, envName, envNamespace, srcArchive, deployArchive, buildcmd, "", false)
+	meta := createPackage(client, pkgNamespace, envName, envNamespace, srcArchiveFiles, deployArchiveFiles, buildcmd, "", false)
 	fmt.Printf("Package '%v' created\n", meta.GetName())
 
 	return nil
@@ -110,15 +109,15 @@ func pkgUpdate(c *cli.Context) error {
 	force := c.Bool("f")
 	envName := c.String("env")
 	envNamespace := c.String("envNamespace")
-	srcArchive := c.StringSlice("src")
-	deployArchive := c.StringSlice("deploy")
+	srcArchiveFiles := c.StringSlice("src")
+	deployArchiveFiles := c.StringSlice("deploy")
 	buildcmd := c.String("buildcmd")
 
-	if len(srcArchive) > 0 && len(deployArchive) > 0 {
+	if len(srcArchiveFiles) > 0 && len(deployArchiveFiles) > 0 {
 		log.Fatal("Need either of --src or --deploy and not both arguments.")
 	}
 
-	if len(srcArchive) == 0 && len(deployArchive) == 0 &&
+	if len(srcArchiveFiles) == 0 && len(deployArchiveFiles) == 0 &&
 		len(envName) == 0 && len(buildcmd) == 0 {
 		log.Fatal("Need --env or --src or --deploy or --buildcmd argument.")
 	}
@@ -148,7 +147,7 @@ func pkgUpdate(c *cli.Context) error {
 	}
 
 	newPkgMeta, err := updatePackage(client, pkg,
-		envName, envNamespace, srcArchive, deployArchive, buildcmd, false, false)
+		envName, envNamespace, srcArchiveFiles, deployArchiveFiles, buildcmd, false, false)
 	if err != nil {
 		util.CheckErr(err, "update package")
 	}
@@ -166,7 +165,7 @@ func pkgUpdate(c *cli.Context) error {
 }
 
 func updatePackage(client *client.Client, pkg *crd.Package, envName, envNamespace string,
-	srcArchive []string, deployArchive []string, buildcmd string, forceRebuild bool, codeFlag bool) (*metav1.ObjectMeta, error) {
+	srcArchiveFiles []string, deployArchiveFiles []string, buildcmd string, forceRebuild bool, codeFlag bool) (*metav1.ObjectMeta, error) {
 
 	var srcArchiveMetadata, deployArchiveMetadata *fission.Archive
 	needToBuild := false
@@ -186,21 +185,21 @@ func updatePackage(client *client.Client, pkg *crd.Package, envName, envNamespac
 		needToBuild = true
 	}
 
-	if len(srcArchive) > 0 {
-		srcArchiveName := archiveParser(srcArchive, envName)
-		srcArchiveMetadata = createArchive(client, srcArchiveName, "")
+	if len(srcArchiveFiles) > 0 {
+		srcArchivePath := makeArchiveFileIfNeeded("", srcArchiveFiles)
+		srcArchiveMetadata = createArchive(client, srcArchivePath, srcArchiveFiles, "")
 		pkg.Spec.Source = *srcArchiveMetadata
 		needToBuild = true
 	}
 
-	if len(deployArchive) > 0 {
-		var deployArchiveName string
+	if len(deployArchiveFiles) > 0 {
+		var deployArchivePath string
 		if codeFlag {
-			deployArchiveName = deployArchive[0]
+			deployArchivePath = deployArchiveFiles[0]
 		} else {
-			deployArchiveName = archiveParser(deployArchive, envName)
+			deployArchivePath = makeArchiveFileIfNeeded("", deployArchiveFiles)
 		}
-		deployArchiveMetadata = createArchive(client, deployArchiveName, "")
+		deployArchiveMetadata = createArchive(client, deployArchivePath, deployArchiveFiles, "")
 		pkg.Spec.Deployment = *deployArchiveMetadata
 		// Users may update the env, envNS and deploy archive at the same time,
 		// but without the source archive. In this case, we should set needToBuild to false
@@ -481,8 +480,8 @@ func fileChecksum(fileName string) (*fission.Checksum, error) {
 	}, nil
 }
 
-// upload a file and return a fission.Archive
-func createArchive(client *client.Client, fileName string, specFile string) *fission.Archive {
+// Upload a file and return a fission.Archive
+func createArchive(client *client.Client, fileName string, includeFiles []string, specFile string) *fission.Archive {
 	var archive fission.Archive
 
 	// fetch archive from arbitrary url if fileName is a url
@@ -494,7 +493,7 @@ func createArchive(client *client.Client, fileName string, specFile string) *fis
 		// create an ArchiveUploadSpec and reference it from the archive
 		aus := &ArchiveUploadSpec{
 			Name:         util.KubifyName(path.Base(fileName)),
-			IncludeGlobs: []string{fileName},
+			IncludeGlobs: includeFiles,
 		}
 		// save the uploadspec
 		err := specSave(*aus, specFile)
@@ -539,7 +538,7 @@ func createArchive(client *client.Client, fileName string, specFile string) *fis
 	return &archive
 }
 
-func createPackage(client *client.Client, pkgNamespace string, envName string, envNamespace string, srcArchive []string, deployArchive []string, buildcmd string, specFile string, codeFlag bool) *metav1.ObjectMeta {
+func createPackage(client *client.Client, pkgNamespace string, envName string, envNamespace string, srcArchiveFiles []string, deployArchiveFiles []string, buildcmd string, specFile string, codeFlag bool) *metav1.ObjectMeta {
 	pkgSpec := fission.PackageSpec{
 		Environment: fission.EnvironmentReference{
 			Namespace: envNamespace,
@@ -549,25 +548,25 @@ func createPackage(client *client.Client, pkgNamespace string, envName string, e
 	var pkgStatus fission.BuildStatus = fission.BuildStatusSucceeded
 
 	var pkgName string
-	if len(deployArchive) > 0 {
+	if len(deployArchiveFiles) > 0 {
 		if len(specFile) > 0 { // we should do this in all cases, i think
 			pkgStatus = fission.BuildStatusNone
 		}
-		var deployArchiveName string
+		var deployArchivePath string
 		if codeFlag {
-			deployArchiveName = deployArchive[0]
+			deployArchivePath = deployArchiveFiles[0]
 		} else {
-			deployArchiveName = archiveParser(deployArchive, envName)
+			deployArchivePath = makeArchiveFileIfNeeded("", deployArchiveFiles)
 		}
-		pkgSpec.Deployment = *createArchive(client, deployArchiveName, specFile)
-		pkgName = util.KubifyName(fmt.Sprintf("%v-%v", path.Base(deployArchiveName), uniuri.NewLen(4)))
+		pkgSpec.Deployment = *createArchive(client, deployArchivePath, deployArchiveFiles, specFile)
+		pkgName = util.KubifyName(fmt.Sprintf("%v-%v", path.Base(deployArchivePath), uniuri.NewLen(4)))
 	}
-	if len(srcArchive) > 0 {
-		srcArchiveName := archiveParser(srcArchive, envName)
-		pkgSpec.Source = *createArchive(client, srcArchiveName, specFile)
-		// set pending status to package
+	if len(srcArchiveFiles) > 0 {
+		srcArchivePath := makeArchiveFileIfNeeded("", srcArchiveFiles)
+		pkgSpec.Source = *createArchive(client, srcArchivePath, srcArchiveFiles, specFile)
+		// set package build status to pending
 		pkgStatus = fission.BuildStatusPending
-		pkgName = util.KubifyName(fmt.Sprintf("%v-%v", path.Base(srcArchiveName), uniuri.NewLen(4)))
+		pkgName = util.KubifyName(fmt.Sprintf("%v-%v", path.Base(srcArchivePath), uniuri.NewLen(4)))
 	}
 
 	if len(buildcmd) > 0 {
@@ -669,22 +668,43 @@ func downloadURL(fileUrl string) (io.ReadCloser, error) {
 	return resp.Body, nil
 }
 
-func archiveParser(archiveInput []string, envName string) string {
-	var archiveName = ""
+// Create an archive from the given list of input files, unless that
+// list has only one item and that item is either a zip file or a URL.
+func makeArchiveFileIfNeeded(archiveName string, archiveInput []string) string {
 
-	if (len(archiveInput) == 1 && archiver.Zip.Match(archiveInput[0])) ||
-		(len(archiveInput) == 1 && (strings.HasPrefix(archiveInput[0], "http://") || strings.HasPrefix(archiveInput[0], "https://"))) {
-		return archiveInput[0]
+	// use the given name if we have one, otherwise make something up
+	if len(archiveName) == 0 {
+		archiveName = fmt.Sprintf("%v-%v", archiveInput[0], uniuri.NewLen(4))
 	}
 
+	// We have one file; if it's a zip file or a URL, no need to archive it
+	if len(archiveInput) == 1 {
+		// make sure it exists
+		if _, err := os.Stat(archiveInput[0]); err != nil {
+			util.CheckErr(err, fmt.Sprintf("open input file %v", archiveInput[0]))
+		}
+
+		// if it's an existing zip file, don't do anything
+		if archiver.Zip.Match(archiveInput[0]) {
+			return archiveInput[0]
+		}
+
+		// if it's an HTTP URL, just use the URL.
+		if len(archiveInput) == 1 && (strings.HasPrefix(archiveInput[0], "http://") || strings.HasPrefix(archiveInput[0], "https://")) {
+			return archiveInput[0]
+		}
+	}
+
+	// For anything else, create a new archive
 	tmpDir, err := fission.GetTempDir()
 	if err != nil {
-		util.CheckErr(err, "create archive file")
+		util.CheckErr(err, "create temporary archive directory")
 	}
-	archiveName, err = fission.MakeArchive(filepath.Join(tmpDir, fmt.Sprintf("%v-%v", envName, time.Now().Unix())), archiveInput...)
+
+	archivePath, err := fission.MakeArchive(filepath.Join(tmpDir, archiveName), archiveInput...)
 	if err != nil {
 		util.CheckErr(err, "create archive file")
 	}
 
-	return archiveName
+	return archivePath
 }

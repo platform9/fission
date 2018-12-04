@@ -252,25 +252,25 @@ func fnCreate(c *cli.Context) error {
 			}
 		}
 
-		srcArchiveName := c.StringSlice("src")
-		var deployArchiveName []string
+		srcArchiveFiles := c.StringSlice("src")
+		var deployArchiveFiles []string
 		codeFlag := false
 		code := c.String("code")
 		if len(code) == 0 {
-			deployArchiveName = c.StringSlice("deploy")
+			deployArchiveFiles = c.StringSlice("deploy")
 		} else {
-			deployArchiveName = append(deployArchiveName, c.String("code"))
+			deployArchiveFiles = append(deployArchiveFiles, c.String("code"))
 			codeFlag = true
 		}
 		// fatal when both src & deploy archive are empty
-		if len(srcArchiveName) == 0 && len(deployArchiveName) == 0 {
+		if len(srcArchiveFiles) == 0 && len(deployArchiveFiles) == 0 {
 			log.Fatal("Need --deploy or --src argument.")
 		}
 
 		buildcmd := c.String("buildcmd")
 
 		// create new package in the same namespace as the function.
-		pkgMetadata = createPackage(client, fnNamespace, envName, envNamespace, srcArchiveName, deployArchiveName, buildcmd, specFile, codeFlag)
+		pkgMetadata = createPackage(client, fnNamespace, envName, envNamespace, srcArchiveFiles, deployArchiveFiles, buildcmd, specFile, codeFlag)
 
 		fmt.Printf("package '%v' created\n", pkgMetadata.Name)
 	}
@@ -471,17 +471,17 @@ func fnUpdate(c *cli.Context) error {
 		envNamespace = ""
 	}
 
-	var deployArchiveName []string
+	var deployArchiveFiles []string
 	codeFlag := false
 	code := c.String("code")
 	if len(code) == 0 {
-		deployArchiveName = c.StringSlice("deploy")
+		deployArchiveFiles = c.StringSlice("deploy")
 	} else {
-		deployArchiveName = append(deployArchiveName, c.String("code"))
+		deployArchiveFiles = append(deployArchiveFiles, c.String("code"))
 		codeFlag = true
 	}
 
-	srcArchiveName := c.StringSlice("src")
+	srcArchiveFiles := c.StringSlice("src")
 	pkgName := c.String("pkg")
 	entrypoint := c.String("entrypoint")
 	buildcmd := c.String("buildcmd")
@@ -490,7 +490,7 @@ func fnUpdate(c *cli.Context) error {
 	secretName := c.String("secret")
 	cfgMapName := c.String("configmap")
 
-	if len(srcArchiveName) > 0 && len(deployArchiveName) > 0 {
+	if len(srcArchiveFiles) > 0 && len(deployArchiveFiles) > 0 {
 		log.Fatal("Need either of --src or --deploy and not both arguments.")
 	}
 
@@ -566,7 +566,7 @@ func fnUpdate(c *cli.Context) error {
 
 	pkgMetadata := &pkg.Metadata
 
-	if len(deployArchiveName) != 0 || len(srcArchiveName) != 0 || len(buildcmd) != 0 || len(envName) != 0 || len(envNamespace) != 0 {
+	if len(deployArchiveFiles) != 0 || len(srcArchiveFiles) != 0 || len(buildcmd) != 0 || len(envName) != 0 || len(envNamespace) != 0 {
 		fnList, err := getFunctionsByPackage(client, pkg.Metadata.Name, pkg.Metadata.Namespace)
 		util.CheckErr(err, "get function list")
 
@@ -574,7 +574,7 @@ func fnUpdate(c *cli.Context) error {
 			log.Fatal("Package is used by multiple functions, use --force to force update")
 		}
 
-		pkgMetadata, err = updatePackage(client, pkg, envName, envNamespace, srcArchiveName, deployArchiveName, buildcmd, false, codeFlag)
+		pkgMetadata, err = updatePackage(client, pkg, envName, envNamespace, srcArchiveFiles, deployArchiveFiles, buildcmd, false, codeFlag)
 		util.CheckErr(err, fmt.Sprintf("update package '%v'", pkgName))
 
 		fmt.Printf("package '%v' updated\n", pkgMetadata.GetName())
