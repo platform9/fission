@@ -473,12 +473,15 @@ func fileChecksum(fileName string) (*fission.Checksum, error) {
 	}, nil
 }
 
-// Upload a file and return a fission.Archive
+// Return a fission.Archive made from an archive .  If specFile, then
+// create an archive upload spec in the specs directory; otherwise
+// upload the archive using client.  noZip avoids zipping the
+// includeFiles, but is ignored if there's more than one includeFile.
 func createArchive(client *client.Client, includeFiles []string, noZip bool, specFile string) *fission.Archive {
 	if len(specFile) > 0 {
 		// create an ArchiveUploadSpec and reference it from the archive
 		aus := &ArchiveUploadSpec{
-			Name:         util.KubifyName(path.Base(includeFiles[0])),
+			Name:         archiveName("", includeFiles),
 			IncludeGlobs: includeFiles,
 		}
 
@@ -682,12 +685,10 @@ func downloadURL(fileUrl string) (io.ReadCloser, error) {
 // returned as-is with no zipping.  (This is used for compatibility
 // with v1 envs.)  noZip is IGNORED if there is more than one input
 // file.
-func makeArchiveFileIfNeeded(archiveName string, archiveInput []string, noZip bool) string {
+func makeArchiveFileIfNeeded(archiveNameHint string, archiveInput []string, noZip bool) string {
 
-	// use the given name if we have one, otherwise make something up
-	if len(archiveName) == 0 {
-		archiveName = fmt.Sprintf("%v-%v", archiveInput[0], uniuri.NewLen(4))
-	}
+	// Unique name for the archive
+	archiveName := archiveName(archiveNameHint, archiveInput)
 
 	// We have one file; if it's a zip file or a URL, no need to archive it
 	if len(archiveInput) == 1 {
@@ -719,4 +720,15 @@ func makeArchiveFileIfNeeded(archiveName string, archiveInput []string, noZip bo
 	}
 
 	return archivePath
+}
+
+// Name an archive
+func archiveName(givenNameHint string, includedFiles []string) string {
+	if len(givenNameHint) > 0 {
+		return fmt.Sprintf("%v-%v", givenNameHint, uniuri.NewLen(4))
+	}
+	if len(includedFiles) == 0 {
+		return uniuri.NewLen(8)
+	}
+	return fmt.Sprintf("%v-%v", util.KubifyName(includedFiles[0]), uniuri.NewLen(4))
 }

@@ -1790,16 +1790,18 @@ func specSave(resource interface{}, specFile string) error {
 func (fr *FissionResources) specExists(resource interface{}, compareMetadata bool, compareSpec bool) *metav1.ObjectMeta {
 	switch typedres := resource.(type) {
 	case *ArchiveUploadSpec:
+		fmt.Printf("Searching for: %#v\n", typedres)
 		for _, aus := range fr.archiveUploadSpecs {
 			if compareMetadata && aus.Name != typedres.Name {
 				continue
 			}
 			if compareSpec &&
-				!reflect.DeepEqual(aus.RootDir, typedres.RootDir) &&
-				!reflect.DeepEqual(aus.IncludeGlobs, typedres.IncludeGlobs) &&
-				!reflect.DeepEqual(aus.ExcludeGlobs, typedres.ExcludeGlobs) {
+				!(reflect.DeepEqual(aus.RootDir, typedres.RootDir) &&
+					reflect.DeepEqual(aus.IncludeGlobs, typedres.IncludeGlobs) &&
+					reflect.DeepEqual(aus.ExcludeGlobs, typedres.ExcludeGlobs)) {
 				continue
 			}
+			fmt.Printf("found: %#v\n", aus)
 			return &metav1.ObjectMeta{Name: aus.Name}
 		}
 		return nil
