@@ -854,7 +854,8 @@ func applyArchives(fclient *client.Client, specDir string, fr *FissionResources)
 		} else {
 			// doesn't exist, upload
 			fmt.Printf("uploading archive %v\n", name)
-			uploadedAr := createArchive(fclient, ar.URL, []string{}, "")
+			// ar.URL is actually a local filename at this stage
+			uploadedAr := uploadArchive(fclient, ar.URL)
 			archiveFiles[name] = *uploadedAr
 		}
 	}

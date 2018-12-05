@@ -293,7 +293,7 @@ func upgradeRestoreState(c *cli.Context) error {
 		tmpfile.Close()
 
 		// upload
-		archive := createArchive(client, tmpfile.Name(), []string{}, "")
+		archive := uploadArchive(client, tmpfile.Name())
 		os.Remove(tmpfile.Name())
 
 		// create pkg
