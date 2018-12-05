@@ -481,10 +481,19 @@ func createArchive(client *client.Client, includeFiles []string, noZip bool, spe
 			Name:         util.KubifyName(path.Base(includeFiles[0])),
 			IncludeGlobs: includeFiles,
 		}
-		// save the uploadspec
-		err := specSave(*aus, specFile)
-		util.CheckErr(err, fmt.Sprintf("write spec file %v", specFile))
-		// create the archive
+
+		// check if this AUS exists in the specs; if so, don't create a new one
+		fr, err := readSpecs(getSpecDir(nil))
+		util.CheckErr(err, "read specs")
+		if m := fr.specExists(aus, false, true); m != nil {
+			aus.Name = m.Name
+		} else {
+			// save the uploadspec
+			err := specSave(*aus, specFile)
+			util.CheckErr(err, fmt.Sprintf("write spec file %v", specFile))
+		}
+
+		// create the archive object
 		ar := &fission.Archive{
 			Type: fission.ArchiveTypeUrl,
 			URL:  fmt.Sprintf("%v%v", ARCHIVE_URL_PREFIX, aus.Name),
@@ -578,7 +587,14 @@ func createPackage(client *client.Client, pkgNamespace string, envName string, e
 	}
 
 	if len(specFile) > 0 {
-		err := specSave(*pkg, specFile)
+		// if a package sith the same spec exists, don't create a new spec file
+		fr, err := readSpecs(getSpecDir(nil))
+		util.CheckErr(err, "read specs")
+		if m := fr.specExists(*pkg, false, true); m != nil {
+			return m
+		}
+
+		err = specSave(*pkg, specFile)
 		util.CheckErr(err, "save package spec")
 		return &pkg.Metadata
 	} else {

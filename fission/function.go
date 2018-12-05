@@ -254,13 +254,13 @@ func fnCreate(c *cli.Context) error {
 
 		srcArchiveFiles := c.StringSlice("src")
 		var deployArchiveFiles []string
-		codeFlag := false
+		noZip := false
 		code := c.String("code")
 		if len(code) == 0 {
 			deployArchiveFiles = c.StringSlice("deploy")
 		} else {
 			deployArchiveFiles = append(deployArchiveFiles, c.String("code"))
-			codeFlag = true
+			noZip = true
 		}
 		// fatal when both src & deploy archive are empty
 		if len(srcArchiveFiles) == 0 && len(deployArchiveFiles) == 0 {
@@ -270,7 +270,7 @@ func fnCreate(c *cli.Context) error {
 		buildcmd := c.String("buildcmd")
 
 		// create new package in the same namespace as the function.
-		pkgMetadata = createPackage(client, fnNamespace, envName, envNamespace, srcArchiveFiles, deployArchiveFiles, buildcmd, specFile, codeFlag)
+		pkgMetadata = createPackage(client, fnNamespace, envName, envNamespace, srcArchiveFiles, deployArchiveFiles, buildcmd, specFile, noZip)
 
 		fmt.Printf("package '%v' created\n", pkgMetadata.Name)
 	}

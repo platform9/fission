@@ -123,7 +123,10 @@ type (
 )
 
 func getSpecDir(c *cli.Context) string {
-	specDir := c.String("specdir")
+	specDir := ""
+	if c != nil {
+		specDir = c.String("specdir")
+	}
 	if len(specDir) == 0 {
 		specDir = "specs"
 	}
@@ -1779,4 +1782,41 @@ func specSave(resource interface{}, specFile string) error {
 		return errors.Wrap(err, "couldn't write to spec file")
 	}
 	return nil
+}
+
+// Returns true if the given resource exists in the specs, false
+// otherwise.  compareMetadata and compareSpec control how the
+// equality check is performed.
+func (fr *FissionResources) specExists(resource interface{}, compareMetadata bool, compareSpec bool) *metav1.ObjectMeta {
+	switch typedres := resource.(type) {
+	case ArchiveUploadSpec:
+		for _, aus := range fr.archiveUploadSpecs {
+			if compareMetadata && aus.Name != typedres.Name {
+				continue
+			}
+			if compareSpec &&
+				!reflect.DeepEqual(aus.RootDir, typedres.RootDir) &&
+				!reflect.DeepEqual(aus.IncludeGlobs, typedres.IncludeGlobs) &&
+				!reflect.DeepEqual(aus.ExcludeGlobs, typedres.ExcludeGlobs) {
+				continue
+			}
+			return &metav1.ObjectMeta{Name: aus.Name}
+		}
+		return nil
+	case crd.Package:
+		for _, p := range fr.packages {
+			if compareMetadata && !reflect.DeepEqual(p.Metadata, typedres.Metadata) {
+				continue
+			}
+			if compareSpec && !reflect.DeepEqual(p.Spec, typedres.Spec) {
+				continue
+			}
+			return &p.Metadata
+		}
+		return nil
+
+	default:
+		// XXX not implemented
+		return nil
+	}
 }
