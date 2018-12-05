@@ -1789,7 +1789,7 @@ func specSave(resource interface{}, specFile string) error {
 // equality check is performed.
 func (fr *FissionResources) specExists(resource interface{}, compareMetadata bool, compareSpec bool) *metav1.ObjectMeta {
 	switch typedres := resource.(type) {
-	case ArchiveUploadSpec:
+	case *ArchiveUploadSpec:
 		for _, aus := range fr.archiveUploadSpecs {
 			if compareMetadata && aus.Name != typedres.Name {
 				continue
@@ -1803,7 +1803,7 @@ func (fr *FissionResources) specExists(resource interface{}, compareMetadata boo
 			return &metav1.ObjectMeta{Name: aus.Name}
 		}
 		return nil
-	case crd.Package:
+	case *crd.Package:
 		for _, p := range fr.packages {
 			if compareMetadata && !reflect.DeepEqual(p.Metadata, typedres.Metadata) {
 				continue

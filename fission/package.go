@@ -590,7 +590,8 @@ func createPackage(client *client.Client, pkgNamespace string, envName string, e
 		// if a package sith the same spec exists, don't create a new spec file
 		fr, err := readSpecs(getSpecDir(nil))
 		util.CheckErr(err, "read specs")
-		if m := fr.specExists(*pkg, false, true); m != nil {
+		if m := fr.specExists(pkg, false, true); m != nil {
+			fmt.Printf("Re-using previously created package %v\n", m.Name)
 			return m
 		}
 
