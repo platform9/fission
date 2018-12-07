@@ -91,8 +91,7 @@ func pkgCreate(c *cli.Context) error {
 		log.Fatal("Need --src to specify source archive, or use --deploy to specify deployment archive.")
 	}
 
-	meta := createPackage(client, pkgNamespace, envName, envNamespace, srcArchiveFiles, deployArchiveFiles, buildcmd, "", false)
-	fmt.Printf("Package '%v' created\n", meta.GetName())
+	createPackage(client, pkgNamespace, envName, envNamespace, srcArchiveFiles, deployArchiveFiles, buildcmd, "", false)
 
 	return nil
 }
@@ -604,6 +603,7 @@ func createPackage(client *client.Client, pkgNamespace string, envName string, e
 	} else {
 		pkgMetadata, err := client.PackageCreate(pkg)
 		util.CheckErr(err, "create package")
+		fmt.Printf("Package '%v' created\n", pkgMetadata.GetName())
 		return pkgMetadata
 	}
 }
