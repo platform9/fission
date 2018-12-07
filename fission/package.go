@@ -690,21 +690,31 @@ func makeArchiveFileIfNeeded(archiveNameHint string, archiveInput []string, noZi
 	// Unique name for the archive
 	archiveName := archiveName(archiveNameHint, archiveInput)
 
+	// Get files from inputs as number of files decide next steps
+	files := make([]string, 0)
+	for _, glob := range archiveInput {
+		f, err := filepath.Glob(glob)
+		if err != nil {
+			log.Fatal(fmt.Sprintf("Invalid glob %v: %v", glob, err))
+		}
+		files = append(files, f...)
+	}
+
 	// We have one file; if it's a zip file or a URL, no need to archive it
-	if len(archiveInput) == 1 {
+	if len(files) == 1 {
 		// make sure it exists
-		if _, err := os.Stat(archiveInput[0]); err != nil {
-			util.CheckErr(err, fmt.Sprintf("open input file %v", archiveInput[0]))
+		if _, err := os.Stat(files[0]); err != nil {
+			util.CheckErr(err, fmt.Sprintf("open input file %v", files[0]))
 		}
 
 		// if it's an existing zip file OR we're not supposed to zip it, don't do anything
-		if archiver.Zip.Match(archiveInput[0]) || noZip {
-			return archiveInput[0]
+		if archiver.Zip.Match(files[0]) || noZip {
+			return files[0]
 		}
 
 		// if it's an HTTP URL, just use the URL.
-		if len(archiveInput) == 1 && (strings.HasPrefix(archiveInput[0], "http://") || strings.HasPrefix(archiveInput[0], "https://")) {
-			return archiveInput[0]
+		if len(files) == 1 && (strings.HasPrefix(files[0], "http://") || strings.HasPrefix(files[0], "https://")) {
+			return files[0]
 		}
 	}
 
