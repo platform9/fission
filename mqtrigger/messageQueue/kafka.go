@@ -29,12 +29,14 @@ import (
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
+	"os"
 )
 
 type (
 	Kafka struct {
 		routerUrl string
 		brokers   []string
+		version   sarama.KafkaVersion
 	}
 )
 
@@ -42,9 +44,18 @@ func makeKafkaMessageQueue(routerUrl string, mqCfg MessageQueueConfig) (MessageQ
 	if len(routerUrl) == 0 || len(mqCfg.Url) == 0 {
 		return nil, errors.New("The router URL or MQ URL is empty")
 	}
+	mqKafkaVersion := os.Getenv("MESSAGE_QUEUE_KAFKA_VERSION")
+
+	// Parse version string
+	kafkaVersion, err := sarama.ParseKafkaVersion(mqKafkaVersion)
+	if err != nil {
+		log.Warningf("error parsing version string %q: %v. Falling back to %q", mqKafkaVersion, err, kafkaVersion)
+	}
+
 	kafka := Kafka{
 		routerUrl: routerUrl,
 		brokers:   strings.Split(mqCfg.Url, ","),
+		version:   kafkaVersion,
 	}
 	log.Infof("Created Queue %v", kafka)
 	return kafka, nil
@@ -62,8 +73,7 @@ func (kafka Kafka) subscribe(trigger *crd.MessageQueueTrigger) (messageQueueSubs
 	consumerConfig := cluster.NewConfig()
 	consumerConfig.Consumer.Return.Errors = true
 	consumerConfig.Group.Return.Notifications = true
-	// TODO: the version number should be configurable by user
-	consumerConfig.Config.Version = sarama.V0_11_0_0
+	consumerConfig.Config.Version = kafka.version
 	consumer, err := cluster.NewConsumer(kafka.brokers, string(trigger.Metadata.UID), []string{trigger.Spec.Topic}, consumerConfig)
 	log.Infof("Created a new consumer: %#v", consumer)
 	if err != nil {
@@ -75,8 +85,7 @@ func (kafka Kafka) subscribe(trigger *crd.MessageQueueTrigger) (messageQueueSubs
 	producerConfig.Producer.RequiredAcks = sarama.WaitForAll
 	producerConfig.Producer.Retry.Max = 10
 	producerConfig.Producer.Return.Successes = true
-	// TODO: the version number should be configurable by user
-	producerConfig.Version = sarama.V0_11_0_0
+	producerConfig.Version = kafka.version
 	producer, err := sarama.NewSyncProducer(kafka.brokers, producerConfig)
 	log.Infof("Created a new producer %q", producer)
 	if err != nil {
@@ -186,17 +195,20 @@ func kafkaMsgHandler(kafka *Kafka, producer sarama.SyncProducer, trigger *crd.Me
 	if len(trigger.Spec.ResponseTopic) > 0 {
 		// Generate Kafka record headers
 		var kafkaRecordHeaders []sarama.RecordHeader
-		for k, v := range resp.Header {
-			// One key may have multiple values
-			for _, v := range v {
-				kafkaRecordHeaders = append(kafkaRecordHeaders, sarama.RecordHeader{Key: []byte(k), Value: []byte(v)})
+		if kafka.version.IsAtLeast(sarama.V0_11_0_0) {
+			for k, v := range resp.Header {
+				// One key may have multiple values
+				for _, v := range v {
+					kafkaRecordHeaders = append(kafkaRecordHeaders, sarama.RecordHeader{Key: []byte(k), Value: []byte(v)})
+				}
 			}
+		} else {
+			log.Warningf("Headers are not supported by Kafka version %q, needs v0.11+: dropping the headers", kafka.version)
 		}
 
 		_, _, err := producer.SendMessage(&sarama.ProducerMessage{
-			Topic: trigger.Spec.ResponseTopic,
-			Value: sarama.StringEncoder(body),
-			// TODO: don't pass the headers if version is < 0.11
+			Topic:   trigger.Spec.ResponseTopic,
+			Value:   sarama.StringEncoder(body),
 			Headers: kafkaRecordHeaders,
 		})
 		if err != nil {
