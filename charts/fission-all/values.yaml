@@ -73,6 +73,10 @@ azureStorageQueue:
 kafka:
   enabled: false
   brokers: 'broker.kafka:9092'
+  ## version of Kafka broker
+  ## Must be a string in the format "major.minor.veryMinor.patch"
+  ## Should be >= 0.11.0.0 to enable Kafka record headers support
+  # version: "0.11.0.0"
 
 ## Persist data to a persistent volume.
 persistence:

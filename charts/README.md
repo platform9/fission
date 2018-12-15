@@ -51,19 +51,20 @@ The following table lists the configurable parameters of the Fission chart and t
 
 * Extra configuration for `fission-all`
 
-| Parameter                       | Description                 | Default                                                    |
-| ------------------------------- | --------------------------- | ---------------------------------------------------------- |
-| `logger.influxdbAdmin`          | Log database admin username | `admin`                                                    |
-| `logger.fluentdImage`           | Logger fluentd image        | `fission/fluentd`                                          |
-| `fissionUiImage`                | Fission ui image            | `fission/fission-ui:0.1.0`                                 |
-| `nats.enabled`                | Nats streaming enabled   | `true`                                  |
-| `nats.authToken`                | Nats streaming auth token   | `defaultFissionAuthToken`(required if `nats.enabled` is `true`) |
-| `nats.clusterID`                | Nats streaming clusterID    | `fissionMQTrigger`(required if `nats.enabled` is `true`) |
-| `azureStorageQueue.enabled` * | Azure storage account name  | false |
-| `azureStorageQueue.accountName` | Azure storage account name  | None (required if `azureStorageQueue.enabled` is `true`) |
-| `azureStorageQueue.key`         | Azure storage access key    | None (required if `azureStorageQueue.enabled` is `true`) |
-| `kafka.enabled` *  | Kafka trigger enabled           | `false`                    |
-| `kafka.brokers`  | Kafka brokers uri               | `broker.kafka:9092`  (required if `kafka.enabled` is `true`)          |
+| Parameter                       | Description                 | Default                                                                 |
+| ------------------------------- | --------------------------- | ----------------------------------------------------------              |
+| `logger.influxdbAdmin`          | Log database admin username | `admin`                                                                 |
+| `logger.fluentdImage`           | Logger fluentd image        | `fission/fluentd`                                                       |
+| `fissionUiImage`                | Fission ui image            | `fission/fission-ui:0.1.0`                                              |
+| `nats.enabled`                  | Nats streaming enabled      | `true`                                                                  |
+| `nats.authToken`                | Nats streaming auth token   | `defaultFissionAuthToken`(required if `nats.enabled` is `true`)         |
+| `nats.clusterID`                | Nats streaming clusterID    | `fissionMQTrigger`(required if `nats.enabled` is `true`)                |
+| `azureStorageQueue.enabled` *   | Azure storage account name  | `false`                                                                 |
+| `azureStorageQueue.accountName` | Azure storage account name  | `None` (required if `azureStorageQueue.enabled` is `true`)              |
+| `azureStorageQueue.key`         | Azure storage access key    | `None` (required if `azureStorageQueue.enabled` is `true`)              |
+| `kafka.enabled` *               | Kafka trigger enabled       | `false`                                                                 |
+| `kafka.brokers`                 | Kafka brokers uri           | `broker.kafka:9092`  (required if `kafka.enabled` is `true`)            |
+| `kafka.version`                 | Kafka broker version        | `None` (should be `>= 0.11.0.0` to enable Kafka record headers support) |
 
 * - Please note that deploying of Azure Storage Queue or Kafka is not done by Fission chart and you will have to explicitly deploy them.
 

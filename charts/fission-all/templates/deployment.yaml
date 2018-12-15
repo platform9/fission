@@ -637,6 +637,8 @@ spec:
           value: kafka
         - name: MESSAGE_QUEUE_URL
           value: "{{.Values.kafka.brokers}}"
+        - name: MESSAGE_QUEUE_KAFKA_VERSION
+          value: "{{.Values.kafka.version}}"
       serviceAccount: fission-svc
 {{- end }}
 ---
