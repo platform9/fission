@@ -299,17 +299,20 @@ func (deploy *NewDeploy) fnCreate(fn *crd.Function, firstcreate bool) (*fscache.
 	svc, err := deploy.createOrGetSvc(deployLabels, objName, ns)
 	if err != nil {
 		log.Printf("Error creating the service %v: %v", objName, err)
-		return fsvc, err
+		go deploy.cleanupNewdeploy(objName, ns)
+		return fsvc, errors.Wrap(err, fmt.Sprintf("error creating service %v", objName))
 	}
 	svcAddress := fmt.Sprintf("%v.%v", svc.Name, svc.Namespace)
 	depl, err := deploy.createOrGetDeployment(fn, env, objName, deployLabels, ns, firstcreate)
 	if err != nil {
 		log.Printf("Error creating the deployment %v: %v", objName, err)
-		return fsvc, err
+		go deploy.cleanupNewdeploy(objName, ns)
+		return fsvc, errors.Wrap(err, fmt.Sprintf("error creating deployment %v", objName))
 	}
 
 	hpa, err := deploy.createOrGetHpa(objName, &fn.Spec.InvokeStrategy.ExecutionStrategy, depl)
 	if err != nil {
+		go deploy.cleanupNewdeploy(objName, ns)
 		return fsvc, errors.Wrap(err, fmt.Sprintf("error creating the HPA %v:", objName))
 	}
 
