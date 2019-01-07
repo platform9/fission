@@ -228,7 +228,8 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 			return nil, fission.MakeError(http.StatusInternalServerError, err.Error())
 		}
 
-		// retry to get service url again
+		// service url maybe nil if router cannot find one in cache,
+		// so here we retry to get service url again
 		if serviceUrl == nil {
 			time.Sleep(executingTimeout)
 			continue
@@ -482,24 +483,32 @@ func (fh *functionHandler) getServiceEntry() (serviceUrl *url.URL, serviceUrlFro
 	// To prevent multiple update requests will be sent to executor and make executor overloaded,
 	// the first goroutine is responsible to update the service url entry, all other goroutines
 	// for the same function will wait until first goroutine finished.
-	serviceUrl, serviceUrlFromCache, err = fh.svcAddrUpdateLocks.RunOnce(
+	recordObj, err := fh.svcAddrUpdateLocks.RunOnce(
 		fh.function,
-		func(firstToTheLock bool) (u *url.URL, fromCache bool, err error) {
-
+		func(firstToTheLock bool) (interface{}, error) {
+			var u *url.URL
 			// Get service entry from executor and update cache if its the first goroutine
 			if firstToTheLock { // first to the service url
 				log.Printf("Calling getServiceForFunction for function: %s", fh.function.Name)
 				u, err = fh.getServiceEntryFromExecutor()
-				if err == nil && u != nil {
-					// add the address in router's cache
-					log.Printf("Assigning service url: %s for function: %s", u, fh.function.Name)
-					fh.fmap.assign(fh.function, u)
+				if err != nil {
+					log.Printf("Error getting service url from executor: %v", err)
+					return nil, err
 				}
+				// add the address in router's cache
+				log.Printf("Assigning service url: %s for function: %s", u, fh.function.Name)
+				fh.fmap.assign(fh.function, u)
 			} else {
 				u, err = fh.getServiceEntryFromCache()
+				if err != nil {
+					return nil, err
+				}
 			}
 
-			return u, firstToTheLock, err
+			return &svcEntryRecord{
+				svcUrl:    u,
+				fromCache: firstToTheLock,
+			}, err
 		},
 	)
 	if err != nil {
@@ -508,7 +517,12 @@ func (fh *functionHandler) getServiceEntry() (serviceUrl *url.URL, serviceUrlFro
 		return nil, false, err
 	}
 
-	return serviceUrl, serviceUrlFromCache, err
+	record, ok := recordObj.(*svcEntryRecord)
+	if !ok {
+		return nil, false, errors.Errorf("Received unknown service record type")
+	}
+
+	return record.svcUrl, record.fromCache, nil
 }
 
 // getServiceEntryFromCache returns service url entry returns from cache

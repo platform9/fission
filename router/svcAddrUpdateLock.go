@@ -60,6 +60,11 @@ type (
 		lock           *svcAddrUpdateLock
 		firstGoroutine bool // denote this goroutine is the first goroutine
 	}
+
+	svcEntryRecord struct {
+		svcUrl    *url.URL
+		fromCache bool
+	}
 )
 
 func (l *svcAddrUpdateLock) isOld() bool {
@@ -145,8 +150,33 @@ func (ul *svcAddrUpdateLocks) service() {
 	}
 }
 
+// RunOnce is a simple throttling mechanism used to limit the total
+// amount of requests to get/update resource at the same time.
+//
+// In the router, for example, multiple goroutines may try to get the
+// latest service URL from executor when there is no service URL entry
+// in the cache and caused executor overloaded because of receiving
+// massive requests.
+//
+// RunOnce accepts two arguments:
+// 1. function metadata:
+//   It's used to check whether the updateLock of a function exists.
+//
+//   If not exists, a updateLock will be inserted into the map with
+//   metadata as key. Then, router pass true to callbackFunc to indi-
+//   cate this goroutine is the first goroutine and is responsible for
+//   updating service URL entry.
+//
+//   If exists, the goroutines have to wait until the first goroutine
+//   finishes the update process.
+//
+// 2. callback function:
+//   The callback function is a function accepts one bool argument which
+//   indicates whether a goroutine is responsible for getting/updating a
+//   resource from backend service or waiting for the first goroutine to
+//   be finished.
 func (locks *svcAddrUpdateLocks) RunOnce(fnMeta *metav1.ObjectMeta,
-	callbackFunc func(bool) (*url.URL, bool, error)) (*url.URL, bool, error) {
+	callbackFunc func(bool) (interface{}, error)) (interface{}, error) {
 
 	ch := make(chan *svcAddrUpdateResponse)
 	locks.requestChan <- &svcAddrUpdateRequest{
@@ -156,28 +186,27 @@ func (locks *svcAddrUpdateLocks) RunOnce(fnMeta *metav1.ObjectMeta,
 	}
 	resp := <-ch
 
-	if resp.firstGoroutine {
-		// release update lock so that other goroutines can take over the responsibility
-		// of updating the service map if failed.
-		defer func() {
-			go locks.Done(fnMeta)
-		}()
-	} else {
+	// if we are not the first one, wait for the first goroutine to finish the update
+	if !resp.firstGoroutine {
 		// wait for the first goroutine to update the service entry
 		err := resp.lock.Wait()
 		if err != nil {
-			return nil, false, err
+			return nil, err
 		}
 	}
 
-	return callbackFunc(resp.firstGoroutine)
-}
+	// release update lock so that other goroutines can take over the responsibility
+	// of updating the service map if failed.
+	defer func() {
+		go func() {
+			locks.requestChan <- &svcAddrUpdateRequest{
+				requestType: DELETE,
+				fnMeta:      fnMeta,
+			}
+		}()
+	}()
 
-func (locks *svcAddrUpdateLocks) Done(fnMeta *metav1.ObjectMeta) {
-	locks.requestChan <- &svcAddrUpdateRequest{
-		requestType: DELETE,
-		fnMeta:      fnMeta,
-	}
+	return callbackFunc(resp.firstGoroutine)
 }
 
 // expiryService periodically expires time-out locks.
