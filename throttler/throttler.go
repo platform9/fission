@@ -71,7 +71,7 @@ func (l *actionLock) isOld() bool {
 	return time.Since(l.ctimestamp) > l.timeExpiry
 }
 
-func (l *actionLock) Wait() error {
+func (l *actionLock) wait() error {
 	ch := make(chan struct{})
 
 	go func(wg *sync.WaitGroup, ch chan struct{}) {
@@ -95,11 +95,12 @@ func MakeThrottler(timeExpiry time.Duration) *Throttler {
 		locks:          make(map[string]*actionLock),
 		lockTimeExpiry: timeExpiry,
 	}
+	go tr.service()
+	go tr.expiryService()
 	return tr
 }
 
-func (tr *Throttler) Run() {
-	go tr.expiryService()
+func (tr *Throttler) service() {
 	for {
 		req := <-tr.requestChan
 
@@ -196,7 +197,7 @@ func (tr *Throttler) RunOnce(resourceKey string,
 	// if we are not the first one, wait for the first goroutine to finish the update
 	if !resp.firstGoroutine {
 		// wait for the first goroutine to update the service entry
-		err := resp.lock.Wait()
+		err := resp.lock.wait()
 		if err != nil {
 			return nil, err
 		}
