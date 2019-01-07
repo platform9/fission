@@ -26,6 +26,7 @@ import (
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
+	"github.com/fission/fission/throttler"
 )
 
 func TestRouter(t *testing.T) {
@@ -57,7 +58,7 @@ func TestRouter(t *testing.T) {
 			timeoutExponent: 2,
 			keepAlive:       30 * time.Second,
 			maxRetries:      10,
-		}, false, MakeUpdateLocks(30*time.Second))
+		}, false, throttler.MakeThrottler(30*time.Second))
 	triggerUrl := "/foo"
 	triggers.triggers = append(triggers.triggers,
 		crd.HTTPTrigger{
