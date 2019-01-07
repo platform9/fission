@@ -39,6 +39,7 @@ import (
 	"github.com/fission/fission/crd"
 	executorClient "github.com/fission/fission/executor/client"
 	"github.com/fission/fission/redis"
+	"github.com/fission/fission/throttler"
 )
 
 const (
@@ -46,54 +47,61 @@ const (
 	X_FORWARDED_HOST = "X-Forwarded-Host"
 )
 
-type tsRoundTripperParams struct {
-	timeout         time.Duration
-	timeoutExponent int
-	keepAlive       time.Duration
+type (
+	functionHandler struct {
+		fmap                     *functionServiceMap
+		frmap                    *functionRecorderMap
+		trmap                    *triggerRecorderMap
+		executor                 *executorClient.Client
+		function                 *metav1.ObjectMeta
+		httpTrigger              *crd.HTTPTrigger
+		functionMetadataMap      map[string]*metav1.ObjectMeta
+		fnWeightDistributionList []FunctionWeightDistribution
+		tsRoundTripperParams     *tsRoundTripperParams
+		recorderName             string
+		isDebugEnv               bool
+		svcAddrUpdateThrottler   *throttler.Throttler
+	}
 
-	// maxRetires is the max times for RetryingRoundTripper to retry a request.
-	// Default maxRetries is 10, which means router will retry for
-	// up to 10 times and abort it if still not succeeded.
-	maxRetries int
+	tsRoundTripperParams struct {
+		timeout         time.Duration
+		timeoutExponent int
+		keepAlive       time.Duration
 
-	// svcAddrRetryCount is the max times for RetryingRoundTripper to retry with a specific service address
-	// Router sends requests to a specific service address for each function.
-	// A service address is considered as an invalid one if amount of non-network
-	// errors router received is higher than svcAddrRetryCount. In this situation,
-	// remove it from cache and try to get a new one from executor.
-	// Default svcAddrRetryCount is 5.
-	svcAddrRetryCount int
-}
+		// maxRetires is the max times for RetryingRoundTripper to retry a request.
+		// Default maxRetries is 10, which means router will retry for
+		// up to 10 times and abort it if still not succeeded.
+		maxRetries int
 
-type functionHandler struct {
-	fmap                     *functionServiceMap
-	frmap                    *functionRecorderMap
-	trmap                    *triggerRecorderMap
-	executor                 *executorClient.Client
-	function                 *metav1.ObjectMeta
-	httpTrigger              *crd.HTTPTrigger
-	functionMetadataMap      map[string]*metav1.ObjectMeta
-	fnWeightDistributionList []FunctionWeightDistribution
-	tsRoundTripperParams     *tsRoundTripperParams
-	recorderName             string
-	isDebugEnv               bool
-	svcAddrUpdateLocks       *svcAddrUpdateLocks
-}
+		// svcAddrRetryCount is the max times for RetryingRoundTripper to retry with a specific service address
+		// Router sends requests to a specific service address for each function.
+		// A service address is considered as an invalid one if amount of non-network
+		// errors router received is higher than svcAddrRetryCount. In this situation,
+		// remove it from cache and try to get a new one from executor.
+		// Default svcAddrRetryCount is 5.
+		svcAddrRetryCount int
+	}
 
-// A layer on top of http.DefaultTransport, with retries.
-type RetryingRoundTripper struct {
-	funcHandler *functionHandler
-}
+	// A layer on top of http.DefaultTransport, with retries.
+	RetryingRoundTripper struct {
+		funcHandler *functionHandler
+	}
+
+	// To keep the request body open during retries, we create an interface with Close operation being a no-op.
+	// Details : https://github.com/flynn/flynn/pull/875
+	fakeCloseReadCloser struct {
+		io.ReadCloser
+	}
+
+	svcEntryRecord struct {
+		svcUrl    *url.URL
+		fromCache bool
+	}
+)
 
 func init() {
 	// just seeding the random number for getting the canary function
 	rand.Seed(time.Now().UnixNano())
-}
-
-// To keep the request body open during retries, we create an interface with Close operation being a no-op.
-// Details : https://github.com/flynn/flynn/pull/875
-type fakeCloseReadCloser struct {
-	io.ReadCloser
 }
 
 func (w *fakeCloseReadCloser) Close() error {
@@ -483,8 +491,8 @@ func (fh *functionHandler) getServiceEntry() (serviceUrl *url.URL, serviceUrlFro
 	// To prevent multiple update requests will be sent to executor and make executor overloaded,
 	// the first goroutine is responsible to update the service url entry, all other goroutines
 	// for the same function will wait until first goroutine finished.
-	recordObj, err := fh.svcAddrUpdateLocks.RunOnce(
-		fh.function,
+	recordObj, err := fh.svcAddrUpdateThrottler.RunOnce(
+		crd.CacheKey(fh.function),
 		func(firstToTheLock bool) (interface{}, error) {
 			var u *url.URL
 			// Get service entry from executor and update cache if its the first goroutine
@@ -505,7 +513,7 @@ func (fh *functionHandler) getServiceEntry() (serviceUrl *url.URL, serviceUrlFro
 				}
 			}
 
-			return &svcEntryRecord{
+			return svcEntryRecord{
 				svcUrl:    u,
 				fromCache: firstToTheLock,
 			}, err
@@ -517,7 +525,7 @@ func (fh *functionHandler) getServiceEntry() (serviceUrl *url.URL, serviceUrlFro
 		return nil, false, err
 	}
 
-	record, ok := recordObj.(*svcEntryRecord)
+	record, ok := recordObj.(svcEntryRecord)
 	if !ok {
 		return nil, false, errors.Errorf("Received unknown service record type")
 	}

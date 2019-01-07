@@ -14,64 +14,64 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package router
+package throttler
 
 import (
-	"net/url"
 	"sync"
 	"time"
 
 	"github.com/pkg/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/fission/fission/crd"
 )
 
-type svcAddrUpdateOperation int
+type throttlerOperationType int
 
 const (
-	GET svcAddrUpdateOperation = iota
+	GET throttlerOperationType = iota
 	DELETE
 	EXPIRE
 )
 
 type (
-	// svcAddrUpdateLock is the lock that will be used when
+	// actionLock is the lock that will be used when
 	// gorountine tries to update service address entry.
-	svcAddrUpdateLock struct {
+	actionLock struct {
 		wg         *sync.WaitGroup
 		ctimestamp time.Time // creation time of lock
 		timeExpiry time.Duration
 	}
 
-	svcAddrUpdateLocks struct {
-		requestChan    chan *svcAddrUpdateRequest
-		locks          map[string]*svcAddrUpdateLock
+	// Throttler is a simple throttling mechanism implementation provides
+	// ability to limit the total amount of requests to do the same thing
+	// at the same time.
+	//
+	// In router, for example, multiple goroutines may try to get the la-
+	// test service URL from executor when there is no service URL entry
+	// in the cache and caused executor overloaded because of receiving
+	// massive requests. With throttler, we can easily limit there is at
+	// most one requests being sent to executor.
+	Throttler struct {
+		requestChan    chan *request
+		locks          map[string]*actionLock
 		lockTimeExpiry time.Duration
 	}
 
-	svcAddrUpdateRequest struct {
-		requestType  svcAddrUpdateOperation
-		responseChan chan *svcAddrUpdateResponse
-		fnMeta       *metav1.ObjectMeta
+	request struct {
+		requestType  throttlerOperationType
+		responseChan chan *response
+		resourceKey  string
 	}
 
-	svcAddrUpdateResponse struct {
-		lock           *svcAddrUpdateLock
+	response struct {
+		lock           *actionLock
 		firstGoroutine bool // denote this goroutine is the first goroutine
-	}
-
-	svcEntryRecord struct {
-		svcUrl    *url.URL
-		fromCache bool
 	}
 )
 
-func (l *svcAddrUpdateLock) isOld() bool {
+func (l *actionLock) isOld() bool {
 	return time.Since(l.ctimestamp) > l.timeExpiry
 }
 
-func (l *svcAddrUpdateLock) Wait() error {
+func (l *actionLock) Wait() error {
 	ch := make(chan struct{})
 
 	go func(wg *sync.WaitGroup, ch chan struct{}) {
@@ -83,32 +83,31 @@ func (l *svcAddrUpdateLock) Wait() error {
 	case <-ch:
 		return nil
 	case <-time.After(l.timeExpiry):
-		return errors.New("Error waiting for svcAddrUpdateLock to be released: Exceeded timeout")
+		return errors.New("Error waiting for actionLock to be released: Exceeded timeout")
 	}
 }
 
-func MakeUpdateLocks(timeExpiry time.Duration) *svcAddrUpdateLocks {
-	locks := &svcAddrUpdateLocks{
-		requestChan:    make(chan *svcAddrUpdateRequest),
-		locks:          make(map[string]*svcAddrUpdateLock),
+// MakeThrottler returns a throttler that able to limit total amounts of goroutines from
+// doing the same thing at the same time.
+func MakeThrottler(timeExpiry time.Duration) *Throttler {
+	tr := &Throttler{
+		requestChan:    make(chan *request),
+		locks:          make(map[string]*actionLock),
 		lockTimeExpiry: timeExpiry,
 	}
-	go locks.service()
-	go locks.expiryService()
-	return locks
+	return tr
 }
 
-func (ul *svcAddrUpdateLocks) service() {
-
+func (tr *Throttler) Run() {
+	go tr.expiryService()
 	for {
-		req := <-ul.requestChan
+		req := <-tr.requestChan
 
 		switch req.requestType {
 		case GET:
-			key := crd.CacheKey(req.fnMeta)
-			lock, ok := ul.locks[key]
+			lock, ok := tr.locks[req.resourceKey]
 			if ok && !lock.isOld() {
-				req.responseChan <- &svcAddrUpdateResponse{
+				req.responseChan <- &response{
 					lock: lock, firstGoroutine: false,
 				}
 				continue
@@ -117,32 +116,31 @@ func (ul *svcAddrUpdateLocks) service() {
 				lock.wg.Done()
 			}
 
-			lock = &svcAddrUpdateLock{
+			lock = &actionLock{
 				wg:         &sync.WaitGroup{},
 				ctimestamp: time.Now(),
-				timeExpiry: ul.lockTimeExpiry,
+				timeExpiry: tr.lockTimeExpiry,
 			}
 
 			lock.wg.Add(1)
 
-			ul.locks[key] = lock
+			tr.locks[req.resourceKey] = lock
 
-			req.responseChan <- &svcAddrUpdateResponse{
+			req.responseChan <- &response{
 				lock: lock, firstGoroutine: true,
 			}
 
 		case DELETE:
-			key := crd.CacheKey(req.fnMeta)
-			lock, ok := ul.locks[key]
+			lock, ok := tr.locks[req.resourceKey]
 			if ok {
 				lock.wg.Done()
-				delete(ul.locks, key)
+				delete(tr.locks, req.resourceKey)
 			}
 
 		case EXPIRE:
-			for k, v := range ul.locks {
+			for k, v := range tr.locks {
 				if v.isOld() {
-					delete(ul.locks, k)
+					delete(tr.locks, k)
 					v.wg.Done()
 				}
 			}
@@ -150,17 +148,9 @@ func (ul *svcAddrUpdateLocks) service() {
 	}
 }
 
-// RunOnce is a simple throttling mechanism used to limit the total
-// amount of requests to get/update resource at the same time.
-//
-// In the router, for example, multiple goroutines may try to get the
-// latest service URL from executor when there is no service URL entry
-// in the cache and caused executor overloaded because of receiving
-// massive requests.
-//
 // RunOnce accepts two arguments:
 // 1. function metadata:
-//   It's used to check whether the updateLock of a function exists.
+//   It's used to check whether the actionLock of a function exists.
 //
 //   If not exists, a updateLock will be inserted into the map with
 //   metadata as key. Then, router pass true to callbackFunc to indi-
@@ -175,14 +165,31 @@ func (ul *svcAddrUpdateLocks) service() {
 //   indicates whether a goroutine is responsible for getting/updating a
 //   resource from backend service or waiting for the first goroutine to
 //   be finished.
-func (locks *svcAddrUpdateLocks) RunOnce(fnMeta *metav1.ObjectMeta,
+//
+//   Example callback function:
+//
+//   func(firstToTheLock bool) (interface{}, error) {
+// 	   var u *url.URL
+//
+//	   if firstToTheLock { // first to the service url
+//		   // Call to backend services then do something else.
+//		   // For example, get service url from executor then update router cache.
+//	   } else {
+//		   // Do something here.
+//		   // For example, get service url from cache
+//	   }
+//
+//	   return AnythingYouWant{}, error
+//   }
+
+func (tr *Throttler) RunOnce(resourceKey string,
 	callbackFunc func(bool) (interface{}, error)) (interface{}, error) {
 
-	ch := make(chan *svcAddrUpdateResponse)
-	locks.requestChan <- &svcAddrUpdateRequest{
+	ch := make(chan *response)
+	tr.requestChan <- &request{
 		requestType:  GET,
 		responseChan: ch,
-		fnMeta:       fnMeta,
+		resourceKey:  resourceKey,
 	}
 	resp := <-ch
 
@@ -199,9 +206,9 @@ func (locks *svcAddrUpdateLocks) RunOnce(fnMeta *metav1.ObjectMeta,
 	// of updating the service map if failed.
 	defer func() {
 		go func() {
-			locks.requestChan <- &svcAddrUpdateRequest{
+			tr.requestChan <- &request{
 				requestType: DELETE,
-				fnMeta:      fnMeta,
+				resourceKey: resourceKey,
 			}
 		}()
 	}()
@@ -211,10 +218,10 @@ func (locks *svcAddrUpdateLocks) RunOnce(fnMeta *metav1.ObjectMeta,
 
 // expiryService periodically expires time-out locks.
 // Normally, we don't need to do this just in case any of goroutine didn't release lock.
-func (locks *svcAddrUpdateLocks) expiryService() {
+func (tr *Throttler) expiryService() {
 	for {
 		time.Sleep(time.Minute)
-		locks.requestChan <- &svcAddrUpdateRequest{
+		tr.requestChan <- &request{
 			requestType: EXPIRE,
 		}
 	}

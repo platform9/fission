@@ -32,6 +32,7 @@ import (
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
 	executorClient "github.com/fission/fission/executor/client"
+	"github.com/fission/fission/throttler"
 )
 
 type HTTPTriggerSet struct {
@@ -53,11 +54,11 @@ type HTTPTriggerSet struct {
 	updateRouterRequestChannel chan struct{}
 	tsRoundTripperParams       *tsRoundTripperParams
 	isDebugEnv                 bool
-	svcAddrUpdateLocks         *svcAddrUpdateLocks
+	svcAddrUpdateThrottler     *throttler.Throttler
 }
 
 func makeHTTPTriggerSet(fmap *functionServiceMap, frmap *functionRecorderMap, trmap *triggerRecorderMap, fissionClient *crd.FissionClient,
-	kubeClient *kubernetes.Clientset, executor *executorClient.Client, crdClient *rest.RESTClient, params *tsRoundTripperParams, isDebugEnv bool, locks *svcAddrUpdateLocks) (*HTTPTriggerSet, k8sCache.Store, k8sCache.Store) {
+	kubeClient *kubernetes.Clientset, executor *executorClient.Client, crdClient *rest.RESTClient, params *tsRoundTripperParams, isDebugEnv bool, actionThrottler *throttler.Throttler) (*HTTPTriggerSet, k8sCache.Store, k8sCache.Store) {
 
 	httpTriggerSet := &HTTPTriggerSet{
 		functionServiceMap:         fmap,
@@ -69,7 +70,7 @@ func makeHTTPTriggerSet(fmap *functionServiceMap, frmap *functionRecorderMap, tr
 		updateRouterRequestChannel: make(chan struct{}),
 		tsRoundTripperParams:       params,
 		isDebugEnv:                 isDebugEnv,
-		svcAddrUpdateLocks:         locks,
+		svcAddrUpdateThrottler:     actionThrottler,
 	}
 	var tStore, fnStore, rStore k8sCache.Store
 	var tController, fnController k8sCache.Controller
@@ -156,7 +157,7 @@ func (ts *HTTPTriggerSet) getRouter() *mux.Router {
 			tsRoundTripperParams:     ts.tsRoundTripperParams,
 			recorderName:             recorderName,
 			isDebugEnv:               ts.isDebugEnv,
-			svcAddrUpdateLocks:       ts.svcAddrUpdateLocks,
+			svcAddrUpdateThrottler:   ts.svcAddrUpdateThrottler,
 		}
 
 		// The functionHandler for HTTP trigger with fn reference type "FunctionReferenceTypeFunctionName",
@@ -204,15 +205,15 @@ func (ts *HTTPTriggerSet) getRouter() *mux.Router {
 		}
 
 		fh := &functionHandler{
-			fmap:                 ts.functionServiceMap,
-			frmap:                ts.recorderSet.functionRecorderMap,
-			trmap:                ts.recorderSet.triggerRecorderMap,
-			function:             &m,
-			executor:             ts.executor,
-			tsRoundTripperParams: ts.tsRoundTripperParams,
-			recorderName:         recorderName,
-			isDebugEnv:           ts.isDebugEnv,
-			svcAddrUpdateLocks:   ts.svcAddrUpdateLocks,
+			fmap:                   ts.functionServiceMap,
+			frmap:                  ts.recorderSet.functionRecorderMap,
+			trmap:                  ts.recorderSet.triggerRecorderMap,
+			function:               &m,
+			executor:               ts.executor,
+			tsRoundTripperParams:   ts.tsRoundTripperParams,
+			recorderName:           recorderName,
+			isDebugEnv:             ts.isDebugEnv,
+			svcAddrUpdateThrottler: ts.svcAddrUpdateThrottler,
 		}
 		muxRouter.HandleFunc(fission.UrlForFunction(function.Metadata.Name, function.Metadata.Namespace), fh.handler)
 	}
