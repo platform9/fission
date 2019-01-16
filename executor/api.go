@@ -26,6 +26,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	"go.opencensus.io/plugin/ochttp"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission"
@@ -46,7 +47,7 @@ func (executor *Executor) getServiceForFunctionApi(w http.ResponseWriter, r *htt
 		return
 	}
 
-	serviceName, err := executor.getServiceForFunction(&m)
+	serviceName, err := executor.getServiceForFunction(r.Context(), &m)
 	if err != nil {
 		code, msg := fission.GetHTTPError(err)
 		log.Printf("Error: %v: %v", code, msg)
@@ -66,7 +67,7 @@ func (executor *Executor) getServiceForFunctionApi(w http.ResponseWriter, r *htt
 // stale addresses are not returned to the router.
 // To make it optimal, plan is to add an eager cache invalidator function that watches for pod deletion events and
 // invalidates the cache entry if the pod address was cached.
-func (executor *Executor) getServiceForFunction(m *metav1.ObjectMeta) (string, error) {
+func (executor *Executor) getServiceForFunction(ctx context.Context, m *metav1.ObjectMeta) (string, error) {
 	// Check function -> svc cache
 	log.Printf("[%v] Checking for cached function service", m.Name)
 	fsvc, err := executor.fsCache.GetByFunction(m)
@@ -82,6 +83,7 @@ func (executor *Executor) getServiceForFunction(m *metav1.ObjectMeta) (string, e
 
 	respChan := make(chan *createFuncServiceResponse)
 	executor.requestChan <- &createFuncServiceRequest{
+		ctx:      ctx,
 		funcMeta: m,
 		respChan: respChan,
 	}
@@ -128,5 +130,9 @@ func (executor *Executor) Serve(port int) {
 	executor.ndm.Run(ctx)
 	executor.gpm.Run(ctx)
 	r.Use(fission.LoggingMiddleware)
-	log.Fatal(http.ListenAndServe(address, r))
+	err := http.ListenAndServe(address, &ochttp.Handler{
+		Handler: r,
+		// Propagation: &b3.HTTPFormat{},
+	})
+	log.Fatal(err)
 }

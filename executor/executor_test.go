@@ -23,6 +23,7 @@
 package executor
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -237,7 +238,7 @@ func TestExecutor(t *testing.T) {
 
 	// the main test: get a service for a given function
 	t1 := time.Now()
-	svc, err := poolmgrClient.GetServiceForFunction(&f.Metadata)
+	svc, err := poolmgrClient.GetServiceForFunction(context.Background(), &f.Metadata)
 	if err != nil {
 		log.Panicf("failed to get func svc: %v", err)
 	}

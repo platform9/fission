@@ -29,6 +29,7 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/graymeta/stow/local"
 	log "github.com/sirupsen/logrus"
+	"go.opencensus.io/plugin/ochttp"
 )
 
 type (
@@ -170,7 +171,12 @@ func (ss *StorageService) Start(port int) {
 	address := fmt.Sprintf(":%v", port)
 
 	r.Use(fission.LoggingMiddleware)
-	log.Fatal(http.ListenAndServe(address, r))
+	err := http.ListenAndServe(address, &ochttp.Handler{
+		Handler: r,
+		// Propagation: &b3.HTTPFormat{},
+	})
+
+	log.Fatal(err)
 }
 
 func RunStorageService(storageType StorageType, storagePath string, containerName string, port int, enablePruner bool) *StorageService {

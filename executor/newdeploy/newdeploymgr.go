@@ -51,14 +51,15 @@ type (
 		crdClient        *rest.RESTClient
 		instanceID       string
 
-		fetcherImg             string
-		fetcherImagePullPolicy apiv1.PullPolicy
-		runtimeImagePullPolicy apiv1.PullPolicy
-		namespace              string
-		sharedMountPath        string
-		sharedSecretPath       string
-		sharedCfgMapPath       string
-		useIstio               bool
+		fetcherImg              string
+		fetcherImagePullPolicy  apiv1.PullPolicy
+		runtimeImagePullPolicy  apiv1.PullPolicy
+		namespace               string
+		sharedMountPath         string
+		sharedSecretPath        string
+		sharedCfgMapPath        string
+		useIstio                bool
+		jaegerCollectorEndpoint string
 
 		fsCache        *fscache.FunctionServiceCache // cache funcSvc's by function, address and podname
 		requestChannel chan *fnRequest
@@ -109,6 +110,8 @@ func MakeNewDeploy(
 		fetcherImagePullPolicy = "IfNotPresent"
 	}
 
+	jaegerCollectorEndpoint := os.Getenv("OPENCENSUS_TRACE_JAEGER_COLLECTOR_ENDPOINT")
+
 	enableIstio := false
 	if len(os.Getenv("ENABLE_ISTIO")) > 0 {
 		istio, err := strconv.ParseBool(os.Getenv("ENABLE_ISTIO"))
@@ -127,11 +130,12 @@ func MakeNewDeploy(
 		namespace: namespace,
 		fsCache:   fsCache,
 
-		fetcherImg:       fetcherImg,
-		sharedMountPath:  "/userfunc",
-		sharedSecretPath: "/secrets",
-		sharedCfgMapPath: "/configs",
-		useIstio:         enableIstio,
+		fetcherImg:              fetcherImg,
+		sharedMountPath:         "/userfunc",
+		sharedSecretPath:        "/secrets",
+		sharedCfgMapPath:        "/configs",
+		jaegerCollectorEndpoint: jaegerCollectorEndpoint,
+		useIstio:                enableIstio,
 
 		requestChannel:  make(chan *fnRequest),
 		idlePodReapTime: 2 * time.Minute,
@@ -199,7 +203,7 @@ func (deploy *NewDeploy) service() {
 	}
 }
 
-func (deploy *NewDeploy) GetFuncSvc(metadata *metav1.ObjectMeta) (*fscache.FuncSvc, error) {
+func (deploy *NewDeploy) GetFuncSvc(ctx context.Context, metadata *metav1.ObjectMeta) (*fscache.FuncSvc, error) {
 	c := make(chan *fnResponse)
 	fn, err := deploy.fissionClient.Functions(metadata.Namespace).Get(metadata.Name)
 	if err != nil {

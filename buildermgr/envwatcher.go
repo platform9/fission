@@ -73,15 +73,16 @@ type (
 	}
 
 	environmentWatcher struct {
-		cache                  map[string]*builderInfo
-		requestChan            chan envwRequest
-		builderNamespace       string
-		fissionClient          *crd.FissionClient
-		kubernetesClient       *kubernetes.Clientset
-		fetcherImage           string
-		fetcherImagePullPolicy apiv1.PullPolicy
-		builderImagePullPolicy apiv1.PullPolicy
-		useIstio               bool
+		cache                   map[string]*builderInfo
+		requestChan             chan envwRequest
+		builderNamespace        string
+		fissionClient           *crd.FissionClient
+		kubernetesClient        *kubernetes.Clientset
+		fetcherImage            string
+		fetcherImagePullPolicy  apiv1.PullPolicy
+		builderImagePullPolicy  apiv1.PullPolicy
+		useIstio                bool
+		jaegerCollectorEndpoint string
 	}
 )
 
@@ -105,17 +106,19 @@ func makeEnvironmentWatcher(fissionClient *crd.FissionClient,
 
 	fetcherImagePullPolicy := fission.GetImagePullPolicy(os.Getenv("FETCHER_IMAGE_PULL_POLICY"))
 	builderImagePullPolicy := fission.GetImagePullPolicy(os.Getenv("BUILDER_IMAGE_PULL_POLICY"))
+	jaegerCollectorEndpoint := os.Getenv("OPENCENSUS_TRACE_JAEGER_COLLECTOR_ENDPOINT")
 
 	envWatcher := &environmentWatcher{
-		cache:                  make(map[string]*builderInfo),
-		requestChan:            make(chan envwRequest),
-		builderNamespace:       builderNamespace,
-		fissionClient:          fissionClient,
-		kubernetesClient:       kubernetesClient,
-		fetcherImage:           fetcherImage,
-		fetcherImagePullPolicy: fetcherImagePullPolicy,
-		builderImagePullPolicy: builderImagePullPolicy,
-		useIstio:               useIstio,
+		cache:                   make(map[string]*builderInfo),
+		requestChan:             make(chan envwRequest),
+		builderNamespace:        builderNamespace,
+		fissionClient:           fissionClient,
+		kubernetesClient:        kubernetesClient,
+		fetcherImage:            fetcherImage,
+		fetcherImagePullPolicy:  fetcherImagePullPolicy,
+		builderImagePullPolicy:  builderImagePullPolicy,
+		useIstio:                useIstio,
+		jaegerCollectorEndpoint: jaegerCollectorEndpoint,
 	}
 
 	go envWatcher.service()
@@ -590,6 +593,7 @@ func (envw *environmentWatcher) createBuilderDeployment(env *crd.Environment, ns
 							Command: []string{"/fetcher",
 								"-secret-dir", sharedSecretPath,
 								"-cfgmap-dir", sharedCfgMapPath,
+								"-jaeger-collector-endpoint", envw.jaegerCollectorEndpoint,
 								sharedMountPath},
 							ReadinessProbe: &apiv1.Probe{
 								InitialDelaySeconds: 5,

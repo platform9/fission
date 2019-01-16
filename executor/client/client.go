@@ -18,6 +18,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"log"
@@ -26,6 +27,8 @@ import (
 	"strings"
 	"time"
 
+	"go.opencensus.io/plugin/ochttp"
+	"golang.org/x/net/context/ctxhttp"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission"
@@ -35,6 +38,7 @@ type Client struct {
 	executorUrl string
 	tappedByUrl map[string]bool
 	requestChan chan string
+	httpClient  *http.Client
 }
 
 func MakeClient(executorUrl string) *Client {
@@ -42,12 +46,15 @@ func MakeClient(executorUrl string) *Client {
 		executorUrl: strings.TrimSuffix(executorUrl, "/"),
 		tappedByUrl: make(map[string]bool),
 		requestChan: make(chan string),
+		httpClient: &http.Client{
+			Transport: &ochttp.Transport{},
+		},
 	}
 	go c.service()
 	return c
 }
 
-func (c *Client) GetServiceForFunction(metadata *metav1.ObjectMeta) (string, error) {
+func (c *Client) GetServiceForFunction(ctx context.Context, metadata *metav1.ObjectMeta) (string, error) {
 	executorUrl := c.executorUrl + "/v2/getServiceForFunction"
 
 	body, err := json.Marshal(metadata)
@@ -55,7 +62,7 @@ func (c *Client) GetServiceForFunction(metadata *metav1.ObjectMeta) (string, err
 		return "", err
 	}
 
-	resp, err := http.Post(executorUrl, "application/json", bytes.NewReader(body))
+	resp, err := ctxhttp.Post(ctx, c.httpClient, executorUrl, "application/json", bytes.NewReader(body))
 	if err != nil {
 		return "", err
 	}

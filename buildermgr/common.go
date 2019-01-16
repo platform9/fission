@@ -17,6 +17,7 @@ limitations under the License.
 package buildermgr
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -37,7 +38,7 @@ import (
 // 3. Send upload request to fetcher to upload deployment package.
 // 4. Return upload response and build logs.
 // *. Return build logs and error if any one of steps above failed.
-func buildPackage(fissionClient *crd.FissionClient, envBuilderNamespace string,
+func buildPackage(ctx context.Context, fissionClient *crd.FissionClient, envBuilderNamespace string,
 	storageSvcUrl string, pkg *crd.Package) (uploadResp *fission.ArchiveUploadResponse, buildLogs string, err error) {
 
 	env, err := fissionClient.Environments(pkg.Spec.Environment.Namespace).Get(pkg.Spec.Environment.Name)
@@ -60,7 +61,7 @@ func buildPackage(fissionClient *crd.FissionClient, envBuilderNamespace string,
 	}
 
 	// send fetch request to fetcher
-	err = fetcherC.Fetch(fetchReq)
+	err = fetcherC.Fetch(ctx, fetchReq)
 	if err != nil {
 		e := fmt.Sprintf("Error fetching source package: %v", err)
 		log.Println(e)
@@ -103,7 +104,7 @@ func buildPackage(fissionClient *crd.FissionClient, envBuilderNamespace string,
 
 	log.Printf("Start uploading deployment package: %v", buildResp.ArtifactFilename)
 	// ask fetcher to upload the deployment package
-	uploadResp, err = fetcherC.Upload(uploadReq)
+	uploadResp, err = fetcherC.Upload(ctx, uploadReq)
 	if err != nil {
 		e := fmt.Sprintf("Error uploading deployment package: %v", err)
 		log.Println(e)

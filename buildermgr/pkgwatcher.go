@@ -17,6 +17,7 @@ limitations under the License.
 package buildermgr
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"time"
@@ -160,7 +161,8 @@ func (pkgw *packageWatcher) build(buildCache *cache.Cache, srcpkg *crd.Package) 
 				log.Printf("Setup rolebinding for sa : %s.%s for pkg : %s.%s", fission.FissionBuilderSA, builderNs, pkg.Metadata.Name, pkg.Metadata.Namespace)
 			}
 
-			uploadResp, buildLogs, err := buildPackage(pkgw.fissionClient, builderNs, pkgw.storageSvcUrl, pkg)
+			ctx := context.Background()
+			uploadResp, buildLogs, err := buildPackage(ctx, pkgw.fissionClient, builderNs, pkgw.storageSvcUrl, pkg)
 			if err != nil {
 				log.Printf("Error building package %v: %v", pkg.Metadata.Name, err)
 				updatePackage(pkgw.fissionClient, pkg, fission.BuildStatusFailed, buildLogs, nil)

@@ -18,6 +18,7 @@ package router
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -33,6 +34,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 	log "github.com/sirupsen/logrus"
+	"go.opencensus.io/plugin/ochttp"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission"
@@ -82,10 +84,13 @@ type (
 		svcAddrRetryCount int
 	}
 
-	// A layer on top of http.DefaultTransport, with retries.
-	RetryingRoundTripper struct {
-		funcHandler *functionHandler
-	}
+
+// A layer on top of http.DefaultTransport, with retries.
+type RetryingRoundTripper struct {
+	funcHandler *functionHandler
+	base        http.RoundTripper
+}
+
 
 	// To keep the request body open during retries, we create an interface with Close operation being a no-op.
 	// Details : https://github.com/flynn/flynn/pull/875
@@ -98,6 +103,7 @@ type (
 		fromCache bool
 	}
 )
+
 
 func init() {
 	// just seeding the random number for getting the canary function
@@ -213,7 +219,7 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 
 	for i := 0; i < roundTripper.funcHandler.tsRoundTripperParams.maxRetries-1; i++ {
 		// get function service url from cache or executor
-		serviceUrl, serviceUrlFromCache, err := roundTripper.funcHandler.getServiceEntry()
+		serviceUrl, serviceUrlFromCache, err := roundTripper.funcHandler.getServiceEntry(req.Context())
 		if err != nil {
 			// We might want a specific error code or header for fission failures as opposed to
 			// user function bugs.
@@ -262,16 +268,10 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 		// (e.g. istio-proxy)
 		req.Host = serviceUrl.Host
 
-		// over-riding default settings.
-		transport.DialContext = (&net.Dialer{
-			Timeout:   executingTimeout,
-			KeepAlive: roundTripper.funcHandler.tsRoundTripperParams.keepAlive,
-		}).DialContext
-
 		overhead := time.Since(startTime)
 
 		// forward the request to the function service
-		resp, err = transport.RoundTrip(req)
+		resp, err = roundTripper.base.RoundTrip(req)
 		if err == nil {
 			// Track metrics
 			httpMetricLabels.code = resp.StatusCode
@@ -411,6 +411,21 @@ func (fh functionHandler) handler(responseWriter http.ResponseWriter, request *h
 		Director: director,
 		Transport: &RetryingRoundTripper{
 			funcHandler: &fh,
+			base: &ochttp.Transport{
+				Base: &http.Transport{
+					Proxy: http.ProxyFromEnvironment,
+					DialContext: (&net.Dialer{
+						Timeout:   fh.tsRoundTripperParams.timeout,
+						KeepAlive: fh.tsRoundTripperParams.keepAlive,
+					}).DialContext,
+					MaxIdleConns:          100,
+					IdleConnTimeout:       90 * time.Second,
+					TLSHandshakeTimeout:   10 * time.Second,
+					ExpectContinueTimeout: 1 * time.Second,
+					// Disables caching, Please refer to issue and specifically comment: https://github.com/fission/fission/issues/723#issuecomment-398781995
+					DisableKeepAlives: true,
+				},
+			},
 		},
 	}
 
@@ -494,7 +509,7 @@ func addForwardedHostHeader(req *http.Request) {
 }
 
 // getServiceEntry is a short-hand for developers to get service url entry that may returns from executor or cache
-func (fh *functionHandler) getServiceEntry() (serviceUrl *url.URL, serviceUrlFromCache bool, err error) {
+func (fh *functionHandler) getServiceEntry(ctx context.Context) (serviceUrl *url.URL, serviceUrlFromCache bool, err error) {
 	// try to find service url from cache first
 	serviceUrl, err = fh.getServiceEntryFromCache()
 	if err == nil && serviceUrl != nil {
@@ -514,8 +529,9 @@ func (fh *functionHandler) getServiceEntry() (serviceUrl *url.URL, serviceUrlFro
 			// Get service entry from executor and update cache if its the first goroutine
 			if firstToTheLock { // first to the service url
 				log.Printf("Calling getServiceForFunction for function: %s", fh.function.Name)
-				u, err = fh.getServiceEntryFromExecutor()
-				if err != nil {
+				u, err = fh.getServiceEntryFromExecutor(ctx)
+				if err == nil && u != nil {
+					// add the address in router's cache
 					log.Printf("Error getting service url from executor: %v", err)
 					return nil, err
 				}
@@ -573,9 +589,9 @@ func (fh *functionHandler) getServiceEntryFromCache() (serviceUrl *url.URL, err 
 }
 
 // getServiceEntryFromExecutor returns service url entry returns from executor
-func (fh *functionHandler) getServiceEntryFromExecutor() (*url.URL, error) {
+func (fh *functionHandler) getServiceEntryFromExecutor(ctx context.Context) (*url.URL, error) {
 	// send a request to executor to specialize a new pod
-	service, err := fh.executor.GetServiceForFunction(fh.function)
+	service, err := fh.executor.GetServiceForFunction(ctx, fh.function)
 	if err != nil {
 		statusCode, errMsg := fission.GetHTTPError(err)
 		log.Printf("Error from GetServiceForFunction for function (%v): %v : %v", fh.function, statusCode, errMsg)

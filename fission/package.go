@@ -18,6 +18,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -533,10 +534,11 @@ func createArchive(client *client.Client, includeFiles []string, noZip bool, spe
 
 	archivePath := makeArchiveFileIfNeeded("", includeFiles, noZip)
 
-	return uploadArchive(client, archivePath)
+	ctx := context.Background()
+	return uploadArchive(ctx, client, archivePath)
 }
 
-func uploadArchive(client *client.Client, fileName string) *fission.Archive {
+func uploadArchive(ctx context.Context, client *client.Client, fileName string) *fission.Archive {
 	var archive fission.Archive
 
 	// If filename is a URL, download it first
@@ -552,7 +554,7 @@ func uploadArchive(client *client.Client, fileName string) *fission.Archive {
 		ssClient := storageSvcClient.MakeClient(u)
 
 		// TODO add a progress bar
-		id, err := ssClient.Upload(fileName, nil)
+		id, err := ssClient.Upload(ctx, fileName, nil)
 		util.CheckErr(err, fmt.Sprintf("upload file %v", fileName))
 
 		storageSvc, err := client.GetSvcURL("application=fission-storage")

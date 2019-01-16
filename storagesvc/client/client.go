@@ -18,6 +18,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -29,12 +30,16 @@ import (
 	"os"
 	"strings"
 
+	"go.opencensus.io/plugin/ochttp"
+	"golang.org/x/net/context/ctxhttp"
+
 	"github.com/fission/fission/storagesvc"
 )
 
 type (
 	Client struct {
-		url string
+		url        string
+		httpClient *http.Client
 	}
 )
 
@@ -42,13 +47,16 @@ type (
 func MakeClient(url string) *Client {
 	return &Client{
 		url: strings.TrimSuffix(url, "/") + "/v1",
+		httpClient: &http.Client{
+			Transport: &ochttp.Transport{},
+		},
 	}
 }
 
 // Upload sends the local file pointed to by filePath to the storage
 // service, along with the metadata.  It returns a file ID that can be
 // used to retrieve the file.
-func (c *Client) Upload(filePath string, metadata *map[string]string) (string, error) {
+func (c *Client) Upload(ctx context.Context, filePath string, metadata *map[string]string) (string, error) {
 	fi, err := os.Stat(filePath)
 	if err != nil {
 		return "", err
@@ -82,9 +90,7 @@ func (c *Client) Upload(filePath string, metadata *map[string]string) (string, e
 	req.Header["X-File-Size"] = []string{fmt.Sprintf("%v", fileSize)}
 	req.Header["Content-Type"] = []string{contentType}
 
-	client := &http.Client{}
-
-	resp, err := client.Do(req)
+	resp, err := ctxhttp.Do(ctx, c.httpClient, req)
 	if err != nil {
 		return "", err
 	}
@@ -114,7 +120,7 @@ func (c *Client) GetUrl(id string) string {
 
 // Download fetches the file identified by ID to the local file path.
 // filePath must not exist.
-func (c *Client) Download(id string, filePath string) error {
+func (c *Client) Download(ctx context.Context, id string, filePath string) error {
 	// url for id
 	url := c.GetUrl(id)
 
@@ -132,7 +138,7 @@ func (c *Client) Download(id string, filePath string) error {
 	defer f.Close()
 
 	// make request
-	resp, err := http.Get(url)
+	resp, err := ctxhttp.Get(ctx, c.httpClient, url)
 	if err != nil {
 		fmt.Println(err)
 		os.Remove(filePath)
@@ -154,7 +160,7 @@ func (c *Client) Download(id string, filePath string) error {
 	return nil
 }
 
-func (c *Client) Delete(id string) error {
+func (c *Client) Delete(ctx context.Context, id string) error {
 	url := c.GetUrl(id)
 
 	req, err := http.NewRequest(http.MethodDelete, url, nil)
@@ -162,9 +168,7 @@ func (c *Client) Delete(id string) error {
 		return err
 	}
 
-	client := &http.Client{}
-
-	resp, err := client.Do(req)
+	resp, err := ctxhttp.Do(ctx, c.httpClient, req)
 	if err != nil {
 		return err
 	}
