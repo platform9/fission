@@ -17,6 +17,7 @@ limitations under the License.
 package poolmgr
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"math/rand"
@@ -45,28 +46,29 @@ import (
 
 type (
 	GenericPool struct {
-		env                    *crd.Environment
-		replicas               int32                         // num idle pods
-		deployment             *v1beta1.Deployment           // kubernetes deployment
-		namespace              string                        // namespace to keep our resources
-		functionNamespace      string                        // fallback namespace for fission functions
-		podReadyTimeout        time.Duration                 // timeout for generic pods to become ready
-		idlePodReapTime        time.Duration                 // pods unused for idlePodReapTime are deleted
-		fsCache                *fscache.FunctionServiceCache // cache funcSvc's by function, address and podname
-		useSvc                 bool                          // create k8s service for specialized pods
-		useIstio               bool
-		poolInstanceId         string // small random string to uniquify pod names
-		fetcherImage           string
-		fetcherImagePullPolicy apiv1.PullPolicy
-		runtimeImagePullPolicy apiv1.PullPolicy // pull policy for generic pool to created env deployment
-		kubernetesClient       *kubernetes.Clientset
-		fissionClient          *crd.FissionClient
-		instanceId             string // poolmgr instance id
-		labelsForPool          map[string]string
-		requestChannel         chan *choosePodRequest
-		sharedMountPath        string // used by generic pool when creating env deployment to specify the share volume path for fetcher & env
-		sharedSecretPath       string
-		sharedCfgMapPath       string
+		env                     *crd.Environment
+		replicas                int32                         // num idle pods
+		deployment              *v1beta1.Deployment           // kubernetes deployment
+		namespace               string                        // namespace to keep our resources
+		functionNamespace       string                        // fallback namespace for fission functions
+		podReadyTimeout         time.Duration                 // timeout for generic pods to become ready
+		idlePodReapTime         time.Duration                 // pods unused for idlePodReapTime are deleted
+		fsCache                 *fscache.FunctionServiceCache // cache funcSvc's by function, address and podname
+		useSvc                  bool                          // create k8s service for specialized pods
+		useIstio                bool
+		poolInstanceId          string // small random string to uniquify pod names
+		fetcherImage            string
+		fetcherImagePullPolicy  apiv1.PullPolicy
+		runtimeImagePullPolicy  apiv1.PullPolicy // pull policy for generic pool to created env deployment
+		kubernetesClient        *kubernetes.Clientset
+		fissionClient           *crd.FissionClient
+		instanceId              string // poolmgr instance id
+		labelsForPool           map[string]string
+		requestChannel          chan *choosePodRequest
+		sharedMountPath         string // used by generic pool when creating env deployment to specify the share volume path for fetcher & env
+		sharedSecretPath        string
+		sharedCfgMapPath        string
+		jaegerCollectorEndpoint string
 	}
 
 	// serialize the choosing of pods so that choices don't conflict
@@ -89,7 +91,8 @@ func MakeGenericPool(
 	functionNamespace string,
 	fsCache *fscache.FunctionServiceCache,
 	instanceId string,
-	enableIstio bool) (*GenericPool, error) {
+	enableIstio bool,
+	jaegerCollectorEndpoint string) (*GenericPool, error) {
 
 	log.Printf("Creating pool for environment %v", env.Metadata)
 
@@ -101,24 +104,25 @@ func MakeGenericPool(
 	// TODO: in general we need to provide the user a way to configure pools.  Initial
 	// replicas, autoscaling params, various timeouts, etc.
 	gp := &GenericPool{
-		env:               env,
-		replicas:          initialReplicas, // TODO make this an env param instead?
-		requestChannel:    make(chan *choosePodRequest),
-		fissionClient:     fissionClient,
-		kubernetesClient:  kubernetesClient,
-		namespace:         namespace,
-		functionNamespace: functionNamespace,
-		podReadyTimeout:   5 * time.Minute, // TODO make this an env param?
-		idlePodReapTime:   3 * time.Minute, // TODO make this configurable
-		fsCache:           fsCache,
-		poolInstanceId:    uniuri.NewLen(8),
-		instanceId:        instanceId,
-		fetcherImage:      fetcherImage,
-		useSvc:            false,       // defaults off -- svc takes a second or more to become routable, slowing cold start
-		useIstio:          enableIstio, // defaults off -- istio integration requires pod relabeling and it takes a second or more to become routable, slowing cold start
-		sharedMountPath:   "/userfunc", // change this may break v1 compatibility, since most of the v1 environments have hard-coded "/userfunc" in loading path
-		sharedSecretPath:  "/secrets",
-		sharedCfgMapPath:  "/configs",
+		env:                     env,
+		replicas:                initialReplicas, // TODO make this an env param instead?
+		requestChannel:          make(chan *choosePodRequest),
+		fissionClient:           fissionClient,
+		kubernetesClient:        kubernetesClient,
+		namespace:               namespace,
+		functionNamespace:       functionNamespace,
+		podReadyTimeout:         5 * time.Minute, // TODO make this an env param?
+		idlePodReapTime:         3 * time.Minute, // TODO make this configurable
+		fsCache:                 fsCache,
+		poolInstanceId:          uniuri.NewLen(8),
+		instanceId:              instanceId,
+		fetcherImage:            fetcherImage,
+		useSvc:                  false,       // defaults off -- svc takes a second or more to become routable, slowing cold start
+		useIstio:                enableIstio, // defaults off -- istio integration requires pod relabeling and it takes a second or more to become routable, slowing cold start
+		sharedMountPath:         "/userfunc", // change this may break v1 compatibility, since most of the v1 environments have hard-coded "/userfunc" in loading path
+		sharedSecretPath:        "/secrets",
+		sharedCfgMapPath:        "/configs",
+		jaegerCollectorEndpoint: jaegerCollectorEndpoint,
 	}
 
 	gp.runtimeImagePullPolicy = fission.GetImagePullPolicy(os.Getenv("RUNTIME_IMAGE_PULL_POLICY"))
@@ -301,7 +305,7 @@ func (gp *GenericPool) getSpecializeUrl(podIP string) string {
 // specializePod chooses a pod, copies the required user-defined function to that pod
 // (via fetcher), and calls the function-run container to load it, resulting in a
 // specialized pod.
-func (gp *GenericPool) specializePod(pod *apiv1.Pod, metadata *metav1.ObjectMeta) error {
+func (gp *GenericPool) specializePod(ctx context.Context, pod *apiv1.Pod, metadata *metav1.ObjectMeta) error {
 	// for fetcher we don't need to create a service, just talk to the pod directly
 	podIP := pod.Status.PodIP
 	if len(podIP) == 0 {
@@ -354,7 +358,7 @@ func (gp *GenericPool) specializePod(pod *apiv1.Pod, metadata *metav1.ObjectMeta
 
 	log.Printf("[%v] specializing pod", metadata.Name)
 
-	err = fetcherClient.MakeClient(fetcherUrl).Specialize(&specializeReq)
+	err = fetcherClient.MakeClient(fetcherUrl).Specialize(ctx, &specializeReq)
 	if err != nil {
 		return err
 	}
@@ -490,6 +494,7 @@ func (gp *GenericPool) createPool() error {
 							Command: []string{"/fetcher",
 								"-secret-dir", gp.sharedSecretPath,
 								"-cfgmap-dir", gp.sharedCfgMapPath,
+								"-jaeger-collector-endpoint", gp.jaegerCollectorEndpoint,
 								gp.sharedMountPath},
 							// Pod is removed from endpoints list for service when it's
 							// state became "Termination". We used preStop hook as the
@@ -620,7 +625,7 @@ func (gp *GenericPool) createSvc(name string, labels map[string]string) (*apiv1.
 	return svc, err
 }
 
-func (gp *GenericPool) GetFuncSvc(m *metav1.ObjectMeta) (*fscache.FuncSvc, error) {
+func (gp *GenericPool) GetFuncSvc(ctx context.Context, m *metav1.ObjectMeta) (*fscache.FuncSvc, error) {
 	log.Printf("[%v] Choosing pod from pool", m.Name)
 	newLabels := gp.labelsForFunction(m)
 
@@ -670,7 +675,7 @@ func (gp *GenericPool) GetFuncSvc(m *metav1.ObjectMeta) (*fscache.FuncSvc, error
 		return nil, err
 	}
 
-	err = gp.specializePod(pod, m)
+	err = gp.specializePod(ctx, pod, m)
 	if err != nil {
 		gp.scheduleDeletePod(pod.ObjectMeta.Name)
 		return nil, err

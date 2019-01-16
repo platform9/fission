@@ -18,6 +18,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -64,6 +65,7 @@ func TestStorageService(t *testing.T) {
 
 	// store it
 	metadata := make(map[string]string)
+	ctx := context.Background()
 	fileId, err := client.Upload(tmpfile.Name(), &metadata)
 	panicIf(err)
 

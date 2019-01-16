@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -11,12 +12,41 @@ import (
 	"runtime/debug"
 	"syscall"
 
+	"go.opencensus.io/exporter/jaeger"
+	"go.opencensus.io/plugin/ochttp"
+	"go.opencensus.io/trace"
+
 	"github.com/fission/fission"
 	"github.com/fission/fission/environments/fetcher"
 )
 
 func dumpStackTrace() {
 	debug.PrintStack()
+}
+
+func registerTraceExporter(jaegerCollectorEndpoint string) error {
+	if jaegerCollectorEndpoint == "" {
+		return nil
+	}
+
+	serviceName := "Fission-Fetcher"
+	exporter, err := jaeger.NewExporter(jaeger.Options{
+		CollectorEndpoint: jaegerCollectorEndpoint,
+		ServiceName:       serviceName,
+		Process: jaeger.Process{
+			ServiceName: serviceName,
+			Tags: []jaeger.Tag{
+				// jaeger.StringTag("ip", "127.0.0.1"),
+				jaeger.BoolTag("fission", true),
+			},
+		},
+	})
+	if err != nil {
+		return err
+	}
+	trace.RegisterExporter(exporter)
+	trace.ApplyConfig(trace.Config{DefaultSampler: trace.AlwaysSample()})
+	return nil
 }
 
 // Usage: fetcher <shared volume path>
@@ -32,6 +62,7 @@ func main() {
 	}()
 
 	flag.Usage = fetcherUsage
+	jaegerCollectorEndpoint := flag.String("jaeger-collector-endpoint", "", "")
 	specializeOnStart := flag.Bool("specialize-on-startup", false, "Flag to activate specialize process at pod starup")
 	specializePayload := flag.String("specialize-request", "", "JSON payload for specialize request")
 	secretDir := flag.String("secret-dir", "", "Path to shared secrets directory")
@@ -53,6 +84,10 @@ func main() {
 		}
 	}
 
+	if err := registerTraceExporter(*jaegerCollectorEndpoint); err != nil {
+		log.Fatalf("Could not register trace exporter: %v", err)
+	}
+
 	f, err := fetcher.MakeFetcher(dir, *secretDir, *configDir)
 	if err != nil {
 		log.Fatalf("Error making fetcher: %v", err)
@@ -70,7 +105,8 @@ func main() {
 				log.Fatalf("Error decoding specialize request: %v", err)
 			}
 
-			err = f.SpecializePod(specializeReq.FetchReq, specializeReq.LoadReq)
+			ctx := context.Background()
+			err = f.SpecializePod(ctx, specializeReq.FetchReq, specializeReq.LoadReq)
 			if err != nil {
 				log.Fatalf("Error specialing function poadt: %v", err)
 			}
@@ -96,7 +132,10 @@ func main() {
 	})
 
 	log.Println("Fetcher ready to receive requests")
-	http.ListenAndServe(":8000", mux)
+	http.ListenAndServe(":8000", &ochttp.Handler{
+		Handler: mux,
+		// Propagation: &b3.HTTPFormat{},
+	})
 }
 
 func fetcherUsage() {

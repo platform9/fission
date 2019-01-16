@@ -53,7 +53,9 @@ type (
 		instanceId     string
 		requestChannel chan *request
 
-		enableIstio    bool
+		enableIstio             bool
+		jaegerCollectorEndpoint string
+
 		funcStore      k8sCache.Store
 		funcController k8sCache.Controller
 		pkgStore       k8sCache.Store
@@ -81,14 +83,15 @@ func MakeGenericPoolManager(
 	instanceId string) *GenericPoolManager {
 
 	gpm := &GenericPoolManager{
-		pools:            make(map[string]*GenericPool),
-		kubernetesClient: kubernetesClient,
-		namespace:        functionNamespace,
-		fissionClient:    fissionClient,
-		fsCache:          fsCache,
-		instanceId:       instanceId,
-		requestChannel:   make(chan *request),
-		idlePodReapTime:  2 * time.Minute,
+		pools:                   make(map[string]*GenericPool),
+		kubernetesClient:        kubernetesClient,
+		namespace:               functionNamespace,
+		fissionClient:           fissionClient,
+		fsCache:                 fsCache,
+		instanceId:              instanceId,
+		requestChannel:          make(chan *request),
+		idlePodReapTime:         2 * time.Minute,
+		jaegerCollectorEndpoint: os.Getenv("OPENCENSUS_TRACE_JAEGER_COLLECTOR_ENDPOINT"),
 	}
 	go gpm.service()
 	go gpm.eagerPoolCreator()
@@ -139,7 +142,8 @@ func (gpm *GenericPoolManager) service() {
 
 				pool, err = MakeGenericPool(
 					gpm.fissionClient, gpm.kubernetesClient, req.env, poolsize,
-					ns, gpm.namespace, gpm.fsCache, gpm.instanceId, gpm.enableIstio)
+					ns, gpm.namespace, gpm.fsCache, gpm.instanceId, gpm.enableIstio,
+					gpm.jaegerCollectorEndpoint)
 				if err != nil {
 					req.responseChannel <- &response{error: err}
 					continue

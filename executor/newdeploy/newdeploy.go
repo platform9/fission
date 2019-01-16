@@ -293,6 +293,7 @@ func (deploy *NewDeploy) getDeploymentSpec(fn *crd.Function, env *crd.Environmen
 								"-specialize-request", string(specializePayload),
 								"-secret-dir", deploy.sharedSecretPath,
 								"-cfgmap-dir", deploy.sharedCfgMapPath,
+								"-jaeger-collector-endpoint", deploy.jaegerCollectorEndpoint,
 								deploy.sharedMountPath},
 							Lifecycle: &apiv1.Lifecycle{
 								PreStop: &apiv1.Handler{

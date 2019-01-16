@@ -2,6 +2,7 @@ package fetcher
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -18,7 +19,9 @@ import (
 
 	"github.com/mholt/archiver"
 	"github.com/pkg/errors"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
+	"go.opencensus.io/plugin/ochttp"
+	"golang.org/x/net/context/ctxhttp"
 	k8serr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -35,6 +38,7 @@ type (
 		sharedConfigPath string
 		fissionClient    *crd.FissionClient
 		kubeClient       *kubernetes.Clientset
+		httpClient       *http.Client
 	}
 )
 
@@ -60,39 +64,42 @@ func MakeFetcher(sharedVolumePath string, sharedSecretPath string, sharedConfigP
 		sharedConfigPath: sharedConfigPath,
 		fissionClient:    fissionClient,
 		kubeClient:       kubeClient,
+		httpClient: &http.Client{
+			Transport: &ochttp.Transport{},
+		},
 	}, nil
 }
 
-func downloadUrl(url string, localPath string) error {
-	resp, err := http.Get(url)
+func downloadUrl(ctx context.Context, httpClient *http.Client, url string, localPath string) (*fission.Checksum, error) {
+	resp, err := ctxhttp.Get(ctx, httpClient, url)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	w, err := os.Create(localPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer w.Close()
 
 	_, err = io.Copy(w, resp.Body)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// flushing write buffer to file
 	err = w.Sync()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	err = os.Chmod(localPath, 0600)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return nil, nil
 }
 
 func getChecksum(path string) (*fission.Checksum, error) {
@@ -175,8 +182,7 @@ func (fetcher *Fetcher) FetchHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("fetcher received fetch request and started downloading: %v", req)
-	code, err := fetcher.Fetch(req)
+	code, err := fetcher.Fetch(r.Context(), req)
 	if err != nil {
 		http.Error(w, err.Error(), code)
 		return
@@ -217,7 +223,7 @@ func (fetcher *Fetcher) SpecializeHandler(w http.ResponseWriter, r *http.Request
 
 	//log.Printf("fetcher received fetch request and started downloading: %v", req)
 
-	err = fetcher.SpecializePod(req.FetchReq, req.LoadReq)
+	err = fetcher.SpecializePod(r.Context(), req.FetchReq, req.LoadReq)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -229,7 +235,7 @@ func (fetcher *Fetcher) SpecializeHandler(w http.ResponseWriter, r *http.Request
 
 // Fetch takes FetchRequest and makes the fetch call
 // It returns the HTTP code and error if any
-func (fetcher *Fetcher) Fetch(req fission.FunctionFetchRequest) (int, error) {
+func (fetcher *Fetcher) Fetch(ctx context.Context, req fission.FunctionFetchRequest) (int, error) {
 	// check that the requested filename is not an empty string and error out if so
 	if len(req.Filename) == 0 {
 		e := fmt.Sprintf("Fetch request received for an empty file name, request: %v", req)
@@ -248,7 +254,7 @@ func (fetcher *Fetcher) Fetch(req fission.FunctionFetchRequest) (int, error) {
 
 	if req.FetchType == fission.FETCH_URL {
 		// fetch the file and save it to the tmp path
-		err := downloadUrl(req.Url, tmpPath)
+		_, err := downloadUrl(ctx, fetcher.httpClient, req.Url, tmpPath)
 		if err != nil {
 			e := fmt.Sprintf("Failed to download url %v: %v", req.Url, err)
 			log.Printf(e)
@@ -289,7 +295,7 @@ func (fetcher *Fetcher) Fetch(req fission.FunctionFetchRequest) (int, error) {
 			}
 		} else {
 			// download and verify
-			err = downloadUrl(archive.URL, tmpPath)
+			checksum, err := downloadUrl(ctx, fetcher.httpClient, archive.URL, tmpPath)
 			if err != nil {
 				e := fmt.Sprintf("Failed to download url %v: %v", req.Url, err)
 				log.Printf(e)
@@ -454,7 +460,7 @@ func (fetcher *Fetcher) UploadHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Starting upload...")
 	ssClient := storageSvcClient.MakeClient(req.StorageSvcUrl)
 
-	fileID, err := ssClient.Upload(dstFilepath, nil)
+	fileID, err := ssClient.Upload(r.Context(), dstFilepath, nil)
 	if err != nil {
 		e := fmt.Sprintf("Error uploading zip file: %v", err)
 		log.Println(e)
@@ -526,14 +532,14 @@ func (fetcher *Fetcher) unarchive(src string, dst string) error {
 	return nil
 }
 
-func (fetcher *Fetcher) SpecializePod(fetchReq fission.FunctionFetchRequest, loadReq fission.FunctionLoadRequest) error {
+func (fetcher *Fetcher) SpecializePod(ctx context.Context, fetchReq fission.FunctionFetchRequest, loadReq fission.FunctionLoadRequest) error {
 	startTime := time.Now()
 	defer func() {
 		elapsed := time.Since(startTime)
 		log.Printf("Elapsed time in fetch request = %v", elapsed)
 	}()
 
-	_, err := fetcher.Fetch(fetchReq)
+	_, err := fetcher.Fetch(ctx, fetchReq)
 	if err != nil {
 		return errors.Wrap(err, "Error fetching deploy package")
 	}
