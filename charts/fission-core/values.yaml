@@ -46,7 +46,17 @@ enableIstio: false
 
 ## Persist data to a persistent volume.
 persistence:
+  ## If true, fission will create/use a Persistent Volume Claim
+  ## If false, use emptyDir
+  ##
   enabled: true
+
+  ## A manually managed Persistent Volume Claim name
+  ## Requires persistence.enabled: true
+  ## If defined, PVC must be created manually before volume will be bound
+  ##
+  # existingClaim:
+
   ## If defined, storageClassName: <storageClass>
   ## If set to "-", storageClassName: "", which disables dynamic provisioning
   ## If undefined (the default) or set to null, no storageClassName spec is
@@ -54,6 +64,7 @@ persistence:
   ##   GKE, AWS & OpenStack)
   ##
   # storageClass: "-"
+
   accessMode: ReadWriteOnce
   size: 8Gi
 
