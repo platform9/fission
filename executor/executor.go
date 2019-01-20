@@ -172,7 +172,6 @@ func (executor *Executor) createServiceForFunction(meta *metav1.ObjectMeta) (*fs
 	}
 
 	if fsvcErr != nil {
-		fsvcErr = errors.Wrap(fsvcErr, fmt.Sprintf("[%v] Error creating service for function", meta.Name))
 		log.Print(fsvcErr)
 	}
 

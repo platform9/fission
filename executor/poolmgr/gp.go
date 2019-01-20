@@ -574,9 +574,26 @@ func (gp *GenericPool) waitForReadyPod() error {
 		}
 
 		if time.Since(startTime) > gp.podReadyTimeout {
+			podList, err := gp.kubernetesClient.CoreV1().Pods(gp.namespace).List(metav1.ListOptions{
+				LabelSelector: labels.Set(
+					gp.deployment.Spec.Selector.MatchLabels).AsSelector().String(),
+			})
+			if err != nil {
+
+			}
+
+			// Since even single pod is not ready, choosing the first pod to inspect is a good approximation. In future this can be done better
+			pod := podList.Items[0]
+			var podErr string
+			for _, cStatus := range pod.Status.ContainerStatuses {
+				if cStatus.Ready != true {
+					podErr = cStatus.State.Waiting.Reason + cStatus.State.Waiting.Message
+				}
+			}
+
 			return errors.Errorf(
-				"Timeout: waited too long for pod of deployment %v in namespace %v to be ready",
-				gp.deployment.ObjectMeta.Name, gp.namespace)
+				"Timeout: waited too long for pod of deployment %v in namespace %v to be ready, error: %v",
+				gp.deployment.ObjectMeta.Name, gp.namespace, podErr)
 		}
 		time.Sleep(1000 * time.Millisecond)
 	}

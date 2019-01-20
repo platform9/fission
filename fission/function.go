@@ -803,7 +803,7 @@ func fnTest(c *cli.Context) error {
 
 	body, err := ioutil.ReadAll(resp.Body)
 	util.CheckErr(err, "read log response from pod")
-	fmt.Printf("Error calling function %s: %d %s", fnName, resp.StatusCode, string(body))
+	fmt.Printf("Error calling function %s: %d; Please try again or fix the error: %s", fnName, resp.StatusCode, string(body))
 	defer resp.Body.Close()
 	err = printPodLogs(c)
 	if err != nil {
