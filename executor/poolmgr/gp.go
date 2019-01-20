@@ -579,7 +579,7 @@ func (gp *GenericPool) waitForReadyPod() error {
 					gp.deployment.Spec.Selector.MatchLabels).AsSelector().String(),
 			})
 			if err != nil {
-
+				log.Printf("Error getting pod list after timeout waiting for ready pod: %v", err)
 			}
 
 			// Since even single pod is not ready, choosing the first pod to inspect is a good approximation. In future this can be done better
