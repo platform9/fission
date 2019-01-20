@@ -70,18 +70,18 @@ Parameter | Description | Default
 Parameter | Description | Default
 --------- | ----------- | -------
 `createNamespace` | If true, create `fission-function` and `fission-builder` namespaces | ` true`
-`logger.influxdbAdmin` | Log database admin username | `"admin"`
+`logger.influxdbAdmin` | Log database admin username | `admin`
 `logger.fluentdImage` | Logger fluentd image | `fission/fluentd`
 `logger.fluentdImageTag` | Fission ui image tag | `1.0-rc2`
 `nats.enabled` | Nats streaming enabled | `true`
-`nats.authToken` | Nats streaming auth token | `"defaultFissionAuthToken"`
-`nats.clusterID` | Nats streaming clusterID | `"fissionMQTrigger"`
+`nats.authToken` | Nats streaming auth token | `defaultFissionAuthToken`
+`nats.clusterID` | Nats streaming clusterID | `fissionMQTrigger`
 `natsStreamingPort` | Nats streaming service port | `31316`
 `azureStorageQueue.enabled` | Azure storage account name | `false`
 `azureStorageQueue.key` | Azure storage account name | `""`
 `azureStorageQueue.accountName` | Azure storage access key | `""`
 `kafka.enabled` | Kafka trigger enabled | `false`
-`kafka.brokers` | Kafka brokers uri | `'broker.kafka:9092'`
+`kafka.brokers` | Kafka brokers uri | `broker.kafka:9092`
 `kafka.version` | Kafka broker version | `nil`
 `heapster` | Enable Heapster (only enable this in clusters where heapster does not exist already) | `false`
 
