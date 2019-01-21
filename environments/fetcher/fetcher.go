@@ -123,15 +123,11 @@ func getChecksum(path string) (*fission.Checksum, error) {
 	}, nil
 }
 
-func verifyChecksum(path string, checksum *fission.Checksum) error {
+func verifyChecksum(c, checksum *fission.Checksum) error {
 	if checksum.Type != fission.ChecksumTypeSHA256 {
 		return fission.MakeError(fission.ErrorInvalidArgument, "Unsupported checksum type")
 	}
-	c, err := getChecksum(path)
-	if err != nil {
-		return err
-	}
-	if c.Sum != checksum.Sum {
+	if checksum.Sum != checksum.Sum {
 		return fission.MakeError(fission.ErrorChecksumFail, "Checksum validation failed")
 	}
 	return nil
@@ -302,7 +298,7 @@ func (fetcher *Fetcher) Fetch(ctx context.Context, req fission.FunctionFetchRequ
 				return http.StatusBadRequest, errors.New(e)
 			}
 
-			err = verifyChecksum(tmpPath, &archive.Checksum)
+			err = verifyChecksum(checksum, &archive.Checksum)
 			if err != nil {
 				e := fmt.Sprintf("Failed to verify checksum: %v", err)
 				log.Printf(e)

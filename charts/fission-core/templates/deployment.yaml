@@ -261,6 +261,8 @@ spec:
           value: "{{ .Values.pullPolicy }}"
         - name: ENABLE_ISTIO
           value: "{{ .Values.enableIstio }}"
+        - name: OPENCENSUS_TRACE_JAEGER_COLLECTOR_ENDPOINT
+          value: "{{ .Values.jaegerEndpoint }}"
         - name: FETCHER_MINCPU
           value: {{ .Values.fetcherMinCpu | default "10m" | quote }}
         - name: FETCHER_MINMEM
@@ -311,6 +313,8 @@ spec:
           value: "{{ .Values.pullPolicy }}"
         - name: BUILDER_IMAGE_PULL_POLICY
           value: "{{ .Values.pullPolicy }}"
+        - name: OPENCENSUS_TRACE_JAEGER_COLLECTOR_ENDPOINT
+          value: "{{ .Values.jaegerEndpoint }}"
         - name: ENABLE_ISTIO
           value: "{{ .Values.enableIstio }}"
       serviceAccount: fission-svc
