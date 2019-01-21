@@ -84,13 +84,11 @@ type (
 		svcAddrRetryCount int
 	}
 
-
-// A layer on top of http.DefaultTransport, with retries.
-type RetryingRoundTripper struct {
-	funcHandler *functionHandler
-	base        http.RoundTripper
-}
-
+	// A layer on top of http.DefaultTransport, with retries.
+	RetryingRoundTripper struct {
+		funcHandler *functionHandler
+		base        http.RoundTripper
+	}
 
 	// To keep the request body open during retries, we create an interface with Close operation being a no-op.
 	// Details : https://github.com/flynn/flynn/pull/875
@@ -103,7 +101,6 @@ type RetryingRoundTripper struct {
 		fromCache bool
 	}
 )
-
 
 func init() {
 	// just seeding the random number for getting the canary function
@@ -530,8 +527,7 @@ func (fh *functionHandler) getServiceEntry(ctx context.Context) (serviceUrl *url
 			if firstToTheLock { // first to the service url
 				log.Printf("Calling getServiceForFunction for function: %s", fh.function.Name)
 				u, err = fh.getServiceEntryFromExecutor(ctx)
-				if err == nil && u != nil {
-					// add the address in router's cache
+				if err != nil {
 					log.Printf("Error getting service url from executor: %v", err)
 					return nil, err
 				}

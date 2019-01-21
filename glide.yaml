@@ -74,3 +74,5 @@ import:
   version: ^2.1.11
 - package: github.com/Shopify/sarama
   version: ^1.15.0
+- package: github.com/census-instrumentation/opencensus-go
+- package: google.golang.org/api/support/bundler
