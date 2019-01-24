@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -293,7 +294,8 @@ func upgradeRestoreState(c *cli.Context) error {
 		tmpfile.Close()
 
 		// upload
-		archive := uploadArchive(client, tmpfile.Name())
+		ctx := context.Background()
+		archive := uploadArchive(ctx, client, tmpfile.Name())
 		os.Remove(tmpfile.Name())
 
 		// create pkg
