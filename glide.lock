@@ -1,11 +1,15 @@
-hash: 07bc3f35b3b63ff6f15edf3b8724eb61bd6427572322fc171efbe18cec91cd9e
-updated: 2018-09-17T14:46:13.995469387+05:30
+hash: fbb8e5b2fc64114cf4cd7158a1498f36c580e01b327c14cd35682f999ce13db3
+updated: 2019-01-24T19:14:41.16237463+05:30
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
   subpackages:
   - compute/metadata
   - internal
+- name: git.apache.org/thrift.git
+  version: 22749ac376b10982eb5fa5a32ba336b20e1e6344
+  subpackages:
+  - lib/go/thrift
 - name: github.com/Azure/azure-sdk-for-go
   version: f111fc2fa3861c5fdced76cae4c9c71821969577
   subpackages:
@@ -27,6 +31,8 @@ imports:
   version: f87b566248bb0713a56dc55bc545aa5aad17ace0
   subpackages:
   - client
+- name: github.com/DataDog/zstd
+  version: 1e382f59b41eebd6f592c5db4fd1958ec38a0eba
 - name: github.com/davecgh/go-spew
   version: 8991bc29aa16c548c550c7ff78260e27b9ab7c73
   subpackages:
@@ -156,7 +162,7 @@ imports:
   subpackages:
   - pb
 - name: github.com/nats-io/nats-streaming-server
-  version: 8910c0c347bc51cc87227aeb27bef19d409bf5c2
+  version: 7b758bb93407505bc1d0cf26d091fc281d99ca0c
   subpackages:
   - spb
   - util
@@ -173,6 +179,7 @@ imports:
 - name: github.com/prometheus/client_golang
   version: c5b7fccd204277076155f10851dad72b76a49317
   subpackages:
+  - api/prometheus
   - prometheus
   - prometheus/promhttp
 - name: github.com/prometheus/client_model
@@ -196,7 +203,7 @@ imports:
 - name: github.com/satori/go.uuid
   version: f58768cc1a7a7e77a3bd49e98cdd21419399b6a3
 - name: github.com/Shopify/sarama
-  version: a6144ae922fd99dd0ea5046c8137acfb7fab0914
+  version: 03a43f93cd29dc549e6d9b11892795c206f9c38c
 - name: github.com/sirupsen/logrus
   version: 68cec9f21fbf3ea8d8f98c044bc6ce05f17b267a
 - name: github.com/spf13/pflag
@@ -215,6 +222,24 @@ imports:
   - lzma
 - name: github.com/urfave/cli
   version: cfb38830724cc34fedffe9a2a29fb54fa9169cd1
+- name: go.opencensus.io
+  version: 2b5032d79456124f42db6b7eb19ac6c155449dc2
+  subpackages:
+  - exemplar
+  - exporter/jaeger
+  - exporter/jaeger/internal/gen-go/jaeger
+  - internal
+  - internal/tagencoding
+  - plugin/ochttp
+  - plugin/ochttp/propagation/b3
+  - stats
+  - stats/internal
+  - stats/view
+  - tag
+  - trace
+  - trace/internal
+  - trace/propagation
+  - trace/tracestate
 - name: golang.org/x/crypto
   version: 81e90905daefcd6fd217b62423c0908922eadb30
   subpackages:
@@ -235,6 +260,10 @@ imports:
   - internal
   - jws
   - jwt
+- name: golang.org/x/sync
+  version: 1d60e4601c6fd243af51cc01ddf169918a5407ca
+  subpackages:
+  - semaphore
 - name: golang.org/x/sys
   version: 95c6576299259db960f6c5b9b69ea52422860fce
   subpackages:
@@ -255,6 +284,10 @@ imports:
   version: 87c7dcbd5db6be1a938380ce9944ed2299806701
   subpackages:
   - imports
+- name: google.golang.org/api
+  version: 8001663557ac8d144131ea92d9829a0d8e668ab7
+  subpackages:
+  - support/bundler
 - name: google.golang.org/appengine
   version: 9d8544a6b2c7df9cff240fcf92d7b2f59bc13416
   repo: https://github.com/golang/appengine
