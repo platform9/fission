@@ -66,7 +66,7 @@ func TestStorageService(t *testing.T) {
 	// store it
 	metadata := make(map[string]string)
 	ctx := context.Background()
-	fileId, err := client.Upload(tmpfile.Name(), &metadata)
+	fileId, err := client.Upload(ctx, tmpfile.Name(), &metadata)
 	panicIf(err)
 
 	// make a temp file for verification
@@ -75,7 +75,7 @@ func TestStorageService(t *testing.T) {
 	os.Remove(retrievedfile.Name())
 
 	// retrieve uploaded file
-	err = client.Download(fileId, retrievedfile.Name())
+	err = client.Download(ctx, fileId, retrievedfile.Name())
 	panicIf(err)
 	defer os.Remove(retrievedfile.Name())
 
@@ -89,11 +89,11 @@ func TestStorageService(t *testing.T) {
 	}
 
 	// delete uploaded file
-	err = client.Delete(fileId)
+	err = client.Delete(ctx, fileId)
 	panicIf(err)
 
 	// make sure download fails
-	err = client.Download(fileId, "xxx")
+	err = client.Download(ctx, fileId, "xxx")
 	if err == nil {
 		log.Panic("Download succeeded but file isn't supposed to exist")
 	}
