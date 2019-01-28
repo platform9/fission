@@ -32,11 +32,9 @@ func registerTraceExporter(jaegerCollectorEndpoint string) error {
 	serviceName := "Fission-Fetcher"
 	exporter, err := jaeger.NewExporter(jaeger.Options{
 		CollectorEndpoint: jaegerCollectorEndpoint,
-		ServiceName:       serviceName,
 		Process: jaeger.Process{
 			ServiceName: serviceName,
 			Tags: []jaeger.Tag{
-				// jaeger.StringTag("ip", "127.0.0.1"),
 				jaeger.BoolTag("fission", true),
 			},
 		},
@@ -134,7 +132,6 @@ func main() {
 	log.Println("Fetcher ready to receive requests")
 	http.ListenAndServe(":8000", &ochttp.Handler{
 		Handler: mux,
-		// Propagation: &b3.HTTPFormat{},
 	})
 }
 

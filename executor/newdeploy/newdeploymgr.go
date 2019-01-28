@@ -110,7 +110,7 @@ func MakeNewDeploy(
 		fetcherImagePullPolicy = "IfNotPresent"
 	}
 
-	jaegerCollectorEndpoint := os.Getenv("OPENCENSUS_TRACE_JAEGER_COLLECTOR_ENDPOINT")
+	jaegerCollectorEndpoint := os.Getenv("TRACE_JAEGER_COLLECTOR_ENDPOINT")
 
 	enableIstio := false
 	if len(os.Getenv("ENABLE_ISTIO")) > 0 {

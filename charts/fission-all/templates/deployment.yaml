@@ -131,7 +131,7 @@ spec:
         image: "{{ .Values.repository }}/{{ .Values.image }}:{{ .Values.imageTag }}"
         imagePullPolicy: {{ .Values.pullPolicy }}
         command: ["/fission-bundle"]
-        args: ["--controllerPort", "8888", "--jaegerCollectorEndpoint", "{{ .Values.jaegerEndpoint }}"]
+        args: ["--controllerPort", "8888", "--jaegerCollectorEndpoint", "{{ .Values.jaegerCollectorEndpoint }}"]
         env:
           - name: FISSION_FUNCTION_NAMESPACE
             value: "{{ .Values.functionNamespace }}"
@@ -185,7 +185,7 @@ spec:
         image: "{{ .Values.repository }}/{{ .Values.image }}:{{ .Values.imageTag }}"
         imagePullPolicy: {{ .Values.pullPolicy }}
         command: ["/fission-bundle"]
-        args: ["--routerPort", "8888", "--executorUrl", "http://executor.{{ .Release.Namespace }}", "--jaegerCollectorEndpoint", "{{ .Values.jaegerEndpoint }}"]
+        args: ["--routerPort", "8888", "--executorUrl", "http://executor.{{ .Release.Namespace }}", "--jaegerCollectorEndpoint", "{{ .Values.jaegerCollectorEndpoint }}"]
         env:
           - name: POD_NAMESPACE
             valueFrom:
@@ -264,7 +264,7 @@ spec:
         image: "{{ .Values.repository }}/{{ .Values.image }}:{{ .Values.imageTag }}"
         imagePullPolicy: {{ .Values.pullPolicy }}
         command: ["/fission-bundle"]
-        args: ["--executorPort", "8888", "--namespace", "{{ .Values.functionNamespace }}", "--fission-namespace", "{{ .Release.Namespace }}", "--jaegerCollectorEndpoint", "{{ .Values.jaegerEndpoint }}"]
+        args: ["--executorPort", "8888", "--namespace", "{{ .Values.functionNamespace }}", "--fission-namespace", "{{ .Release.Namespace }}", "--jaegerCollectorEndpoint", "{{ .Values.jaegerCollectorEndpoint }}"]
         env:
         - name: FETCHER_IMAGE
           value: "{{ .Values.fetcherImage }}:{{ .Values.fetcherImageTag }}"
@@ -272,8 +272,8 @@ spec:
           value: "{{ .Values.pullPolicy }}"
         - name: RUNTIME_IMAGE_PULL_POLICY
           value: "{{ .Values.pullPolicy }}"
-        - name: OPENCENSUS_TRACE_JAEGER_COLLECTOR_ENDPOINT
-          value: "{{ .Values.jaegerEndpoint }}"
+        - name: TRACE_JAEGER_COLLECTOR_ENDPOINT
+          value: "{{ .Values.jaegerCollectorEndpoint }}"
         - name: ENABLE_ISTIO
           value: "{{ .Values.enableIstio }}"
         - name: FETCHER_MINCPU
@@ -323,7 +323,7 @@ spec:
         image: "{{ .Values.repository }}/{{ .Values.image }}:{{ .Values.imageTag }}"
         imagePullPolicy: {{ .Values.pullPolicy }}
         command: ["/fission-bundle"]
-        args: ["--builderMgr", "--storageSvcUrl", "http://storagesvc.{{ .Release.Namespace }}", "--envbuilder-namespace", "{{ .Values.builderNamespace }}", "--jaegerCollectorEndpoint", "{{ .Values.jaegerEndpoint }}"]
+        args: ["--builderMgr", "--storageSvcUrl", "http://storagesvc.{{ .Release.Namespace }}", "--envbuilder-namespace", "{{ .Values.builderNamespace }}", "--jaegerCollectorEndpoint", "{{ .Values.jaegerCollectorEndpoint }}"]
         env:
         - name: FETCHER_IMAGE
           value: "{{ .Values.fetcherImage }}:{{ .Values.fetcherImageTag }}"
@@ -331,8 +331,8 @@ spec:
           value: "{{ .Values.pullPolicy }}"
         - name: BUILDER_IMAGE_PULL_POLICY
           value: "{{ .Values.pullPolicy }}"
-        - name: OPENCENSUS_TRACE_JAEGER_COLLECTOR_ENDPOINT
-          value: "{{ .Values.jaegerEndpoint }}"
+        - name: TRACE_JAEGER_COLLECTOR_ENDPOINT
+          value: "{{ .Values.jaegerCollectorEndpoint }}"
         - name: ENABLE_ISTIO
           value: "{{ .Values.enableIstio }}"
       serviceAccount: fission-svc
@@ -356,7 +356,7 @@ spec:
         image: "{{ .Values.repository }}/{{ .Values.image }}:{{ .Values.imageTag }}"
         imagePullPolicy: {{ .Values.pullPolicy }}
         command: ["/fission-bundle"]
-        args: ["--kubewatcher", "--routerUrl", "http://router.{{ .Release.Namespace }}", "--jaegerCollectorEndpoint", "{{ .Values.jaegerEndpoint }}"]
+        args: ["--kubewatcher", "--routerUrl", "http://router.{{ .Release.Namespace }}", "--jaegerCollectorEndpoint", "{{ .Values.jaegerCollectorEndpoint }}"]
       serviceAccount: fission-svc
 
 ---
@@ -544,7 +544,7 @@ spec:
         image: "{{ .Values.repository }}/{{ .Values.image }}:{{ .Values.imageTag }}"
         imagePullPolicy: {{ .Values.pullPolicy }}
         command: ["/fission-bundle"]
-        args: ["--mqt", "--routerUrl", "http://router.{{ .Release.Namespace }}", "--jaegerCollectorEndpoint", "{{ .Values.jaegerEndpoint }}"]
+        args: ["--mqt", "--routerUrl", "http://router.{{ .Release.Namespace }}", "--jaegerCollectorEndpoint", "{{ .Values.jaegerCollectorEndpoint }}"]
         env:
         - name: MESSAGE_QUEUE_TYPE
           value: nats-streaming
@@ -574,7 +574,7 @@ spec:
         image: "{{ .Values.image }}:{{ .Values.imageTag }}"
         imagePullPolicy: {{ .Values.pullPolicy }}
         command: ["/fission-bundle"]
-        args: ["--mqt", "--routerUrl", "http://router.{{ .Release.Namespace }}", "--jaegerCollectorEndpoint", "{{ .Values.jaegerEndpoint }}"]
+        args: ["--mqt", "--routerUrl", "http://router.{{ .Release.Namespace }}", "--jaegerCollectorEndpoint", "{{ .Values.jaegerCollectorEndpoint }}"]
         env:
         - name: MESSAGE_QUEUE_TYPE
           value: kafka
@@ -606,7 +606,7 @@ spec:
         image: "{{ .Values.image }}:{{ .Values.imageTag }}"
         imagePullPolicy: {{ .Values.pullPolicy }}
         command: ["/fission-bundle"]
-        args: ["--mqt", "--routerUrl", "http://router.{{ .Release.Namespace }}", "--jaegerCollectorEndpoint", "{{ .Values.jaegerEndpoint }}"]
+        args: ["--mqt", "--routerUrl", "http://router.{{ .Release.Namespace }}", "--jaegerCollectorEndpoint", "{{ .Values.jaegerCollectorEndpoint }}"]
         env:
         - name: MESSAGE_QUEUE_TYPE
           value: azure-storage-queue
@@ -639,7 +639,7 @@ spec:
         image: "{{ .Values.repository }}/{{ .Values.image }}:{{ .Values.imageTag }}"
         imagePullPolicy: {{ .Values.pullPolicy }}
         command: ["/fission-bundle"]
-        args: ["--storageServicePort", "8000", "--filePath", "/fission", "--jaegerCollectorEndpoint", "{{ .Values.jaegerEndpoint }}"]
+        args: ["--storageServicePort", "8000", "--filePath", "/fission", "--jaegerCollectorEndpoint", "{{ .Values.jaegerCollectorEndpoint }}"]
         env:
         - name: PRUNE_INTERVAL
           value: "{{.Values.pruneInterval}}"

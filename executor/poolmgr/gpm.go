@@ -91,7 +91,7 @@ func MakeGenericPoolManager(
 		instanceId:              instanceId,
 		requestChannel:          make(chan *request),
 		idlePodReapTime:         2 * time.Minute,
-		jaegerCollectorEndpoint: os.Getenv("OPENCENSUS_TRACE_JAEGER_COLLECTOR_ENDPOINT"),
+		jaegerCollectorEndpoint: os.Getenv("TRACE_JAEGER_COLLECTOR_ENDPOINT"),
 	}
 	go gpm.service()
 	go gpm.eagerPoolCreator()

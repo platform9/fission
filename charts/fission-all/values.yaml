@@ -124,9 +124,14 @@ preUpgradeChecksImage: fission/pre-upgrade-checks
 ## summary is returned as part of http response
 debugEnv: true
 
+
 ## set this flag to true if prometheus needs to be deployed along with fission
 prometheusDeploy: true
 
 ## set this flag to false if you dont need canary deployment feature
 canaryDeployment:
   enabled: true
+
+
+# 
+# jaegerCollectorEndpoint: "http://jaeger-collector.jaeger.svc:14268/api/traces?format=jaeger.thrift"

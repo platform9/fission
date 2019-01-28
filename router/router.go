@@ -48,11 +48,10 @@ import (
 	"strconv"
 	"time"
 
-	"go.opencensus.io/trace"
-
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opencensus.io/plugin/ochttp"
+	"go.opencensus.io/trace"
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"

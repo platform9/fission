@@ -106,7 +106,7 @@ func makeEnvironmentWatcher(fissionClient *crd.FissionClient,
 
 	fetcherImagePullPolicy := fission.GetImagePullPolicy(os.Getenv("FETCHER_IMAGE_PULL_POLICY"))
 	builderImagePullPolicy := fission.GetImagePullPolicy(os.Getenv("BUILDER_IMAGE_PULL_POLICY"))
-	jaegerCollectorEndpoint := os.Getenv("OPENCENSUS_TRACE_JAEGER_COLLECTOR_ENDPOINT")
+	jaegerCollectorEndpoint := os.Getenv("TRACE_JAEGER_COLLECTOR_ENDPOINT")
 
 	envWatcher := &environmentWatcher{
 		cache:                   make(map[string]*builderInfo),

@@ -114,7 +114,7 @@ func registerTraceExporter(arguments map[string]interface{}) error {
 	} else if arguments["--timer"] == true {
 		serviceName = "Fission-Timer"
 	} else if arguments["--mqt"] == true {
-		serviceName = "Fission-MessageQueueMgr"
+		serviceName = "Fission-MessageQueueTrigger"
 	} else if arguments["--builderMgr"] == true {
 		serviceName = "Fission-BuilderMgr"
 	} else if arguments["--storageServicePort"] != nil {
@@ -123,11 +123,9 @@ func registerTraceExporter(arguments map[string]interface{}) error {
 
 	exporter, err := jaeger.NewExporter(jaeger.Options{
 		CollectorEndpoint: collectorEndpoint,
-		ServiceName:       serviceName,
 		Process: jaeger.Process{
 			ServiceName: serviceName,
 			Tags: []jaeger.Tag{
-				// jaeger.StringTag("ip", "127.0.0.1"),
 				jaeger.BoolTag("fission", true),
 			},
 		},

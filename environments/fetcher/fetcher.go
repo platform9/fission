@@ -70,36 +70,36 @@ func MakeFetcher(sharedVolumePath string, sharedSecretPath string, sharedConfigP
 	}, nil
 }
 
-func downloadUrl(ctx context.Context, httpClient *http.Client, url string, localPath string) (*fission.Checksum, error) {
+func downloadUrl(ctx context.Context, httpClient *http.Client, url string, localPath string) error {
 	resp, err := ctxhttp.Get(ctx, httpClient, url)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer resp.Body.Close()
 
 	w, err := os.Create(localPath)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer w.Close()
 
 	_, err = io.Copy(w, resp.Body)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// flushing write buffer to file
 	err = w.Sync()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	err = os.Chmod(localPath, 0600)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return nil, nil
+	nil
 }
 
 func getChecksum(path string) (*fission.Checksum, error) {
@@ -123,11 +123,11 @@ func getChecksum(path string) (*fission.Checksum, error) {
 	}, nil
 }
 
-func verifyChecksum(c, checksum *fission.Checksum) error {
+func verifyChecksum(fileChecksum, checksum *fission.Checksum) error {
 	if checksum.Type != fission.ChecksumTypeSHA256 {
 		return fission.MakeError(fission.ErrorInvalidArgument, "Unsupported checksum type")
 	}
-	if checksum.Sum != checksum.Sum {
+	if fileChecksum.Sum != checksum.Sum {
 		return fission.MakeError(fission.ErrorChecksumFail, "Checksum validation failed")
 	}
 	return nil
@@ -250,7 +250,7 @@ func (fetcher *Fetcher) Fetch(ctx context.Context, req fission.FunctionFetchRequ
 
 	if req.FetchType == fission.FETCH_URL {
 		// fetch the file and save it to the tmp path
-		_, err := downloadUrl(ctx, fetcher.httpClient, req.Url, tmpPath)
+		err := downloadUrl(ctx, fetcher.httpClient, req.Url, tmpPath)
 		if err != nil {
 			e := fmt.Sprintf("Failed to download url %v: %v", req.Url, err)
 			log.Printf(e)
@@ -291,9 +291,16 @@ func (fetcher *Fetcher) Fetch(ctx context.Context, req fission.FunctionFetchRequ
 			}
 		} else {
 			// download and verify
-			checksum, err := downloadUrl(ctx, fetcher.httpClient, archive.URL, tmpPath)
+			err := downloadUrl(ctx, fetcher.httpClient, archive.URL, tmpPath)
 			if err != nil {
 				e := fmt.Sprintf("Failed to download url %v: %v", req.Url, err)
+				log.Printf(e)
+				return http.StatusBadRequest, errors.New(e)
+			}
+
+			checksum, err := getChecksum(tmpPath)
+			if err != nil {
+				e := fmt.Sprintf("Failed to get checksum: %v", err)
 				log.Printf(e)
 				return http.StatusBadRequest, errors.New(e)
 			}

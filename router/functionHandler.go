@@ -265,6 +265,12 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 		// (e.g. istio-proxy)
 		req.Host = serviceUrl.Host
 
+		// over-riding default settings.
+		transport.DialContext = (&net.Dialer{
+			Timeout:   executingTimeout,
+			KeepAlive: roundTripper.funcHandler.tsRoundTripperParams.keepAlive,
+		}).DialContext
+
 		overhead := time.Since(startTime)
 
 		// forward the request to the function service
