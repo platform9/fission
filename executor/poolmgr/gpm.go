@@ -32,6 +32,7 @@ import (
 	"github.com/fission/fission"
 	"github.com/fission/fission/cache"
 	"github.com/fission/fission/crd"
+	fetcherConfig "github.com/fission/fission/environments/fetcher/config"
 	"github.com/fission/fission/executor/fscache"
 	"github.com/fission/fission/executor/reaper"
 )
@@ -57,8 +58,8 @@ type (
 		instanceId     string
 		requestChannel chan *request
 
-		enableIstio       bool
-		collectorEndpoint string
+		enableIstio   bool
+		fetcherConfig *fetcherConfig.Config
 
 		funcStore      k8sCache.Store
 		funcController k8sCache.Controller
@@ -84,22 +85,23 @@ func MakeGenericPoolManager(
 	fissionClient *crd.FissionClient,
 	kubernetesClient *kubernetes.Clientset,
 	functionNamespace string,
+	fetcherConfig *fetcherConfig.Config,
 	instanceId string) *GenericPoolManager {
 
 	gpmLogger := logger.Named("generic_pool_manager")
 
 	gpm := &GenericPoolManager{
-		logger:            gpmLogger,
-		pools:             make(map[string]*GenericPool),
-		kubernetesClient:  kubernetesClient,
-		namespace:         functionNamespace,
-		fissionClient:     fissionClient,
-		functionEnv:       cache.MakeCache(10*time.Second, 0),
-		fsCache:           fscache.MakeFunctionServiceCache(gpmLogger),
-		instanceId:        instanceId,
-		requestChannel:    make(chan *request),
-		idlePodReapTime:   2 * time.Minute,
-		collectorEndpoint: os.Getenv("TRACE_JAEGER_COLLECTOR_ENDPOINT"),
+		logger:           gpmLogger,
+		pools:            make(map[string]*GenericPool),
+		kubernetesClient: kubernetesClient,
+		namespace:        functionNamespace,
+		fissionClient:    fissionClient,
+		functionEnv:      cache.MakeCache(10*time.Second, 0),
+		fsCache:          fscache.MakeFunctionServiceCache(gpmLogger),
+		instanceId:       instanceId,
+		requestChannel:   make(chan *request),
+		idlePodReapTime:  2 * time.Minute,
+		fetcherConfig:    fetcherConfig,
 	}
 	go gpm.service()
 	go gpm.eagerPoolCreator()
@@ -150,8 +152,7 @@ func (gpm *GenericPoolManager) service() {
 
 				pool, err = MakeGenericPool(gpm.logger,
 					gpm.fissionClient, gpm.kubernetesClient, req.env, poolsize,
-					ns, gpm.namespace, gpm.fsCache, gpm.instanceId, gpm.enableIstio,
-					gpm.collectorEndpoint)
+					ns, gpm.namespace, gpm.fsCache, gpm.fetcherConfig, gpm.instanceId, gpm.enableIstio)
 				if err != nil {
 					req.responseChannel <- &response{error: err}
 					continue

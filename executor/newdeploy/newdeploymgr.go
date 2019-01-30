@@ -41,6 +41,7 @@ import (
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
+	fetcherConfig "github.com/fission/fission/environments/fetcher/config"
 	"github.com/fission/fission/executor/fscache"
 )
 
@@ -52,14 +53,10 @@ type (
 		fissionClient    *crd.FissionClient
 		crdClient        *rest.RESTClient
 		instanceID       string
+		fetcherConfig    *fetcherConfig.Config
 
-		fetcherImg             string
-		fetcherImagePullPolicy apiv1.PullPolicy
 		runtimeImagePullPolicy apiv1.PullPolicy
 		namespace              string
-		sharedMountPath        string
-		sharedSecretPath       string
-		sharedCfgMapPath       string
 		useIstio               bool
 		collectorEndpoint      string
 
@@ -79,17 +76,11 @@ func MakeNewDeploy(
 	kubernetesClient *kubernetes.Clientset,
 	crdClient *rest.RESTClient,
 	namespace string,
+	fetcherConfig *fetcherConfig.Config,
 	instanceID string,
 ) *NewDeploy {
 
 	logger.Info("creating NewDeploy ExecutorType")
-
-	fetcherImg := os.Getenv("FETCHER_IMAGE")
-	if len(fetcherImg) == 0 {
-		fetcherImg = "fission/fetcher"
-	}
-
-	collectorEndpoint := os.Getenv("TRACE_JAEGER_COLLECTOR_ENDPOINT")
 
 	enableIstio := false
 	if len(os.Getenv("ENABLE_ISTIO")) > 0 {
@@ -112,13 +103,8 @@ func MakeNewDeploy(
 		fsCache:   fscache.MakeFunctionServiceCache(logger),
 		throttler: throttler.MakeThrottler(1 * time.Minute),
 
-		fetcherImg:             fetcherImg,
-		fetcherImagePullPolicy: fission.GetImagePullPolicy(os.Getenv("FETCHER_IMAGE_PULL_POLICY")),
+		fetcherConfig:          fetcherConfig,
 		runtimeImagePullPolicy: fission.GetImagePullPolicy(os.Getenv("RUNTIME_IMAGE_PULL_POLICY")),
-		sharedMountPath:        "/userfunc",
-		sharedSecretPath:       "/secrets",
-		sharedCfgMapPath:       "/configs",
-		collectorEndpoint:      collectorEndpoint,
 		useIstio:               enableIstio,
 
 		idlePodReapTime: 2 * time.Minute,

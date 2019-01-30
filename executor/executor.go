@@ -32,6 +32,7 @@ import (
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
+	fetcherConfig "github.com/fission/fission/environments/fetcher/config"
 	"github.com/fission/fission/executor/fscache"
 	"github.com/fission/fission/executor/newdeploy"
 	"github.com/fission/fission/executor/poolmgr"
@@ -214,6 +215,11 @@ func StartExecutor(logger *zap.Logger, fissionNamespace string, functionNamespac
 		return errors.Wrap(err, "error waiting for CRDs")
 	}
 
+	fetcherConfig, err := fetcherConfig.MakeFetcherConfig("/userfunc")
+	if err != nil {
+		return errors.Wrap(err, "Error making fetcher config")
+	}
+
 	restClient := fissionClient.GetCrdClient()
 	if err != nil {
 		return errors.Wrap(err, "failed to get kubernetes client")
@@ -228,12 +234,12 @@ func StartExecutor(logger *zap.Logger, fissionNamespace string, functionNamespac
 	gpm := poolmgr.MakeGenericPoolManager(
 		logger,
 		fissionClient, kubernetesClient,
-		functionNamespace, poolID)
+		functionNamespace, fsCache, fetcherConfig, poolID)
 
 	ndm := newdeploy.MakeNewDeploy(
 		logger,
 		fissionClient, kubernetesClient, restClient,
-		functionNamespace, poolID)
+		functionNamespace, fsCache, fetcherConfig, poolID)
 
 	api := MakeExecutor(logger, gpm, ndm, fissionClient, fsCache)
 

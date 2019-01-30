@@ -34,6 +34,7 @@ import (
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
+	fetcherConfig "github.com/fission/fission/environments/fetcher/config"
 )
 
 type requestType int
@@ -80,16 +81,19 @@ type (
 		builderNamespace       string
 		fissionClient          *crd.FissionClient
 		kubernetesClient       *kubernetes.Clientset
-		fetcherImage           string
-		fetcherImagePullPolicy apiv1.PullPolicy
+		fetcherConfig          *fetcherConfig.Config
 		builderImagePullPolicy apiv1.PullPolicy
 		useIstio               bool
 		collectorEndpoint      string
 	}
 )
 
-func makeEnvironmentWatcher(logger *zap.Logger, fissionClient *crd.FissionClient,
-	kubernetesClient *kubernetes.Clientset, builderNamespace string) *environmentWatcher {
+func makeEnvironmentWatcher(
+	logger *zap.Logger,
+	fissionClient *crd.FissionClient,
+	kubernetesClient *kubernetes.Clientset,
+	fetcherConfig *fetcherConfig.Config,
+	builderNamespace string) *environmentWatcher {
 
 	useIstio := false
 	enableIstio := os.Getenv("ENABLE_ISTIO")
@@ -101,12 +105,6 @@ func makeEnvironmentWatcher(logger *zap.Logger, fissionClient *crd.FissionClient
 		useIstio = istio
 	}
 
-	fetcherImage := os.Getenv("FETCHER_IMAGE")
-	if len(fetcherImage) == 0 {
-		fetcherImage = "fission/fetcher"
-	}
-
-	fetcherImagePullPolicy := fission.GetImagePullPolicy(os.Getenv("FETCHER_IMAGE_PULL_POLICY"))
 	builderImagePullPolicy := fission.GetImagePullPolicy(os.Getenv("BUILDER_IMAGE_PULL_POLICY"))
 	collectorEndpoint := os.Getenv("TRACE_JAEGER_COLLECTOR_ENDPOINT")
 
@@ -117,11 +115,9 @@ func makeEnvironmentWatcher(logger *zap.Logger, fissionClient *crd.FissionClient
 		builderNamespace:       builderNamespace,
 		fissionClient:          fissionClient,
 		kubernetesClient:       kubernetesClient,
-		fetcherImage:           fetcherImage,
-		fetcherImagePullPolicy: fetcherImagePullPolicy,
 		builderImagePullPolicy: builderImagePullPolicy,
 		useIstio:               useIstio,
-		collectorEndpoint:      collectorEndpoint,
+		fetcherConfig:          fetcherConfig,
 	}
 
 	go envWatcher.service()
@@ -490,9 +486,6 @@ func (envw *environmentWatcher) getBuilderDeploymentList(sel map[string]string, 
 }
 
 func (envw *environmentWatcher) createBuilderDeployment(env *crd.Environment, ns string) (*v1beta1.Deployment, error) {
-	sharedMountPath := "/packages"
-	sharedCfgMapPath := "/configs"
-	sharedSecretPath := "/secrets"
 	name := fmt.Sprintf("%v-%v", env.Metadata.Name, env.Metadata.ResourceVersion)
 	sel := envw.getLabels(env.Metadata.Name, ns, env.Metadata.ResourceVersion)
 	var replicas int32 = 1
@@ -522,47 +515,13 @@ func (envw *environmentWatcher) createBuilderDeployment(env *crd.Environment, ns
 					Annotations: podAnnotations,
 				},
 				Spec: apiv1.PodSpec{
-					Volumes: []apiv1.Volume{
-						{
-							Name: fission.SharedVolumePackages,
-							VolumeSource: apiv1.VolumeSource{
-								EmptyDir: &apiv1.EmptyDirVolumeSource{},
-							},
-						},
-						{
-							Name: fission.SharedVolumeSecrets,
-							VolumeSource: apiv1.VolumeSource{
-								EmptyDir: &apiv1.EmptyDirVolumeSource{},
-							},
-						},
-						{
-							Name: fission.SharedVolumeConfigmaps,
-							VolumeSource: apiv1.VolumeSource{
-								EmptyDir: &apiv1.EmptyDirVolumeSource{},
-							},
-						},
-					},
 					Containers: []apiv1.Container{
 						fission.MergeContainerSpecs(&apiv1.Container{
 							Name:                   "builder",
 							Image:                  env.Spec.Builder.Image,
 							ImagePullPolicy:        envw.builderImagePullPolicy,
 							TerminationMessagePath: "/dev/termination-log",
-							VolumeMounts: []apiv1.VolumeMount{
-								{
-									Name:      fission.SharedVolumePackages,
-									MountPath: sharedMountPath,
-								},
-								{
-									Name:      fission.SharedVolumeSecrets,
-									MountPath: sharedSecretPath,
-								},
-								{
-									Name:      fission.SharedVolumeConfigmaps,
-									MountPath: sharedCfgMapPath,
-								},
-							},
-							Command: []string{"/builder", sharedMountPath},
+							Command:                []string{"/builder", envw.fetcherConfig.SharedMountPath()},
 							ReadinessProbe: &apiv1.Probe{
 								InitialDelaySeconds: 5,
 								PeriodSeconds:       2,
@@ -577,52 +536,20 @@ func (envw *environmentWatcher) createBuilderDeployment(env *crd.Environment, ns
 								},
 							},
 						}, env.Spec.Builder.Container),
-						{
-							Name:                   "fetcher",
-							Image:                  envw.fetcherImage,
-							ImagePullPolicy:        envw.fetcherImagePullPolicy,
-							TerminationMessagePath: "/dev/termination-log",
-							VolumeMounts: []apiv1.VolumeMount{
-								{
-									Name:      fission.SharedVolumePackages,
-									MountPath: sharedMountPath,
-								},
-								{
-									Name:      fission.SharedVolumeSecrets,
-									MountPath: sharedSecretPath,
-								},
-								{
-									Name:      fission.SharedVolumeConfigmaps,
-									MountPath: sharedCfgMapPath,
-								},
-							},
-							Command: []string{"/fetcher",
-								"-secret-dir", sharedSecretPath,
-								"-cfgmap-dir", sharedCfgMapPath,
-								"-jaeger-collector-endpoint", envw.collectorEndpoint,
-								sharedMountPath},
-							ReadinessProbe: &apiv1.Probe{
-								InitialDelaySeconds: 5,
-								PeriodSeconds:       2,
-								Handler: apiv1.Handler{
-									HTTPGet: &apiv1.HTTPGetAction{
-										Path: "/healthz",
-										Port: intstr.IntOrString{
-											Type:   intstr.Int,
-											IntVal: 8000,
-										},
-									},
-								},
-							},
-						},
 					},
 					ServiceAccountName: fission.FissionBuilderSA,
 				},
 			},
 		},
 	}
+
+	err := envw.fetcherConfig.AddFetcherToPodSpec(&deployment.Spec.Template.Spec, "builder")
+	if err != nil {
+		return nil, err
+	}
+
 	envw.logger.Info("creating builder deployment", zap.String("deployment", name))
-	_, err := envw.kubernetesClient.ExtensionsV1beta1().Deployments(ns).Create(deployment)
+	_, err = envw.kubernetesClient.ExtensionsV1beta1().Deployments(ns).Create(deployment)
 	if err != nil {
 		return nil, err
 	}

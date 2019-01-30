@@ -21,6 +21,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/fission/fission/crd"
+	fetcherConfig "github.com/fission/fission/environments/fetcher/config"
 )
 
 // Start the buildermgr service.
@@ -37,7 +38,12 @@ func Start(logger *zap.Logger, storageSvcUrl string, envBuilderNamespace string)
 		return errors.Wrap(err, "error waiting for CRDs")
 	}
 
-	envWatcher := makeEnvironmentWatcher(bmLogger, fissionClient, kubernetesClient, envBuilderNamespace)
+	fetcherConfig, err := fetcherConfig.MakeFetcherConfig("/packages")
+	if err != nil {
+		return errors.Wrap(err, "error making fetcher config")
+	}
+
+	envWatcher := makeEnvironmentWatcher(bmLogger, fissionClient, kubernetesClient, fetcherConfig, envBuilderNamespace)
 	go envWatcher.watchEnvironments()
 
 	pkgWatcher := makePackageWatcher(bmLogger, fissionClient,
