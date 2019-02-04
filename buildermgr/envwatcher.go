@@ -514,27 +514,26 @@ func (envw *environmentWatcher) createBuilderDeployment(env *crd.Environment, ns
 					Annotations: podAnnotations,
 				},
 				Spec: apiv1.PodSpec{
-					Containers: []apiv1.Container{
-						fission.MergeContainerSpecs(&apiv1.Container{
-							Name:                   "builder",
-							Image:                  env.Spec.Builder.Image,
-							ImagePullPolicy:        envw.builderImagePullPolicy,
-							TerminationMessagePath: "/dev/termination-log",
-							Command:                []string{"/builder", envw.fetcherConfig.SharedMountPath()},
-							ReadinessProbe: &apiv1.Probe{
-								InitialDelaySeconds: 5,
-								PeriodSeconds:       2,
-								Handler: apiv1.Handler{
-									HTTPGet: &apiv1.HTTPGetAction{
-										Path: "/healthz",
-										Port: intstr.IntOrString{
-											Type:   intstr.Int,
-											IntVal: 8001,
-										},
+					Containers: []apiv1.Container{fission.MergeContainerSpecs(&apiv1.Container{
+						Name:                   "builder",
+						Image:                  env.Spec.Builder.Image,
+						ImagePullPolicy:        envw.builderImagePullPolicy,
+						TerminationMessagePath: "/dev/termination-log",
+						Command:                []string{"/builder", envw.fetcherConfig.SharedMountPath()},
+						ReadinessProbe: &apiv1.Probe{
+							InitialDelaySeconds: 5,
+							PeriodSeconds:       2,
+							Handler: apiv1.Handler{
+								HTTPGet: &apiv1.HTTPGetAction{
+									Path: "/healthz",
+									Port: intstr.IntOrString{
+										Type:   intstr.Int,
+										IntVal: 8001,
 									},
 								},
 							},
-						}, env.Spec.Builder.Container),
+						},
+					}, env.Spec.Builder.Container),
 					},
 					ServiceAccountName: "fission-builder",
 				},

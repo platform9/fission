@@ -116,6 +116,21 @@ func MergeContainerSpecs(specs ...*apiv1.Container) apiv1.Container {
 	return *result
 }
 
+func MergePodSpecs(specs ...*apiv1.PodSpec) apiv1.PodSpec {
+	result := &apiv1.PodSpec{}
+	for _, spec := range specs {
+		if spec == nil {
+			continue
+		}
+
+		err := mergo.Merge(result, spec)
+		if err != nil {
+			panic(err)
+		}
+	}
+	return *result
+}
+
 // IsNetworkDialError returns true if its a network dial error
 func IsNetworkDialError(err error) bool {
 	netErr, ok := err.(net.Error)

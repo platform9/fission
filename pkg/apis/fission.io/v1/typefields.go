@@ -223,6 +223,9 @@ type (
 		// - ImagePullPolicy
 		// (optional)
 		Container *apiv1.Container `json:"container,omitempty"`
+
+		// WIP Pod Spec
+		PodSpec *apiv1.PodSpec `json:"podspec,omitempty"`
 	}
 
 	Builder struct {

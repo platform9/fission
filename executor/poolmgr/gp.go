@@ -369,38 +369,58 @@ func (gp *GenericPool) createPool() error {
 					Labels:      gp.labelsForPool,
 					Annotations: podAnnotations,
 				},
-				Spec: apiv1.PodSpec{
-					Containers: []apiv1.Container{
-						fission.MergeContainerSpecs(&apiv1.Container{
-							Name:                   gp.env.Metadata.Name,
-							Image:                  gp.env.Spec.Runtime.Image,
-							ImagePullPolicy:        gp.runtimeImagePullPolicy,
-							TerminationMessagePath: "/dev/termination-log",
-							Resources:              gp.env.Spec.Resources,
-							// Pod is removed from endpoints list for service when it's
-							// state became "Termination". We used preStop hook as the
-							// workaround for connection draining since pod maybe shutdown
-							// before grace period expires.
-							// https://kubernetes.io/docs/concepts/workloads/pods/pod/#termination-of-pods
-							// https://github.com/kubernetes/kubernetes/issues/47576#issuecomment-308900172
-							Lifecycle: &apiv1.Lifecycle{
-								PreStop: &apiv1.Handler{
-									Exec: &apiv1.ExecAction{
-										Command: []string{
-											"sleep",
-											fmt.Sprintf("%v", gracePeriodSeconds),
-										},
+				Spec: fission.MergePodSpecs(&apiv1.PodSpec{
+					Volumes: []apiv1.Volume{
+						{
+							Name: fission.SharedVolumeUserfunc,
+							VolumeSource: apiv1.VolumeSource{
+								EmptyDir: &apiv1.EmptyDirVolumeSource{},
+							},
+						},
+						{
+							Name: fission.SharedVolumeSecrets,
+							VolumeSource: apiv1.VolumeSource{
+								EmptyDir: &apiv1.EmptyDirVolumeSource{},
+							},
+						},
+						{
+							Name: fission.SharedVolumeConfigmaps,
+							VolumeSource: apiv1.VolumeSource{
+								EmptyDir: &apiv1.EmptyDirVolumeSource{},
+							},
+						},
+					},
+
+					Containers: []apiv1.Container{fission.MergeContainerSpecs(&apiv1.Container{
+						Name:                   gp.env.Metadata.Name,
+						Image:                  gp.env.Spec.Runtime.Image,
+						ImagePullPolicy:        gp.runtimeImagePullPolicy,
+						TerminationMessagePath: "/dev/termination-log",
+						Resources:              gp.env.Spec.Resources,
+						// Pod is removed from endpoints list for service when it's
+						// state became "Termination". We used preStop hook as the
+						// workaround for connection draining since pod maybe shutdown
+						// before grace period expires.
+						// https://kubernetes.io/docs/concepts/workloads/pods/pod/#termination-of-pods
+						// https://github.com/kubernetes/kubernetes/issues/47576#issuecomment-308900172
+						Lifecycle: &apiv1.Lifecycle{
+							PreStop: &apiv1.Handler{
+								Exec: &apiv1.ExecAction{
+									Command: []string{
+										"sleep",
+										fmt.Sprintf("%v", gracePeriodSeconds),
 									},
 								},
 							},
-						}, gp.env.Spec.Runtime.Container),
+						},
+					}, gp.env.Spec.Runtime.Container),
 					},
 					ServiceAccountName: "fission-fetcher",
 					// TerminationGracePeriodSeconds should be equal to the
 					// sleep time of preStop to make sure that SIGTERM is sent
 					// to pod after 6 mins.
 					TerminationGracePeriodSeconds: &gracePeriodSeconds,
-				},
+				}, gp.env.Spec.Runtime.PodSpec),
 			},
 		},
 	}
