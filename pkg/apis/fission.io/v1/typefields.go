@@ -224,7 +224,9 @@ type (
 		// (optional)
 		Container *apiv1.Container `json:"container,omitempty"`
 
-		// WIP Pod Spec
+		// Podspec allows modification of deployed runtime
+		// pod with Kubernetes PodSpec. Fission overrides the following field:
+		// -
 		PodSpec *apiv1.PodSpec `json:"podspec,omitempty"`
 	}
 

@@ -198,7 +198,27 @@ func (deploy *NewDeploy) getDeploymentSpec(fn *crd.Function, env *crd.Environmen
 					Labels:      deployLabels,
 					Annotations: podAnnotations,
 				},
-				Spec: apiv1.PodSpec{
+				Spec: fission.MergePodSpecs(&apiv1.PodSpec{
+					Volumes: []apiv1.Volume{
+						{
+							Name: fission.SharedVolumeUserfunc,
+							VolumeSource: apiv1.VolumeSource{
+								EmptyDir: &apiv1.EmptyDirVolumeSource{},
+							},
+						},
+						{
+							Name: fission.SharedVolumeSecrets,
+							VolumeSource: apiv1.VolumeSource{
+								EmptyDir: &apiv1.EmptyDirVolumeSource{},
+							},
+						},
+						{
+							Name: fission.SharedVolumeConfigmaps,
+							VolumeSource: apiv1.VolumeSource{
+								EmptyDir: &apiv1.EmptyDirVolumeSource{},
+							},
+						},
+					},
 					Containers: []apiv1.Container{
 						fission.MergeContainerSpecs(&apiv1.Container{
 							Name:                   fn.Metadata.Name,
@@ -220,7 +240,7 @@ func (deploy *NewDeploy) getDeploymentSpec(fn *crd.Function, env *crd.Environmen
 					},
 					ServiceAccountName:            "fission-fetcher",
 					TerminationGracePeriodSeconds: &gracePeriodSeconds,
-				},
+				}, env.Spec.Runtime.PodSpec),
 			},
 		},
 	}
