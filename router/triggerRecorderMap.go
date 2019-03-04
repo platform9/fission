@@ -17,8 +17,9 @@ limitations under the License.
 package router
 
 import (
-	"log"
 	"time"
+
+	"go.uber.org/zap"
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/cache"
@@ -27,13 +28,15 @@ import (
 
 type (
 	triggerRecorderMap struct {
-		cache *cache.Cache // map[string]*crd.Recorder
+		logger *zap.Logger
+		cache  *cache.Cache // map[string]*crd.Recorder
 	}
 )
 
-func makeTriggerRecorderMap(expiry time.Duration) *triggerRecorderMap {
+func makeTriggerRecorderMap(logger *zap.Logger, expiry time.Duration) *triggerRecorderMap {
 	return &triggerRecorderMap{
-		cache: cache.MakeCache(expiry, 0),
+		logger: logger.Named("trigger_recorder_map"),
+		cache:  cache.MakeCache(expiry, 0),
 	}
 }
 
@@ -52,7 +55,7 @@ func (trmap *triggerRecorderMap) assign(trigger string, recorder *crd.Recorder) 
 		if e, ok := err.(fission.Error); ok && e.Code == fission.ErrorNameExists {
 			return
 		}
-		log.Printf("error caching recorder for function name with a different value: %v", err)
+		trmap.logger.Error("error caching recorder for function name with a different value", zap.Error(err))
 	}
 
 }

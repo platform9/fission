@@ -19,13 +19,14 @@ package poolmgr
 import (
 	"context"
 	"fmt"
-	"log"
 	"math/rand"
 	"net"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"go.uber.org/zap"
 
 	"github.com/dchest/uniuri"
 	multierror "github.com/hashicorp/go-multierror"
@@ -46,6 +47,7 @@ import (
 
 type (
 	GenericPool struct {
+		logger                 *zap.Logger
 		env                    *crd.Environment
 		replicas               int32                         // num idle pods
 		deployment             *v1beta1.Deployment           // kubernetes deployment
@@ -83,6 +85,7 @@ type (
 )
 
 func MakeGenericPool(
+	logger *zap.Logger,
 	fissionClient *crd.FissionClient,
 	kubernetesClient *kubernetes.Clientset,
 	env *crd.Environment,
@@ -94,7 +97,9 @@ func MakeGenericPool(
 	enableIstio bool,
 	collectorEndpoint string) (*GenericPool, error) {
 
-	log.Printf("Creating pool for environment %v", env.Metadata)
+	gpLogger := logger.Named("generic_pool")
+
+	gpLogger.Info("creating pool", zap.Any("environment", env.Metadata))
 
 	fetcherImage := os.Getenv("FETCHER_IMAGE")
 	if len(fetcherImage) == 0 {
@@ -104,6 +109,7 @@ func MakeGenericPool(
 	// TODO: in general we need to provide the user a way to configure pools.  Initial
 	// replicas, autoscaling params, various timeouts, etc.
 	gp := &GenericPool{
+		logger:            gpLogger,
 		env:               env,
 		replicas:          initialReplicas, // TODO make this an env param instead?
 		requestChannel:    make(chan *choosePodRequest),
@@ -128,13 +134,12 @@ func MakeGenericPool(
 	gp.runtimeImagePullPolicy = fission.GetImagePullPolicy(os.Getenv("RUNTIME_IMAGE_PULL_POLICY"))
 	gp.fetcherImagePullPolicy = fission.GetImagePullPolicy(os.Getenv("FETCHER_IMAGE_PULL_POLICY"))
 
-	log.Printf("fetcher image: %v, pull policy: %v", gp.fetcherImage, gp.fetcherImagePullPolicy)
+	gpLogger.Info("fetcher", zap.String("image", gp.fetcherImage), zap.Any("pull_policy", gp.fetcherImagePullPolicy))
 
 	// create fetcher SA in this ns, if not already created
 	_, err := fission.SetupSA(gp.kubernetesClient, fission.FissionFetcherSA, gp.namespace)
 	if err != nil {
-		log.Printf("Error : %v creating fetcher SA in ns : %s", err, gp.namespace)
-		return nil, err
+		return nil, errors.Wrapf(err, "error creating fetcher service account in namespace %q", gp.namespace)
 	}
 
 	// Labels for generic deployment/RS/pods.
@@ -145,7 +150,7 @@ func MakeGenericPool(
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("[%v] Deployment created", env.Metadata)
+	gpLogger.Info("deployment created", zap.Any("environment", env.Metadata))
 
 	go gp.choosePodService()
 
@@ -195,7 +200,7 @@ func (gp *GenericPool) _choosePod(newLabels map[string]string) (*apiv1.Pod, erro
 	for {
 		// Retries took too long, error out.
 		if time.Since(startTime) > gp.podReadyTimeout {
-			log.Printf("[%v] Erroring out, timed out", newLabels)
+			gp.logger.Error("timed out waiting for pod", zap.Any("labels", newLabels), zap.Duration("timeout", gp.podReadyTimeout))
 			return nil, errors.New("timeout: waited too long to get a ready pod")
 		}
 
@@ -220,7 +225,10 @@ func (gp *GenericPool) _choosePod(newLabels map[string]string) (*apiv1.Pod, erro
 			// add it to the list of ready pods
 			readyPods = append(readyPods, &pod)
 		}
-		log.Printf("[%v] found %v ready pods of %v total", newLabels, len(readyPods), len(podList.Items))
+		gp.logger.Info("found ready pods",
+			zap.Any("labels", newLabels),
+			zap.Int("ready_count", len(readyPods)),
+			zap.Int("total", len(podList.Items)))
 
 		// If there are no ready pods, wait and retry.
 		if len(readyPods) == 0 {
@@ -241,14 +249,14 @@ func (gp *GenericPool) _choosePod(newLabels map[string]string) (*apiv1.Pod, erro
 			// modified, this should fail; in that case just
 			// retry.
 			chosenPod.ObjectMeta.Labels = newLabels
-			log.Printf("relabeling pod: [%v]", chosenPod.ObjectMeta.Name)
+			gp.logger.Info("relabeling pod", zap.String("pod", chosenPod.ObjectMeta.Name))
 			_, err = gp.kubernetesClient.CoreV1().Pods(gp.namespace).Update(chosenPod)
 			if err != nil {
-				log.Printf("failed to relabel pod [%v]: %v", chosenPod.ObjectMeta.Name, err)
+				gp.logger.Error("failed to relabel pod", zap.Error(err), zap.String("pod", chosenPod.ObjectMeta.Name))
 				continue
 			}
 		}
-		log.Printf("Chosen pod: %v (in %v)", chosenPod.ObjectMeta.Name, time.Since(startTime))
+		gp.logger.Info("chose pod", zap.String("pod", chosenPod.ObjectMeta.Name), zap.Duration("elapsed_time", time.Since(startTime)))
 		return chosenPod, nil
 	}
 }
@@ -267,7 +275,7 @@ func (gp *GenericPool) scheduleDeletePod(name string) {
 		// The sleep allows debugging or collecting logs from the pod before it's
 		// cleaned up.  (We need a better solutions for both those things; log
 		// aggregation and storage will help.)
-		log.Printf("Error in pod '%v', scheduling cleanup", name)
+		gp.logger.Error("error in pod - scheduling cleanup", zap.String("pod", name))
 		// Ignore sleep here if istio feature is enabled, function pod
 		// will be deleted after 6 mins (terminationGracePeriodSeconds).
 		if !gp.useIstio {
@@ -319,7 +327,7 @@ func (gp *GenericPool) specializePod(ctx context.Context, pod *apiv1.Pod, metada
 
 	// tell fetcher to get the function.
 	fetcherUrl := gp.getSpecializeUrl(podIP)
-	log.Printf("[%v] calling fetcher to copy function with fetcher url: %v", metadata.Name, fetcherUrl)
+	gp.logger.Info("calling fetcher to copy function", zap.String("function", metadata.Name), zap.String("url", fetcherUrl))
 
 	fn, err := gp.fissionClient.
 		Functions(metadata.Namespace).
@@ -356,9 +364,9 @@ func (gp *GenericPool) specializePod(ctx context.Context, pod *apiv1.Pod, metada
 		},
 	}
 
-	log.Printf("[%v] specializing pod", metadata.Name)
+	gp.logger.Info("specializing pod", zap.String("function", metadata.Name))
 
-	err = fetcherClient.MakeClient(fetcherUrl).Specialize(ctx, &specializeReq)
+	err = fetcherClient.MakeClient(gp.logger, fetcherUrl).Specialize(ctx, &specializeReq)
 	if err != nil {
 		return err
 	}
@@ -550,7 +558,7 @@ func (gp *GenericPool) createPool() error {
 
 	depl, err := gp.kubernetesClient.ExtensionsV1beta1().Deployments(gp.namespace).Create(deployment)
 	if err != nil {
-		log.Printf("Error creating deployment for %s in kubernetes, err: %v", deployment.Name, err)
+		gp.logger.Error("error creating deployment in kubernetes", zap.Error(err), zap.String("deployment", deployment.Name))
 		return err
 	}
 	gp.deployment = depl
@@ -564,11 +572,9 @@ func (gp *GenericPool) waitForReadyPod() error {
 		depl, err := gp.kubernetesClient.ExtensionsV1beta1().Deployments(gp.namespace).Get(
 			gp.deployment.ObjectMeta.Name, metav1.GetOptions{})
 		if err != nil {
-			err = errors.Wrap(err, fmt.Sprintf(
-				"Error waiting for ready pod of deployment %v in namespace %v",
-				gp.deployment.ObjectMeta.Name, gp.namespace))
-			log.Print(err)
-			return err
+			e := "error waiting for ready pod for deployment"
+			gp.logger.Error(e, zap.String("deployment", gp.deployment.ObjectMeta.Name), zap.String("namespace", gp.namespace))
+			return fmt.Errorf("%s %q in namespace %q", e, gp.deployment.ObjectMeta.Name, gp.namespace)
 		}
 
 		gp.deployment = depl
@@ -582,7 +588,7 @@ func (gp *GenericPool) waitForReadyPod() error {
 					gp.deployment.Spec.Selector.MatchLabels).AsSelector().String(),
 			})
 			if err != nil {
-				log.Printf("Error getting pod list after timeout waiting for ready pod: %v", err)
+				gp.logger.Error("error getting pod list after timeout waiting for ready pod", zap.Error(err))
 			}
 
 			// Since even single pod is not ready, choosing the first pod to inspect is a good approximation. In future this can be done better
@@ -593,9 +599,8 @@ func (gp *GenericPool) waitForReadyPod() error {
 					multierr = multierror.Append(multierr, errors.New(fmt.Sprintf("%v: %v", cStatus.State.Waiting.Reason, cStatus.State.Waiting.Message)))
 				}
 			}
-			return errors.Errorf(
-				"Timeout: waited too long for pod of deployment %v in namespace %v to be ready, error: %v",
-				gp.deployment.ObjectMeta.Name, gp.namespace, multierr)
+			return errors.Wrapf(multierr, "Timeout: waited too long for pod of deployment %v in namespace %v to be ready",
+				gp.deployment.ObjectMeta.Name, gp.namespace)
 		}
 		time.Sleep(1000 * time.Millisecond)
 	}
@@ -623,7 +628,7 @@ func (gp *GenericPool) createSvc(name string, labels map[string]string) (*apiv1.
 }
 
 func (gp *GenericPool) GetFuncSvc(ctx context.Context, m *metav1.ObjectMeta) (*fscache.FuncSvc, error) {
-	log.Printf("[%v] Choosing pod from pool", m.Name)
+	gp.logger.Info("choosing pod from pool", zap.String("function", m.Name))
 	newLabels := gp.labelsForFunction(m)
 
 	if gp.useIstio {
@@ -677,7 +682,7 @@ func (gp *GenericPool) GetFuncSvc(ctx context.Context, m *metav1.ObjectMeta) (*f
 		gp.scheduleDeletePod(pod.ObjectMeta.Name)
 		return nil, err
 	}
-	log.Printf("Specialized pod: %v", pod.ObjectMeta.Name)
+	gp.logger.Info("specialized pod", zap.String("pod", pod.ObjectMeta.Name), zap.String("function", m.Name))
 
 	var svcHost string
 	if gp.useSvc && !gp.useIstio {
@@ -694,7 +699,7 @@ func (gp *GenericPool) GetFuncSvc(ctx context.Context, m *metav1.ObjectMeta) (*f
 		}
 		if svc.ObjectMeta.Name != svcName {
 			gp.scheduleDeletePod(pod.ObjectMeta.Name)
-			return nil, errors.New(fmt.Sprintf("sanity check failed for svc %v", svc.ObjectMeta.Name))
+			return nil, errors.Errorf("sanity check failed for svc %v", svc.ObjectMeta.Name)
 		}
 
 		// the fission router isn't in the same namespace, so return a
@@ -704,7 +709,7 @@ func (gp *GenericPool) GetFuncSvc(ctx context.Context, m *metav1.ObjectMeta) (*f
 		svc := fission.GetFunctionIstioServiceName(m.Name, m.Namespace)
 		svcHost = fmt.Sprintf("%v.%v:8888", svc, gp.namespace)
 	} else {
-		log.Printf("Using pod IP for specialized pod")
+		gp.logger.Info("using pod IP for specialized pod", zap.String("pod", pod.ObjectMeta.Name), zap.String("function", m.Name))
 		svcHost = fmt.Sprintf("%v:8888", pod.Status.PodIP)
 	}
 
@@ -746,7 +751,10 @@ func (gp *GenericPool) destroy() error {
 	err := gp.kubernetesClient.ExtensionsV1beta1().
 		Deployments(gp.namespace).Delete(gp.deployment.ObjectMeta.Name, &delOpt)
 	if err != nil {
-		log.Printf("Error destroying deployment: %v", err)
+		gp.logger.Error("error destroying deployment",
+			zap.Error(err),
+			zap.String("deployment_name", gp.deployment.ObjectMeta.Name),
+			zap.String("deployment_namespace", gp.namespace))
 		return err
 	}
 	return nil

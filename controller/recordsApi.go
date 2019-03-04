@@ -26,7 +26,7 @@ import (
 )
 
 func (a *API) RecordsApiListAll(w http.ResponseWriter, r *http.Request) {
-	resp, err := redis.RecordsListAll()
+	resp, err := redis.RecordsListAll(a.logger.Named("redis"))
 	if err != nil {
 		a.respondWithError(w, err)
 		return
@@ -50,7 +50,7 @@ func (a *API) RecordsApiFilterByFunction(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	resp, err := redis.RecordsFilterByFunction(query, recorders, triggers)
+	resp, err := redis.RecordsFilterByFunction(a.logger.Named("redis"), query, recorders, triggers)
 	if err != nil {
 		a.respondWithError(w, err)
 		return
@@ -74,7 +74,7 @@ func (a *API) RecordsApiFilterByTrigger(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	resp, err := redis.RecordsFilterByTrigger(query, recorders, triggers)
+	resp, err := redis.RecordsFilterByTrigger(a.logger.Named("redis"), query, recorders, triggers)
 	if err != nil {
 		a.respondWithError(w, err)
 		return
@@ -86,7 +86,7 @@ func (a *API) RecordsApiFilterByTime(w http.ResponseWriter, r *http.Request) {
 	from := r.FormValue("from")
 	to := r.FormValue("to")
 
-	resp, err := redis.RecordsFilterByTime(from, to)
+	resp, err := redis.RecordsFilterByTime(a.logger.Named("redis"), from, to)
 	if err != nil {
 		a.respondWithError(w, err)
 		return

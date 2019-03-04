@@ -20,9 +20,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"path/filepath"
 	"time"
+
+	"go.uber.org/zap"
 
 	"github.com/hashicorp/go-multierror"
 	asv1 "k8s.io/api/autoscaling/v1"
@@ -59,10 +60,9 @@ func (deploy *NewDeploy) createOrGetDeployment(fn *crd.Function, env *crd.Enviro
 	existingDepl, err := deploy.kubernetesClient.ExtensionsV1beta1().Deployments(deployNamespace).Get(deployName, metav1.GetOptions{})
 	if err == nil {
 		if waitForDeploy {
-			err = scaleDeployment(deploy.kubernetesClient,
-				existingDepl.Namespace, existingDepl.Name, minScale)
+			err = deploy.scaleDeployment(existingDepl.Namespace, existingDepl.Name, minScale)
 			if err != nil {
-				log.Printf("Error scaling up deployment for function %v: %v", fn.Metadata.Name, err)
+				deploy.logger.Error("error scaling up function deployment", zap.Error(err), zap.String("function", fn.Metadata.Name))
 				return nil, err
 			}
 
@@ -86,7 +86,11 @@ func (deploy *NewDeploy) createOrGetDeployment(fn *crd.Function, env *crd.Enviro
 
 		depl, err := deploy.kubernetesClient.ExtensionsV1beta1().Deployments(deployNamespace).Create(deployment)
 		if err != nil {
-			log.Printf("Error while creating deployment: %v", err)
+			deploy.logger.Error("error while creating function deployment",
+				zap.Error(err),
+				zap.String("function", fn.Metadata.Name),
+				zap.String("deployment_name", deployName),
+				zap.String("deployment_namespace", deployNamespace))
 			return nil, err
 		}
 
@@ -105,25 +109,40 @@ func (deploy *NewDeploy) setupRBACObjs(deployNamespace string, fn *crd.Function)
 	// create fetcher SA in this ns, if not already created
 	_, err := fission.SetupSA(deploy.kubernetesClient, fission.FissionFetcherSA, deployNamespace)
 	if err != nil {
-		log.Printf("Error : %v creating %s in ns : %s for function: %s.%s", err, fission.FissionFetcherSA, deployNamespace, fn.Metadata.Name, fn.Metadata.Namespace)
+		deploy.logger.Error("error creating fission fetcher service account for function",
+			zap.Error(err),
+			zap.String("service_account_name", fission.FissionFetcherSA),
+			zap.String("service_account_namespace", deployNamespace),
+			zap.String("function_name", fn.Metadata.Name),
+			zap.String("function_namespace", fn.Metadata.Namespace))
 		return err
 	}
 
 	// create a cluster role binding for the fetcher SA, if not already created, granting access to do a get on packages in any ns
-	err = fission.SetupRoleBinding(deploy.kubernetesClient, fission.PackageGetterRB, fn.Spec.Package.PackageRef.Namespace, fission.PackageGetterCR, fission.ClusterRole, fission.FissionFetcherSA, deployNamespace)
+	err = fission.SetupRoleBinding(deploy.logger, deploy.kubernetesClient, fission.PackageGetterRB, fn.Spec.Package.PackageRef.Namespace, fission.PackageGetterCR, fission.ClusterRole, fission.FissionFetcherSA, deployNamespace)
 	if err != nil {
-		log.Printf("Error : %v creating %s RoleBinding for function: %s.%s", err, fission.PackageGetterRB, fn.Metadata.Name, fn.Metadata.Namespace)
+		deploy.logger.Error("error creating role binding for function",
+			zap.Error(err),
+			zap.String("role_binding", fission.PackageGetterRB),
+			zap.String("function_name", fn.Metadata.Name),
+			zap.String("function_namespace", fn.Metadata.Namespace))
 		return err
 	}
 
 	// create rolebinding in function namespace for fetcherSA.envNamespace to be able to get secrets and configmaps
-	err = fission.SetupRoleBinding(deploy.kubernetesClient, fission.SecretConfigMapGetterRB, fn.Metadata.Namespace, fission.SecretConfigMapGetterCR, fission.ClusterRole, fission.FissionFetcherSA, deployNamespace)
+	err = fission.SetupRoleBinding(deploy.logger, deploy.kubernetesClient, fission.SecretConfigMapGetterRB, fn.Metadata.Namespace, fission.SecretConfigMapGetterCR, fission.ClusterRole, fission.FissionFetcherSA, deployNamespace)
 	if err != nil {
-		log.Printf("Error : %v creating %s RoleBinding for function %s.%s", err, fission.SecretConfigMapGetterRB, fn.Metadata.Name, fn.Metadata.Namespace)
+		deploy.logger.Error("error creating role binding for function",
+			zap.Error(err),
+			zap.String("role_binding", fission.SecretConfigMapGetterRB),
+			zap.String("function_name", fn.Metadata.Name),
+			zap.String("function_namespace", fn.Metadata.Namespace))
 		return err
 	}
 
-	log.Printf("Set up all RBAC objects for function : %s.%s", fn.Metadata.Name, fn.Metadata.Namespace)
+	deploy.logger.Info("set up all RBAC objects for function",
+		zap.String("function_name", fn.Metadata.Name),
+		zap.String("function_namespace", fn.Metadata.Namespace))
 	return nil
 }
 
@@ -188,7 +207,7 @@ func (deploy *NewDeploy) getDeploymentSpec(fn *crd.Function, env *crd.Environmen
 
 	fetcherResources, err := util.GetFetcherResources()
 	if err != nil {
-		log.Printf("Error while parsing fetcher resources: %v", err)
+		deploy.logger.Error("error while parsing fetcher resources", zap.Error(err))
 		return nil, err
 	}
 
@@ -515,19 +534,28 @@ func (deploy *NewDeploy) cleanupNewdeploy(ns string, name string) error {
 
 	err := deploy.deleteSvc(ns, name)
 	if err != nil {
-		log.Printf("Error deleting service for newdeploy function %v in namespace %v, error: %v", name, ns, err)
+		deploy.logger.Error("error deleting service for newdeploy function",
+			zap.Error(err),
+			zap.String("function_name", name),
+			zap.String("function_namespace", ns))
 		multierror.Append(multierr, err)
 	}
 
 	err = deploy.deleteHpa(ns, name)
 	if err != nil {
-		log.Printf("Error deleting HPA for newdeploy function %v in namespace %v, error: %v", name, ns, err)
+		deploy.logger.Error("error deleting service for newdeploy function",
+			zap.Error(err),
+			zap.String("function_name", name),
+			zap.String("function_namespace", ns))
 		multierror.Append(multierr, err)
 	}
 
 	err = deploy.deleteDeployment(ns, name)
 	if err != nil {
-		log.Printf("Error deleting deployment for newdeploy function %v in namespace %v, error: %v", name, ns, err)
+		deploy.logger.Error("error deleting deployment for newdeploy function",
+			zap.Error(err),
+			zap.String("function_name", name),
+			zap.String("function_namespace", ns))
 		multierror.Append(multierr, err)
 	}
 	return multierr.ErrorOrNil()

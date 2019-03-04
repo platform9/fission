@@ -17,9 +17,10 @@ limitations under the License.
 package router
 
 import (
-	"log"
 	"net/url"
 	"time"
+
+	"go.uber.org/zap"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -28,7 +29,8 @@ import (
 
 type (
 	functionServiceMap struct {
-		cache *cache.Cache // map[metadataKey]*url.URL
+		logger *zap.Logger
+		cache  *cache.Cache // map[metadataKey]*url.URL
 	}
 
 	// metav1.ObjectMeta is not hashable, so we make a hashable copy
@@ -40,9 +42,10 @@ type (
 	}
 )
 
-func makeFunctionServiceMap(expiry time.Duration) *functionServiceMap {
+func makeFunctionServiceMap(logger *zap.Logger, expiry time.Duration) *functionServiceMap {
 	return &functionServiceMap{
-		cache: cache.MakeCache(expiry, 0),
+		logger: logger.Named("function_service_map"),
+		cache:  cache.MakeCache(expiry, 0),
 	}
 }
 
@@ -71,7 +74,7 @@ func (fmap *functionServiceMap) assign(f *metav1.ObjectMeta, serviceUrl *url.URL
 		if *serviceUrl == *(old.(*url.URL)) {
 			return
 		}
-		log.Printf("error caching service url for function with a different value: %v", err)
+		fmap.logger.Error("error caching service url for function with a different value", zap.Error(err))
 		// ignore error
 	}
 }

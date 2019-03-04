@@ -6,6 +6,8 @@ import (
 	"os"
 	"strconv"
 
+	"go.uber.org/zap"
+
 	"go.opencensus.io/exporter/jaeger"
 	"go.opencensus.io/trace"
 
@@ -22,66 +24,66 @@ import (
 	"github.com/fission/fission/timer"
 )
 
-func runController(port int) {
-	controller.Start(port, false)
-	log.Fatalf("Error: Controller exited.")
+func runController(logger *zap.Logger, port int) {
+	controller.Start(logger, port, false)
+	logger.Fatal("controller exited")
 }
 
-func runRouter(port int, executorUrl string) {
-	router.Start(port, executorUrl)
-	log.Fatalf("Error: Router exited.")
+func runRouter(logger *zap.Logger, port int, executorUrl string) {
+	router.Start(logger, port, executorUrl)
+	logger.Fatal("router exited")
 }
 
-func runExecutor(port int, fissionNamespace, functionNamespace, envBuilderNamespace string) {
-	err := executor.StartExecutor(fissionNamespace, functionNamespace, envBuilderNamespace, port)
+func runExecutor(logger *zap.Logger, port int, fissionNamespace, functionNamespace, envBuilderNamespace string) {
+	err := executor.StartExecutor(logger, fissionNamespace, functionNamespace, envBuilderNamespace, port)
 	if err != nil {
-		log.Fatalf("Error starting executor: %v", err)
+		logger.Fatal("error starting executor", zap.Error(err))
 	}
 }
 
-func runKubeWatcher(routerUrl string) {
-	err := kubewatcher.Start(routerUrl)
+func runKubeWatcher(logger *zap.Logger, routerUrl string) {
+	err := kubewatcher.Start(logger, routerUrl)
 	if err != nil {
-		log.Fatalf("Error starting kubewatcher: %v", err)
+		logger.Fatal("error starting kubewatcher", zap.Error(err))
 	}
 }
 
-func runTimer(routerUrl string) {
-	err := timer.Start(routerUrl)
+func runTimer(logger *zap.Logger, routerUrl string) {
+	err := timer.Start(logger, routerUrl)
 	if err != nil {
-		log.Fatalf("Error starting timer: %v", err)
+		logger.Fatal("error starting timer", zap.Error(err))
 	}
 }
 
-func runMessageQueueMgr(routerUrl string) {
-	err := messagequeue.Start(routerUrl)
+func runMessageQueueMgr(logger *zap.Logger, routerUrl string) {
+	err := messagequeue.Start(logger, routerUrl)
 	if err != nil {
-		log.Fatalf("Error starting timer: %v", err)
+		logger.Fatal("error starting message queue manager", zap.Error(err))
 	}
 }
 
-func runStorageSvc(port int, filePath string) {
+func runStorageSvc(logger *zap.Logger, port int, filePath string) {
 	subdir := os.Getenv("SUBDIR")
 	if len(subdir) == 0 {
 		subdir = "fission-functions"
 	}
 	enableArchivePruner := true
-	storagesvc.RunStorageService(storagesvc.StorageTypeLocal,
+	storagesvc.RunStorageService(logger, storagesvc.StorageTypeLocal,
 		filePath, subdir, port, enableArchivePruner)
 }
 
-func runBuilderMgr(storageSvcUrl string, envBuilderNamespace string) {
-	err := buildermgr.Start(storageSvcUrl, envBuilderNamespace)
+func runBuilderMgr(logger *zap.Logger, storageSvcUrl string, envBuilderNamespace string) {
+	err := buildermgr.Start(logger, storageSvcUrl, envBuilderNamespace)
 	if err != nil {
-		log.Fatalf("Error starting buildermgr: %v", err)
+		logger.Fatal("error starting builder manager", zap.Error(err))
 	}
 }
 
-func getPort(portArg interface{}) int {
+func getPort(logger *zap.Logger, portArg interface{}) int {
 	portArgStr := portArg.(string)
 	port, err := strconv.Atoi(portArgStr)
 	if err != nil {
-		log.Fatalf("Error: invalid port number '%v'", portArgStr)
+		logger.Fatal("invalid port number", zap.Error(err), zap.String("port", portArgStr))
 	}
 	return port
 }
@@ -94,10 +96,10 @@ func getStringArgWithDefault(arg interface{}, defaultValue string) string {
 	}
 }
 
-func registerTraceExporter(arguments map[string]interface{}) error {
+func registerTraceExporter(logger *zap.Logger, arguments map[string]interface{}) error {
 	collectorEndpoint := getStringArgWithDefault(arguments["--collectorEndpoint"], "")
 	if collectorEndpoint == "" {
-		log.Print("Skipping trace exporter registration")
+		logger.Info("skipping trace exporter registration")
 		return nil
 	}
 
@@ -193,15 +195,21 @@ Options:
   --builderMgr                    Start builder manager.
   --version                       Print version information
 `
+	logger, err := zap.NewProduction()
+	if err != nil {
+		log.Fatalf("can't initialize zap logger: %v", err)
+	}
+	defer logger.Sync()
+
 	version := fmt.Sprintf("Fission Bundle Version: %v", fission.BuildInfo().String())
 	arguments, err := docopt.Parse(usage, nil, true, version, false)
 	if err != nil {
-		log.Fatalf("Error: %v", err)
+		logger.Fatal("Could not parse command line arguments", zap.Error(err))
 	}
 
-	err = registerTraceExporter(arguments)
+	err = registerTraceExporter(logger, arguments)
 	if err != nil {
-		log.Fatalf("Error: %v", err)
+		logger.Fatal("Could not register trace exporter", zap.Error(err), zap.Any("argument", arguments))
 	}
 
 	functionNs := getStringArgWithDefault(arguments["--namespace"], "fission-function")
@@ -213,40 +221,40 @@ Options:
 	storageSvcUrl := getStringArgWithDefault(arguments["--storageSvcUrl"], "http://storagesvc.fission")
 
 	if arguments["--controllerPort"] != nil {
-		port := getPort(arguments["--controllerPort"])
-		runController(port)
+		port := getPort(logger, arguments["--controllerPort"])
+		runController(logger, port)
 	}
 
 	if arguments["--routerPort"] != nil {
-		port := getPort(arguments["--routerPort"])
-		runRouter(port, executorUrl)
+		port := getPort(logger, arguments["--routerPort"])
+		runRouter(logger, port, executorUrl)
 	}
 
 	if arguments["--executorPort"] != nil {
-		port := getPort(arguments["--executorPort"])
-		runExecutor(port, fissionNs, functionNs, envBuilderNs)
+		port := getPort(logger, arguments["--executorPort"])
+		runExecutor(logger, port, fissionNs, functionNs, envBuilderNs)
 	}
 
 	if arguments["--kubewatcher"] == true {
-		runKubeWatcher(routerUrl)
+		runKubeWatcher(logger, routerUrl)
 	}
 
 	if arguments["--timer"] == true {
-		runTimer(routerUrl)
+		runTimer(logger, routerUrl)
 	}
 
 	if arguments["--mqt"] == true {
-		runMessageQueueMgr(routerUrl)
+		runMessageQueueMgr(logger, routerUrl)
 	}
 
 	if arguments["--builderMgr"] == true {
-		runBuilderMgr(storageSvcUrl, envBuilderNs)
+		runBuilderMgr(logger, storageSvcUrl, envBuilderNs)
 	}
 
 	if arguments["--storageServicePort"] != nil {
-		port := getPort(arguments["--storageServicePort"])
+		port := getPort(logger, arguments["--storageServicePort"])
 		filePath := arguments["--filePath"].(string)
-		runStorageSvc(port, filePath)
+		runStorageSvc(logger, port, filePath)
 	}
 
 	select {}

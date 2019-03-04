@@ -28,6 +28,8 @@ import (
 	"testing"
 	"time"
 
+	"go.uber.org/zap"
+
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -344,7 +346,7 @@ func TestMain(m *testing.M) {
 		return
 	}
 
-	go Start(8888, true)
+	go Start(zap.New(nil), 8888, true)
 
 	time.Sleep(5 * time.Second)
 	g.client = client.MakeClient("http://localhost:8888")

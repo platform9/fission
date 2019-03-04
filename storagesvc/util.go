@@ -17,15 +17,15 @@ limitations under the License.
 package storagesvc
 
 import (
-	"log"
 	"net/url"
+
+	"github.com/pkg/errors"
 )
 
 func getQueryParamValue(urlString string, queryParam string) (string, error) {
 	url, err := url.Parse(urlString)
 	if err != nil {
-		log.Printf("Error parsing URL string: %s into URL", urlString)
-		return "", err
+		return "", errors.Wrapf(err, "error parsing URL string %q into URL", urlString)
 	}
 	return url.Query().Get(queryParam), nil
 }

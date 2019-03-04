@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"go.uber.org/zap"
+
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -13,7 +15,7 @@ import (
 )
 
 func TestFunctionServiceCache(t *testing.T) {
-	fsc := MakeFunctionServiceCache()
+	fsc := MakeFunctionServiceCache(zap.New(nil))
 	if fsc == nil {
 		log.Panicf("error creating cache")
 	}

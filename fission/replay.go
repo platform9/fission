@@ -18,10 +18,10 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"text/tabwriter"
 
+	"github.com/fission/fission/fission/log"
 	"github.com/fission/fission/fission/util"
 	"github.com/urfave/cli"
 )

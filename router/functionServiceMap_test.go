@@ -20,11 +20,13 @@ import (
 	"net/url"
 	"testing"
 
+	"go.uber.org/zap"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestFunctionServiceMap(t *testing.T) {
-	m := makeFunctionServiceMap(0)
+	m := makeFunctionServiceMap(zap.New(nil), 0)
 	fn := &metav1.ObjectMeta{Name: "foo", Namespace: metav1.NamespaceDefault}
 	u, err := url.Parse("/foo012")
 	if err != nil {

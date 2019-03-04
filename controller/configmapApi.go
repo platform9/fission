@@ -20,8 +20,9 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"go.uber.org/zap"
+
 	"github.com/gorilla/mux"
-	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -35,7 +36,7 @@ func (a *API) ConfigMapGet(w http.ResponseWriter, r *http.Request) {
 
 	configMap, err := a.kubernetesClient.CoreV1().ConfigMaps(ns).Get(name, metav1.GetOptions{})
 	if err != nil {
-		log.Printf("Error getting config map: %s from ns: %s", name, ns)
+		a.logger.Error("error getting config map", zap.Error(err), zap.String("config_map_name", name), zap.String("namespace", ns))
 		a.respondWithError(w, err)
 		return
 	}

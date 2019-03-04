@@ -18,9 +18,10 @@ package router
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"time"
+
+	"go.uber.org/zap"
 
 	"github.com/gorilla/mux"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,6 +40,7 @@ type HTTPTriggerSet struct {
 	*functionServiceMap
 	*mutableRouter
 
+	logger                     *zap.Logger
 	fissionClient              *crd.FissionClient
 	kubeClient                 *kubernetes.Clientset
 	executor                   *executorClient.Client
@@ -57,10 +59,11 @@ type HTTPTriggerSet struct {
 	svcAddrUpdateThrottler     *throttler.Throttler
 }
 
-func makeHTTPTriggerSet(fmap *functionServiceMap, frmap *functionRecorderMap, trmap *triggerRecorderMap, fissionClient *crd.FissionClient,
+func makeHTTPTriggerSet(logger *zap.Logger, fmap *functionServiceMap, frmap *functionRecorderMap, trmap *triggerRecorderMap, fissionClient *crd.FissionClient,
 	kubeClient *kubernetes.Clientset, executor *executorClient.Client, crdClient *rest.RESTClient, params *tsRoundTripperParams, isDebugEnv bool, actionThrottler *throttler.Throttler) (*HTTPTriggerSet, k8sCache.Store, k8sCache.Store) {
 
 	httpTriggerSet := &HTTPTriggerSet{
+		logger:                     logger.Named("http_trigger_set"),
 		functionServiceMap:         fmap,
 		triggers:                   []crd.HTTPTrigger{},
 		fissionClient:              fissionClient,
@@ -83,7 +86,7 @@ func makeHTTPTriggerSet(fmap *functionServiceMap, frmap *functionRecorderMap, tr
 		httpTriggerSet.funcStore = fnStore
 		httpTriggerSet.funcController = fnController
 	}
-	recorderSet = MakeRecorderSet(httpTriggerSet, crdClient, rStore, frmap, trmap)
+	recorderSet = MakeRecorderSet(logger, httpTriggerSet, crdClient, rStore, frmap, trmap)
 	httpTriggerSet.recorderSet = recorderSet
 	return httpTriggerSet, tStore, fnStore
 }
@@ -95,7 +98,7 @@ func (ts *HTTPTriggerSet) subscribeRouter(ctx context.Context, mr *mutableRouter
 
 	if ts.fissionClient == nil {
 		// Used in tests only.
-		log.Printf("Skipping continuous trigger updates")
+		ts.logger.Info("skipping continuous trigger updates")
 		return
 	}
 	go ts.updateRouter()
@@ -104,7 +107,7 @@ func (ts *HTTPTriggerSet) subscribeRouter(ctx context.Context, mr *mutableRouter
 	if ts.recorderSet.recController != nil {
 		go ts.runWatcher(ctx, ts.recorderSet.recController)
 	} else {
-		log.Fatal("Failed to run recorder Controller")
+		ts.logger.Fatal("failed to run recorder controller")
 	}
 }
 
@@ -143,10 +146,11 @@ func (ts *HTTPTriggerSet) getRouter() *mux.Router {
 
 		if rr.resolveResultType != resolveResultSingleFunction && rr.resolveResultType != resolveResultMultipleFunctions {
 			// not implemented yet
-			log.Panicf("resolve result type not implemented (%v)", rr.resolveResultType)
+			ts.logger.Panic("resolve result type not implemented", zap.Any("type", rr.resolveResultType))
 		}
 
 		fh := &functionHandler{
+			logger:                   ts.logger.Named(trigger.Metadata.Name),
 			fmap:                     ts.functionServiceMap,
 			frmap:                    ts.recorderSet.functionRecorderMap,
 			trmap:                    ts.recorderSet.triggerRecorderMap,
@@ -205,6 +209,7 @@ func (ts *HTTPTriggerSet) getRouter() *mux.Router {
 		}
 
 		fh := &functionHandler{
+			logger:                 ts.logger.Named(m.Name),
 			fmap:                   ts.functionServiceMap,
 			frmap:                  ts.recorderSet.functionRecorderMap,
 			trmap:                  ts.recorderSet.triggerRecorderMap,
@@ -235,7 +240,7 @@ func (ts *HTTPTriggerSet) initTriggerController() (k8sCache.Store, k8sCache.Cont
 		k8sCache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				trigger := obj.(*crd.HTTPTrigger)
-				go createIngress(trigger, ts.kubeClient)
+				go createIngress(ts.logger, trigger, ts.kubeClient)
 				ts.syncTriggers()
 				// Check if this trigger's function needs to be recorded
 				fnRef := trigger.Spec.FunctionReference.Name
@@ -244,14 +249,17 @@ func (ts *HTTPTriggerSet) initTriggerController() (k8sCache.Store, k8sCache.Cont
 					if len(recorder.Spec.Triggers) == 0 {
 						ts.recorderSet.triggerRecorderMap.assign(trigger.Metadata.Name, recorder)
 					}
+				} else if err != nil {
+					ts.logger.Error("unable to lookup function in functionRecorderMap", zap.Error(err))
 				} else {
-					log.Print("Unable to lookup function in functionRecorderMap")
+					ts.logger.Error("unable to lookup function in functionRecorderMap")
+
 				}
 			},
 			DeleteFunc: func(obj interface{}) {
 				ts.syncTriggers()
 				trigger := obj.(*crd.HTTPTrigger)
-				go deleteIngress(trigger, ts.kubeClient)
+				go deleteIngress(ts.logger, trigger, ts.kubeClient)
 				go ts.recorderSet.DeleteTriggerFromRecorderMap(trigger)
 			},
 			UpdateFunc: func(oldObj interface{}, newObj interface{}) {
@@ -262,7 +270,7 @@ func (ts *HTTPTriggerSet) initTriggerController() (k8sCache.Store, k8sCache.Cont
 					return
 				}
 
-				go updateIngress(oldTrigger, newTrigger, ts.kubeClient)
+				go updateIngress(ts.logger, oldTrigger, newTrigger, ts.kubeClient)
 				ts.syncTriggers()
 			},
 		})
@@ -296,10 +304,10 @@ func (ts *HTTPTriggerSet) initFunctionController() (k8sCache.Store, k8sCache.Con
 						rr.functionMetadataMap[fn.Metadata.Name] != nil &&
 						rr.functionMetadataMap[fn.Metadata.Name].ResourceVersion != fn.Metadata.ResourceVersion {
 						// invalidate resolver cache
-						log.Printf("Invalidating resolver cache")
+						ts.logger.Info("invalidating resolver cache")
 						err := ts.resolver.delete(key.namespace, key.triggerName, key.triggerResourceVersion)
 						if err != nil {
-							log.Printf("Error deleting functionReferenceResolver cache: %v", err)
+							ts.logger.Error("error deleting functionReferenceResolver cache", zap.Error(err))
 						}
 
 						break

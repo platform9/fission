@@ -22,8 +22,9 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"go.uber.org/zap"
+
 	"github.com/gorilla/mux"
-	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission"
@@ -47,7 +48,7 @@ func (a *API) CanaryConfigApiCreate(w http.ResponseWriter, r *http.Request) {
 	var canaryCfg crd.CanaryConfig
 	err = json.Unmarshal(body, &canaryCfg)
 	if err != nil {
-		log.Printf("Failed to unmarshal request body: [%v]", body)
+		a.logger.Error("failed to unmarshal request body", zap.Error(err), zap.Binary("body", body))
 		a.respondWithError(w, err)
 		return
 	}

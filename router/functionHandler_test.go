@@ -24,6 +24,8 @@ import (
 	"testing"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -54,7 +56,7 @@ func TestFunctionProxying(t *testing.T) {
 
 	fn := &metav1.ObjectMeta{Name: "foo", Namespace: metav1.NamespaceDefault}
 
-	fmap := makeFunctionServiceMap(0)
+	fmap := makeFunctionServiceMap(zap.New(nil), 0)
 	fmap.assign(fn, backendURL)
 
 	httpTrigger := &crd.HTTPTrigger{

@@ -18,12 +18,12 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"text/tabwriter"
 
 	"github.com/urfave/cli"
 
+	"github.com/fission/fission/fission/log"
 	"github.com/fission/fission/fission/util"
 	"github.com/fission/fission/redis/build/gen"
 )
@@ -31,7 +31,7 @@ import (
 func recordsView(c *cli.Context) error {
 	var verbosity int
 	if c.Bool("v") && c.Bool("vv") {
-		log.Fatal("Conflicting verbosity levels, use either --v or --vv")
+		log.Fatal("conflicting verbosity levels, use either --v or --vv")
 	}
 	if c.Bool("v") {
 		verbosity = 1
@@ -47,7 +47,7 @@ func recordsView(c *cli.Context) error {
 
 	//Refuse multiple filters for now
 	if multipleFiltersSpecified(function, trigger, from+to) {
-		log.Fatal("Maximum of one filter is currently supported, either --function, --trigger, or --from,--to")
+		log.Fatal("maximum of one filter is currently supported, either --function, --trigger, or --from,--to")
 	}
 
 	if len(function) != 0 {

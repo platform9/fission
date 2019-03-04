@@ -9,13 +9,14 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"time"
+
+	"go.uber.org/zap"
 
 	"github.com/mholt/archiver"
 	"github.com/pkg/errors"
@@ -33,6 +34,7 @@ import (
 
 type (
 	Fetcher struct {
+		logger           *zap.Logger
 		sharedVolumePath string
 		sharedSecretPath string
 		sharedConfigPath string
@@ -42,23 +44,31 @@ type (
 	}
 )
 
-func makeVolumeDir(dirPath string) {
-	err := os.MkdirAll(dirPath, os.ModeDir|0700)
-	if err != nil {
-		log.Fatalf("Error creating %v: %v", dirPath, err)
-	}
+func makeVolumeDir(dirPath string) error {
+	return os.MkdirAll(dirPath, os.ModeDir|0700)
 }
 
-func MakeFetcher(sharedVolumePath string, sharedSecretPath string, sharedConfigPath string) (*Fetcher, error) {
-	makeVolumeDir(sharedVolumePath)
-	makeVolumeDir(sharedSecretPath)
-	makeVolumeDir(sharedConfigPath)
+func MakeFetcher(logger *zap.Logger, sharedVolumePath string, sharedSecretPath string, sharedConfigPath string) (*Fetcher, error) {
+	fLogger := logger.Named("fetcher")
+	err := makeVolumeDir(sharedVolumePath)
+	if err != nil {
+		fLogger.Fatal("error creating shared volume directory", zap.Error(err), zap.String("directory", sharedVolumePath))
+	}
+	err = makeVolumeDir(sharedSecretPath)
+	if err != nil {
+		fLogger.Fatal("error creating shared secret directory", zap.Error(err), zap.String("directory", sharedSecretPath))
+	}
+	err = makeVolumeDir(sharedConfigPath)
+	if err != nil {
+		fLogger.Fatal("error creating shared config directory", zap.Error(err), zap.String("directory", sharedConfigPath))
+	}
 
 	fissionClient, kubeClient, _, err := crd.MakeFissionClient()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error making the fission / kube client")
 	}
 	return &Fetcher{
+		logger:           fLogger,
 		sharedVolumePath: sharedVolumePath,
 		sharedSecretPath: sharedSecretPath,
 		sharedConfigPath: sharedConfigPath,
@@ -138,9 +148,7 @@ func writeSecretOrConfigMap(dataMap map[string][]byte, dirPath string) error {
 		writeFilePath := filepath.Join(dirPath, key)
 		err := ioutil.WriteFile(writeFilePath, val, 0600)
 		if err != nil {
-			e := fmt.Sprintf("Failed to write file %v: %v", writeFilePath, err)
-			log.Printf(e)
-			return errors.New(e)
+			return errors.Wrapf(err, "Failed to write file %s", writeFilePath)
 		}
 	}
 	return nil
@@ -160,38 +168,40 @@ func (fetcher *Fetcher) FetchHandler(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
 	defer func() {
 		elapsed := time.Since(startTime)
-		log.Printf("elapsed time in fetch request = %v", elapsed)
+		fetcher.logger.Info("fetch request done", zap.Duration("elapsed_time", elapsed))
 	}()
 
 	// parse request
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		log.Printf("Error reading request body")
+		fetcher.logger.Error("error reading request body", zap.Error(err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	var req fission.FunctionFetchRequest
 	err = json.Unmarshal(body, &req)
 	if err != nil {
-		log.Printf("Error reading request body: %v", err)
+		fetcher.logger.Error("error parsing request body", zap.Error(err))
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	code, err := fetcher.Fetch(r.Context(), req)
 	if err != nil {
+		fetcher.logger.Error("error fetching", zap.Error(err))
 		http.Error(w, err.Error(), code)
 		return
 	}
 
-	log.Printf("Checking secrets/cfgmaps")
+	fetcher.logger.Info("checking secrets/cfgmaps")
 	code, err = fetcher.FetchSecretsAndCfgMaps(req.Secrets, req.ConfigMaps)
 	if err != nil {
+		fetcher.logger.Error("error fetching secrets and config maps", zap.Error(err))
 		http.Error(w, err.Error(), code)
 		return
 	}
 
-	log.Printf("Completed fetch request")
+	fetcher.logger.Info("completed fetch request")
 	// all done
 	w.WriteHeader(http.StatusOK)
 }
@@ -205,22 +215,21 @@ func (fetcher *Fetcher) SpecializeHandler(w http.ResponseWriter, r *http.Request
 	// parse request
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		log.Printf("Error reading request body")
+		fetcher.logger.Error("error reading request body", zap.Error(err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	var req fission.FunctionSpecializeRequest
 	err = json.Unmarshal(body, &req)
 	if err != nil {
-		log.Printf("Error reading request body: %v", err)
+		fetcher.logger.Error("error parsing request body", zap.Error(err))
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	//log.Printf("fetcher received fetch request and started downloading: %v", req)
-
 	err = fetcher.SpecializePod(r.Context(), req.FetchReq, req.LoadReq)
 	if err != nil {
+		fetcher.logger.Error("error specialing pod", zap.Error(err))
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -234,14 +243,16 @@ func (fetcher *Fetcher) SpecializeHandler(w http.ResponseWriter, r *http.Request
 func (fetcher *Fetcher) Fetch(ctx context.Context, req fission.FunctionFetchRequest) (int, error) {
 	// check that the requested filename is not an empty string and error out if so
 	if len(req.Filename) == 0 {
-		e := fmt.Sprintf("Fetch request received for an empty file name, request: %v", req)
-		log.Printf(e)
-		return http.StatusBadRequest, errors.New(e)
+		e := "fetch request received for an empty file name"
+		fetcher.logger.Error(e, zap.Any("request", req))
+		return http.StatusBadRequest, errors.New(fmt.Sprintf("%s, request: %v", e, req))
 	}
 
 	// verify first if the file already exists.
 	if _, err := os.Stat(filepath.Join(fetcher.sharedVolumePath, req.Filename)); err == nil {
-		log.Printf("Requested file: %s already exists at %s. Skipping fetch", req.Filename, fetcher.sharedVolumePath)
+		fetcher.logger.Info("requested file already exists at shared volume - skipping fetch",
+			zap.String("requested_file", req.Filename),
+			zap.String("shared_volume_path", fetcher.sharedVolumePath))
 		return http.StatusOK, nil
 	}
 
@@ -252,17 +263,19 @@ func (fetcher *Fetcher) Fetch(ctx context.Context, req fission.FunctionFetchRequ
 		// fetch the file and save it to the tmp path
 		err := downloadUrl(ctx, fetcher.httpClient, req.Url, tmpPath)
 		if err != nil {
-			e := fmt.Sprintf("Failed to download url %v: %v", req.Url, err)
-			log.Printf(e)
-			return http.StatusBadRequest, errors.New(e)
+			e := "failed to download url"
+			fetcher.logger.Error(e, zap.Error(err), zap.String("url", req.Url))
+			return http.StatusBadRequest, errors.Wrapf(err, "%s: %s", e, req.Url)
 		}
 	} else {
 		// get pkg
 		pkg, err := fetcher.fissionClient.Packages(req.Package.Namespace).Get(req.Package.Name)
 		if err != nil {
-			e := fmt.Sprintf("Failed to get package: %v", err)
-			log.Printf(e)
-			return http.StatusInternalServerError, errors.New(e)
+			e := "failed to get package"
+			fetcher.logger.Error(e,
+				zap.String("package_name", req.Package.Name),
+				zap.String("package_namespace", req.Package.Namespace))
+			return http.StatusInternalServerError, errors.Wrap(err, e)
 		}
 
 		var archive *fission.Archive
@@ -274,9 +287,12 @@ func (fetcher *Fetcher) Fetch(ctx context.Context, req fission.FunctionFetchRequ
 			// we hit this "Get : unsupported protocol scheme "" error.
 			// it may be useful to the user if we can send a more meaningful error in such a scenario.
 			if pkg.Status.BuildStatus != fission.BuildStatusSucceeded && pkg.Status.BuildStatus != fission.BuildStatusNone {
-				e := fmt.Sprintf("Build status for the function's pkg : %s.%s is : %s, can't fetch deployment", pkg.Metadata.Name, pkg.Metadata.Namespace, pkg.Status.BuildStatus)
-				log.Printf(e)
-				return http.StatusInternalServerError, errors.New(e)
+				e := fmt.Sprintf("cannot fetch deployment: package build status was not %q", fission.BuildStatusSucceeded)
+				fetcher.logger.Error(e,
+					zap.String("package_name", pkg.Metadata.Name),
+					zap.String("package_namespace", pkg.Metadata.Namespace),
+					zap.Any("package_build_status", pkg.Status.BuildStatus))
+				return http.StatusInternalServerError, errors.New(fmt.Sprintf("%s: pkg %s.%s has a status of %s", e, pkg.Metadata.Name, pkg.Metadata.Namespace, pkg.Status.BuildStatus))
 			}
 			archive = &pkg.Spec.Deployment
 		}
@@ -285,31 +301,31 @@ func (fetcher *Fetcher) Fetch(ctx context.Context, req fission.FunctionFetchRequ
 			// write pkg.Literal into tmpPath
 			err = ioutil.WriteFile(tmpPath, archive.Literal, 0600)
 			if err != nil {
-				e := fmt.Sprintf("Failed to write file %v: %v", tmpPath, err)
-				log.Printf(e)
-				return http.StatusInternalServerError, errors.New(e)
+				e := "failed to write file"
+				fetcher.logger.Error(e, zap.Error(err), zap.String("location", tmpPath))
+				return http.StatusInternalServerError, errors.Wrapf(err, "%s %s", e, tmpPath)
 			}
 		} else {
 			// download and verify
 			err := downloadUrl(ctx, fetcher.httpClient, archive.URL, tmpPath)
 			if err != nil {
-				e := fmt.Sprintf("Failed to download url %v: %v", req.Url, err)
-				log.Printf(e)
-				return http.StatusBadRequest, errors.New(e)
+				e := "failed to download url"
+				fetcher.logger.Error(e, zap.Error(err), zap.String("url", req.Url))
+				return http.StatusBadRequest, errors.Wrapf(err, "%s %s", e, req.Url)
 			}
 
 			checksum, err := getChecksum(tmpPath)
 			if err != nil {
-				e := fmt.Sprintf("Failed to get checksum: %v", err)
-				log.Printf(e)
-				return http.StatusBadRequest, errors.New(e)
+				e := "failed to get checksum"
+				fetcher.logger.Error(e, zap.Error(err))
+				return http.StatusBadRequest, errors.Wrap(err, e)
 			}
 
 			err = verifyChecksum(checksum, &archive.Checksum)
 			if err != nil {
-				e := fmt.Sprintf("Failed to verify checksum: %v", err)
-				log.Printf(e)
-				return http.StatusBadRequest, errors.New(e)
+				e := "failed to verify checksum"
+				fetcher.logger.Error(e, zap.Error(err))
+				return http.StatusBadRequest, errors.Wrap(err, e)
 			}
 		}
 	}
@@ -319,7 +335,10 @@ func (fetcher *Fetcher) Fetch(ctx context.Context, req fission.FunctionFetchRequ
 		tmpUnarchivePath := filepath.Join(fetcher.sharedVolumePath, uuid.NewV4().String())
 		err := fetcher.unarchive(tmpPath, tmpUnarchivePath)
 		if err != nil {
-			log.Println(err.Error())
+			fetcher.logger.Error("error unarchiving",
+				zap.Error(err),
+				zap.String("archive_location", tmpPath),
+				zap.String("target_location", tmpUnarchivePath))
 			return http.StatusInternalServerError, err
 		}
 
@@ -327,13 +346,17 @@ func (fetcher *Fetcher) Fetch(ctx context.Context, req fission.FunctionFetchRequ
 	}
 
 	// move tmp file to requested filename
-	err := fetcher.rename(tmpPath, filepath.Join(fetcher.sharedVolumePath, req.Filename))
+	renamePath := filepath.Join(fetcher.sharedVolumePath, req.Filename)
+	err := fetcher.rename(tmpPath, renamePath)
 	if err != nil {
-		log.Println(err.Error())
+		fetcher.logger.Error("error renaming file",
+			zap.Error(err),
+			zap.String("original_path", tmpPath),
+			zap.String("rename_path", renamePath))
 		return http.StatusInternalServerError, err
 	}
 
-	log.Printf("Successfully placed at %v", filepath.Join(fetcher.sharedVolumePath, req.Filename))
+	fetcher.logger.Info("successfully placed", zap.String("location", renamePath))
 	return http.StatusOK, nil
 }
 
@@ -345,13 +368,17 @@ func (fetcher *Fetcher) FetchSecretsAndCfgMaps(secrets []fission.SecretReference
 			data, err := fetcher.kubeClient.CoreV1().Secrets(secret.Namespace).Get(secret.Name, metav1.GetOptions{})
 
 			if err != nil {
-				e := fmt.Sprintf("Failed to get secret from kubeapi: %v", err)
-				log.Printf(e)
+				e := "error getting secret from kubeapi"
 
 				httpCode := http.StatusInternalServerError
 				if k8serr.IsNotFound(err) {
 					httpCode = http.StatusNotFound
+					e = "secret was not found in kubeapi"
 				}
+				fetcher.logger.Error(e,
+					zap.Error(err),
+					zap.String("secret_name", secret.Name),
+					zap.String("secret_namespace", secret.Namespace))
 
 				return httpCode, errors.New(e)
 			}
@@ -360,12 +387,21 @@ func (fetcher *Fetcher) FetchSecretsAndCfgMaps(secrets []fission.SecretReference
 			secretDir := filepath.Join(fetcher.sharedSecretPath, secretPath)
 			err = os.MkdirAll(secretDir, os.ModeDir|0644)
 			if err != nil {
-				e := fmt.Sprintf("Failed to create directory %v: %v", secretDir, err)
-				log.Printf(e)
-				return http.StatusInternalServerError, errors.New(e)
+				e := "failed to create directory for secret"
+				fetcher.logger.Error(e,
+					zap.Error(err),
+					zap.String("directory", secretDir),
+					zap.String("secret_name", secret.Name),
+					zap.String("secret_namespace", secret.Namespace))
+				return http.StatusInternalServerError, errors.Wrapf(err, "%s: %s", e, secretDir)
 			}
 			err = writeSecretOrConfigMap(data.Data, secretDir)
 			if err != nil {
+				fetcher.logger.Error("failed to write secret to file location",
+					zap.Error(err),
+					zap.String("location", secretDir),
+					zap.String("secret_name", secret.Name),
+					zap.String("secret_namespace", secret.Namespace))
 				return http.StatusInternalServerError, err
 			}
 		}
@@ -376,13 +412,17 @@ func (fetcher *Fetcher) FetchSecretsAndCfgMaps(secrets []fission.SecretReference
 			data, err := fetcher.kubeClient.CoreV1().ConfigMaps(config.Namespace).Get(config.Name, metav1.GetOptions{})
 
 			if err != nil {
-				e := fmt.Sprintf("Failed to get configmap from kubeapi: %v", err)
-				log.Printf(e)
+				e := "error getting configmap from kubeapi"
 
 				httpCode := http.StatusInternalServerError
 				if k8serr.IsNotFound(err) {
 					httpCode = http.StatusNotFound
+					e = "configmap was not found in kubeapi"
 				}
+				fetcher.logger.Error(e,
+					zap.Error(err),
+					zap.String("config_map_name", config.Name),
+					zap.String("config_map_namespace", config.Namespace))
 
 				return httpCode, errors.New(e)
 			}
@@ -391,9 +431,13 @@ func (fetcher *Fetcher) FetchSecretsAndCfgMaps(secrets []fission.SecretReference
 			configDir := filepath.Join(fetcher.sharedConfigPath, configPath)
 			err = os.MkdirAll(configDir, os.ModeDir|0644)
 			if err != nil {
-				e := fmt.Sprintf("Failed to create directory %v: %v", configDir, err)
-				log.Printf(e)
-				return http.StatusInternalServerError, errors.New(e)
+				e := "failed to create directory for configmap"
+				fetcher.logger.Error(e,
+					zap.Error(err),
+					zap.String("directory", configDir),
+					zap.String("config_map_name", config.Name),
+					zap.String("config_map_namespace", config.Namespace))
+				return http.StatusInternalServerError, errors.Wrapf(err, "%s: %s", e, configDir)
 			}
 			configMap := make(map[string][]byte)
 			for key, val := range data.Data {
@@ -401,6 +445,11 @@ func (fetcher *Fetcher) FetchSecretsAndCfgMaps(secrets []fission.SecretReference
 			}
 			err = writeSecretOrConfigMap(configMap, configDir)
 			if err != nil {
+				fetcher.logger.Error("failed to write configmap to file location",
+					zap.Error(err),
+					zap.String("location", configDir),
+					zap.String("config_map_name", config.Name),
+					zap.String("config_map_namespace", config.Namespace))
 				return http.StatusInternalServerError, err
 			}
 		}
@@ -418,13 +467,13 @@ func (fetcher *Fetcher) UploadHandler(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
 	defer func() {
 		elapsed := time.Since(startTime)
-		log.Printf("elapsed time in upload request = %v", elapsed)
+		fetcher.logger.Info("upload request done", zap.Duration("elapsed_time", elapsed))
 	}()
 
 	// parse request
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		log.Printf("Error reading request body")
+		fetcher.logger.Error("error reading request body", zap.Error(err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -432,11 +481,11 @@ func (fetcher *Fetcher) UploadHandler(w http.ResponseWriter, r *http.Request) {
 	var req fission.ArchiveUploadRequest
 	err = json.Unmarshal(body, &req)
 	if err != nil {
-		log.Printf("Error reading request body: %v", err)
+		fetcher.logger.Error("error parsing request body", zap.Error(err))
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	log.Printf("fetcher received upload request: %v", req)
+	fetcher.logger.Info("fetcher received upload request", zap.Any("request", req))
 
 	zipFilename := req.Filename + ".zip"
 	srcFilepath := filepath.Join(fetcher.sharedVolumePath, req.Filename)
@@ -445,37 +494,37 @@ func (fetcher *Fetcher) UploadHandler(w http.ResponseWriter, r *http.Request) {
 	if req.ArchivePackage {
 		err = fetcher.archive(srcFilepath, dstFilepath)
 		if err != nil {
-			e := fmt.Sprintf("Error archiving zip file: %v", err)
-			log.Println(e)
-			http.Error(w, e, http.StatusInternalServerError)
+			e := "error archiving zip file"
+			fetcher.logger.Error(e, zap.Error(err), zap.String("source", srcFilepath), zap.String("destination", dstFilepath))
+			http.Error(w, fmt.Sprintf("%s: %v", e, err), http.StatusInternalServerError)
 			return
 		}
 	} else {
 		err = os.Rename(srcFilepath, dstFilepath)
 		if err != nil {
-			e := fmt.Sprintf("Error renaming the archive: %v", err)
-			log.Println(e)
-			http.Error(w, e, http.StatusInternalServerError)
+			e := "error renaming the archive"
+			fetcher.logger.Error(e, zap.Error(err), zap.String("source", srcFilepath), zap.String("destination", dstFilepath))
+			http.Error(w, fmt.Sprintf("%s: %v", e, err), http.StatusInternalServerError)
 			return
 		}
 	}
 
-	log.Println("Starting upload...")
+	fetcher.logger.Info("starting upload...")
 	ssClient := storageSvcClient.MakeClient(req.StorageSvcUrl)
 
 	fileID, err := ssClient.Upload(r.Context(), dstFilepath, nil)
 	if err != nil {
-		e := fmt.Sprintf("Error uploading zip file: %v", err)
-		log.Println(e)
-		http.Error(w, e, http.StatusInternalServerError)
+		e := "error uploading zip file"
+		fetcher.logger.Error(e, zap.Error(err), zap.String("file", dstFilepath))
+		http.Error(w, fmt.Sprintf("%s: %v", e, err), http.StatusInternalServerError)
 		return
 	}
 
 	sum, err := getChecksum(dstFilepath)
 	if err != nil {
-		e := fmt.Sprintf("Error calculating checksum of zip file: %v", err)
-		log.Println(e)
-		http.Error(w, e, http.StatusInternalServerError)
+		e := "error calculating checksum of zip file"
+		fetcher.logger.Error(e, zap.Error(err), zap.String("file", dstFilepath))
+		http.Error(w, fmt.Sprintf("%s: %v", e, err), http.StatusInternalServerError)
 		return
 	}
 
@@ -486,13 +535,13 @@ func (fetcher *Fetcher) UploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	rBody, err := json.Marshal(resp)
 	if err != nil {
-		e := fmt.Sprintf("Error encoding upload response: %v", err)
-		log.Println(e)
-		http.Error(w, e, http.StatusInternalServerError)
+		e := "error encoding upload response"
+		fetcher.logger.Error(e, zap.Error(err))
+		http.Error(w, fmt.Sprintf("%s: %v", e, err), http.StatusInternalServerError)
 		return
 	}
 
-	log.Println("Completed upload request")
+	fetcher.logger.Info("completed upload request")
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(rBody)
@@ -501,7 +550,7 @@ func (fetcher *Fetcher) UploadHandler(w http.ResponseWriter, r *http.Request) {
 func (fetcher *Fetcher) rename(src string, dst string) error {
 	err := os.Rename(src, dst)
 	if err != nil {
-		return errors.New(fmt.Sprintf("Failed to move file: %v", err))
+		return errors.Wrap(err, "failed to move file")
 	}
 	return nil
 }
@@ -512,7 +561,7 @@ func (fetcher *Fetcher) archive(src string, dst string) error {
 	var files []string
 	target, err := os.Stat(src)
 	if err != nil {
-		return errors.New(fmt.Sprintf("Failed to zip file: %v", err))
+		return errors.Wrap(err, "failed to zip file")
 	}
 	if target.IsDir() {
 		// list all
@@ -530,7 +579,7 @@ func (fetcher *Fetcher) archive(src string, dst string) error {
 func (fetcher *Fetcher) unarchive(src string, dst string) error {
 	err := archiver.Zip.Open(src, dst)
 	if err != nil {
-		return errors.New(fmt.Sprintf("Failed to unzip file: %v", err))
+		return errors.Wrap(err, "failed to unzip file")
 	}
 	return nil
 }
@@ -539,17 +588,17 @@ func (fetcher *Fetcher) SpecializePod(ctx context.Context, fetchReq fission.Func
 	startTime := time.Now()
 	defer func() {
 		elapsed := time.Since(startTime)
-		log.Printf("Elapsed time in fetch request = %v", elapsed)
+		fetcher.logger.Info("specialize request done", zap.Duration("elapsed_time", elapsed))
 	}()
 
 	_, err := fetcher.Fetch(ctx, fetchReq)
 	if err != nil {
-		return errors.Wrap(err, "Error fetching deploy package")
+		return errors.Wrap(err, "error fetching deploy package")
 	}
 
 	_, err = fetcher.FetchSecretsAndCfgMaps(fetchReq.Secrets, fetchReq.ConfigMaps)
 	if err != nil {
-		return errors.Wrap(err, "Error fetching secrets/configmaps")
+		return errors.Wrap(err, "error fetching secrets/configmaps")
 	}
 
 	// Specialize the pod
@@ -561,17 +610,19 @@ func (fetcher *Fetcher) SpecializePod(ctx context.Context, fetchReq fission.Func
 
 	loadPayload, err := json.Marshal(loadReq)
 	if err != nil {
-		return errors.Wrap(err, "Error encoding load request")
+		return errors.Wrap(err, "error encoding load request")
 	}
 
 	if loadReq.EnvVersion >= 2 {
 		contentType = "application/json"
 		specializeURL = "http://localhost:8888/v2/specialize"
 		reader = bytes.NewReader(loadPayload)
+		fetcher.logger.Info("calling environment v2 specialization endpoint")
 	} else {
 		contentType = "text/plain"
 		specializeURL = "http://localhost:8888/specialize"
 		reader = bytes.NewReader([]byte{})
+		fetcher.logger.Info("calling environment v1 specialization endpoint")
 	}
 
 	for i := 0; i < maxRetries; i++ {
@@ -588,7 +639,7 @@ func (fetcher *Fetcher) SpecializePod(ctx context.Context, fetchReq fission.Func
 				if netErr.Op == "dial" {
 					if i < maxRetries-1 {
 						time.Sleep(500 * time.Duration(2*i) * time.Millisecond)
-						log.Printf("Error connecting to pod (%v), retrying", netErr)
+						fetcher.logger.Error("error connecting to function environment pod for specialization request, retrying", zap.Error(netErr))
 						continue
 					}
 				}
@@ -599,8 +650,8 @@ func (fetcher *Fetcher) SpecializePod(ctx context.Context, fetchReq fission.Func
 			err = fission.MakeErrorFromHTTP(resp)
 		}
 
-		return errors.Wrap(err, "Error specializing function pod")
+		return errors.Wrap(err, "error specializing function pod")
 	}
 
-	return errors.Wrap(err, fmt.Sprintf("Error specializing function pod after %v times", maxRetries))
+	return errors.Wrapf(err, "error specializing function pod after %v times", maxRetries)
 }

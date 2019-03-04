@@ -18,19 +18,20 @@ package controller
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+
+	"go.uber.org/zap"
 )
 
 func (api *API) StorageServiceProxy(w http.ResponseWriter, r *http.Request) {
 	u := api.storageServiceUrl
 	ssUrl, err := url.Parse(u)
 	if err != nil {
-		msg := fmt.Sprintf("Error parsing url %v: %v", u, err)
-		log.Println(msg)
-		http.Error(w, msg, http.StatusInternalServerError)
+		e := "error parsing url"
+		api.logger.Error(e, zap.Error(err), zap.String("url", u))
+		http.Error(w, fmt.Sprintf("%s %s: %v", e, u, err), http.StatusInternalServerError)
 		return
 	}
 	director := func(req *http.Request) {

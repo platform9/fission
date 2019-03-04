@@ -26,8 +26,9 @@ import (
 	"net/url"
 	"sort"
 
+	"go.uber.org/zap"
+
 	"github.com/gorilla/mux"
-	log "github.com/sirupsen/logrus"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	restclient "k8s.io/client-go/rest"
@@ -188,7 +189,9 @@ func (a *API) FunctionLogsApiPost(w http.ResponseWriter, r *http.Request) {
 
 	svcUrl, err := url.Parse(dbCnf.httpURL)
 	if err != nil {
-		log.Printf("Failed to establish proxy server for function logs: %v", err)
+		a.logger.Error("failed parse url to establish proxy to database for function logs",
+			zap.Error(err),
+			zap.String("database_url", dbCnf.httpURL))
 	}
 	// set up proxy server director
 	director := func(req *http.Request) {

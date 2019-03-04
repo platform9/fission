@@ -17,8 +17,10 @@ limitations under the License.
 package fscache
 
 import (
-	"log"
+	"fmt"
 	"time"
+
+	"go.uber.org/zap"
 
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,6 +29,7 @@ import (
 	"github.com/fission/fission"
 	"github.com/fission/fission/cache"
 	"github.com/fission/fission/crd"
+	"github.com/pkg/errors"
 )
 
 type fscRequestType int
@@ -57,6 +60,7 @@ type (
 	}
 
 	FunctionServiceCache struct {
+		logger        *zap.Logger
 		byFunction    *cache.Cache // function-key -> funcSvc  : map[string]*funcSvc
 		byAddress     *cache.Cache // address      -> function : map[string]metav1.ObjectMeta
 		byFunctionUID *cache.Cache // function uid -> function : map[string]metav1.ObjectMeta
@@ -91,8 +95,9 @@ func IsNameExistError(err error) bool {
 	return false
 }
 
-func MakeFunctionServiceCache() *FunctionServiceCache {
+func MakeFunctionServiceCache(logger *zap.Logger) *FunctionServiceCache {
 	fsc := &FunctionServiceCache{
+		logger:         logger.Named("function_service_cache"),
 		byFunction:     cache.MakeCache(0, 0),
 		byAddress:      cache.MakeCache(0, 0),
 		byFunctionUID:  cache.MakeCache(0, 0),
@@ -122,14 +127,16 @@ func (fsc *FunctionServiceCache) service() {
 			}
 			resp.objects = funcObjects
 		case LOG:
+			fsc.logger.Info("dumping function service cache")
 			funcCopy := fsc.byFunction.Copy()
-			log.Printf("Cache has %v entries", len(funcCopy))
+			info := []string{}
 			for key, fsvcI := range funcCopy {
 				fsvc := fsvcI.(*FuncSvc)
 				for _, kubeObj := range fsvc.KubernetesObjects {
-					log.Printf("%v\t%v\t%v", key, kubeObj.Kind, kubeObj.Name)
+					info = append(info, fmt.Sprintf("%v\t%v\t%v", key, kubeObj.Kind, kubeObj.Name))
 				}
 			}
+			fsc.logger.Info("function service cache", zap.Int("item_count", len(funcCopy)), zap.Strings("cache", info))
 		}
 		req.responseChannel <- resp
 	}
@@ -196,9 +203,8 @@ func (fsc *FunctionServiceCache) Add(fsvc FuncSvc) (*FuncSvc, error) {
 	if err != nil {
 		if IsNameExistError(err) {
 			err = nil
-		}
-		if err != nil {
-			log.Printf("error caching fsvc: %v", err)
+		} else {
+			err = errors.Wrap(err, "error caching fsvc")
 		}
 		return nil, err
 	}
@@ -209,9 +215,8 @@ func (fsc *FunctionServiceCache) Add(fsvc FuncSvc) (*FuncSvc, error) {
 	if err != nil {
 		if IsNameExistError(err) {
 			err = nil
-		}
-		if err != nil {
-			log.Printf("error caching fsvc by function uid: %v", err)
+		} else {
+			err = errors.Wrap(err, "error caching fsvc by function uid")
 		}
 		return nil, err
 	}
@@ -278,12 +283,12 @@ func (fsc *FunctionServiceCache) ListOld(age time.Duration) ([]*FuncSvc, error) 
 }
 
 func (fsc *FunctionServiceCache) Log() {
-	log.Printf("--- FunctionService Cache Contents")
+	fsc.logger.Info("--- FunctionService Cache Contents")
 	responseChannel := make(chan *fscResponse)
 	fsc.requestChannel <- &fscRequest{
 		requestType:     LOG,
 		responseChannel: responseChannel,
 	}
 	<-responseChannel
-	log.Printf("--- FunctionService Cache Contents End")
+	fsc.logger.Info("--- FunctionService Cache Contents End")
 }

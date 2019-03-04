@@ -19,7 +19,6 @@ package logdb
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"sort"
@@ -30,6 +29,7 @@ import (
 	influxdbClient "github.com/influxdata/influxdb/client/v2"
 
 	"github.com/fission/fission"
+	"github.com/fission/fission/fission/log"
 )
 
 const (

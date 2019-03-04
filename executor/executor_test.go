@@ -33,6 +33,8 @@ import (
 	"testing"
 	"time"
 
+	"go.uber.org/zap"
+
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -135,7 +137,7 @@ func TestExecutor(t *testing.T) {
 	defer kubeClient.Namespaces().Delete(functionNs, nil)
 
 	// make sure CRD types exist on cluster
-	err = crd.EnsureFissionCRDs(apiExtClient)
+	err = crd.EnsureFissionCRDs(zap.New(nil), apiExtClient)
 	if err != nil {
 		log.Panicf("failed to ensure crds: %v", err)
 	}
@@ -165,13 +167,13 @@ func TestExecutor(t *testing.T) {
 
 	// create poolmgr
 	port := 9999
-	err = StartExecutor(fissionNs, functionNs, port)
+	err = StartExecutor(zap.New(nil), fissionNs, functionNs, "fission-builder", port)
 	if err != nil {
 		log.Panicf("failed to start poolmgr: %v", err)
 	}
 
 	// connect poolmgr client
-	poolmgrClient := client.MakeClient(fmt.Sprintf("http://localhost:%v", port))
+	poolmgrClient := client.MakeClient(zap.New(nil), fmt.Sprintf("http://localhost:%v", port))
 
 	// Wait for pool to be created (we don't actually need to do
 	// this, since the API should do the right thing in any case).

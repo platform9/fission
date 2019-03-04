@@ -24,9 +24,10 @@ import (
 	"os"
 	"strings"
 
+	"go.uber.org/zap"
+
 	sarama "github.com/Shopify/sarama"
 	cluster "github.com/bsm/sarama-cluster"
-	log "github.com/sirupsen/logrus"
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
@@ -34,30 +35,35 @@ import (
 
 type (
 	Kafka struct {
+		logger    *zap.Logger
 		routerUrl string
 		brokers   []string
 		version   sarama.KafkaVersion
 	}
 )
 
-func makeKafkaMessageQueue(routerUrl string, mqCfg MessageQueueConfig) (MessageQueue, error) {
+func makeKafkaMessageQueue(logger *zap.Logger, routerUrl string, mqCfg MessageQueueConfig) (MessageQueue, error) {
 	if len(routerUrl) == 0 || len(mqCfg.Url) == 0 {
-		return nil, errors.New("The router URL or MQ URL is empty")
+		return nil, errors.New("the router URL or MQ URL is empty")
 	}
 	mqKafkaVersion := os.Getenv("MESSAGE_QUEUE_KAFKA_VERSION")
 
 	// Parse version string
 	kafkaVersion, err := sarama.ParseKafkaVersion(mqKafkaVersion)
 	if err != nil {
-		log.Warningf("Error parsing version string %q: %v. Falling back to %q", mqKafkaVersion, err, kafkaVersion)
+		logger.Warn("error parsing kafka version string - falling back to default",
+			zap.Error(err),
+			zap.String("failed_version", mqKafkaVersion),
+			zap.Any("default_version", kafkaVersion))
 	}
 
 	kafka := Kafka{
+		logger:    logger.Named("kafka"),
 		routerUrl: routerUrl,
 		brokers:   strings.Split(mqCfg.Url, ","),
 		version:   kafkaVersion,
 	}
-	log.Infof("Created Queue %v", kafka)
+	logger.Info("created kafka queue", zap.Any("kafka", kafka))
 	return kafka, nil
 }
 
@@ -66,8 +72,8 @@ func isTopicValidForKafka(topic string) bool {
 }
 
 func (kafka Kafka) subscribe(trigger *crd.MessageQueueTrigger) (messageQueueSubscription, error) {
-	log.Infof("Inside kakfa subscribe %q", trigger)
-	log.Infof("brokers set to %q", kafka.brokers)
+	kafka.logger.Info("inside kakfa subscribe", zap.Any("trigger", trigger))
+	kafka.logger.Info("brokers set", zap.Strings("brokers", kafka.brokers))
 
 	// Create new consumer
 	consumerConfig := cluster.NewConfig()
@@ -75,7 +81,7 @@ func (kafka Kafka) subscribe(trigger *crd.MessageQueueTrigger) (messageQueueSubs
 	consumerConfig.Group.Return.Notifications = true
 	consumerConfig.Config.Version = kafka.version
 	consumer, err := cluster.NewConsumer(kafka.brokers, string(trigger.Metadata.UID), []string{trigger.Spec.Topic}, consumerConfig)
-	log.Infof("Created a new consumer: %#v", consumer)
+	kafka.logger.Info("created a new consumer", zap.Any("consumer", consumer))
 	if err != nil {
 		panic(err)
 	}
@@ -87,7 +93,7 @@ func (kafka Kafka) subscribe(trigger *crd.MessageQueueTrigger) (messageQueueSubs
 	producerConfig.Producer.Return.Successes = true
 	producerConfig.Version = kafka.version
 	producer, err := sarama.NewSyncProducer(kafka.brokers, producerConfig)
-	log.Infof("Created a new producer %q", producer)
+	kafka.logger.Info("created a new producer", zap.Any("consumer", producer))
 	if err != nil {
 		panic(err)
 	}
@@ -95,21 +101,21 @@ func (kafka Kafka) subscribe(trigger *crd.MessageQueueTrigger) (messageQueueSubs
 	// consume errors
 	go func() {
 		for err := range consumer.Errors() {
-			log.Printf("Error: %s\n", err.Error())
+			kafka.logger.Error("consumer error", zap.Error(err))
 		}
 	}()
 
 	// consume notifications
 	go func() {
 		for ntf := range consumer.Notifications() {
-			log.Printf("Rebalanced: %+v\n", ntf)
+			kafka.logger.Info("consumer notification", zap.Any("notification", ntf))
 		}
 	}()
 
 	// consume messages
 	go func() {
 		for msg := range consumer.Messages() {
-			log.Infof("Calling message handler with value " + string(msg.Value[:]))
+			kafka.logger.Info("calling message handler", zap.String("message", string(msg.Value[:])))
 			if kafkaMsgHandler(&kafka, producer, trigger, msg) {
 				consumer.MarkOffset(msg, "") // mark message as processed
 			}
@@ -127,12 +133,13 @@ func kafkaMsgHandler(kafka *Kafka, producer sarama.SyncProducer, trigger *crd.Me
 	var value string = string(msg.Value[:])
 	// Support other function ref types
 	if trigger.Spec.FunctionReference.Type != fission.FunctionReferenceTypeFunctionName {
-		log.Fatalf("Unsupported function reference type (%v) for trigger %v",
-			trigger.Spec.FunctionReference.Type, trigger.Metadata.Name)
+		kafka.logger.Fatal("unsupported function reference type for trigger",
+			zap.Any("function_reference_type", trigger.Spec.FunctionReference.Type),
+			zap.String("trigger", trigger.Metadata.Name))
 	}
 
 	url := kafka.routerUrl + "/" + strings.TrimPrefix(fission.UrlForFunction(trigger.Spec.FunctionReference.Name, trigger.Metadata.Namespace), "/")
-	log.Printf("Making HTTP request to %v", url)
+	kafka.logger.Info("making HTTP request", zap.String("url", url))
 
 	// Generate the Headers
 	fissionHeaders := map[string]string{
@@ -145,7 +152,9 @@ func kafkaMsgHandler(kafka *Kafka, producer sarama.SyncProducer, trigger *crd.Me
 	// Create request
 	req, err := http.NewRequest("POST", url, strings.NewReader(value))
 	if err != nil {
-		log.Warningf("Request creation failed: %v", url)
+		kafka.logger.Error("failed to create HTTP request to invoke function",
+			zap.Error(err),
+			zap.String("function_url", url))
 		return false
 	}
 
@@ -156,7 +165,8 @@ func kafkaMsgHandler(kafka *Kafka, producer sarama.SyncProducer, trigger *crd.Me
 			req.Header.Add(string(h.Key), string(h.Value))
 		}
 	} else {
-		log.Warningf("Headers are not supported by Kafka version %q, needs v0.11+: no record headers to add in HTTP request", kafka.version)
+		kafka.logger.Warn("headers are not supported by current Kafka version, needs v0.11+: no record headers to add in HTTP request",
+			zap.Any("current_version", kafka.version))
 	}
 
 	for k, v := range fissionHeaders {
@@ -169,7 +179,10 @@ func kafkaMsgHandler(kafka *Kafka, producer sarama.SyncProducer, trigger *crd.Me
 		// Make the request
 		resp, err = http.DefaultClient.Do(req)
 		if err != nil {
-			log.Errorf("Error invoking function for trigger %v: %v", trigger.Metadata.Name, err)
+			kafka.logger.Error("sending function invocation request failed",
+				zap.Error(err),
+				zap.String("function_url", url),
+				zap.String("trigger", trigger.Metadata.Name))
 			continue
 		}
 		if resp == nil {
@@ -182,18 +195,23 @@ func kafkaMsgHandler(kafka *Kafka, producer sarama.SyncProducer, trigger *crd.Me
 	}
 
 	if resp == nil {
-		log.Warning("Every retry failed; final retry gave empty response.")
+		kafka.logger.Warn("every function invocation retry failed; final retry gave empty response",
+			zap.String("function_url", url),
+			zap.String("trigger", trigger.Metadata.Name))
 		return false
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
-	log.Infof("Got response " + string(body))
+	kafka.logger.Info("got response from function invocation",
+		zap.String("function_url", url),
+		zap.String("trigger", trigger.Metadata.Name),
+		zap.String("body", string(body)))
 	if err != nil {
-		errorHandler(trigger, producer, fmt.Sprintf("Request body error: %v", string(body)))
+		errorHandler(kafka.logger, trigger, producer, fmt.Sprintf("request body error: %v", string(body)))
 		return false
 	}
 	if resp.StatusCode != 200 {
-		errorHandler(trigger, producer, fmt.Sprintf("Request returned failure: %v", resp.StatusCode))
+		errorHandler(kafka.logger, trigger, producer, fmt.Sprintf("request returned failure: %v", resp.StatusCode))
 		return false
 	}
 	if len(trigger.Spec.ResponseTopic) > 0 {
@@ -207,7 +225,8 @@ func kafkaMsgHandler(kafka *Kafka, producer sarama.SyncProducer, trigger *crd.Me
 				}
 			}
 		} else {
-			log.Warningf("Headers are not supported by Kafka version %q, needs v0.11+: dropping the headers", kafka.version)
+			kafka.logger.Warn("headers are not supported by current Kafka version, needs v0.11+: no record headers to add in HTTP request",
+				zap.Any("current_version", kafka.version))
 		}
 
 		_, _, err := producer.SendMessage(&sarama.ProducerMessage{
@@ -216,24 +235,30 @@ func kafkaMsgHandler(kafka *Kafka, producer sarama.SyncProducer, trigger *crd.Me
 			Headers: kafkaRecordHeaders,
 		})
 		if err != nil {
-			log.Warningf("Failed to publish message to topic %s: %v", trigger.Spec.ResponseTopic, err)
+			kafka.logger.Warn("failed to publish response body from function invocation to topic",
+				zap.Error(err),
+				zap.String("topic", trigger.Spec.Topic),
+				zap.String("function_url", url))
 			return false
 		}
 	}
 	return true
 }
 
-func errorHandler(trigger *crd.MessageQueueTrigger, producer sarama.SyncProducer, body string) {
+func errorHandler(logger *zap.Logger, trigger *crd.MessageQueueTrigger, producer sarama.SyncProducer, body string) {
 	if len(trigger.Spec.ErrorTopic) > 0 {
 		_, _, err := producer.SendMessage(&sarama.ProducerMessage{
 			Topic: trigger.Spec.ErrorTopic,
 			Value: sarama.StringEncoder(body),
 		})
 		if err != nil {
-			log.Warningf("Failed to publish message to error topic %s: %v", trigger.Spec.ErrorTopic, err)
+			logger.Warn("failed to publish message to error topic",
+				zap.Error(err),
+				zap.String("topic", trigger.Spec.Topic))
 			return
 		}
 	} else {
-		log.Printf(body)
+		logger.Error("message received to publish to error topic, but no error topic was set",
+			zap.String("message", body))
 	}
 }

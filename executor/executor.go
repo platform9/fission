@@ -19,7 +19,6 @@ package executor
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"runtime/debug"
 	"strings"
@@ -29,6 +28,7 @@ import (
 	"github.com/dchest/uniuri"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission"
@@ -41,6 +41,8 @@ import (
 
 type (
 	Executor struct {
+		logger *zap.Logger
+
 		gpm *poolmgr.GenericPoolManager
 		ndm *newdeploy.NewDeploy
 
@@ -62,8 +64,9 @@ type (
 	}
 )
 
-func MakeExecutor(gpm *poolmgr.GenericPoolManager, ndm *newdeploy.NewDeploy, fissionClient *crd.FissionClient, fsCache *fscache.FunctionServiceCache) *Executor {
+func MakeExecutor(logger *zap.Logger, gpm *poolmgr.GenericPoolManager, ndm *newdeploy.NewDeploy, fissionClient *crd.FissionClient, fsCache *fscache.FunctionServiceCache) *Executor {
 	executor := &Executor{
+		logger:        logger.Named("executor"),
 		gpm:           gpm,
 		ndm:           ndm,
 		fissionClient: fissionClient,
@@ -111,7 +114,8 @@ func (executor *Executor) serveCreateFuncServices() {
 		} else {
 			// There's an existing request for this function, wait for it to finish
 			go func() {
-				log.Printf("Waiting for concurrent request for the same function: %v", m)
+				executor.logger.Info("waiting for concurrent request for the same function",
+					zap.Any("function", m))
 				wg.Wait()
 
 				// get the function service from the cache
@@ -121,7 +125,9 @@ func (executor *Executor) serveCreateFuncServices() {
 				// It normally happened if there are multiple requests are
 				// waiting for the same function and executor failed to cre-
 				// ate service for function.
-				err = errors.Wrap(err, fmt.Sprintf("Error getting service for function %v in namespace %v", m.Name, m.Namespace))
+				err = errors.Wrapf(err, "error getting service for function",
+					zap.String("function_name", m.Name),
+					zap.String("function_namespace", m.Namespace))
 				req.respChan <- &createFuncServiceResponse{
 					funcSvc: fsvc,
 					err:     err,
@@ -140,7 +146,9 @@ func (executor *Executor) getFunctionExecutorType(meta *metav1.ObjectMeta) (fiss
 }
 
 func (executor *Executor) createServiceForFunction(ctx context.Context, meta *metav1.ObjectMeta) (*fscache.FuncSvc, error) {
-	log.Printf("[%v] No cached function service found, creating one", meta.Name)
+	executor.logger.Info("no cached function service found, creating one",
+		zap.String("function_name", meta.Name),
+		zap.String("function_namespace", meta.Namespace))
 
 	executorType, err := executor.getFunctionExecutorType(meta)
 	if err != nil {
@@ -158,8 +166,12 @@ func (executor *Executor) createServiceForFunction(ctx context.Context, meta *me
 	}
 
 	if fsvcErr != nil {
-		fsvcErr = errors.Wrap(fsvcErr, fmt.Sprintf("[%v] Error creating service for function", meta.Name))
-		log.Print(fsvcErr)
+		e := "error creating service for function"
+		executor.logger.Error(e,
+			zap.Error(fsvcErr),
+			zap.String("function_name", meta.Name),
+			zap.String("function_namespace", meta.Namespace))
+		fsvcErr = errors.Wrap(fsvcErr, fmt.Sprintf("[%s] %s", meta.Name, e))
 	} else if fsvc != nil {
 		_, err = executor.fsCache.Add(*fsvc)
 		if err != nil {
@@ -185,16 +197,18 @@ func dumpStackTrace() {
 	debug.PrintStack()
 }
 
-func serveMetric() {
+func serveMetric(logger *zap.Logger) {
 	// Expose the registered metrics via HTTP.
 	metricAddr := ":8080"
 	http.Handle("/metrics", promhttp.Handler())
-	log.Fatal(http.ListenAndServe(metricAddr, nil))
+	err := http.ListenAndServe(metricAddr, nil)
+
+	logger.Fatal("done listening on metrics endpoint", zap.Error(err))
 }
 
 // StartExecutor Starts executor and the executor components such as Poolmgr,
 // deploymgr and potential future executor types
-func StartExecutor(fissionNamespace string, functionNamespace string, envBuilderNamespace string, port int) error {
+func StartExecutor(logger *zap.Logger, fissionNamespace string, functionNamespace string, envBuilderNamespace string, port int) error {
 	// setup a signal handler for SIGTERM
 	fission.SetupStackTraceHandler()
 
@@ -202,33 +216,34 @@ func StartExecutor(fissionNamespace string, functionNamespace string, envBuilder
 
 	err = fissionClient.WaitForCRDs()
 	if err != nil {
-		log.Fatalf("Error waiting for CRDs: %v", err)
+		return errors.Wrap(err, "error waiting for CRDs")
 	}
 
 	restClient := fissionClient.GetCrdClient()
 	if err != nil {
-		log.Printf("Failed to get kubernetes client: %v", err)
-		return err
+		return errors.Wrap(err, "failed to get kubernetes client")
 	}
 
-	fsCache := fscache.MakeFunctionServiceCache()
+	fsCache := fscache.MakeFunctionServiceCache(logger)
 
 	poolID := strings.ToLower(uniuri.NewLen(8))
-	reaper.CleanupOldExecutorObjects(kubernetesClient, poolID)
-	go reaper.CleanupRoleBindings(kubernetesClient, fissionClient, functionNamespace, envBuilderNamespace, time.Minute*30)
+	reaper.CleanupOldExecutorObjects(logger, kubernetesClient, poolID)
+	go reaper.CleanupRoleBindings(logger, kubernetesClient, fissionClient, functionNamespace, envBuilderNamespace, time.Minute*30)
 
 	gpm := poolmgr.MakeGenericPoolManager(
+		logger,
 		fissionClient, kubernetesClient,
 		functionNamespace, poolID)
 
 	ndm := newdeploy.MakeNewDeploy(
+		logger,
 		fissionClient, kubernetesClient, restClient,
 		functionNamespace, poolID)
 
-	api := MakeExecutor(gpm, ndm, fissionClient, fsCache)
+	api := MakeExecutor(logger, gpm, ndm, fissionClient, fsCache)
 
 	go api.Serve(port)
-	go serveMetric()
+	go serveMetric(logger)
 
 	return nil
 }

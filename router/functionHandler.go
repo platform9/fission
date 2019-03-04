@@ -30,10 +30,11 @@ import (
 	"strings"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
-	log "github.com/sirupsen/logrus"
 	"go.opencensus.io/plugin/ochttp"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -51,6 +52,7 @@ const (
 
 type (
 	functionHandler struct {
+		logger                   *zap.Logger
 		fmap                     *functionServiceMap
 		frmap                    *functionRecorderMap
 		trmap                    *triggerRecorderMap
@@ -86,6 +88,7 @@ type (
 
 	// A layer on top of http.DefaultTransport, with retries.
 	RetryingRoundTripper struct {
+		logger      *zap.Logger
 		funcHandler *functionHandler
 		base        http.RoundTripper
 	}
@@ -146,7 +149,7 @@ func (w *fakeCloseReadCloser) RealClose() error {
 // if it returned an error.
 func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *http.Response, err error) {
 	// Set forwarded host header if not exists
-	addForwardedHostHeader(req)
+	roundTripper.addForwardedHostHeader(req)
 
 	// TODO: Keep? --> Needed for queries encoded in URL before they're stripped by the proxy
 	var originalUrl url.URL
@@ -164,7 +167,7 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 
 			rdr1.Read(p)
 			postedBody = string(p)
-			log.Info(fmt.Sprintf("%v", postedBody))
+			roundTripper.logger.Info("roundtripper posted body", zap.String("body", postedBody))
 			req.Body = rdr2
 		}
 	}
@@ -287,13 +290,15 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 				if roundTripper.funcHandler.httpTrigger != nil {
 					trigger := roundTripper.funcHandler.httpTrigger.Metadata.Name
 					redis.Record(
+						roundTripper.logger,
 						trigger,
 						roundTripper.funcHandler.recorderName,
 						req.Header.Get("X-Fission-ReqUID"), req, originalUrl, postedBody, resp, fnMeta.Namespace,
 						time.Now().UnixNano(),
 					)
 				} else {
-					log.Printf("No http trigger attached for recorder: %v", roundTripper.funcHandler.recorderName)
+					roundTripper.logger.Error("no http trigger attached for recorder",
+						zap.String("recorder", roundTripper.funcHandler.recorderName))
 				}
 			}
 
@@ -303,7 +308,7 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 
 		// if transport.RoundTrip returns a non-network dial error, then relay it back to user
 		if !fission.IsNetworkDialError(err) {
-			err = errors.Wrapf(err, "Error sending request to function %v", fnMeta.Name)
+			err = errors.Wrapf(err, "error sending request to function %v", fnMeta.Name)
 			return resp, err
 		}
 
@@ -313,8 +318,9 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 			executingTimeout = executingTimeout * time.Duration(roundTripper.funcHandler.tsRoundTripperParams.timeoutExponent)
 			retryCounter++
 
-			log.Printf("request to %s errored out. backing off for %v before retrying",
-				req.URL.Host, executingTimeout)
+			roundTripper.logger.Info("request errored out - backing off before retrying",
+				zap.String("url", req.URL.Host),
+				zap.Duration("backoff_timeout", executingTimeout))
 
 			time.Sleep(executingTimeout)
 
@@ -324,9 +330,9 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 		} else {
 			// if transport.RoundTrip returns a network dial error and serviceUrl was from cache,
 			// it means, the entry in router cache is stale, so invalidate it.
-			log.Printf("request to %s errored out. removing function : %s from router's cache "+
-				"and requesting a new service for function",
-				req.URL.Host, fnMeta.Name)
+			roundTripper.logger.Error("request errored out - removing function from router's cache and requesting a new service for function",
+				zap.String("url", req.URL.Host),
+				zap.String("function_name", fnMeta.Name))
 			roundTripper.funcHandler.fmap.remove(fnMeta)
 			retryCounter = 0
 		}
@@ -340,7 +346,9 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (resp *htt
 	// finally, one more retry with the default timeout
 	resp, err = http.DefaultTransport.RoundTrip(req)
 	if err != nil {
-		log.Printf("Error getting response from function %v: %v", fnMeta.Name, err)
+		roundTripper.logger.Error("error getting response from function",
+			zap.Error(err),
+			zap.String("function_name", fnMeta.Name))
 	}
 
 	return resp, err
@@ -385,19 +393,19 @@ func (fh functionHandler) handler(responseWriter http.ResponseWriter, request *h
 		UID := strings.ToLower(uuid.NewV4().String())
 		reqUID = "REQ" + UID
 		request.Header.Set("X-Fission-ReqUID", reqUID)
-		log.Print("Record request with ReqUID: ", reqUID)
+		fh.logger.Info("record request", zap.String("request_id", reqUID))
 	}
 
 	if fh.httpTrigger != nil && fh.httpTrigger.Spec.FunctionReference.Type == fission.FunctionReferenceTypeFunctionWeights {
 		// canary deployment. need to determine the function to send request to now
 		fnMetadata := getCanaryBackend(fh.functionMetadataMap, fh.fnWeightDistributionList)
 		if fnMetadata == nil {
-			log.Printf("Error getting canary backend ")
+			fh.logger.Error("could not get canary backend", zap.String("request_id", reqUID))
 			// TODO : write error to responseWrite and return response
 			return
 		}
 		fh.function = fnMetadata
-		log.Debugf("chosen fnBackend's metadata : %+v", fh.function)
+		fh.logger.Debug("chosen function backend's metadata", zap.Any("metadata", fh.function))
 	}
 
 	// system params
@@ -413,6 +421,7 @@ func (fh functionHandler) handler(responseWriter http.ResponseWriter, request *h
 	proxy := &httputil.ReverseProxy{
 		Director: director,
 		Transport: &RetryingRoundTripper{
+			logger:      fh.logger.Named("roundtripper"),
 			funcHandler: &fh,
 			base: &ochttp.Transport{
 				Base: &http.Transport{
@@ -471,7 +480,7 @@ func getCanaryBackend(fnMetadatamap map[string]*metav1.ObjectMeta, fnWtDistribut
 }
 
 // addForwardedHostHeader add "forwarded host" to request header
-func addForwardedHostHeader(req *http.Request) {
+func (roundTripper RetryingRoundTripper) addForwardedHostHeader(req *http.Request) {
 	// for more detailed information, please visit:
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Forwarded
 
@@ -486,7 +495,9 @@ func addForwardedHostHeader(req *http.Request) {
 	reqUrl := fmt.Sprintf("%s://%s", req.Proto, req.Host)
 	u, err := url.Parse(reqUrl)
 	if err != nil {
-		log.Printf("Error parsing request url (%v): %v", reqUrl, err)
+		roundTripper.logger.Error("error parsing request url while adding forwarded host headers",
+			zap.Error(err),
+			zap.String("url", reqUrl))
 		return
 	}
 
@@ -531,14 +542,19 @@ func (fh *functionHandler) getServiceEntry(ctx context.Context) (serviceUrl *url
 			var u *url.URL
 			// Get service entry from executor and update cache if its the first goroutine
 			if firstToTheLock { // first to the service url
-				log.Printf("Calling getServiceForFunction for function: %s", fh.function.Name)
+				fh.logger.Info("calling getServiceForFunction",
+					zap.String("function_name", fh.function.Name))
 				u, err = fh.getServiceEntryFromExecutor(ctx)
 				if err != nil {
-					log.Printf("Error getting service url from executor: %v", err)
+					fh.logger.Error("error getting service url from executor",
+						zap.Error(err),
+						zap.String("function_name", fh.function.Name))
 					return nil, err
 				}
 				// add the address in router's cache
-				log.Printf("Assigning service url: %s for function: %s", u, fh.function.Name)
+				fh.logger.Info("assigning service url for function",
+					zap.String("url", u.String()),
+					zap.String("function_name", fh.function.Name))
 				fh.fmap.assign(fh.function, u)
 			} else {
 				u, err = fh.getServiceEntryFromCache()
@@ -554,9 +570,12 @@ func (fh *functionHandler) getServiceEntry(ctx context.Context) (serviceUrl *url
 		},
 	)
 	if err != nil {
-		err = errors.Wrap(err, fmt.Sprintf("Error updating service address entry for function %v_%v", fh.function.Name, fh.function.Namespace))
-		log.Println(err)
-		return nil, false, err
+		e := "error updating service address entry for function"
+		fh.logger.Error(e,
+			zap.Error(err),
+			zap.String("function_name", fh.function.Name),
+			zap.String("function_namespace", fh.function.Namespace))
+		return nil, false, errors.Wrapf(err, "%s %s_%s", e, fh.function.Name, fh.function.Namespace)
 	}
 
 	record, ok := recordObj.(svcEntryRecord)
@@ -596,14 +615,20 @@ func (fh *functionHandler) getServiceEntryFromExecutor(ctx context.Context) (*ur
 	service, err := fh.executor.GetServiceForFunction(ctx, fh.function)
 	if err != nil {
 		statusCode, errMsg := fission.GetHTTPError(err)
-		log.Printf("Error from GetServiceForFunction for function (%v): %v : %v", fh.function, statusCode, errMsg)
+		fh.logger.Error("error from GetServiceForFunction",
+			zap.Error(err),
+			zap.String("error_message", errMsg),
+			zap.Any("function", fh.function),
+			zap.Int("status_code", statusCode))
 		return nil, err
 	}
 
 	// parse the address into url
 	serviceUrl, err := url.Parse(fmt.Sprintf("http://%v", service))
 	if err != nil {
-		log.Printf("Error parsing service url (%v): %v", serviceUrl, err)
+		fh.logger.Error("error parsing service url",
+			zap.Error(err),
+			zap.String("service_url", serviceUrl.String()))
 		return nil, err
 	}
 

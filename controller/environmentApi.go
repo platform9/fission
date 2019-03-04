@@ -22,7 +22,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission"
@@ -60,7 +60,7 @@ func (a *API) EnvironmentApiCreate(w http.ResponseWriter, r *http.Request) {
 	var env crd.Environment
 	err = json.Unmarshal(body, &env)
 	if err != nil {
-		log.Printf("Failed to unmarshal request body: [%v]", body)
+		a.logger.Error("failed to unmarshal request body", zap.Error(err), zap.Binary("body", body))
 		a.respondWithError(w, err)
 		return
 	}

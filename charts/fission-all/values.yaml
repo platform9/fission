@@ -53,6 +53,7 @@ enableIstio: false
 ## Logger config
 logger:
   influxdbAdmin: "admin"
+  fluentdImageRepository: index.docker.io
   fluentdImage: fission/fluentd
   fluentdImageTag: 1.0.0
 

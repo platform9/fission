@@ -21,9 +21,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"strings"
+
+	"go.uber.org/zap"
 
 	"github.com/gorilla/mux"
 	"go.opencensus.io/plugin/ochttp"
@@ -50,7 +51,10 @@ func (executor *Executor) getServiceForFunctionApi(w http.ResponseWriter, r *htt
 	serviceName, err := executor.getServiceForFunction(r.Context(), &m)
 	if err != nil {
 		code, msg := fission.GetHTTPError(err)
-		log.Printf("Error: %v: %v", code, msg)
+		executor.logger.Error("error getting service for function",
+			zap.Error(err),
+			zap.String("function", m.Name),
+			zap.String("fission_http_error", msg))
 		http.Error(w, msg, code)
 		return
 	}
@@ -69,14 +73,19 @@ func (executor *Executor) getServiceForFunctionApi(w http.ResponseWriter, r *htt
 // invalidates the cache entry if the pod address was cached.
 func (executor *Executor) getServiceForFunction(ctx context.Context, m *metav1.ObjectMeta) (string, error) {
 	// Check function -> svc cache
-	log.Printf("[%v] Checking for cached function service", m.Name)
+	executor.logger.Info("checking for cached function service",
+		zap.String("function_name", m.Name),
+		zap.String("function_namespace", m.Namespace))
 	fsvc, err := executor.fsCache.GetByFunction(m)
 	if err == nil {
 		if executor.isValidAddress(fsvc) {
 			// Cached, return svc address
 			return fsvc.Address, nil
 		} else {
-			log.Printf("[%v] Deleting cache entry for invalid address : %s", m.Name, fsvc.Address)
+			executor.logger.Info("deleting cache entry for invalid address",
+				zap.String("function_name", m.Name),
+				zap.String("function_namespace", m.Namespace),
+				zap.String("address", fsvc.Address))
 			executor.fsCache.DeleteEntry(fsvc)
 		}
 	}
@@ -98,6 +107,7 @@ func (executor *Executor) getServiceForFunction(ctx context.Context, m *metav1.O
 func (executor *Executor) tapService(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
+		executor.logger.Error("failed to read tap service request", zap.Error(err))
 		http.Error(w, "Failed to read request", http.StatusInternalServerError)
 		return
 	}
@@ -106,7 +116,10 @@ func (executor *Executor) tapService(w http.ResponseWriter, r *http.Request) {
 
 	err = executor.fsCache.TouchByAddress(svcHost)
 	if err != nil {
-		log.Printf("funcSvc tap error: %v", err)
+		executor.logger.Error("error tapping function service",
+			zap.Error(err),
+			zap.String("service", svcName),
+			zap.String("host", svcHost))
 		http.Error(w, "Not found", http.StatusNotFound)
 		return
 	}
@@ -123,15 +136,15 @@ func (executor *Executor) Serve(port int) {
 	r.HandleFunc("/v2/tapService", executor.tapService).Methods("POST")
 	r.HandleFunc("/healthz", executor.healthHandler).Methods("GET")
 	address := fmt.Sprintf(":%v", port)
-	log.Printf("starting executor at port %v", port)
+	executor.logger.Info("starting executor", zap.Int("port", port))
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	executor.ndm.Run(ctx)
 	executor.gpm.Run(ctx)
-	r.Use(fission.LoggingMiddleware)
+	r.Use(fission.LoggingMiddleware(executor.logger))
 	err := http.ListenAndServe(address, &ochttp.Handler{
 		Handler: r,
 		// Propagation: &b3.HTTPFormat{},
 	})
-	log.Fatal(err)
+	executor.logger.Fatal("done listening", zap.Error(err))
 }

@@ -17,9 +17,8 @@ limitations under the License.
 package logdb
 
 import (
+	"fmt"
 	"time"
-
-	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -55,6 +54,5 @@ func GetLogDB(dbType string, serverURL string) (LogDatabase, error) {
 	case INFLUXDB:
 		return NewInfluxDB(serverURL)
 	}
-	log.Fatalf("Log database type is incorrect, now only support %s", INFLUXDB)
-	return nil, nil
+	return nil, fmt.Errorf("log database type is incorrect, now only support %s", INFLUXDB)
 }

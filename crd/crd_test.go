@@ -22,6 +22,8 @@ import (
 	"testing"
 	"time"
 
+	"go.uber.org/zap"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 
@@ -428,7 +430,7 @@ func TestCrd(t *testing.T) {
 	panicIf(err)
 
 	// init our types
-	err = EnsureFissionCRDs(apiExtClient)
+	err = EnsureFissionCRDs(zap.New(nil), apiExtClient)
 	panicIf(err)
 
 	// rest client with knowledge about our crd types

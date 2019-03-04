@@ -19,11 +19,12 @@ package buildermgr
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 
+	"go.uber.org/zap"
+
 	apiv1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	k8sCache "k8s.io/client-go/tools/cache"
@@ -36,6 +37,7 @@ import (
 
 type (
 	packageWatcher struct {
+		logger           *zap.Logger
 		fissionClient    *crd.FissionClient
 		k8sClient        *kubernetes.Clientset
 		podStore         k8sCache.Store
@@ -45,13 +47,14 @@ type (
 	}
 )
 
-func makePackageWatcher(fissionClient *crd.FissionClient, k8sClientSet *kubernetes.Clientset,
+func makePackageWatcher(logger *zap.Logger, fissionClient *crd.FissionClient, k8sClientSet *kubernetes.Clientset,
 	builderNamespace string, storageSvcUrl string) *packageWatcher {
 	lw := k8sCache.NewListWatchFromClient(k8sClientSet.CoreV1().RESTClient(), "pods", metav1.NamespaceAll, fields.Everything())
 	store, controller := k8sCache.NewInformer(lw, &apiv1.Pod{}, 30*time.Second, k8sCache.ResourceEventHandlerFuncs{})
 	go controller.Run(make(chan struct{}))
 
 	pkgw := &packageWatcher{
+		logger:           logger.Named("package_watcher"),
 		fissionClient:    fissionClient,
 		k8sClient:        k8sClientSet,
 		podStore:         store,
@@ -86,20 +89,26 @@ func (pkgw *packageWatcher) build(buildCache *cache.Cache, srcpkg *crd.Package) 
 	}
 	defer buildCache.Delete(key)
 
-	log.Printf("Start build for package %v with resource version %v", srcpkg.Metadata.Name, srcpkg.Metadata.ResourceVersion)
+	pkgw.logger.Info("starting build for package", zap.String("package_name", srcpkg.Metadata.Name), zap.String("resource_version", srcpkg.Metadata.ResourceVersion))
 
 	pkg, err := updatePackage(pkgw.fissionClient, srcpkg, fission.BuildStatusRunning, "", nil)
 	if err != nil {
-		e := fmt.Sprintf("Error setting package pending state: %v", err)
-		log.Println(e)
-		updatePackage(pkgw.fissionClient, srcpkg, fission.BuildStatusFailed, e, nil)
+		e := "error setting package pending state"
+		pkgw.logger.Error(e, zap.Error(err))
+		// I don't understand what the following line does - it seems like it's
+		// just to log the above error with the package, but the only error
+		// from that function comes from trying to update the package, so in
+		// theory this doesn't seem to do anything at all
+		updatePackage(pkgw.fissionClient, srcpkg, fission.BuildStatusFailed, fmt.Sprintf("%s: %v", e, err), nil)
 		return
 	}
 
 	env, err := pkgw.fissionClient.Environments(pkg.Spec.Environment.Namespace).Get(pkg.Spec.Environment.Name)
-	if errors.IsNotFound(err) {
+	if k8serrors.IsNotFound(err) {
+		e := "environment does not exist"
+		pkgw.logger.Error(e, zap.String("environment", pkg.Spec.Environment.Name))
 		updatePackage(pkgw.fissionClient, pkg,
-			fission.BuildStatusFailed, "Environment not existed", nil)
+			fission.BuildStatusFailed, fmt.Sprintf("%s: %q", e, pkg.Spec.Environment.Name), nil)
 		return
 	}
 
@@ -109,12 +118,12 @@ func (pkgw *packageWatcher) build(buildCache *cache.Cache, srcpkg *crd.Package) 
 		// iterate all available environment builders.
 		items := pkgw.podStore.List()
 		if err != nil {
-			log.Printf("Error retrieving pod information for env %v: %v", err, env.Metadata.Name)
+			pkgw.logger.Error("error retrieving pod information for environment", zap.Error(err), zap.String("environment", env.Metadata.Name))
 			return
 		}
 
 		if len(items) == 0 {
-			log.Printf("Environment \"%v\" builder pod is not existed yet, retry again later.", pkg.Spec.Environment.Name)
+			pkgw.logger.Info("builder pod does not exist for environment, will retry again later", zap.String("environment", pkg.Spec.Environment.Name))
 			time.Sleep(time.Duration(i*1) * time.Second)
 			continue
 		}
@@ -145,7 +154,7 @@ func (pkgw *packageWatcher) build(buildCache *cache.Cache, srcpkg *crd.Package) 
 			}
 
 			if !podIsReady {
-				log.Printf("Environment \"%v\" builder pod is not ready, retry again later.", pkg.Spec.Environment.Name)
+				pkgw.logger.Info("builder pod is not ready for environment, will retry again later", zap.String("environment", pkg.Spec.Environment.Name))
 				time.Sleep(time.Duration(i*1) * time.Second)
 				break
 			}
@@ -153,30 +162,36 @@ func (pkgw *packageWatcher) build(buildCache *cache.Cache, srcpkg *crd.Package) 
 			// Add the package getter rolebinding to builder sa
 			// we continue here if role binding was not setup succeesffully. this is because without this, the fetcher wont be able to fetch the source pkg into the container and
 			// the build will fail eventually
-			err := fission.SetupRoleBinding(pkgw.k8sClient, fission.PackageGetterRB, pkg.Metadata.Namespace, fission.PackageGetterCR, fission.ClusterRole, fission.FissionBuilderSA, builderNs)
+			err := fission.SetupRoleBinding(pkgw.logger, pkgw.k8sClient, fission.PackageGetterRB, pkg.Metadata.Namespace, fission.PackageGetterCR, fission.ClusterRole, fission.FissionBuilderSA, builderNs)
 			if err != nil {
-				log.Printf("Error : %v in setting up the role binding %s for pkg : %s.%s", err, fission.PackageGetterRB, pkg.Metadata.Name, pkg.Metadata.Namespace)
+				pkgw.logger.Error("error setting up role binding for package",
+					zap.Error(err),
+					zap.String("role_binding", fission.PackageGetterRB),
+					zap.String("package_name", pkg.Metadata.Name),
+					zap.String("package_namespace", pkg.Metadata.Namespace))
 				continue
 			} else {
-				log.Printf("Setup rolebinding for sa : %s.%s for pkg : %s.%s", fission.FissionBuilderSA, builderNs, pkg.Metadata.Name, pkg.Metadata.Namespace)
+				pkgw.logger.Info("setup rolebinding for sa package",
+					zap.String("sa", fmt.Sprintf("%s.%s", fission.FissionBuilderSA, builderNs)),
+					zap.String("package", fmt.Sprintf("%s.%s", pkg.Metadata.Name, pkg.Metadata.Namespace)))
 			}
 
 			ctx := context.Background()
-			uploadResp, buildLogs, err := buildPackage(ctx, pkgw.fissionClient, builderNs, pkgw.storageSvcUrl, pkg)
+			uploadResp, buildLogs, err := buildPackage(ctx, pkgw.logger, pkgw.fissionClient, builderNs, pkgw.storageSvcUrl, pkg)
 			if err != nil {
-				log.Printf("Error building package %v: %v", pkg.Metadata.Name, err)
+				pkgw.logger.Error("error building package", zap.Error(err), zap.String("package_name", pkg.Metadata.Name))
 				updatePackage(pkgw.fissionClient, pkg, fission.BuildStatusFailed, buildLogs, nil)
 				return
 			}
 
-			log.Printf("Start updating info of package: %v", pkg.Metadata.Name)
+			pkgw.logger.Info("starting package info update updating", zap.String("package_name", pkg.Metadata.Name))
 
 			fnList, err := pkgw.fissionClient.
 				Functions(metav1.NamespaceAll).List(metav1.ListOptions{})
 			if err != nil {
-				e := fmt.Sprintf("Error getting function list: %v", err)
-				log.Println(e)
-				buildLogs += fmt.Sprintf("%v\n", e)
+				e := "error getting function list"
+				pkgw.logger.Error(e, zap.Error(err))
+				buildLogs += fmt.Sprintf("%s: %v\n", e, err)
 				updatePackage(pkgw.fissionClient, pkg, fission.BuildStatusFailed, buildLogs, nil)
 			}
 
@@ -190,9 +205,9 @@ func (pkgw *packageWatcher) build(buildCache *cache.Cache, srcpkg *crd.Package) 
 					// update CRD
 					_, err = pkgw.fissionClient.Functions(fn.Metadata.Namespace).Update(&fn)
 					if err != nil {
-						e := fmt.Sprintf("Error updating function package resource version: %v", err)
-						log.Println(e)
-						buildLogs += fmt.Sprintf("%v\n", e)
+						e := "error updating function package resource version"
+						pkgw.logger.Error(e, zap.Error(err))
+						buildLogs += fmt.Sprintf("%s: %v\n", e, err)
 						updatePackage(pkgw.fissionClient, pkg, fission.BuildStatusFailed, buildLogs, nil)
 						return
 					}
@@ -202,12 +217,12 @@ func (pkgw *packageWatcher) build(buildCache *cache.Cache, srcpkg *crd.Package) 
 			_, err = updatePackage(pkgw.fissionClient, pkg,
 				fission.BuildStatusSucceeded, buildLogs, uploadResp)
 			if err != nil {
-				log.Printf("Error update package info: %v", err)
+				pkgw.logger.Error("error updating package info", zap.Error(err), zap.String("package_name", pkg.Metadata.Name))
 				updatePackage(pkgw.fissionClient, pkg, fission.BuildStatusFailed, buildLogs, nil)
 				return
 			}
 
-			log.Printf("Completed build request for package: %v", pkg.Metadata.Name)
+			pkgw.logger.Info("completed package build request", zap.String("package_name", pkg.Metadata.Name))
 			return
 		}
 	}
@@ -215,8 +230,8 @@ func (pkgw *packageWatcher) build(buildCache *cache.Cache, srcpkg *crd.Package) 
 	updatePackage(pkgw.fissionClient, pkg,
 		fission.BuildStatusFailed, "Build timeout due to environment builder not ready", nil)
 
-	log.Printf("Max retries exceeded in building the source pkg : %s.%s, timeout due to environment builder not ready",
-		pkg.Metadata.Name, pkg.Metadata.Namespace)
+	pkgw.logger.Error("max retries exceeded in building source package, timeout due to environment builder not ready",
+		zap.String("package", fmt.Sprintf("%s.%s", pkg.Metadata.Name, pkg.Metadata.Namespace)))
 
 	return
 }

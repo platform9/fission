@@ -25,15 +25,17 @@ import (
 	"strconv"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/fission/fission"
 	"github.com/gorilla/mux"
 	_ "github.com/graymeta/stow/local"
-	log "github.com/sirupsen/logrus"
 	"go.opencensus.io/plugin/ochttp"
 )
 
 type (
 	StorageService struct {
+		logger        *zap.Logger
 		storageClient *StowClient
 		port          int
 	}
@@ -61,27 +63,34 @@ func (ss *StorageService) uploadHandler(w http.ResponseWriter, r *http.Request) 
 
 	fileSizeS, ok := r.Header["X-File-Size"]
 	if !ok {
-		log.Error("Missing X-File-Size")
+		ss.logger.Error("upload is missing the 'X-File-Size' header",
+			zap.String("filename", handler.Filename))
 		http.Error(w, "missing X-File-Size header", http.StatusBadRequest)
 		return
 	}
 
 	fileSize, err := strconv.Atoi(fileSizeS[0])
 	if err != nil {
-		log.WithError(err).Errorf("Error parsing x-file-size: '%v'", fileSizeS)
+		ss.logger.Error("error parsing 'X-File-Size' header",
+			zap.Error(err),
+			zap.Strings("header", fileSizeS),
+			zap.String("filename", handler.Filename))
 		http.Error(w, "missing or bad X-File-Size header", http.StatusBadRequest)
 		return
 	}
 
 	// TODO: allow headers to add more metadata (e.g. environment
 	// and function metadata)
-	log.Infof("Handling upload for %v", handler.Filename)
+	ss.logger.Info("handling upload",
+		zap.String("filename", handler.Filename))
 	//fileMetadata := make(map[string]interface{})
 	//fileMetadata["filename"] = handler.Filename
 
 	id, err := ss.storageClient.putFile(file, int64(fileSize))
 	if err != nil {
-		log.WithError(err).Error("Error saving uploaded file")
+		ss.logger.Error("error saving uploaded file",
+			zap.Error(err),
+			zap.String("filename", handler.Filename))
 		http.Error(w, "Error saving uploaded file", http.StatusInternalServerError)
 		return
 	}
@@ -92,6 +101,9 @@ func (ss *StorageService) uploadHandler(w http.ResponseWriter, r *http.Request) 
 	}
 	resp, err := json.Marshal(ur)
 	if err != nil {
+		ss.logger.Error("error marshaling uploaded file response",
+			zap.Error(err),
+			zap.String("filename", handler.Filename))
 		http.Error(w, "Error marshaling response", http.StatusInternalServerError)
 		return
 	}
@@ -136,7 +148,7 @@ func (ss *StorageService) downloadHandler(w http.ResponseWriter, r *http.Request
 	// stream it to response
 	err = ss.storageClient.copyFileToStream(fileId, w)
 	if err != nil {
-		log.WithError(err).Errorf("Error getting item id '%v'", fileId)
+		ss.logger.Error("error getting file from storage client", zap.Error(err), zap.String("file_id", fileId))
 		if err == ErrNotFound {
 			http.Error(w, "Error retrieving item: not found", http.StatusNotFound)
 		} else if err == ErrRetrievingItem {
@@ -154,8 +166,9 @@ func (ss *StorageService) healthHandler(w http.ResponseWriter, r *http.Request) 
 	w.WriteHeader(http.StatusOK)
 }
 
-func MakeStorageService(storageClient *StowClient, port int) *StorageService {
+func MakeStorageService(logger *zap.Logger, storageClient *StowClient, port int) *StorageService {
 	return &StorageService{
+		logger:        logger.Named("storage_service"),
 		storageClient: storageClient,
 		port:          port,
 	}
@@ -170,30 +183,27 @@ func (ss *StorageService) Start(port int) {
 
 	address := fmt.Sprintf(":%v", port)
 
-	r.Use(fission.LoggingMiddleware)
+	r.Use(fission.LoggingMiddleware(ss.logger))
 	err := http.ListenAndServe(address, &ochttp.Handler{
 		Handler: r,
 		// Propagation: &b3.HTTPFormat{},
 	})
 
-	log.Fatal(err)
+	ss.logger.Fatal("done listening", zap.Error(err))
 }
 
-func RunStorageService(storageType StorageType, storagePath string, containerName string, port int, enablePruner bool) *StorageService {
+func RunStorageService(logger *zap.Logger, storageType StorageType, storagePath string, containerName string, port int, enablePruner bool) *StorageService {
 	// setup a signal handler for SIGTERM
 	fission.SetupStackTraceHandler()
 
-	// initialize logger
-	log.SetLevel(log.InfoLevel)
-
 	// create a storage client
-	storageClient, err := MakeStowClient(storageType, storagePath, containerName)
+	storageClient, err := MakeStowClient(logger, storageType, storagePath, containerName)
 	if err != nil {
-		log.Fatalf("Error creating stowClient: %v", err)
+		logger.Fatal("error creating stowClient", zap.Error(err))
 	}
 
 	// create http handlers
-	storageService := MakeStorageService(storageClient, port)
+	storageService := MakeStorageService(logger, storageClient, port)
 	go storageService.Start(port)
 
 	// enablePruner prevents storagesvc unit test from needing to talk to kubernetes
@@ -203,13 +213,13 @@ func RunStorageService(storageType StorageType, storagePath string, containerNam
 		if err != nil {
 			pruneInterval = defaultPruneInterval
 		}
-		pruner, err := MakeArchivePruner(storageClient, time.Duration(pruneInterval))
+		pruner, err := MakeArchivePruner(logger, storageClient, time.Duration(pruneInterval))
 		if err != nil {
-			log.Fatalf("Error creating archivePruner: %v", err)
+			logger.Fatal("error creating archivePruner", zap.Error(err))
 		}
 		go pruner.Start()
 	}
 
-	log.Info("Storage service started")
+	logger.Info("storage service started")
 	return storageService
 }
