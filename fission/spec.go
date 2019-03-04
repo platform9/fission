@@ -395,6 +395,9 @@ func (fr *FissionResources) validate() error {
 	environments := make(map[string]struct{})
 	for _, e := range fr.environments {
 		environments[fmt.Sprintf("%s:%s", e.Metadata.Name, e.Metadata.Namespace)] = struct{}{}
+		if (e.Spec.Runtime.Container != nil) && (e.Spec.Runtime.PodSpec != nil) {
+			result = multierror.Append(result, errors.New("Only one of container spec or pod specs should be provided"))
+		}
 	}
 
 	for _, f := range fr.functions {
