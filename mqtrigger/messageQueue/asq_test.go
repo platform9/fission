@@ -280,6 +280,7 @@ func TestAzureStorageQueuePoisonMessage(t *testing.T) {
 
 	// Create the storage connection and subscribe to the trigger
 	connection := AzureStorageConnection{
+		logger:     zap.New(nil),
 		routerURL:  DummyRouterURL,
 		service:    service,
 		httpClient: httpClient,
@@ -424,6 +425,7 @@ func runAzureStorageQueueTest(t *testing.T, count int, output bool) {
 
 	// Create the storage connection and subscribe to the trigger
 	connection := AzureStorageConnection{
+		logger:     zap.New(nil),
 		routerURL:  DummyRouterURL,
 		service:    service,
 		httpClient: httpClient,

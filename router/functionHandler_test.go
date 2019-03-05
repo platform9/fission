@@ -72,7 +72,9 @@ func TestFunctionProxying(t *testing.T) {
 		},
 	}
 
-	fh := &functionHandler{fmap: fmap,
+	fh := &functionHandler{
+		logger:   zap.New(nil),
+		fmap:     fmap,
 		function: fn,
 		tsRoundTripperParams: &tsRoundTripperParams{
 			timeout:         50 * time.Millisecond,
