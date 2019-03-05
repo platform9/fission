@@ -226,7 +226,11 @@ type (
 
 		// Podspec allows modification of deployed runtime
 		// pod with Kubernetes PodSpec. Fission overrides the following field:
-		// -
+		// - Name
+		// - Image; set to the Runtime.Image
+		// - TerminationMessagePath
+		// - ImagePullPolicy
+		// (optional)
 		PodSpec *apiv1.PodSpec `json:"podspec,omitempty"`
 	}
 

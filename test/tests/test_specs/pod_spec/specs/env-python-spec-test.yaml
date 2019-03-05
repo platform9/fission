@@ -1,0 +1,20 @@
+apiVersion: fission.io/v1
+kind: Environment
+metadata:
+  creationTimestamp: null
+  name: python-spec-test
+  namespace: default
+spec:
+  TerminationGracePeriod: 360
+  builder: {}
+  keeparchive: false
+  poolsize: 3
+  resources: {}
+  runtime:
+    functionendpointport: 0
+    image: fission/python-env
+    loadendpointpath: ""
+    loadendpointport: 0
+    podspec:
+      hostname: foo-bar
+  version: 1
