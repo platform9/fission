@@ -67,6 +67,9 @@ type (
 		funcStore      k8sCache.Store
 		funcController k8sCache.Controller
 
+		envStore      k8sCache.Store
+		envController k8sCache.Controller
+
 		idlePodReapTime time.Duration
 	}
 )
@@ -123,6 +126,10 @@ func MakeNewDeploy(
 		fnStore, fnController := nd.initFuncController()
 		nd.funcStore = fnStore
 		nd.funcController = fnController
+
+		envStore, envController := nd.initEnvController()
+		nd.envStore = envStore
+		nd.envController = envController
 	}
 
 	return nd
@@ -131,6 +138,7 @@ func MakeNewDeploy(
 func (deploy *NewDeploy) Run(ctx context.Context) {
 	//go deploy.service()
 	go deploy.funcController.Run(ctx.Done())
+	go deploy.envController.Run(ctx.Done())
 	go deploy.idleObjectReaper()
 }
 
@@ -162,6 +170,49 @@ func (deploy *NewDeploy) initFuncController() (k8sCache.Store, k8sCache.Controll
 		},
 	})
 	return store, controller
+}
+
+func (deploy *NewDeploy) initEnvController() (k8sCache.Store, k8sCache.Controller) {
+	resyncPeriod := 30 * time.Second
+	listWatch := k8sCache.NewListWatchFromClient(deploy.crdClient, "environments", metav1.NamespaceAll, fields.Everything())
+	store, controller := k8sCache.NewInformer(listWatch, &crd.Environment{}, resyncPeriod, k8sCache.ResourceEventHandlerFuncs{
+		AddFunc:    func(obj interface{}) {},
+		DeleteFunc: func(obj interface{}) {},
+		UpdateFunc: func(oldObj interface{}, newObj interface{}) {
+			newEnv := newObj.(*crd.Environment)
+			funcs := deploy.getEnvFunctions(&newEnv.Metadata)
+
+			for _, f := range funcs {
+				function, err := deploy.fissionClient.Functions(f.Metadata.Namespace).Get(f.Metadata.Name)
+				if err != nil {
+					log.Printf("Error getting function  %v: %v", function, err)
+				}
+				function.Spec.Environment.ResourceVersion = newEnv.Metadata.ResourceVersion
+
+				_, err = deploy.fissionClient.Functions(f.Metadata.Namespace).Update(function)
+				if err != nil {
+					log.Printf("Error updating function %v: %v", function, err)
+				}
+
+			}
+
+		},
+	})
+	return store, controller
+}
+
+func (deploy *NewDeploy) getEnvFunctions(m *metav1.ObjectMeta) []crd.Function {
+	funcList, err := deploy.fissionClient.Functions(m.Namespace).List(metav1.ListOptions{})
+	if err != nil {
+		log.Printf("Error getting functions for env %v: %v", m, err)
+	}
+	relatedFunctions := make([]crd.Function, 0)
+	for _, f := range funcList.Items {
+		if (f.Spec.Environment.Name == m.Name) && (f.Spec.Environment.Namespace == m.Namespace) && (f.Spec.Environment.ResourceVersion != m.ResourceVersion) {
+			relatedFunctions = append(relatedFunctions, f)
+		}
+	}
+	return relatedFunctions
 }
 
 func (deploy *NewDeploy) GetFuncSvc(ctx context.Context, metadata *metav1.ObjectMeta) (*fscache.FuncSvc, error) {

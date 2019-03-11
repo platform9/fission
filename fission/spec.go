@@ -893,7 +893,7 @@ func applyResources(fclient *client.Client, specDir string, fr *FissionResources
 		return nil, nil, err
 	}
 
-	_, ras, err := applyEnvironments(fclient, fr, delete)
+	envMeta, ras, err := applyEnvironments(fclient, fr, delete)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "environment apply failed")
 	}
@@ -923,6 +923,16 @@ func applyResources(fclient *client.Client, specDir string, fr *FissionResources
 				f.Metadata.Namespace, f.Metadata.Name, f.Spec.Package.PackageRef.Namespace, f.Spec.Package.PackageRef.Name)
 		}
 		fr.functions[i].Spec.Package.PackageRef.ResourceVersion = m.ResourceVersion
+
+		envKey := mapKey(&metav1.ObjectMeta{
+			Namespace: f.Spec.Environment.Namespace,
+			Name:      f.Spec.Environment.Name,
+		})
+
+		//
+		emeta, _ := envMeta[envKey]
+		fr.functions[i].Spec.Environment.ResourceVersion = emeta.ResourceVersion
+
 	}
 
 	_, ras, err = applyFunctions(fclient, fr, delete)
