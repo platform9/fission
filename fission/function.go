@@ -277,9 +277,11 @@ func fnCreate(c *cli.Context) error {
 			Name:      envName,
 		})
 
-		util.CheckErr(err, "get environment for the function")
-
-		envResourceVersion = env.Metadata.ResourceVersion
+		if err != nil {
+			log.Warn("get environment for the function")
+		} else {
+			envResourceVersion = env.Metadata.ResourceVersion
+		}
 
 		// create new package in the same namespace as the function.
 		pkgMetadata = createPackage(client, fnNamespace, envName, envNamespace, envResourceVersion, srcArchiveFiles, deployArchiveFiles, buildcmd, specDir, specFile, noZip)
