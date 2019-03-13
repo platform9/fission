@@ -98,9 +98,15 @@ func pkgCreate(c *cli.Context) error {
 		Namespace: envNamespace,
 		Name:      envName,
 	}))
-	util.CheckErr(err, "environment while creating package")
+	var envResourceVersion string
+	if err != nil {
+		envResourceVersion = ""
+		log.Warn("Environment not found while creating package")
+	} else {
+		envResourceVersion = env.Metadata.ResourceVersion
+	}
 
-	createPackage(client, pkgNamespace, envName, envNamespace, env.Metadata.ResourceVersion, srcArchiveFiles, deployArchiveFiles, buildcmd, "", "", false)
+	createPackage(client, pkgNamespace, envName, envNamespace, envResourceVersion, srcArchiveFiles, deployArchiveFiles, buildcmd, "", "", false)
 
 	return nil
 }
