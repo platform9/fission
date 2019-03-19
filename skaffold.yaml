@@ -1,5 +1,5 @@
-# This file can be used with Skaffold (https://github.com/GoogleContainerTools/skaffold) to 
-# build and deploy to Kubernetes cluster. 
+# This file can be used with Skaffold (https://github.com/GoogleContainerTools/skaffold) to
+# build and deploy to Kubernetes cluster.
 # Usage
 # This needs Skaffold installed on your development machine. You can run `skaffold run` to build
 # and deploy with helm. For building and pushing images, you can use `skaffold build`
@@ -7,31 +7,41 @@
 # Limitations:
 # 1) You have to build the go binaries using build.sh for all 3 images outside of Skaffold
 # 2) Currently there is a issue with helm tags in Skaffold - so imageTag etc. does not work.
-apiVersion: skaffold/v1alpha2
+apiVersion: skaffold/v1alpha3
 kind: Config
 build:
+  artifacts:
+    - imageName: vishalbiyani/fission
+      workspace: ./fission-bundle
+    - imageName: vishalbiyani/fetcher
+      workspace: ./environments/fetcher/cmd
+    - imageName: vishalbiyani/preupgradechecks
+      workspace: ./preupgradechecks
   tagPolicy:
     dateTime:
       format: 2006-01-02_15-04-05.999_MST
       timezone: Local
-  artifacts:
-  - imageName: vishalbiyani/fission
-    workspace: ./fission-bundle
-  - imageName: vishalbiyani/fetcher
-    workspace: ./environments/fetcher/cmd
-  - imageName: vishalbiyani/preupgradechecks
-    workspace: ./preupgradechecks
-
 deploy:
   helm:
     releases:
-    - name: fission
-      chartPath: ./charts/fission-all
-      valuesFilePath: ./charts/fission-all/values.yaml
-      setValues:
-        namespace: fission
-        image: vishalbiyani/fission
-        imageTag: latest
-        fetcherImage: vishalbiyani/fetcher
-        fetcherImageTag: latest
-        preUpgradeChecksImage: vishalbiyani/preupgradechecks
+      - name: fission
+        chartPath: ./charts/fission-all
+        valuesFiles:
+          - ./charts/fission-all/values.yaml
+        namespace: "fission"
+        version: ""
+        setValues:
+          fetcherImage: vishalbiyani/fetcher
+          fetcherImageTag: latest
+          image: vishalbiyani/fission
+          imageTag: latest
+          namespace: fission
+          preUpgradeChecksImage: vishalbiyani/preupgradechecks
+        setValueTemplates: {}
+        wait: false
+        recreatePods: false
+        overrides: {}
+        packaged: null
+        imageStrategy:
+          fqn: null
+          helm: null
