@@ -1,5 +1,5 @@
 #!/bin/bash
-
+set -euxo pipefail
 
 if [ ! -f ${KUBECONFIG} ]
 then

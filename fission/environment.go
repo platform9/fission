@@ -93,6 +93,9 @@ func envCreate(c *cli.Context) error {
 			envBuildCmd = "build"
 		}
 	}
+	if c.IsSet("poolsize") {
+		envVersion = 3
+	}
 
 	keepArchive := c.Bool("keeparchive")
 

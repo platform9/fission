@@ -19,7 +19,6 @@ package redis
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -27,18 +26,20 @@ import (
 	"strings"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/golang/protobuf/proto"
 	"github.com/gomodule/redigo/redis"
-	log "github.com/sirupsen/logrus"
+	"github.com/pkg/errors"
 
 	"github.com/fission/fission/crd"
 	"github.com/fission/fission/redis/build/gen"
 )
 
-func RecordsListAll() ([]byte, error) {
-	client := NewClient()
-	if client == nil {
-		return nil, errors.New("failed to create redis client")
+func RecordsListAll(logger *zap.Logger) ([]byte, error) {
+	client, err := NewClient()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create redis client")
 	}
 
 	iter := 0
@@ -59,12 +60,12 @@ func RecordsListAll() ([]byte, error) {
 			if strings.HasPrefix(key, "REQ") {
 				val, err := redis.Bytes(client.Do("HGET", key, "ReqResponse"))
 				if err != nil {
-					log.Error("Error retrieving request from Redis: ", err)
+					logger.Error("error retrieving request from redis", zap.Error(err))
 					return nil, err
 				}
 				entry, err := deserializeReqResponse(val, key)
 				if err != nil {
-					log.Error("Error deserializing request: ", err)
+					logger.Error("error deserializing request from redis", zap.Error(err))
 					return nil, err
 				}
 				filtered = append(filtered, entry)
@@ -84,18 +85,22 @@ func RecordsListAll() ([]byte, error) {
 
 // Input: `from` (hours ago, between 0 [today] and 5) and `to` (same units)
 // Note: Fractional values don't seem to work -- document that for the user
-func RecordsFilterByTime(from string, to string) ([]byte, error) {
+func RecordsFilterByTime(logger *zap.Logger, from string, to string) ([]byte, error) {
 	rangeStart, rangeEnd, err := obtainInterval(from, to)
-	log.Debug("Interval inferred: ", rangeStart, rangeEnd)
-
-	if rangeStart >= rangeEnd {
-		log.Error("Invalid chronology")
+	if err != nil {
 		return nil, err
 	}
+	logger.Debug("interval inferred", zap.Int64("range_start", rangeStart), zap.Int64("range_end", rangeEnd))
 
-	client := NewClient()
+	if rangeStart >= rangeEnd {
+		e := "invalid chronology - start is greater than or equal to end"
+		logger.Error(e, zap.Int64("range_start", rangeStart), zap.Int64("range_end", rangeEnd))
+		return nil, errors.New(e)
+	}
+
+	client, err := NewClient()
 	if client == nil {
-		return nil, errors.New("failed to create redis client")
+		return nil, errors.Wrap(err, "failed to create redis client")
 	}
 
 	iter := 0
@@ -114,24 +119,24 @@ func RecordsFilterByTime(from string, to string) ([]byte, error) {
 			if strings.HasPrefix(key, "REQ") {
 				val, err := redis.Strings(client.Do("HMGET", key, "Timestamp"))
 				if err != nil {
-					log.Error("Error retrieving timestamp from Redis: ", err)
+					logger.Error("error retrieving timestamp from redis", zap.Error(err))
 					return nil, err
 				}
 				tsO, err := strconv.Atoi(val[0])
 				if err != nil {
-					log.Error("Error converting timestamp to int: ", err)
+					logger.Error("error converting timestamp to int", zap.Error(err))
 					return nil, err
 				}
 				ts := int64(tsO)
 				if ts >= rangeStart && ts <= rangeEnd {
 					val2, err := redis.Bytes(client.Do("HGET", key, "ReqResponse"))
 					if err != nil {
-						log.Error("Error retrieving request from Redis: ", err)
+						logger.Error("error retrieving request from redis", zap.Error(err))
 						return nil, err
 					}
 					entry, err := deserializeReqResponse(val2, key)
 					if err != nil {
-						log.Error("Error deserializing request: ", err)
+						logger.Error("error deserializing request from redis", zap.Error(err))
 						return nil, err
 					}
 					filtered = append(filtered, entry)
@@ -151,7 +156,7 @@ func RecordsFilterByTime(from string, to string) ([]byte, error) {
 	return resp, nil
 }
 
-func RecordsFilterByTrigger(queriedTriggerName string, recorders *crd.RecorderList, triggers *crd.HTTPTriggerList) ([]byte, error) {
+func RecordsFilterByTrigger(logger *zap.Logger, queriedTriggerName string, recorders *crd.RecorderList, triggers *crd.HTTPTriggerList) ([]byte, error) {
 	matchingRecorders := make(map[string]bool)
 
 	// Implicit triggers:
@@ -178,9 +183,9 @@ func RecordsFilterByTrigger(queriedTriggerName string, recorders *crd.RecorderLi
 		}
 	}
 
-	client := NewClient()
-	if client == nil {
-		return nil, errors.New("failed to create redis client")
+	client, err := NewClient()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create redis client")
 	}
 
 	var filtered []*redisCache.RecordedEntry
@@ -195,19 +200,19 @@ func RecordsFilterByTrigger(queriedTriggerName string, recorders *crd.RecorderLi
 		for _, reqUID := range val {
 			val, err := redis.Strings(client.Do("HMGET", reqUID, "Trigger")) // 1-to-1 reqUID - trigger?
 			if err != nil {
-				log.Error("Error retrieving trigger for a request from Redis: ", err)
+				logger.Error("error retrieving trigger for a request from redis", zap.Error(err))
 				return nil, err
 			}
 			if val[0] == queriedTriggerName {
 				// TODO: Reconsider multiple commands
 				val, err := redis.Bytes(client.Do("HGET", reqUID, "ReqResponse"))
 				if err != nil {
-					log.Error("Error retrieving request from Redis: ", err)
+					logger.Error("error retrieving request from redis", zap.Error(err))
 					return nil, err
 				}
 				entry, err := deserializeReqResponse(val, reqUID)
 				if err != nil {
-					log.Error("Error deserializing request: ", err)
+					logger.Error("error deserializing request from redis", zap.Error(err))
 					return nil, err
 				}
 				filtered = append(filtered, entry)
@@ -222,7 +227,7 @@ func RecordsFilterByTrigger(queriedTriggerName string, recorders *crd.RecorderLi
 	return resp, nil
 }
 
-func RecordsFilterByFunction(queriedFunctionName string, recorders *crd.RecorderList, triggers *crd.HTTPTriggerList) ([]byte, error) {
+func RecordsFilterByFunction(logger *zap.Logger, queriedFunctionName string, recorders *crd.RecorderList, triggers *crd.HTTPTriggerList) ([]byte, error) {
 
 	// Implicit functions:
 	// Sometimes functions are not explicitly attached to recorders but we still want to be able to
@@ -251,9 +256,9 @@ func RecordsFilterByFunction(queriedFunctionName string, recorders *crd.Recorder
 		}
 	}
 
-	client := NewClient()
-	if client == nil {
-		return nil, errors.New("failed to create redis client")
+	client, err := NewClient()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create redis client")
 	}
 
 	var filtered []*redisCache.RecordedEntry
@@ -273,12 +278,12 @@ func RecordsFilterByFunction(queriedFunctionName string, recorders *crd.Recorder
 			if exists > 0 {
 				val, err := redis.Bytes(client.Do("HGET", reqUID, "ReqResponse"))
 				if err != nil {
-					log.Error("Error retrieving request from Redis: ", err)
+					logger.Error("error retrieving request from redis", zap.Error(err))
 					return nil, err
 				}
 				entry, err := deserializeReqResponse(val, reqUID)
 				if err != nil {
-					log.Error("Error deserializing request: ", err)
+					logger.Error("error deserializing request from redis", zap.Error(err))
 					return nil, err
 				}
 				filtered = append(filtered, entry)
@@ -298,10 +303,8 @@ func deserializeReqResponse(value []byte, reqUID string) (*redisCache.RecordedEn
 	data := &redisCache.UniqueRequest{}
 	err := proto.Unmarshal(value, data)
 	if err != nil {
-		log.Error("Error unmarshalling request: ", err)
-		return nil, err
+		return nil, errors.Wrap(err, "error unmarshalling request")
 	}
-	log.Info("Parsed protobuf bytes: ", data)
 	transformed := &redisCache.RecordedEntry{
 		ReqUID:  reqUID,
 		Req:     data.Req,
@@ -341,38 +344,38 @@ func includesTrigger(triggers []string, query string) bool {
 	return false
 }
 
-func ReplayByReqUID(routerUrl string, queriedID string) ([]byte, error) {
-	client := NewClient()
-	if client == nil {
-		return nil, errors.New("failed to create redis client")
+func ReplayByReqUID(logger *zap.Logger, routerUrl string, queriedID string) ([]byte, error) {
+	client, err := NewClient()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create redis client")
 	}
 
 	exists, err := redis.Int(client.Do("EXISTS", queriedID))
 	if exists != 1 || err != nil {
-		log.Error("couldn't find request to replay")
+		logger.Error("could not find request to replay in redis", zap.Error(err))
 		return nil, err
 	}
 
 	val, err := redis.Bytes(client.Do("HGET", queriedID, "ReqResponse"))
 	if err != nil {
-		log.Error("couldn't obtain ReqResponse for this ID")
+		logger.Error("could not obtain ReqResponse for ID from redis", zap.Error(err), zap.String("id", queriedID))
 		return nil, err
 	}
 	entry, err := deserializeReqResponse(val, queriedID)
 	if err != nil {
-		log.Error("couldn't deserialize ReqResponse")
+		logger.Error("error deserializing request from redis", zap.Error(err))
 		return nil, err
 	}
 
 	replayed, err := ReplayRequest(routerUrl, entry.Req)
 	if err != nil {
-		log.Error("couldn't replay request")
+		logger.Error("error replaying request", zap.Error(err))
 		return nil, err
 	}
 
 	resp, err := json.Marshal(replayed)
 	if err != nil {
-		log.Error("couldn't marshall replayed request response")
+		logger.Error("error marshalling replayed request response", zap.Error(err))
 		return nil, err
 	}
 

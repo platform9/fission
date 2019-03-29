@@ -19,13 +19,13 @@ package resources
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"path/filepath"
 
 	"github.com/ghodss/yaml"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission"
+	"github.com/fission/fission/fission/log"
 )
 
 type Resource interface {
@@ -40,7 +40,7 @@ func getFileName(dumpdir string, meta metav1.ObjectMeta) string {
 func writeToFile(file string, obj interface{}) {
 	bs, err := yaml.Marshal(obj)
 	if err != nil {
-		log.Printf("Error encoding object: %v", err)
+		log.Info(fmt.Sprintf("Error encoding object: %v", err))
 		return
 	}
 
@@ -52,6 +52,6 @@ func writeToFile(file string, obj interface{}) {
 
 	err = ioutil.WriteFile(file, bs, 0644)
 	if err != nil {
-		log.Printf("Error writing file %v: %v", file, err)
+		log.Info(fmt.Sprintf("Error writing file %v: %v", file, err))
 	}
 }

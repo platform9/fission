@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"go.uber.org/zap"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -12,8 +13,17 @@ import (
 	"github.com/fission/fission/crd"
 )
 
+func panicIf(err error) {
+	if err != nil {
+		log.Panicf("Error: %v", err)
+	}
+}
+
 func TestFunctionServiceCache(t *testing.T) {
-	fsc := MakeFunctionServiceCache()
+	logger, err := zap.NewDevelopment()
+	panicIf(err)
+
+	fsc := MakeFunctionServiceCache(logger)
 	if fsc == nil {
 		log.Panicf("error creating cache")
 	}

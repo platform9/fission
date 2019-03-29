@@ -17,26 +17,27 @@ limitations under the License.
 package kubewatcher
 
 import (
-	"log"
+	"github.com/pkg/errors"
+	"go.uber.org/zap"
 
 	"github.com/fission/fission/crd"
 	"github.com/fission/fission/publisher"
 )
 
-func Start(routerUrl string) error {
+func Start(logger *zap.Logger, routerUrl string) error {
 	fissionClient, kubeClient, _, err := crd.MakeFissionClient()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to get fission or kubernetes client")
 	}
 
 	err = fissionClient.WaitForCRDs()
 	if err != nil {
-		log.Fatalf("Error waiting for CRDs: %v", err)
+		return errors.Wrap(err, "error waiting for CRDs")
 	}
 
-	poster := publisher.MakeWebhookPublisher(routerUrl)
-	kubeWatch := MakeKubeWatcher(kubeClient, poster)
-	MakeWatchSync(fissionClient, kubeWatch)
+	poster := publisher.MakeWebhookPublisher(logger, routerUrl)
+	kubeWatch := MakeKubeWatcher(logger, kubeClient, poster)
+	MakeWatchSync(logger, fissionClient, kubeWatch)
 
 	return nil
 }

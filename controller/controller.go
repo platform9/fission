@@ -18,41 +18,43 @@ package controller
 
 import (
 	"context"
-	"log"
+
+	"go.uber.org/zap"
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
 )
 
-func Start(port int, unitTestFlag bool) {
+func Start(logger *zap.Logger, port int, unitTestFlag bool) {
+	cLogger := logger.Named("controller")
 	// setup a signal handler for SIGTERM
 	fission.SetupStackTraceHandler()
 
 	fc, kc, apiExtClient, err := crd.MakeFissionClient()
 	if err != nil {
-		log.Fatalf("Failed to connect to K8s API: %v", err)
+		cLogger.Fatal("failed to connect to k8s API", zap.Error(err))
 	}
 
-	err = crd.EnsureFissionCRDs(apiExtClient)
+	err = crd.EnsureFissionCRDs(cLogger, apiExtClient)
 	if err != nil {
-		log.Fatalf("Failed to create fission CRDs: %v", err)
+		cLogger.Fatal("failed to create fission CRDs", zap.Error(err))
 	}
 
 	err = fc.WaitForCRDs()
 	if err != nil {
-		log.Fatalf("Error waiting for CRDs: %v", err)
+		cLogger.Fatal("error waiting for CRDs", zap.Error(err))
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	featureStatus, err := ConfigureFeatures(ctx, unitTestFlag, fc, kc)
+	featureStatus, err := ConfigureFeatures(ctx, cLogger, unitTestFlag, fc, kc)
 	if err != nil {
-		log.Printf("Error configuring features : %v. Proceeding without optional features", err.Error())
+		cLogger.Info("error configuring features - proceeding without optional features", zap.Error(err))
 	}
 	defer cancel()
 
-	api, err := MakeAPI(featureStatus)
+	api, err := MakeAPI(cLogger, featureStatus)
 	if err != nil {
-		log.Fatalf("Failed to start controller: %v", err)
+		cLogger.Fatal("failed to start controller", zap.Error(err))
 	}
 	api.Serve(port)
 }

@@ -19,7 +19,7 @@ package poolmgr
 import (
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
@@ -39,7 +39,9 @@ func (gpm *GenericPoolManager) makePkgController(fissionClient *crd.FissionClien
 		k8sCache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				pkg := obj.(*crd.Package)
-				log.Printf("List watch for package reported a new package addition: %s.%s", pkg.Metadata.Name, pkg.Metadata.Namespace)
+				gpm.logger.Info("list watch for package reported a new package addition",
+					zap.String("package_name", pkg.Metadata.Name),
+					zap.String("package_namepsace", pkg.Metadata.Namespace))
 
 				// create or update role-binding for fetcher sa in env ns to be able to get the pkg contents from pkg namespace
 				envNs := fissionfnNamespace
@@ -49,13 +51,21 @@ func (gpm *GenericPoolManager) makePkgController(fissionClient *crd.FissionClien
 
 				// here, we return if we hit an error during rolebinding setup. this is because this rolebinding is mandatory for
 				// every function's package to be loaded into its env. without that, there's no point to move forward.
-				err := fission.SetupRoleBinding(kubernetesClient, fission.PackageGetterRB, pkg.Metadata.Namespace, fission.PackageGetterCR, fission.ClusterRole, fission.FissionFetcherSA, envNs)
+				err := fission.SetupRoleBinding(gpm.logger, kubernetesClient, fission.PackageGetterRB, pkg.Metadata.Namespace, fission.PackageGetterCR, fission.ClusterRole, fission.FissionFetcherSA, envNs)
 				if err != nil {
-					log.Printf("Error creating %s for package: %s.%s, err: %v", fission.PackageGetterRB, pkg.Metadata.Name, pkg.Metadata.Namespace, err)
+					gpm.logger.Error("error creating rolebinding for package",
+						zap.Error(err),
+						zap.String("role_binding", fission.PackageGetterRB),
+						zap.String("package_name", pkg.Metadata.Name),
+						zap.String("package_namespace", pkg.Metadata.Namespace))
 					return
 				}
 
-				log.Printf("Successfully set up rolebinding for fetcher SA: %s.%s, in packages's ns : %s, for pkg : %s", fission.FissionFetcherSA, envNs, pkg.Metadata.Namespace, pkg.Metadata.Name)
+				gpm.logger.Info("successfully set up rolebinding for fetcher service account",
+					zap.String("service_account", fission.FissionFetcherSA),
+					zap.String("service_account_namespace", envNs),
+					zap.String("package_name", pkg.Metadata.Name),
+					zap.String("package_namespace", pkg.Metadata.Namespace))
 			},
 
 			UpdateFunc: func(oldObj, newObj interface{}) {
@@ -75,14 +85,23 @@ func (gpm *GenericPoolManager) makePkgController(fissionClient *crd.FissionClien
 						envNs = newPkg.Spec.Environment.Namespace
 					}
 
-					err := fission.SetupRoleBinding(kubernetesClient, fission.PackageGetterRB,
+					err := fission.SetupRoleBinding(gpm.logger, kubernetesClient, fission.PackageGetterRB,
 						newPkg.Metadata.Namespace, fission.PackageGetterCR, fission.ClusterRole,
 						fission.FissionFetcherSA, envNs)
 					if err != nil {
-						log.Printf("Error : %v updating %s for package: %s.%s", err, fission.PackageGetterRB, newPkg.Metadata.Name, newPkg.Metadata.Namespace)
+						gpm.logger.Error("error updating rolebinding for package",
+							zap.Error(err),
+							zap.String("role_binding", fission.PackageGetterRB),
+							zap.String("package_name", newPkg.Metadata.Name),
+							zap.String("package_namespace", newPkg.Metadata.Namespace))
 						return
 					}
-					log.Printf("Updated rolebinding for fetcher SA: %s.%s, in packages's ns : %s, for pkg : %s", fission.FissionFetcherSA, envNs, newPkg.Metadata.Namespace, newPkg.Metadata.Name)
+
+					gpm.logger.Info("successfully updated rolebinding for fetcher service account",
+						zap.String("service_account", fission.FissionFetcherSA),
+						zap.String("service_account_namespace", envNs),
+						zap.String("package_name", newPkg.Metadata.Name),
+						zap.String("package_namespace", newPkg.Metadata.Namespace))
 				}
 			},
 		})

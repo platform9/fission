@@ -17,11 +17,11 @@ limitations under the License.
 package router
 
 import (
-	"log"
 	"net/http"
 	"sync/atomic"
 
 	"github.com/gorilla/mux"
+	"go.uber.org/zap"
 )
 
 //
@@ -30,11 +30,14 @@ import (
 //
 
 type mutableRouter struct {
+	logger *zap.Logger
 	router atomic.Value // mux.Router
 }
 
-func NewMutableRouter(handler *mux.Router) *mutableRouter {
-	mr := mutableRouter{}
+func NewMutableRouter(logger *zap.Logger, handler *mux.Router) *mutableRouter {
+	mr := mutableRouter{
+		logger: logger.Named("mutable_router"),
+	}
 	mr.router.Store(handler)
 	return &mr
 }
@@ -44,7 +47,7 @@ func (mr *mutableRouter) ServeHTTP(responseWriter http.ResponseWriter, request *
 	routerValue := mr.router.Load()
 	router, ok := routerValue.(*mux.Router)
 	if !ok {
-		log.Panic("Invalid router type")
+		mr.logger.Panic("invalid router type")
 	}
 	router.ServeHTTP(responseWriter, request)
 }

@@ -1,0 +1,9 @@
+#!/bin/sh
+set -euxo pipefail
+
+if [ -f ${SRC_PKG}/composer.json ]
+then
+    cd ${SRC_PKG}
+    composer install --no-interaction
+fi
+cp -r ${SRC_PKG} ${DEPLOY_PKG}

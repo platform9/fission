@@ -19,11 +19,9 @@ package builder
 import (
 	"bufio"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -33,6 +31,8 @@ import (
 	"time"
 
 	"github.com/dchest/uniuri"
+	"github.com/pkg/errors"
+	"go.uber.org/zap"
 
 	"github.com/fission/fission"
 )
@@ -60,12 +60,14 @@ type (
 	}
 
 	Builder struct {
+		logger           *zap.Logger
 		sharedVolumePath string
 	}
 )
 
-func MakeBuilder(sharedVolumePath string) *Builder {
+func MakeBuilder(logger *zap.Logger, sharedVolumePath string) *Builder {
 	return &Builder{
+		logger:           logger.Named("builder"),
 		sharedVolumePath: sharedVolumePath,
 	}
 }
@@ -77,37 +79,37 @@ func (builder *Builder) VersionHandler(w http.ResponseWriter, r *http.Request) {
 
 func (builder *Builder) Handler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
-		e := fmt.Sprintf("Method not allowed: %v", r.Method)
-		log.Println(e)
-		builder.reply(w, "", e, http.StatusMethodNotAllowed)
+		e := "method not allowed"
+		builder.logger.Error(e, zap.String("http_method", r.Method))
+		builder.reply(w, "", fmt.Sprintf("%s: %s", e, r.Method), http.StatusMethodNotAllowed)
 		return
 	}
 
 	startTime := time.Now()
 	defer func() {
 		elapsed := time.Since(startTime)
-		log.Printf("elapsed time in build request = %v", elapsed)
+		builder.logger.Info("build request complete", zap.Duration("elapsed_time", elapsed))
 	}()
 
 	// parse request
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		e := errors.New(fmt.Sprintf("Error reading request body: %v", err))
-		log.Println(e.Error())
-		builder.reply(w, "", e.Error(), http.StatusInternalServerError)
+		e := "error reading request body"
+		builder.logger.Error(e, zap.Error(err))
+		builder.reply(w, "", fmt.Sprintf("%s: %s", e, err.Error()), http.StatusInternalServerError)
 		return
 	}
 	var req PackageBuildRequest
 	err = json.Unmarshal(body, &req)
 	if err != nil {
-		e := errors.New(fmt.Sprintf("Error parsing json body: %v", err))
-		log.Println(e.Error())
-		builder.reply(w, "", e.Error(), http.StatusBadRequest)
+		e := "error parsing json body"
+		builder.logger.Error(e, zap.Error(err))
+		builder.reply(w, "", fmt.Sprintf("%s: %s", e, err.Error()), http.StatusBadRequest)
 		return
 	}
-	log.Printf("Builder received request: %v", req)
+	builder.logger.Info("builder received request", zap.Any("request", req))
 
-	log.Println("Starting build...")
+	builder.logger.Info("starting build")
 	srcPkgPath := filepath.Join(builder.sharedVolumePath, req.SrcPkgFilename)
 	deployPkgFilename := fmt.Sprintf("%v-%v", req.SrcPkgFilename, strings.ToLower(uniuri.NewLen(6)))
 	deployPkgPath := filepath.Join(builder.sharedVolumePath, deployPkgFilename)
@@ -118,10 +120,11 @@ func (builder *Builder) Handler(w http.ResponseWriter, r *http.Request) {
 	}
 	buildLogs, err := builder.build(buildCmd, srcPkgPath, deployPkgPath)
 	if err != nil {
-		e := errors.New(fmt.Sprintf("Error building source package: %v", err))
-		log.Println(e.Error())
+		e := "error building source package"
+		builder.logger.Error(e, zap.Error(err))
+
 		// append error at the end of build logs
-		buildLogs += fmt.Sprintf("%v\n", e.Error())
+		buildLogs += fmt.Sprintf("%s: %s\n", e, err.Error())
 		builder.reply(w, deployPkgFilename, buildLogs, http.StatusInternalServerError)
 		return
 	}
@@ -137,7 +140,7 @@ func (builder *Builder) reply(w http.ResponseWriter, pkgFilename string, buildLo
 
 	rBody, err := json.Marshal(resp)
 	if err != nil {
-		e := errors.New(fmt.Sprintf("Error encoding response body: %v", err))
+		e := errors.Wrap(err, "error encoding response body")
 		rBody = []byte(fmt.Sprintf(`{"buildLogs": "%v"}`, e.Error()))
 		statusCode = http.StatusInternalServerError
 	}
@@ -154,7 +157,7 @@ func (builder *Builder) build(command string, srcPkgPath string, deployPkgPath s
 
 	fi, err := os.Stat(srcPkgPath)
 	if err != nil {
-		return "", errors.New(fmt.Sprintf("could not find srcPkgPath: '%s'", srcPkgPath))
+		return "", fmt.Errorf("could not find srcPkgPath: '%s'", srcPkgPath)
 	}
 	if fi.IsDir() {
 		cmd.Dir = srcPkgPath
@@ -170,12 +173,12 @@ func (builder *Builder) build(command string, srcPkgPath string, deployPkgPath s
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return "", errors.New(fmt.Sprintf("Error creating stdout pipe for cmd: %v", err.Error()))
+		return "", errors.Wrap(err, "error creating stdout pipe for cmd")
 	}
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		return "", errors.New(fmt.Sprintf("Error creating stderr pipe for cmd: %v", err.Error()))
+		return "", errors.Wrap(err, "error creating stderr pipe for cmd")
 	}
 
 	var buildLogs string
@@ -190,7 +193,7 @@ func (builder *Builder) build(command string, srcPkgPath string, deployPkgPath s
 
 	err = cmd.Start()
 	if err != nil {
-		return "", errors.New(fmt.Sprintf("Error starting cmd: %v", err.Error()))
+		return "", errors.Wrap(err, "error starting cmd")
 	}
 
 	// Runtime logs
@@ -201,14 +204,14 @@ func (builder *Builder) build(command string, srcPkgPath string, deployPkgPath s
 	}
 
 	if err := scanner.Err(); err != nil {
-		scanErr := errors.New(fmt.Sprintf("Error reading cmd output: %v", err.Error()))
+		scanErr := errors.Wrap(err, "error reading cmd output")
 		fmt.Println(scanErr)
 		return buildLogs, scanErr
 	}
 
 	err = cmd.Wait()
 	if err != nil {
-		cmdErr := errors.New(fmt.Sprintf("Error waiting for cmd '%v': %v", command, err.Error()))
+		cmdErr := errors.Wrapf(err, "error waiting for cmd %q", command)
 		fmt.Println(cmdErr)
 		return buildLogs, cmdErr
 	}

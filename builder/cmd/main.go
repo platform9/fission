@@ -21,21 +21,29 @@ import (
 	"net/http"
 	"os"
 
+	"go.uber.org/zap"
+
 	builder "github.com/fission/fission/builder"
 )
 
 // Usage: builder <shared volume path>
 func main() {
+	logger, err := zap.NewProduction()
+	if err != nil {
+		log.Fatalf("can't initialize zap logger: %v", err)
+	}
+	defer logger.Sync()
+
 	dir := os.Args[1]
 	if _, err := os.Stat(dir); err != nil {
 		if os.IsNotExist(err) {
 			err = os.MkdirAll(dir, os.ModeDir|0700)
 			if err != nil {
-				log.Fatalf("Error creating directory: %v", err)
+				logger.Fatal("error creating directory", zap.Error(err), zap.String("directory", dir))
 			}
 		}
 	}
-	builder := builder.MakeBuilder(dir)
+	builder := builder.MakeBuilder(logger, dir)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", builder.Handler)
 	mux.HandleFunc("/version", builder.VersionHandler)

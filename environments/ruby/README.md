@@ -2,7 +2,7 @@
 
 This is the Ruby environment for Fission.
 
-It's a Docker image containing a Ruby 2.4.1 runtime. The image uses
+It's a Docker image containing a Ruby 2.6.1 runtime. The image uses
 Rack with WEBrick to host the internal web server.
 
 The environment works via convention where you create a Ruby method

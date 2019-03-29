@@ -46,12 +46,6 @@ push_builder_image() {
     docker push $tag
 }
 
-push_logger_image() {
-    local version=$1
-    local tag=fission/fluentd:$version
-    docker push $tag
-}
-
 push_env_image() {
     local version=$1
     envdir=$2
@@ -83,6 +77,7 @@ push_all_envs() {
     push_env_image "$version" "dotnet"   "dotnet-env"   ""
     push_env_image "$version" "dotnet20" "dotnet20-env" ""
     push_env_image "$version" "go"       "go-env"       ""
+    push_env_image "$version" "go"       "go-env"       "1.11.4"
     push_env_image "$version" "perl"     "perl-env"     ""
     push_env_image "$version" "php7"     "php-env"      ""
     push_env_image "$version" "python"   "python-env"   ""
@@ -119,6 +114,7 @@ push_all_env_builders() {
     push_env_builder_image "$version" "python"   "python-builder"   ""
     push_env_builder_image "$version" "binary"   "binary-builder"   ""
     push_env_builder_image "$version" "go"       "go-builder"       ""
+    push_env_builder_image "$version" "go"       "go-builder"       "1.11.4"
     push_env_builder_image "$version" "jvm"      "jvm-builder"      ""
     push_env_builder_image "$version" "nodejs"   "node-builder"     ""
 }
@@ -140,9 +136,6 @@ push_all() {
 
     push_builder_image $version
     push_builder_image latest
-
-    push_logger_image $version
-    push_logger_image latest
 
     push_pre_upgrade_checks_image $version
     push_pre_upgrade_checks_image latest

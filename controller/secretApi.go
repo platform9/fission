@@ -21,7 +21,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -35,7 +35,10 @@ func (a *API) SecretGet(w http.ResponseWriter, r *http.Request) {
 
 	secret, err := a.kubernetesClient.CoreV1().Secrets(ns).Get(name, metav1.GetOptions{})
 	if err != nil {
-		log.Printf("Error getting secret: %s from ns: %s", name, ns)
+		a.logger.Error("error getting secret",
+			zap.Error(err),
+			zap.String("secret_name", name),
+			zap.String("namespace", ns))
 		a.respondWithError(w, err)
 		return
 	}

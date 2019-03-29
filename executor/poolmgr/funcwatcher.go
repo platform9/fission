@@ -19,7 +19,7 @@ package poolmgr
 import (
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 	apiv1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -72,11 +72,15 @@ func (gpm *GenericPoolManager) makeFuncController(fissionClient *crd.FissionClie
 				// setup rolebinding is tried, if it fails, we dont return. we just log an error and move on, because :
 				// 1. not all functions have secrets and/or configmaps, so things will work without this rolebinding in that case.
 				// 2. on the contrary, when the route is tried, the env fetcher logs will show a 403 forbidden message and same will be relayed to executor.
-				err := fission.SetupRoleBinding(kubernetesClient, fission.SecretConfigMapGetterRB, fn.Metadata.Namespace, fission.SecretConfigMapGetterCR, fission.ClusterRole, fission.FissionFetcherSA, envNs)
+				err := fission.SetupRoleBinding(gpm.logger, kubernetesClient, fission.SecretConfigMapGetterRB, fn.Metadata.Namespace, fission.SecretConfigMapGetterCR, fission.ClusterRole, fission.FissionFetcherSA, envNs)
 				if err != nil {
-					log.Printf("Error : %v creating %s RoleBinding", err, fission.SecretConfigMapGetterRB)
+					gpm.logger.Error("error creating rolebinding", zap.Error(err), zap.String("role_binding", fission.SecretConfigMapGetterRB))
 				} else {
-					log.Printf("Successfully set up rolebinding for fetcher SA: %s.%s, in func's ns for func : %s/%s", fission.FissionFetcherSA, envNs, fn.Metadata.Namespace, fn.Metadata.Name)
+					gpm.logger.Info("successfully set up rolebinding for fetcher service account for function",
+						zap.String("service_account", fission.FissionFetcherSA),
+						zap.String("service_account_namepsace", envNs),
+						zap.String("function_name", fn.Metadata.Name),
+						zap.String("function_namespace", fn.Metadata.Namespace))
 				}
 
 				if istioEnabled {
@@ -126,7 +130,11 @@ func (gpm *GenericPoolManager) makeFuncController(fissionClient *crd.FissionClie
 					// create function istio service if it does not exist
 					_, err = kubernetesClient.CoreV1().Services(envNs).Create(&svc)
 					if err != nil && !kerrors.IsAlreadyExists(err) {
-						log.Printf("Error creating function istio service: %v", err)
+						gpm.logger.Error("error creating istio service for function",
+							zap.Error(err),
+							zap.String("service_name", svcName),
+							zap.String("function_name", fn.Metadata.Name),
+							zap.Any("selectors", sel))
 					}
 				}
 			},
@@ -149,7 +157,11 @@ func (gpm *GenericPoolManager) makeFuncController(fissionClient *crd.FissionClie
 					// delete function istio service
 					err := kubernetesClient.CoreV1().Services(envNs).Delete(svcName, nil)
 					if err != nil && !kerrors.IsNotFound(err) {
-						log.Printf("Error deleting function istio service: %v", err)
+						gpm.logger.Error("error deleting istio service for function",
+							zap.Error(err),
+							zap.String("service_name", svcName),
+							zap.String("function_name", fn.Metadata.Name))
+
 					}
 				}
 			},
@@ -178,13 +190,18 @@ func (gpm *GenericPoolManager) makeFuncController(fissionClient *crd.FissionClie
 						envNs = newFunc.Spec.Environment.Namespace
 					}
 
-					err := fission.SetupRoleBinding(kubernetesClient, fission.SecretConfigMapGetterRB,
+					err := fission.SetupRoleBinding(gpm.logger, kubernetesClient, fission.SecretConfigMapGetterRB,
 						newFunc.Metadata.Namespace, fission.SecretConfigMapGetterCR, fission.ClusterRole,
 						fission.FissionFetcherSA, envNs)
+
 					if err != nil {
-						log.Printf("Error : %v creating GetSecretConfigMapRoleBinding", err)
+						gpm.logger.Error("error creating rolebinding", zap.Error(err), zap.String("role_binding", fission.SecretConfigMapGetterRB))
 					} else {
-						log.Printf("Set up rolebinding for fetcher SA in func's env ns : %s, in func's ns : %s, for func : %s", newFunc.Spec.Environment.Namespace, newFunc.Metadata.Namespace, newFunc.Metadata.Name)
+						gpm.logger.Info("successfully set up rolebinding for fetcher service account for function",
+							zap.String("service_account", fission.FissionFetcherSA),
+							zap.String("service_account_namepsace", envNs),
+							zap.String("function_name", newFunc.Metadata.Name),
+							zap.String("function_namespace", newFunc.Metadata.Namespace))
 					}
 				}
 			},

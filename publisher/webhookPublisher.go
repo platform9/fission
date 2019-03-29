@@ -19,15 +19,18 @@ package publisher
 import (
 	"bytes"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"strings"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 type (
 	// A webhook publisher for a single URL. Satisifies the Publisher interface.
 	WebhookPublisher struct {
+		logger *zap.Logger
+
 		requestChannel chan *publishRequest
 
 		maxRetries int
@@ -44,8 +47,9 @@ type (
 	}
 )
 
-func MakeWebhookPublisher(baseUrl string) *WebhookPublisher {
+func MakeWebhookPublisher(logger *zap.Logger, baseUrl string) *WebhookPublisher {
 	p := &WebhookPublisher{
+		logger:         logger.Named("webhook_publisher"),
 		baseUrl:        baseUrl,
 		requestChannel: make(chan *publishRequest, 32), // buffered channel
 		// TODO make this configurable
@@ -76,13 +80,16 @@ func (p *WebhookPublisher) svc() {
 
 func (p *WebhookPublisher) makeHttpRequest(r *publishRequest) {
 	url := p.baseUrl + "/" + strings.TrimPrefix(r.target, "/")
-	log.Printf("Making HTTP request to %v", url)
+	p.logger.Info("making HTTP request", zap.String("url", url))
 
 	var buf bytes.Buffer
 	buf.WriteString(r.body)
 
 	// Create request
 	req, err := http.NewRequest("POST", url, &buf)
+	if err != nil {
+		p.logger.Error("error creating request", zap.Error(err), zap.String("url", url))
+	}
 	for k, v := range r.headers {
 		req.Header.Set(k, v)
 	}
@@ -98,13 +105,25 @@ func (p *WebhookPublisher) makeHttpRequest(r *publishRequest) {
 
 	// Log errors
 	if err != nil {
-		log.Printf("Request failed: %v", r)
+		p.logger.Error("request failed",
+			zap.Error(err),
+			zap.Any("request", r),
+			zap.String("url", url))
 	} else if resp.StatusCode != 200 {
-		log.Printf("Request returned failure: %v", resp.StatusCode)
+		p.logger.Error("request returned failure status code",
+			zap.Any("request", r),
+			zap.String("url", url),
+			zap.Int("status_code", resp.StatusCode))
 		body, err := ioutil.ReadAll(resp.Body)
 		resp.Body.Close()
-		if err == nil {
-			log.Printf("request error: %v", string(body))
+		if err != nil {
+			p.logger.Error("error reading error request body",
+				zap.Error(err),
+				zap.Any("request", r),
+				zap.String("url", url),
+				zap.Int("status_code", resp.StatusCode))
+		} else {
+			p.logger.Error("request error", zap.String("body", string(body)))
 		}
 	}
 
@@ -116,7 +135,7 @@ func (p *WebhookPublisher) makeHttpRequest(r *publishRequest) {
 			p.requestChannel <- r
 		})
 	} else {
-		log.Printf("Final retry failed, giving up on %v", url)
+		p.logger.Error("final retry failed, giving up", zap.String("url", url))
 		// Event dropped
 	}
 }

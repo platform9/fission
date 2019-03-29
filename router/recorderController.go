@@ -1,13 +1,16 @@
 package router
 
 import (
-	"github.com/fission/fission/crd"
-	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 	"k8s.io/client-go/rest"
 	k8sCache "k8s.io/client-go/tools/cache"
+
+	"github.com/fission/fission/crd"
 )
 
 type RecorderSet struct {
+	logger *zap.Logger
+
 	httpTriggerSet *HTTPTriggerSet
 
 	crdClient *rest.RESTClient
@@ -19,8 +22,9 @@ type RecorderSet struct {
 	triggerRecorderMap  *triggerRecorderMap
 }
 
-func MakeRecorderSet(httpTriggerSet *HTTPTriggerSet, crdClient *rest.RESTClient, rStore k8sCache.Store, frmap *functionRecorderMap, trmap *triggerRecorderMap) *RecorderSet {
+func MakeRecorderSet(logger *zap.Logger, httpTriggerSet *HTTPTriggerSet, crdClient *rest.RESTClient, rStore k8sCache.Store, frmap *functionRecorderMap, trmap *triggerRecorderMap) *RecorderSet {
 	recorderSet := &RecorderSet{
+		logger:              logger.Named("recorder_set"),
 		httpTriggerSet:      httpTriggerSet,
 		crdClient:           crdClient,
 		recStore:            rStore,
@@ -63,12 +67,17 @@ func (rs *RecorderSet) disableRecorder(r *crd.Recorder) {
 	function := r.Spec.Function
 	triggers := r.Spec.Triggers
 
-	log.Info("Disabling recorder ", r.Metadata.Name)
+	rs.logger.Info("disabling recorder",
+		zap.String("recorder", r.Metadata.Name),
+		zap.String("function", function))
 
 	// Account for function
 	err := rs.functionRecorderMap.remove(function)
 	if err != nil {
-		log.Error("Error disabling recorder (failed to remove function from functionRecorderMap): ", err)
+		rs.logger.Error("error disabling recorder (failed to remove function from functionRecorderMap)",
+			zap.Error(err),
+			zap.String("recorder", r.Metadata.Name),
+			zap.String("function", function))
 	}
 
 	// Account for explicitly added triggers
@@ -76,7 +85,11 @@ func (rs *RecorderSet) disableRecorder(r *crd.Recorder) {
 		for _, trigger := range triggers {
 			err := rs.triggerRecorderMap.remove(trigger)
 			if err != nil {
-				log.Error("Error disabling recorder (failed to remove triggers from triggerRecorderMap): ", err)
+				rs.logger.Error("error disabling recorder (failed to remove triggers from triggerRecorderMap)",
+					zap.Error(err),
+					zap.String("recorder", r.Metadata.Name),
+					zap.String("function", function),
+					zap.String("trigger", trigger))
 			}
 		}
 	} else {
@@ -86,7 +99,11 @@ func (rs *RecorderSet) disableRecorder(r *crd.Recorder) {
 			if trigger.Spec.FunctionReference.Name == function {
 				err := rs.triggerRecorderMap.remove(trigger.Metadata.Name)
 				if err != nil {
-					log.Error("Failed to remove trigger from triggerRecorderMap: ", err)
+					rs.logger.Error("failed to remove trigger from triggerRecorderMap",
+						zap.Error(err),
+						zap.String("recorder", r.Metadata.Name),
+						zap.String("function", function),
+						zap.String("trigger", trigger.Metadata.Name))
 				}
 			}
 		}
@@ -106,13 +123,13 @@ func (rs *RecorderSet) updateRecorder(old *crd.Recorder, newer *crd.Recorder) {
 func (rs *RecorderSet) DeleteTriggerFromRecorderMap(trigger *crd.HTTPTrigger) {
 	err := rs.triggerRecorderMap.remove(trigger.Metadata.Name)
 	if err != nil {
-		log.Error("Failed to remove trigger from triggerRecorderMap: ", err)
+		rs.logger.Error("failed to remove trigger from triggerRecorderMap", zap.Error(err))
 	}
 }
 
 func (rs *RecorderSet) DeleteFunctionFromRecorderMap(function *crd.Function) {
 	err := rs.functionRecorderMap.remove(function.Metadata.Name)
 	if err != nil {
-		log.Error("Failed to remove function from functionRecorderMap: ", err)
+		rs.logger.Error("failed to remove function from functionRecorderMap", zap.Error(err))
 	}
 }

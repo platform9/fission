@@ -17,22 +17,24 @@ limitations under the License.
 package messagequeue
 
 import (
-	"log"
 	"os"
+
+	"github.com/pkg/errors"
+	"go.uber.org/zap"
 
 	"github.com/fission/fission/crd"
 	"github.com/fission/fission/mqtrigger/messageQueue"
 )
 
-func Start(routerUrl string) error {
+func Start(logger *zap.Logger, routerUrl string) error {
 	fissionClient, _, _, err := crd.MakeFissionClient()
 	if err != nil {
-		log.Fatalf("Failed to get fission client: %v", err)
+		return errors.Wrap(err, "failed to get fission or kubernetes client")
 	}
 
 	err = fissionClient.WaitForCRDs()
 	if err != nil {
-		log.Fatalf("Error waiting for CRDs: %v", err)
+		return errors.Wrap(err, "error waiting for CRDs")
 	}
 
 	// Message queue type: nats is the only supported one for now
@@ -42,6 +44,6 @@ func Start(routerUrl string) error {
 		MQType: mqType,
 		Url:    mqUrl,
 	}
-	messageQueue.MakeMessageQueueTriggerManager(fissionClient, routerUrl, mqCfg)
+	messageQueue.MakeMessageQueueTriggerManager(logger, fissionClient, routerUrl, mqCfg)
 	return nil
 }

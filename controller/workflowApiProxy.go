@@ -2,10 +2,11 @@ package controller
 
 import (
 	"fmt"
-	"github.com/gorilla/mux"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+
+	"github.com/gorilla/mux"
 )
 
 func (api *API) WorkflowApiserverProxy(w http.ResponseWriter, r *http.Request) {

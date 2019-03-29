@@ -17,9 +17,9 @@ limitations under the License.
 package kubewatcher
 
 import (
-	"log"
 	"time"
 
+	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission/crd"
@@ -27,13 +27,15 @@ import (
 
 type (
 	WatchSync struct {
+		logger      *zap.Logger
 		client      *crd.FissionClient
 		kubeWatcher *KubeWatcher
 	}
 )
 
-func MakeWatchSync(client *crd.FissionClient, kubeWatcher *KubeWatcher) *WatchSync {
+func MakeWatchSync(logger *zap.Logger, client *crd.FissionClient, kubeWatcher *KubeWatcher) *WatchSync {
 	ws := &WatchSync{
+		logger:      logger.Named("watch_sync"),
 		client:      client,
 		kubeWatcher: kubeWatcher,
 	}
@@ -46,7 +48,7 @@ func (ws *WatchSync) syncSvc() {
 	for {
 		watches, err := ws.client.KubernetesWatchTriggers(metav1.NamespaceAll).List(metav1.ListOptions{})
 		if err != nil {
-			log.Fatalf("Failed to get Kubernetes watch trigger list: %v", err)
+			ws.logger.Fatal("failed to get Kubernetes watch trigger list", zap.Error(err))
 		}
 
 		ws.kubeWatcher.Sync(watches.Items)

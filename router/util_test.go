@@ -28,3 +28,9 @@ func testRequest(targetUrl string, expectedResponse string) {
 		log.Panic("Unexpected response")
 	}
 }
+
+func panicIf(err error) {
+	if err != nil {
+		log.Panicf("Error: %v", err)
+	}
+}

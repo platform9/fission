@@ -1,4 +1,3 @@
-import sys
 import yaml
 
 document = """
@@ -9,4 +8,4 @@ document = """
 """
 
 def main():
-    return yaml.dump(yaml.load(document))
+    return yaml.dump(yaml.load(document), default_flow_style=None)

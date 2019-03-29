@@ -31,7 +31,7 @@ func (a *API) ReplayByReqUID(w http.ResponseWriter, r *http.Request) {
 
 	routerUrl := fmt.Sprintf("http://router.%v", podNamespace)
 
-	resp, err := redis.ReplayByReqUID(routerUrl, queriedID)
+	resp, err := redis.ReplayByReqUID(a.logger, routerUrl, queriedID)
 	if err != nil {
 		a.respondWithError(w, err)
 		return

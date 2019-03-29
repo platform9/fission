@@ -17,8 +17,9 @@ limitations under the License.
 package router
 
 import (
-	"log"
 	"time"
+
+	"go.uber.org/zap"
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/cache"
@@ -27,14 +28,16 @@ import (
 
 type (
 	functionRecorderMap struct {
-		cache *cache.Cache // map[string]*crd.Recorder
+		logger *zap.Logger
+		cache  *cache.Cache // map[string]*crd.Recorder
 	}
 )
 
 // Why do we need an expiry?
-func makeFunctionRecorderMap(expiry time.Duration) *functionRecorderMap {
+func makeFunctionRecorderMap(logger *zap.Logger, expiry time.Duration) *functionRecorderMap {
 	return &functionRecorderMap{
-		cache: cache.MakeCache(expiry, 0),
+		logger: logger.Named("function_recorder_map"),
+		cache:  cache.MakeCache(expiry, 0),
 	}
 }
 
@@ -53,7 +56,7 @@ func (frmap *functionRecorderMap) assign(function string, recorder *crd.Recorder
 		if e, ok := err.(fission.Error); ok && e.Code == fission.ErrorNameExists {
 			return
 		}
-		log.Printf("error caching recorder for function name with a different value: %v", err)
+		frmap.logger.Error("error caching recorder for function name with a different value", zap.Error(err))
 	}
 
 }

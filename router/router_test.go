@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission"
@@ -43,16 +44,19 @@ func TestRouter(t *testing.T) {
 	testResponseString := "hi"
 	testServiceUrl := createBackendService(testResponseString)
 
+	logger, err := zap.NewDevelopment()
+	panicIf(err)
+
 	// set up the cache with this fake service
-	fmap := makeFunctionServiceMap(0)
+	fmap := makeFunctionServiceMap(logger, 0)
 	fmap.assign(fn, testServiceUrl)
 
-	frmap := makeFunctionRecorderMap(time.Minute)
+	frmap := makeFunctionRecorderMap(logger, time.Minute)
 
-	trmap := makeTriggerRecorderMap(time.Minute)
+	trmap := makeTriggerRecorderMap(logger, time.Minute)
 
 	// HTTP trigger set with a trigger for this function
-	triggers, _, _ := makeHTTPTriggerSet(fmap, frmap, trmap, nil, nil, nil, nil,
+	triggers, _, _ := makeHTTPTriggerSet(logger, fmap, frmap, trmap, nil, nil, nil, nil,
 		&tsRoundTripperParams{
 			timeout:         50 * time.Millisecond,
 			timeoutExponent: 2,
@@ -95,7 +99,7 @@ func TestRouter(t *testing.T) {
 	port := 4242
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go serve(ctx, port, triggers, frr)
+	go serve(ctx, logger, port, triggers, frr)
 	time.Sleep(100 * time.Millisecond)
 
 	// hit the router

@@ -1,0 +1,14 @@
+{
+    "name": "example/php7",
+    "description": "Example for php7 environment",
+    "require": {
+        "psr/log": "^1.1",
+        "psr/http-message": "^1.0"
+    },
+    "authors": [
+        {
+            "name": "Alberto Lopez",
+            "email": "alberto.lopez.benito@gmail.com"
+        }
+    ]
+}

@@ -96,23 +96,6 @@ build_builder_image() {
     popd
 }
 
-build_logger_image() {
-    local version=$1
-    local tag=fission/fluentd:$version
-
-    pushd $DIR/logger/fluentd
-
-    docker build -t $tag .
-    docker tag $tag fission/fluentd:latest
-
-    popd
-}
-
-push_logger_image() {
-    local version=$1
-    local tag=fission/fluentd:$version
-}
-
 build_env_image() {
     local version=$1
     envdir=$2
@@ -169,6 +152,7 @@ build_all_envs() {
     build_env_image "$version" "dotnet"   "dotnet-env"   ""
     build_env_image "$version" "dotnet20" "dotnet20-env" ""
     build_env_image "$version" "go"       "go-env"       ""
+    build_env_image "$version" "go"       "go-env"       "1.11.4"
     build_env_image "$version" "perl"     "perl-env"     ""
     build_env_image "$version" "php7"     "php-env"      ""
     build_env_image "$version" "python"   "python-env"   ""
@@ -209,6 +193,7 @@ build_all_env_builders() {
     build_env_builder_image "$version" "python"   "python-builder"   ""
     build_env_builder_image "$version" "binary"   "binary-builder"   ""
     build_env_builder_image "$version" "go"       "go-builder"       ""
+    build_env_builder_image "$version" "go"       "go-builder"       "1.11.4"
     build_env_builder_image "$version" "jvm"      "jvm-builder"      ""
     build_env_builder_image "$version" "nodejs"   "node-builder"     ""
 }
@@ -294,7 +279,6 @@ build_all() {
     build_fission_bundle_image $version $date $gitcommit
     build_fetcher_image $version $date $gitcommit
     build_builder_image $version $date $gitcommit
-    build_logger_image $version
     build_all_cli $version $date $gitcommit
     build_pre_upgrade_checks_image $version $date $gitcommit
 }

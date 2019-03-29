@@ -19,13 +19,13 @@ image: fission/fission-bundle
 pullPolicy: IfNotPresent
 
 ## Fission image version
-imageTag: 1.0.0
+imageTag: 1.1.0
 
 ## Fission fetcher repository
 fetcherImage: fission/fetcher
 
 ## Fission fetcher image version
-fetcherImageTag: 1.0.0
+fetcherImageTag: 1.1.0
 
 ## Port at which Fission controller service should be exposed
 controllerPort: 31313
@@ -53,8 +53,9 @@ enableIstio: false
 ## Logger config
 logger:
   influxdbAdmin: "admin"
-  fluentdImage: fission/fluentd
-  fluentdImageTag: 1.0.0
+  fluentdImageRepository: index.docker.io
+  fluentdImage: fluent/fluent-bit
+  fluentdImageTag: 1.0.4
 
 ## Message queue trigger config
 ### NATS Streaming, enabled by default
@@ -78,8 +79,8 @@ kafka:
   ## "major.minor.veryMinor.patch" example: 0.8.2.0
   ## For 1.x it must be a string in the format
   ## "major.major.veryMinor" example: 2.0.1
-  ## Should be >= 0.11.0.0 to enable Kafka record headers support
-  # version: "0.11.0.0"
+  ## Should be >= 0.11.1.0 to enable Kafka record headers support
+  # version: "0.11.1.0"
 
 ## Persist data to a persistent volume.
 persistence:

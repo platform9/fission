@@ -20,7 +20,9 @@ import:
   version: ^1.1.0
 - package: github.com/urfave/cli
   version: ^1.18.1
-- package: golang.org/x/tools/imports
+- package: golang.org/x/tools
+  subpackages:
+  - imports
 - package: golang.org/x/net
   subpackages:
   - context
@@ -68,12 +70,18 @@ import:
 - package: github.com/prometheus/client_golang
   version: v0.8.0
 - package: github.com/dustin/go-humanize
-- package: github.com/golang/protobuf/proto
+- package: github.com/golang/protobuf
   version: v1.1.0
+  subpackages:
+  - proto
 - package: github.com/bsm/sarama-cluster
   version: ^2.1.11
 - package: github.com/Shopify/sarama
   version: ^1.15.0
 - package: go.opencensus.io
   version: ^0.19.0
-- package: google.golang.org/api/support/bundler
+- package: google.golang.org/api
+  subpackages:
+  - support/bundler
+- package: go.uber.org/zap
+  version: v1.9.1

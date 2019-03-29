@@ -17,29 +17,30 @@ limitations under the License.
 package buildermgr
 
 import (
-	"log"
+	"github.com/pkg/errors"
+	"go.uber.org/zap"
 
 	"github.com/fission/fission/crd"
 )
 
 // Start the buildermgr service.
-func Start(storageSvcUrl string, envBuilderNamespace string) error {
+func Start(logger *zap.Logger, storageSvcUrl string, envBuilderNamespace string) error {
+	bmLogger := logger.Named("builder_manager")
 
 	fissionClient, kubernetesClient, _, err := crd.MakeFissionClient()
 	if err != nil {
-		log.Printf("Failed to get kubernetes client: %v", err)
-		return err
+		return errors.Wrap(err, "failed to get fission or kubernetes client")
 	}
 
 	err = fissionClient.WaitForCRDs()
 	if err != nil {
-		log.Fatalf("Error waiting for CRDs: %v", err)
+		return errors.Wrap(err, "error waiting for CRDs")
 	}
 
-	envWatcher := makeEnvironmentWatcher(fissionClient, kubernetesClient, envBuilderNamespace)
+	envWatcher := makeEnvironmentWatcher(bmLogger, fissionClient, kubernetesClient, envBuilderNamespace)
 	go envWatcher.watchEnvironments()
 
-	pkgWatcher := makePackageWatcher(fissionClient,
+	pkgWatcher := makePackageWatcher(bmLogger, fissionClient,
 		kubernetesClient, envBuilderNamespace, storageSvcUrl)
 	go pkgWatcher.watchPackages(fissionClient, kubernetesClient, envBuilderNamespace)
 

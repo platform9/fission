@@ -21,12 +21,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"reflect"
 	"strings"
 	"sync/atomic"
 	"time"
 
+	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -48,6 +48,7 @@ const (
 
 type (
 	KubeWatcher struct {
+		logger           *zap.Logger
 		watches          map[types.UID]watchSubscription
 		kubernetesClient *kubernetes.Clientset
 		requestChannel   chan *kubeWatcherRequest
@@ -56,6 +57,7 @@ type (
 	}
 
 	watchSubscription struct {
+		logger              *zap.Logger
 		watch               crd.KubernetesWatchTrigger
 		kubeWatch           watch.Interface
 		lastResourceVersion string
@@ -74,8 +76,9 @@ type (
 	}
 )
 
-func MakeKubeWatcher(kubernetesClient *kubernetes.Clientset, publisher publisher.Publisher) *KubeWatcher {
+func MakeKubeWatcher(logger *zap.Logger, kubernetesClient *kubernetes.Clientset, publisher publisher.Publisher) *KubeWatcher {
 	kw := &KubeWatcher{
+		logger:           logger.Named("kube_watcher"),
 		watches:          make(map[types.UID]watchSubscription),
 		kubernetesClient: kubernetesClient,
 		publisher:        publisher,
@@ -167,16 +170,14 @@ func createKubernetesWatch(kubeClient *kubernetes.Clientset, w *crd.KubernetesWa
 	case "JOB":
 		wi, err = kubeClient.BatchV1().Jobs(w.Spec.Namespace).Watch(listOptions)
 	default:
-		msg := fmt.Sprintf("Error: unknown obj type '%v'", w.Spec.Type)
-		log.Println(msg)
-		err = errors.NewBadRequest(msg)
+		err = errors.NewBadRequest(fmt.Sprintf("Error: unknown obj type '%v'", w.Spec.Type))
 	}
 	return wi, err
 }
 
 func (kw *KubeWatcher) addWatch(w *crd.KubernetesWatchTrigger) error {
-	log.Printf("Adding watch %v: %v", w.Metadata.Name, w.Spec.FunctionReference)
-	ws, err := MakeWatchSubscription(w, kw.kubernetesClient, kw.publisher)
+	kw.logger.Info("adding watch", zap.String("name", w.Metadata.Name), zap.Any("function", w.Spec.FunctionReference))
+	ws, err := MakeWatchSubscription(kw.logger.Named("watchsubscription"), w, kw.kubernetesClient, kw.publisher)
 	if err != nil {
 		return err
 	}
@@ -185,7 +186,7 @@ func (kw *KubeWatcher) addWatch(w *crd.KubernetesWatchTrigger) error {
 }
 
 func (kw *KubeWatcher) removeWatch(w *crd.KubernetesWatchTrigger) error {
-	log.Printf("Removing watch %v: %v", w.Metadata.Name, w.Spec.FunctionReference)
+	kw.logger.Info("removing watch", zap.String("name", w.Metadata.Name), zap.Any("function", w.Spec.FunctionReference))
 	ws, ok := kw.watches[w.Metadata.UID]
 	if !ok {
 		return fission.MakeError(fission.ErrorNotFound,
@@ -211,9 +212,10 @@ func (kw *KubeWatcher) removeWatch(w *crd.KubernetesWatchTrigger) error {
 // 	return nil
 // }
 
-func MakeWatchSubscription(w *crd.KubernetesWatchTrigger, kubeClient *kubernetes.Clientset, publisher publisher.Publisher) (*watchSubscription, error) {
+func MakeWatchSubscription(logger *zap.Logger, w *crd.KubernetesWatchTrigger, kubeClient *kubernetes.Clientset, publisher publisher.Publisher) (*watchSubscription, error) {
 	var stopped int32 = 0
 	ws := &watchSubscription{
+		logger:              logger.Named("watch_subscription"),
 		watch:               *w,
 		kubeWatch:           nil,
 		stopped:             &stopped,
@@ -234,8 +236,11 @@ func MakeWatchSubscription(w *crd.KubernetesWatchTrigger, kubeClient *kubernetes
 func (ws *watchSubscription) restartWatch() error {
 	retries := 60
 	for {
-		log.Printf("(re)starting watch %v (ns:%v type:%v) at rv:%v",
-			ws.watch.Metadata, ws.watch.Spec.Namespace, ws.watch.Spec.Type, ws.lastResourceVersion)
+		ws.logger.Info("(re)starting watch",
+			zap.Any("watch", ws.watch.Metadata),
+			zap.String("namespace", ws.watch.Spec.Namespace),
+			zap.String("type", ws.watch.Spec.Type),
+			zap.String("last_resource_version", ws.lastResourceVersion))
 		wi, err := createKubernetesWatch(ws.kubernetesClient, &ws.watch, ws.lastResourceVersion)
 		if err != nil {
 			retries--
@@ -260,7 +265,7 @@ func getResourceVersion(obj runtime.Object) (string, error) {
 }
 
 func (ws *watchSubscription) eventDispatchLoop() {
-	log.Println("Listening to watch ", ws.watch.Metadata.Name)
+	ws.logger.Info("listening to watch", zap.String("name", ws.watch.Metadata.Name))
 	for {
 		// check watchSubscription is stopped or not before waiting for event
 		// comes from the kubeWatch.ResultChan(). This fix the edge case that
@@ -273,14 +278,14 @@ func (ws *watchSubscription) eventDispatchLoop() {
 		if !more {
 			if ws.isStopped() {
 				// watch is removed by user.
-				log.Println("Watch stopped", ws.watch.Metadata.Name)
+				ws.logger.Info("watch stopped", zap.String("watch_name", ws.watch.Metadata.Name))
 				return
 			} else {
 				// watch closed due to timeout, restart it.
-				log.Printf("Watch %v timed out, restarting", ws.watch.Metadata.Name)
+				ws.logger.Info("watch timed out - restarting", zap.String("watch_name", ws.watch.Metadata.Name))
 				err := ws.restartWatch()
 				if err != nil {
-					log.Panicf("Failed to restart watch: %v", err)
+					ws.logger.Panic("failed to restart watch", zap.Error(err), zap.String("watch_name", ws.watch.Metadata.Name))
 				}
 				continue
 			}
@@ -288,19 +293,19 @@ func (ws *watchSubscription) eventDispatchLoop() {
 
 		if ev.Type == watch.Error {
 			e := errors.FromObject(ev.Object)
-			log.Printf("Watch error, retrying in a second: %v", e)
+			ws.logger.Info("watch error - retrying after one second", zap.Error(e), zap.String("watch_name", ws.watch.Metadata.Name))
 			// Start from the beginning to get around "too old resource version"
 			ws.lastResourceVersion = ""
 			time.Sleep(time.Second)
 			err := ws.restartWatch()
 			if err != nil {
-				log.Panicf("Failed to restart watch: %v", err)
+				ws.logger.Panic("failed to restart watch", zap.Error(err), zap.String("watch_name", ws.watch.Metadata.Name))
 			}
 			continue
 		}
 		rv, err := getResourceVersion(ev.Object)
 		if err != nil {
-			log.Printf("Error getting resourceVersion from object: %v", err)
+			ws.logger.Error("error getting resourceVersion from object", zap.Error(err), zap.String("watch_name", ws.watch.Metadata.Name))
 		} else {
 			ws.lastResourceVersion = rv
 		}
@@ -309,7 +314,7 @@ func (ws *watchSubscription) eventDispatchLoop() {
 		var buf bytes.Buffer
 		err = printKubernetesObject(ev.Object, &buf)
 		if err != nil {
-			log.Printf("Failed to serialize object: %v", err)
+			ws.logger.Error("failed to serialize object", zap.Error(err), zap.String("watch_name", ws.watch.Metadata.Name))
 			// TODO send a POST request indicating error
 		}
 
@@ -322,8 +327,9 @@ func (ws *watchSubscription) eventDispatchLoop() {
 
 		// TODO support other function ref types. Or perhaps delegate to router?
 		if ws.watch.Spec.FunctionReference.Type != fission.FunctionReferenceTypeFunctionName {
-			log.Printf("Error: unsupported function ref type: %v, can't publish event",
-				ws.watch.Spec.FunctionReference.Type)
+			ws.logger.Error("unsupported function ref type - cannot publish event",
+				zap.Any("type", ws.watch.Spec.FunctionReference.Type),
+				zap.String("watch_name", ws.watch.Metadata.Name))
 			continue
 		}
 

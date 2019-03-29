@@ -33,6 +33,7 @@ import (
 	"testing"
 	"time"
 
+	"go.uber.org/zap"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -43,6 +44,12 @@ import (
 	"github.com/fission/fission/crd"
 	"github.com/fission/fission/executor/client"
 )
+
+func panicIf(err error) {
+	if err != nil {
+		log.Panicf("Error: %v", err)
+	}
+}
 
 // return the number of pods in the given namespace matching the given labels
 func countPods(kubeClient *kubernetes.Clientset, ns string, labelz map[string]string) int {
@@ -134,8 +141,11 @@ func TestExecutor(t *testing.T) {
 	createTestNamespace(kubeClient, functionNs)
 	defer kubeClient.Namespaces().Delete(functionNs, nil)
 
+	logger, err := zap.NewDevelopment()
+	panicIf(err)
+
 	// make sure CRD types exist on cluster
-	err = crd.EnsureFissionCRDs(apiExtClient)
+	err = crd.EnsureFissionCRDs(logger, apiExtClient)
 	if err != nil {
 		log.Panicf("failed to ensure crds: %v", err)
 	}
@@ -165,13 +175,13 @@ func TestExecutor(t *testing.T) {
 
 	// create poolmgr
 	port := 9999
-	err = StartExecutor(fissionNs, functionNs, port)
+	err = StartExecutor(logger, fissionNs, functionNs, "fission-builder", port)
 	if err != nil {
 		log.Panicf("failed to start poolmgr: %v", err)
 	}
 
 	// connect poolmgr client
-	poolmgrClient := client.MakeClient(fmt.Sprintf("http://localhost:%v", port))
+	poolmgrClient := client.MakeClient(logger, fmt.Sprintf("http://localhost:%v", port))
 
 	// Wait for pool to be created (we don't actually need to do
 	// this, since the API should do the right thing in any case).

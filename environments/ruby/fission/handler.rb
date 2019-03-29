@@ -7,10 +7,10 @@ module Fission
     def self.call(env)
       context = Context.new(env)
 
-      response = if method(:handler).arity > 0
-        handler(context)
+      response = if $handler.arity > 0
+        $handler.call(context)
       else
-        handler
+        $handler.call
       end
 
       response.is_a?(Array) ? response : Rack::Response.new([response]).finish

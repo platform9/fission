@@ -17,9 +17,8 @@ limitations under the License.
 package timer
 
 import (
-	"log"
-
 	"github.com/robfig/cron"
+	"go.uber.org/zap"
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
@@ -34,6 +33,7 @@ const (
 
 type (
 	Timer struct {
+		logger         *zap.Logger
 		triggers       map[string]*timerTriggerWithCron
 		requestChannel chan *timerRequest
 		publisher      *publisher.Publisher
@@ -53,8 +53,9 @@ type (
 	}
 )
 
-func MakeTimer(publisher publisher.Publisher) *Timer {
+func MakeTimer(logger *zap.Logger, publisher publisher.Publisher) *Timer {
 	timer := &Timer{
+		logger:         logger.Named("timer"),
 		triggers:       make(map[string]*timerTriggerWithCron),
 		requestChannel: make(chan *timerRequest),
 		publisher:      &publisher,
@@ -114,7 +115,7 @@ func (timer *Timer) syncCron(triggers []crd.TimeTrigger) error {
 		if _, found := triggerMap[k]; !found {
 			if v.cron != nil {
 				v.cron.Stop()
-				log.Printf("Cron for time trigger %s stopped", v.trigger.Metadata.Name)
+				timer.logger.Info("cron for time trigger stopped", zap.String("trigger", v.trigger.Metadata.Name))
 			}
 			delete(timer.triggers, k)
 		}
@@ -136,6 +137,6 @@ func (timer *Timer) newCron(t crd.TimeTrigger) *cron.Cron {
 		(*timer.publisher).Publish("", headers, fission.UrlForFunction(t.Spec.FunctionReference.Name, t.Metadata.Namespace))
 	})
 	c.Start()
-	log.Printf("Add new cron for time trigger %v", t.Metadata.Name)
+	timer.logger.Info("added new cron for time trigger", zap.String("trigger", t.Metadata.Name))
 	return c
 }

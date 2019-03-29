@@ -17,9 +17,9 @@ limitations under the License.
 package timer
 
 import (
-	"log"
 	"time"
 
+	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission"
@@ -28,13 +28,15 @@ import (
 
 type (
 	TimerSync struct {
+		logger        *zap.Logger
 		fissionClient *crd.FissionClient
 		timer         *Timer
 	}
 )
 
-func MakeTimerSync(fissionClient *crd.FissionClient, timer *Timer) *TimerSync {
+func MakeTimerSync(logger *zap.Logger, fissionClient *crd.FissionClient, timer *Timer) *TimerSync {
 	ws := &TimerSync{
+		logger:        logger.Named("timer_sync"),
 		fissionClient: fissionClient,
 		timer:         timer,
 	}
@@ -47,11 +49,11 @@ func (ws *TimerSync) syncSvc() {
 		triggers, err := ws.fissionClient.TimeTriggers(metav1.NamespaceAll).List(metav1.ListOptions{})
 		if err != nil {
 			if fission.IsNetworkError(err) {
-				log.Printf("Encounter network error, retry again: %v", err)
+				ws.logger.Info("encountered a network error - will retry", zap.Error(err))
 				time.Sleep(5 * time.Second)
 				continue
 			}
-			log.Fatalf("Failed get time trigger list: %v", err)
+			ws.logger.Fatal("failed to get time trigger list", zap.Error(err))
 		}
 		ws.timer.Sync(triggers.Items)
 

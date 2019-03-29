@@ -1,5 +1,5 @@
-hash: fbb8e5b2fc64114cf4cd7158a1498f36c580e01b327c14cd35682f999ce13db3
-updated: 2019-01-24T19:14:41.16237463+05:30
+hash: 9c39373a78b1e542a42169b1af8fa644f62690e73a988a01bd5ad45a3639d872
+updated: 2019-03-04T16:38:40.987945-07:00
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -110,12 +110,10 @@ imports:
   - openstack/identity/v3/tokens
   - openstack/utils
   - pagination
-- name: github.com/gorilla/context
-  version: 08b5f424b9271eedf6f9f0ce86cb9396ed337a42
 - name: github.com/gorilla/handlers
   version: 7e0847f9db758cdebd26c149d0ae9d5d0b9c98ce
 - name: github.com/gorilla/mux
-  version: e3702bed27f0d39777b0b37b664b6280e8ef8fbf
+  version: a7962380ca08b5a188038c69871b8d3fbdf31e89
 - name: github.com/graymeta/stow
   version: 7b5498c561bbfeb17e413eb96c9edaf88af3855f
   subpackages:
@@ -162,7 +160,7 @@ imports:
   subpackages:
   - pb
 - name: github.com/nats-io/nats-streaming-server
-  version: 7b758bb93407505bc1d0cf26d091fc281d99ca0c
+  version: 247d7fa2c948ab918d7b4a9f761010082e8b92ea
   subpackages:
   - spb
   - util
@@ -203,7 +201,7 @@ imports:
 - name: github.com/satori/go.uuid
   version: f58768cc1a7a7e77a3bd49e98cdd21419399b6a3
 - name: github.com/Shopify/sarama
-  version: 03a43f93cd29dc549e6d9b11892795c206f9c38c
+  version: 4602b5a8c6e826f9e0737865818dd43b2339a092
 - name: github.com/sirupsen/logrus
   version: 68cec9f21fbf3ea8d8f98c044bc6ce05f17b267a
 - name: github.com/spf13/pflag
@@ -223,7 +221,7 @@ imports:
 - name: github.com/urfave/cli
   version: cfb38830724cc34fedffe9a2a29fb54fa9169cd1
 - name: go.opencensus.io
-  version: 2b5032d79456124f42db6b7eb19ac6c155449dc2
+  version: f305e5c4e2cf345eba88de13d10de1126fa45a61
   subpackages:
   - exemplar
   - exporter/jaeger
@@ -240,6 +238,18 @@ imports:
   - trace/internal
   - trace/propagation
   - trace/tracestate
+- name: go.uber.org/atomic
+  version: 1ea20fb1cbb1cc08cbd0d913a96dead89aa18289
+- name: go.uber.org/multierr
+  version: 3c4937480c32f4c13a875a1829af76c98ca3d40a
+- name: go.uber.org/zap
+  version: ff33455a0e382e8a81d14dd7c922020b6b5e7982
+  subpackages:
+  - buffer
+  - internal/bufferpool
+  - internal/color
+  - internal/exit
+  - zapcore
 - name: golang.org/x/crypto
   version: 81e90905daefcd6fd217b62423c0908922eadb30
   subpackages:
@@ -307,7 +317,7 @@ imports:
 - name: gopkg.in/yaml.v2
   version: 670d4cfef0544295bc27a114dbac37980d83185a
 - name: k8s.io/api
-  version: 0f11257a8a25954878633ebdc9841c67d8f83bdb
+  version: c89978d5f86d7427bef2fc7752732c8c60b1d188
   subpackages:
   - admissionregistration/v1alpha1
   - admissionregistration/v1beta1
@@ -338,7 +348,7 @@ imports:
   - storage/v1alpha1
   - storage/v1beta1
 - name: k8s.io/apiextensions-apiserver
-  version: f584b16eb23bd2a3fd292a027d698d95db427c5d
+  version: f0729a5940c5414a9b9da2f18ba8d5c4b559ec9a
   subpackages:
   - pkg/apis/apiextensions
   - pkg/apis/apiextensions/v1beta1
@@ -346,7 +356,7 @@ imports:
   - pkg/client/clientset/clientset/scheme
   - pkg/client/clientset/clientset/typed/apiextensions/v1beta1
 - name: k8s.io/apimachinery
-  version: e386b2658ed20923da8cc9250e552f082899a1ee
+  version: d49e237a2683fa6dc43a86c7b1b766e0219fb6e7
   subpackages:
   - pkg/api/errors
   - pkg/api/meta

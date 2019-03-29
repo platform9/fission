@@ -18,9 +18,10 @@ package messageQueue
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission"
@@ -50,6 +51,7 @@ type (
 	}
 
 	MessageQueueTriggerManager struct {
+		logger        *zap.Logger
 		reqChan       chan request
 		mqCfg         MessageQueueConfig
 		triggers      map[string]*triggerSubscription
@@ -73,27 +75,28 @@ type (
 	}
 )
 
-func MakeMessageQueueTriggerManager(fissionClient *crd.FissionClient, routerUrl string, mqConfig MessageQueueConfig) *MessageQueueTriggerManager {
+func MakeMessageQueueTriggerManager(logger *zap.Logger, fissionClient *crd.FissionClient, routerUrl string, mqConfig MessageQueueConfig) *MessageQueueTriggerManager {
 	var messageQueue MessageQueue
 	var err error
 
 	mqTriggerMgr := MessageQueueTriggerManager{
+		logger:        logger.Named("message_queue_trigger_manager"),
 		reqChan:       make(chan request),
 		triggers:      make(map[string]*triggerSubscription),
 		fissionClient: fissionClient,
 	}
 	switch mqConfig.MQType {
 	case fission.MessageQueueTypeNats:
-		messageQueue, err = makeNatsMessageQueue(routerUrl, mqConfig)
+		messageQueue, err = makeNatsMessageQueue(logger, routerUrl, mqConfig)
 	case fission.MessageQueueTypeASQ:
-		messageQueue, err = newAzureStorageConnection(routerUrl, mqConfig)
+		messageQueue, err = newAzureStorageConnection(logger, routerUrl, mqConfig)
 	case fission.MessageQueueTypeKafka:
-		messageQueue, err = makeKafkaMessageQueue(routerUrl, mqConfig)
+		messageQueue, err = makeKafkaMessageQueue(logger, routerUrl, mqConfig)
 	default:
-		err = errors.New("No matched message queue type found")
+		err = fmt.Errorf("no supported message queue type found for %q", mqConfig.MQType)
 	}
 	if err != nil {
-		log.Fatalf("Failed to connect to remote message queue server: %v", err)
+		logger.Fatal("failed to connect to remote message queue server", zap.Error(err))
 	}
 	mqTriggerMgr.messageQueue = messageQueue
 	go mqTriggerMgr.service()
@@ -109,7 +112,7 @@ func (mqt *MessageQueueTriggerManager) service() {
 			var err error
 			k := crd.CacheKey(&req.triggerSub.trigger.Metadata)
 			if _, ok := mqt.triggers[k]; ok {
-				err = errors.New("Trigger already exists")
+				err = errors.New("trigger already exists")
 			} else {
 				mqt.triggers[k] = req.triggerSub
 			}
@@ -164,11 +167,11 @@ func (mqt *MessageQueueTriggerManager) syncTriggers() {
 		newTriggers, err := mqt.fissionClient.MessageQueueTriggers(metav1.NamespaceAll).List(metav1.ListOptions{})
 		if err != nil {
 			if fission.IsNetworkError(err) {
-				log.Printf("Encounter network error, retry again: %v", err)
+				mqt.logger.Info("encountered network error, will retry", zap.Error(err))
 				time.Sleep(5 * time.Second)
 				continue
 			}
-			log.Fatalf("Failed to read message queue trigger list: %v", err)
+			mqt.logger.Fatal("failed to read message queue trigger list", zap.Error(err))
 		}
 		newTriggerMap := make(map[string]*crd.MessageQueueTrigger)
 		for index := range newTriggers.Items {
@@ -188,7 +191,7 @@ func (mqt *MessageQueueTriggerManager) syncTriggers() {
 			// actually subscribe using the message queue client impl
 			sub, err := mqt.messageQueue.subscribe(trigger)
 			if err != nil {
-				log.Warnf("Failed to subscribe to message queue trigger %s: %v", trigger.Metadata.Name, err)
+				mqt.logger.Warn("failed to subscribe to message queue trigger", zap.Error(err), zap.String("trigger_name", trigger.Metadata.Name))
 				continue
 			}
 
@@ -200,10 +203,10 @@ func (mqt *MessageQueueTriggerManager) syncTriggers() {
 			// add to our list
 			err = mqt.addTrigger(&triggerSub)
 			if err != nil {
-				log.Fatalf("Message queue trigger %s addition failed: %v", trigger.Metadata.Name, err)
+				mqt.logger.Fatal("adding message queue trigger failed", zap.Error(err), zap.String("trigger_name", trigger.Metadata.Name))
 			}
 
-			log.Infof("Message queue trigger %s created", trigger.Metadata.Name)
+			mqt.logger.Info("message queue trigger created", zap.String("trigger_name", trigger.Metadata.Name))
 		}
 
 		// remove old triggers
@@ -213,11 +216,11 @@ func (mqt *MessageQueueTriggerManager) syncTriggers() {
 			}
 			err := mqt.messageQueue.unsubscribe(triggerSub.subscription)
 			if err != nil {
-				log.Warnf("Failed to unsubscribe to trigger %s: %v", triggerSub.trigger.Metadata.Name, err)
+				mqt.logger.Warn("failed to unsubscribe from message queue trigger", zap.Error(err), zap.String("trigger_name", triggerSub.trigger.Metadata.Name))
 				continue
 			}
 			mqt.delTrigger(&triggerSub.trigger.Metadata)
-			log.Infof("Message queue trigger %s deleted", triggerSub.trigger.Metadata.Name)
+			mqt.logger.Info("message queue trigger deleted", zap.String("trigger_name", triggerSub.trigger.Metadata.Name))
 		}
 
 		// TODO replace with a watch

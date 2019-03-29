@@ -17,7 +17,6 @@ limitations under the License.
 package storagesvc
 
 import (
-	"errors"
 	"io"
 	"mime/multipart"
 	"os"
@@ -25,8 +24,9 @@ import (
 
 	"github.com/graymeta/stow"
 	_ "github.com/graymeta/stow/local"
+	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
-	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 type (
@@ -40,6 +40,7 @@ type (
 	}
 
 	StowClient struct {
+		logger    *zap.Logger
 		config    *storageConfig
 		location  stow.Location
 		container stow.Container
@@ -59,7 +60,7 @@ var (
 	ErrWritingFileIntoResponse = errors.New("unable to copy item into http response")
 )
 
-func MakeStowClient(storageType StorageType, storagePath string, containerName string) (*StowClient, error) {
+func MakeStowClient(logger *zap.Logger, storageType StorageType, storagePath string, containerName string) (*StowClient, error) {
 	if storageType != StorageTypeLocal {
 		return nil, errors.New("Storage types other than 'local' are not implemented")
 	}
@@ -71,13 +72,13 @@ func MakeStowClient(storageType StorageType, storagePath string, containerName s
 	}
 
 	stowClient := &StowClient{
+		logger: logger.Named("stow_client"),
 		config: config,
 	}
 
 	cfg := stow.ConfigMap{"path": config.localPath}
 	loc, err := stow.Dial("local", cfg)
 	if err != nil {
-		log.WithError(err).Error("Error initializing storage")
 		return nil, err
 	}
 	stowClient.location = loc
@@ -99,7 +100,6 @@ func MakeStowClient(storageType StorageType, storagePath string, containerName s
 		}
 	}
 	if err != nil {
-		log.WithError(err).Error("Error initializing storage")
 		return nil, err
 	}
 	stowClient.container = con
@@ -116,11 +116,13 @@ func (client *StowClient) putFile(file multipart.File, fileSize int64) (string, 
 	// save the file to the storage backend
 	item, err := client.container.Put(uploadName, file, int64(fileSize), nil)
 	if err != nil {
-		log.WithError(err).Errorf("Error writing file: %s on storage", uploadName)
+		client.logger.Error("error writing file on storage",
+			zap.Error(err),
+			zap.String("file", uploadName))
 		return "", ErrWritingFile
 	}
 
-	log.Debugf("Successfully wrote file:%s on storage", uploadName)
+	client.logger.Debug("successfully wrote file on storage", zap.String("file", uploadName))
 	return item.ID(), nil
 }
 
@@ -146,7 +148,7 @@ func (client *StowClient) copyFileToStream(fileId string, w io.Writer) error {
 		return ErrWritingFileIntoResponse
 	}
 
-	log.Debugf("successfully wrote file: %s into httpresponse", fileId)
+	client.logger.Debug("successfully wrote file into httpresponse", zap.String("file", fileId))
 	return nil
 }
 
@@ -169,7 +171,7 @@ func (client *StowClient) getItemIDsWithFilter(filterFunc filter, filterFuncPara
 	for {
 		items, cursor, err = client.container.Items(stow.NoPrefix, cursor, PaginationSize)
 		if err != nil {
-			log.WithError(err).Error("Error getting items from container")
+			errors.Wrap(err, "error getting items from container")
 			return nil, err
 		}
 
@@ -191,10 +193,13 @@ func (client *StowClient) getItemIDsWithFilter(filterFunc filter, filterFuncPara
 
 // filterItemCreatedAMinuteAgo is one type of filter function that filters out items created less than a minute ago.
 // More filter functions can be written if needed, as long as they are of type filter
-func filterItemCreatedAMinuteAgo(item stow.Item, currentTime interface{}) bool {
+func (client StowClient) filterItemCreatedAMinuteAgo(item stow.Item, currentTime interface{}) bool {
 	itemLastModTime, _ := item.LastMod()
 	if currentTime.(time.Time).Sub(itemLastModTime) < 1*time.Minute {
-		log.Debugf("item: %s created less than a minute ago: %v", item.ID(), itemLastModTime)
+
+		client.logger.Debug("item created less than a minute ago",
+			zap.String("item", item.ID()),
+			zap.Time("last_modified_time", itemLastModTime))
 		return true
 	}
 	return false

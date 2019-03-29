@@ -1,16 +1,11 @@
-FROM ruby:2.4.1
+FROM ruby:2.6.1-alpine3.9
 
-RUN apt-get update -qq && apt-get install -y build-essential
-
-RUN mkdir /app
-WORKDIR /app
-ADD Gemfile /app/Gemfile
-ADD Gemfile.lock /app/Gemfile.lock
-RUN bundle install
+RUN apk update
+RUN apk add --no-cache build-base
 
 COPY . /app
-
-EXPOSE 8888
+WORKDIR /app
+RUN bundle install
 
 ENTRYPOINT ["ruby"]
 CMD ["server.rb"]

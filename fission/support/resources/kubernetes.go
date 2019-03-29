@@ -21,7 +21,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"log"
 	"path/filepath"
 	"sync"
 
@@ -30,6 +29,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/fission/fission"
+	"github.com/fission/fission/fission/log"
 )
 
 const (
@@ -52,7 +52,7 @@ func NewKubernetesVersion(clientset *kubernetes.Clientset) Resource {
 func (res KubernetesVersion) Dump(dumpDir string) {
 	serverVer, err := res.client.ServerVersion()
 	if err != nil {
-		log.Printf("Error setting up kubernetes client: %v", err)
+		log.Info(fmt.Sprintf("Error setting up kubernetes client: %v", err))
 		return
 	}
 
@@ -80,7 +80,7 @@ func (res KubernetesObjectDumper) Dump(dumpDir string) {
 	case KubernetesService:
 		objs, err := res.client.CoreV1().Services(metav1.NamespaceAll).List(metav1.ListOptions{LabelSelector: res.selector})
 		if err != nil {
-			log.Printf("Error getting %v list with selector %v: %v", res.objType, res.selector, err)
+			log.Info(fmt.Sprintf("Error getting %v list with selector %v: %v", res.objType, res.selector, err))
 			return
 		}
 
@@ -93,7 +93,7 @@ func (res KubernetesObjectDumper) Dump(dumpDir string) {
 	case KubernetesDeployment:
 		objs, err := res.client.AppsV1().Deployments(metav1.NamespaceAll).List(metav1.ListOptions{LabelSelector: res.selector})
 		if err != nil {
-			log.Printf("Error getting %v list with selector %v: %v", res.objType, res.selector, err)
+			log.Info(fmt.Sprintf("Error getting %v list with selector %v: %v", res.objType, res.selector, err))
 			return
 		}
 
@@ -105,7 +105,7 @@ func (res KubernetesObjectDumper) Dump(dumpDir string) {
 	case KubernetesPod:
 		objs, err := res.client.CoreV1().Pods(metav1.NamespaceAll).List(metav1.ListOptions{LabelSelector: res.selector})
 		if err != nil {
-			log.Printf("Error getting %v list with selector %v: %v", res.objType, res.selector, err)
+			log.Info(fmt.Sprintf("Error getting %v list with selector %v: %v", res.objType, res.selector, err))
 			return
 		}
 
@@ -117,7 +117,7 @@ func (res KubernetesObjectDumper) Dump(dumpDir string) {
 	case KubernetesHPA:
 		objs, err := res.client.AutoscalingV2beta1().HorizontalPodAutoscalers(metav1.NamespaceAll).List(metav1.ListOptions{LabelSelector: res.selector})
 		if err != nil {
-			log.Printf("Error getting %v list with selector %v: %v", res.objType, res.selector, err)
+			log.Info(fmt.Sprintf("Error getting %v list with selector %v: %v", res.objType, res.selector, err))
 			return
 		}
 
@@ -129,7 +129,7 @@ func (res KubernetesObjectDumper) Dump(dumpDir string) {
 	case KubernetesNode:
 		objs, err := res.client.CoreV1().Nodes().List(metav1.ListOptions{LabelSelector: res.selector})
 		if err != nil {
-			log.Printf("Error getting %v list with selector %v: %v", res.objType, res.selector, err)
+			log.Info(fmt.Sprintf("Error getting %v list with selector %v: %v", res.objType, res.selector, err))
 			return
 		}
 
@@ -142,7 +142,7 @@ func (res KubernetesObjectDumper) Dump(dumpDir string) {
 		}
 
 	default:
-		log.Printf("Unknown type: %v", res.objType)
+		log.Info(fmt.Sprintf("Unknown type: %v", res.objType))
 	}
 }
 
@@ -187,7 +187,7 @@ func (res KubernetesPodLogDumper) Dump(dumpDir string) {
 		Pods(metav1.NamespaceAll).
 		List(metav1.ListOptions{LabelSelector: res.labelSelector})
 	if err != nil {
-		log.Printf("Error getting controller list: %v", err)
+		log.Info(fmt.Sprintf("Error getting controller list: %v", err))
 		return
 	}
 
@@ -200,7 +200,7 @@ func (res KubernetesPodLogDumper) Dump(dumpDir string) {
 			defer wg.Done()
 
 			if !fission.IsReadyPod(&pod) {
-				fmt.Printf("Pod %v is not in ready state, ignore it\n", pod.Name)
+				log.Info(fmt.Sprintf("Pod %v is not in ready state, ignore it\n", pod.Name))
 				return
 			}
 
@@ -211,7 +211,7 @@ func (res KubernetesPodLogDumper) Dump(dumpDir string) {
 
 				stream, err := req.Stream()
 				if err != nil {
-					log.Printf("Error streaming logs for pod %v: %v", pod.Name, err)
+					log.Info(fmt.Sprintf("Error streaming logs for pod %v: %v", pod.Name, err))
 					return
 				}
 
@@ -225,13 +225,13 @@ func (res KubernetesPodLogDumper) Dump(dumpDir string) {
 							stream.Close()
 							break
 						}
-						log.Printf("Error reading logs from buffer: %v", err)
+						log.Info(fmt.Sprintf("Error reading logs from buffer: %v", err))
 						return
 					}
 
 					_, err = buffer.WriteString(string(line) + "\n")
 					if err != nil {
-						log.Printf("Error writing bytes to buffer: %v", err)
+						log.Info(fmt.Sprintf("Error writing bytes to buffer: %v", err))
 					}
 				}
 

@@ -20,10 +20,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/pkg/errors"
+	"go.uber.org/zap"
 
 	"github.com/fission/fission"
 	builder "github.com/fission/fission/builder"
@@ -31,20 +33,22 @@ import (
 
 type (
 	Client struct {
-		url string
+		logger *zap.Logger
+		url    string
 	}
 )
 
-func MakeClient(builderUrl string) *Client {
+func MakeClient(logger *zap.Logger, builderUrl string) *Client {
 	return &Client{
-		url: strings.TrimSuffix(builderUrl, "/"),
+		logger: logger.Named("builder_client"),
+		url:    strings.TrimSuffix(builderUrl, "/"),
 	}
 }
 
 func (c *Client) Build(req *builder.PackageBuildRequest) (*builder.PackageBuildResponse, error) {
 	body, err := json.Marshal(req)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error marshaling json")
 	}
 
 	maxRetries := 20
@@ -62,7 +66,7 @@ func (c *Client) Build(req *builder.PackageBuildRequest) (*builder.PackageBuildR
 
 		if i < maxRetries-1 {
 			time.Sleep(50 * time.Duration(2*i) * time.Millisecond)
-			log.Printf("Error building package (%v), retrying", err)
+			c.logger.Error("error building package, retrying", zap.Error(err))
 			continue
 		}
 
@@ -73,14 +77,14 @@ func (c *Client) Build(req *builder.PackageBuildRequest) (*builder.PackageBuildR
 
 	rBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Printf("Error reading resp body: %v", err)
+		c.logger.Error("error reading resp body", zap.Error(err))
 		return nil, err
 	}
 
 	pkgBuildResp := builder.PackageBuildResponse{}
 	err = json.Unmarshal([]byte(rBody), &pkgBuildResp)
 	if err != nil {
-		log.Printf("Error parsing resp body: %v", err)
+		c.logger.Error("error parsing resp body", zap.Error(err))
 		return nil, err
 	}
 

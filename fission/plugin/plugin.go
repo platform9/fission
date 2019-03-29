@@ -163,11 +163,14 @@ func fetchPluginMetadata(pluginPath string) (*Metadata, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	// Parse metadata if possible
 	pluginName := strings.TrimPrefix(path.Base(pluginPath), Prefix)
 	md := &Metadata{}
 	err = json.Unmarshal(buf.Bytes(), md)
-	if err != nil {
+
+	// If metadata could not be retrieved, or if no name was provided, use the filename of the binary
+	if err != nil || len(md.Name) == 0 {
 		md.Name = pluginName
 	}
 	md.Path = pluginPath

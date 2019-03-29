@@ -19,7 +19,6 @@ source $(dirname $0)/test_utils.sh
 
 REPO=gcr.io/fission-ci
 IMAGE=fission-bundle
-FLUENTD_IMAGE=fluentd
 FETCHER_IMAGE=$REPO/fetcher
 BUILDER_IMAGE=$REPO/builder
 TAG=test
@@ -46,8 +45,6 @@ build_and_push_env_builder python $REPO/python-env-builder:$TAG $BUILDER_IMAGE:$
 build_and_push_env_builder jvm $REPO/jvm-env-builder:$TAG $BUILDER_IMAGE:$TAG
 build_and_push_env_builder go $REPO/go-env-builder:$TAG $BUILDER_IMAGE:$TAG
 
-build_and_push_fluentd $REPO/$FLUENTD_IMAGE:$TAG
-
 build_fission_cli
 
-install_and_test $REPO $IMAGE $TAG $FETCHER_IMAGE $TAG $FLUENTD_IMAGE $TAG $PRUNE_INTERVAL $ROUTER_SERVICE_TYPE $SERVICE_TYPE $PRE_UPGRADE_CHECK_IMAGE
+install_and_test $REPO $IMAGE $TAG $FETCHER_IMAGE $TAG $PRUNE_INTERVAL $ROUTER_SERVICE_TYPE $SERVICE_TYPE $PRE_UPGRADE_CHECK_IMAGE

@@ -1,24 +1,45 @@
-# 1.0.0
-[Documentation](https://docs.fission.io/1.0.0/)
-## Downloads for 1.0.0
+# 1.1.0
+[Documentation](https://docs.fission.io/1.1.0/)
+## Downloads for 1.1.0
 
 
 filename | sha256 hash
 -------- | -----------
-[fission-all-1.0.0.tgz](https://github.com/fission/fission/releases/download/1.0.0/fission-all-1.0.0.tgz) | `a3813d8ffa2d0ab2ea6f0927c15bd9a87ca839993f21b26af5a64d292c9505a0`
-[fission-core-1.0.0.tgz](https://github.com/fission/fission/releases/download/1.0.0/fission-core-1.0.0.tgz) | `6b1691cc730cf351d34b38e35d03b507a2ae77eba832f9772e1dd44bd7ab4282`
-[fission-cli-linux](https://github.com/fission/fission/releases/download/1.0.0/fission-cli-linux) | `4d2be5e060d42481958e766fa8c8b1620bc93722493bc20693e4317dbb2237d8`
-[fission-cli-osx](https://github.com/fission/fission/releases/download/1.0.0/fission-cli-osx) | `6404342f313b3c0a679c2d9a4dc79e5f67e5615c2e15bb871202fe6f96b54450`
-[fission-cli-windows.exe](https://github.com/fission/fission/releases/download/1.0.0/fission-cli-windows.exe) | `34cf360807d99c3c5dad8d93f0d3090d0060985bc5555112ab7d54c91e48a36c`
-[fission-all-1.0.0-minikube.yaml](https://github.com/fission/fission/releases/download/1.0.0/fission-all-1.0.0-minikube.yaml) | `a0ef40658feb9177de03e780546e9da8ef68c1c1a72612749e8c6eba856b8419`
-[fission-all-1.0.0.yaml](https://github.com/fission/fission/releases/download/1.0.0/fission-all-1.0.0.yaml) | `17a4b05251e967da587e1ad044f5784b8e86ba20b174f4295d1f1df1c65abc6c`
-[fission-core-1.0.0-minikube.yaml](https://github.com/fission/fission/releases/download/1.0.0/fission-core-1.0.0-minikube.yaml) | `133907f17a2be747367945467aefcabb30d214f919916caaf4841f62cb68dd30`
-[fission-core-1.0.0.yaml](https://github.com/fission/fission/releases/download/1.0.0/fission-core-1.0.0.yaml) | `30e015e2aa5380796b67bbf716158fabbfddb848e230e0fd279fc9e1a1443a23`
+[fission-all-1.1.0.tgz](https://github.com/fission/fission/releases/download/1.1.0/fission-all-1.1.0.tgz) | `02e8d7999ff70677fec16733ca53b90ece18ae0423e7091e8f2891c23b39b94e`
+[fission-core-1.1.0.tgz](https://github.com/fission/fission/releases/download/1.1.0/fission-core-1.1.0.tgz) | `ecf96121dc2f208c2045196651f00282c2fc1e836d1945cc68d740822773df81`
+[fission-cli-linux](https://github.com/fission/fission/releases/download/1.1.0/fission-cli-linux) | `8eda0bddb66fe3577c4f0489011a824579e353447a4d4e86ce751c1d1cd45a25`
+[fission-cli-osx](https://github.com/fission/fission/releases/download/1.1.0/fission-cli-osx) | `b79401a7a9b9eb9f610da232db0a853f9765ffd2b518b4a4057ac5177e8856e5`
+[fission-cli-windows.exe](https://github.com/fission/fission/releases/download/1.1.0/fission-cli-windows.exe) | `89fcb496ad7f2126f0ab87c2b93ef39fb640c6b1537bc82ac5ce57d20f66c896`
+[fission-all-1.1.0-minikube.yaml](https://github.com/fission/fission/releases/download/1.1.0/fission-all-1.1.0-minikube.yaml) | `ec5f7e81785ff90f7b756f4805099b7d0abeddcf135c5631bbb06e759f8f639f`
+[fission-all-1.1.0.yaml](https://github.com/fission/fission/releases/download/1.1.0/fission-all-1.1.0.yaml) | `bdd423120d9512d2c47eba0f435deb8c6cb2852580813f0e0fb4a7a315d41e84`
+[fission-core-1.1.0-minikube.yaml](https://github.com/fission/fission/releases/download/1.1.0/fission-core-1.1.0-minikube.yaml) | `5bb492656cbc1b79c63896edf0864c3c29e00df7b27e633ee7c1881bf3b0f312`
+[fission-core-1.1.0.yaml](https://github.com/fission/fission/releases/download/1.1.0/fission-core-1.1.0.yaml) | `4614975e69aaadd4c086105aee9afda49a19d781c0c271a2705cc0018cf210da`
 
 # Change Log
 
+## [1.1.0](https://github.com/fission/fission/tree/1.1.0) (2019-03-25)
+[Full Changelog](https://github.com/fission/fission/compare/1.0.0...1.1.0)
+
+**Merged pull requests:**
+
+- Add connection lost handler for NATS-streaming [\#1125](https://github.com/fission/fission/pull/1125) ([life1347](https://github.com/life1347))
+- Change RBAC api version to v1 [\#1124](https://github.com/fission/fission/pull/1124) ([vishal-biyani](https://github.com/vishal-biyani))
+- Configurable zero pool size in case of newdeploy function [\#1121](https://github.com/fission/fission/pull/1121) ([vishal-biyani](https://github.com/vishal-biyani))
+- use zap for logging [\#1112](https://github.com/fission/fission/pull/1112) ([grounded042](https://github.com/grounded042))
+- Support --plugin parameter in Fission CLI [\#1111](https://github.com/fission/fission/pull/1111) ([erwinvaneyk](https://github.com/erwinvaneyk))
+- PHP 7.3 v2 Specialization [\#1110](https://github.com/fission/fission/pull/1110) ([AlbertoLopezBenito](https://github.com/AlbertoLopezBenito))
+- Fix canary config manager creation error in controller [\#1105](https://github.com/fission/fission/pull/1105) ([life1347](https://github.com/life1347))
+- Python examples: Added a minimal 'getting started' [\#1103](https://github.com/fission/fission/pull/1103) ([erwinvaneyk](https://github.com/erwinvaneyk))
+- Added support for Ruby v2 Specialization [\#1101](https://github.com/fission/fission/pull/1101) ([brendanstennett](https://github.com/brendanstennett))
+- V1.0.0 [\#1100](https://github.com/fission/fission/pull/1100) ([vishal-biyani](https://github.com/vishal-biyani))
+- Adding annotations for prometheus scraping to fission-core [\#1098](https://github.com/fission/fission/pull/1098) ([vishal-biyani](https://github.com/vishal-biyani))
+- Switch from fluentd to fluentbit for log forwarding [\#1086](https://github.com/fission/fission/pull/1086) ([soamvasani](https://github.com/soamvasani))
+- Added draft proposal for CI/CD [\#1084](https://github.com/fission/fission/pull/1084) ([vishal-biyani](https://github.com/vishal-biyani))
+- \[Kafka MQT\] Add warning about Kafka version [\#1083](https://github.com/fission/fission/pull/1083) ([bhavin192](https://github.com/bhavin192))
+- Bump base image version of Go environment to 1.11.4 [\#1026](https://github.com/fission/fission/pull/1026) ([life1347](https://github.com/life1347))
+
 ## [1.0.0](https://github.com/fission/fission/tree/1.0.0) (2019-02-13)
-[Full Changelog](https://github.com/fission/fission/compare/1.0...1.0.0)
+[Full Changelog](https://github.com/fission/fission/compare/1.0-rc2...1.0.0)
 
 **Merged pull requests:**
 

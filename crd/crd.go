@@ -17,12 +17,12 @@ limitations under the License.
 package crd
 
 import (
-	"log"
 	"time"
 
+	"go.uber.org/zap"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -34,7 +34,7 @@ const (
 // ensureCRD checks if the given CRD type exists, and creates it if
 // needed. (Note that this creates the CRD type; it doesn't create any
 // _instances_ of that type.)
-func ensureCRD(clientset *apiextensionsclient.Clientset, crd *apiextensionsv1beta1.CustomResourceDefinition) (err error) {
+func ensureCRD(logger *zap.Logger, clientset *apiextensionsclient.Clientset, crd *apiextensionsv1beta1.CustomResourceDefinition) (err error) {
 	maxRetries := 5
 
 	for i := 0; i < maxRetries; i++ {
@@ -44,12 +44,12 @@ func ensureCRD(clientset *apiextensionsclient.Clientset, crd *apiextensionsv1bet
 		}
 
 		// return if the resource already exists
-		if errors.IsAlreadyExists(err) {
+		if k8serrors.IsAlreadyExists(err) {
 			return nil
 		} else {
 			// The requests fail to connect to k8s api server before
 			// istio-prxoy is ready to serve traffic. Retry again.
-			log.Printf("Error connecting to kubernetes api service (%v), retrying", err)
+			logger.Info("error connecting to kubernetes api service, retrying", zap.Error(err))
 			time.Sleep(500 * time.Duration(2*i) * time.Millisecond)
 			continue
 		}
@@ -59,7 +59,7 @@ func ensureCRD(clientset *apiextensionsclient.Clientset, crd *apiextensionsv1bet
 }
 
 // Ensure CRDs
-func EnsureFissionCRDs(clientset *apiextensionsclient.Clientset) error {
+func EnsureFissionCRDs(logger *zap.Logger, clientset *apiextensionsclient.Clientset) error {
 	crds := []apiextensionsv1beta1.CustomResourceDefinition{
 		// Functions
 		{
@@ -207,7 +207,7 @@ func EnsureFissionCRDs(clientset *apiextensionsclient.Clientset) error {
 		},
 	}
 	for _, crd := range crds {
-		err := ensureCRD(clientset, &crd)
+		err := ensureCRD(logger, clientset, &crd)
 		if err != nil {
 			return err
 		}

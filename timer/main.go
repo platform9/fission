@@ -17,25 +17,26 @@ limitations under the License.
 package timer
 
 import (
-	"log"
+	"github.com/pkg/errors"
+	"go.uber.org/zap"
 
 	"github.com/fission/fission/crd"
 	"github.com/fission/fission/publisher"
 )
 
-func Start(routerUrl string) error {
+func Start(logger *zap.Logger, routerUrl string) error {
 	fissionClient, _, _, err := crd.MakeFissionClient()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to get fission or kubernetes client")
 	}
 
 	err = fissionClient.WaitForCRDs()
 	if err != nil {
-		log.Fatalf("Error waiting for CRDs: %v", err)
+		return errors.Wrap(err, "error waiting for CRDs")
 	}
 
-	poster := publisher.MakeWebhookPublisher(routerUrl)
-	MakeTimerSync(fissionClient, MakeTimer(poster))
+	poster := publisher.MakeWebhookPublisher(logger, routerUrl)
+	MakeTimerSync(logger, fissionClient, MakeTimer(logger, poster))
 
 	return nil
 }

@@ -17,11 +17,13 @@ limitations under the License.
 package router
 
 import (
-	"github.com/gorilla/mux"
 	"log"
 	"net/http"
 	"testing"
 	"time"
+
+	"github.com/gorilla/mux"
+	"go.uber.org/zap"
 )
 
 func OldHandler(responseWriter http.ResponseWriter, request *http.Request) {
@@ -62,7 +64,10 @@ func TestMutableMux(t *testing.T) {
 	log.Print("Create mutable router")
 	muxRouter := mux.NewRouter()
 	muxRouter.HandleFunc("/", OldHandler)
-	mr := NewMutableRouter(muxRouter)
+	logger, err := zap.NewDevelopment()
+	panicIf(err)
+
+	mr := NewMutableRouter(logger, muxRouter)
 
 	// start http server
 	log.Print("Start http server")

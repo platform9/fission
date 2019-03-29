@@ -16,7 +16,7 @@ repository: index.docker.io
 image: fission/fission-bundle
 
 ## Fission image version
-imageTag: 1.0.0
+imageTag: 1.1.0
 
 ## Image pull policy
 pullPolicy: IfNotPresent
@@ -25,7 +25,7 @@ pullPolicy: IfNotPresent
 fetcherImage: fission/fetcher
 
 ## Fission fetcher image version
-fetcherImageTag: 1.0.0
+fetcherImageTag: 1.1.0
 
 ## Port at which Fission controller service should be exposed
 controllerPort: 31313

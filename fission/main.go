@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -70,6 +71,7 @@ func newCliApp() *cli.App {
 	app.Flags = []cli.Flag{
 		cli.StringFlag{Name: "server", Value: "", Usage: "Fission server URL"},
 		cli.IntFlag{Name: "verbosity", Value: 1, Usage: "CLI verbosity (0 is quiet, 1 is the default, 2 is verbose.)"},
+		cli.BoolFlag{Name: "plugin", Hidden: true},
 	}
 
 	// all resource create commands accept --spec
@@ -326,8 +328,32 @@ func newCliApp() *cli.App {
 	}
 
 	app.Before = cliHook
-	app.CommandNotFound = handleCommandNotFound
+	app.Action = handleNoCommand
 	return app
+}
+
+func handleNoCommand(ctx *cli.Context) error {
+	if ctx.GlobalBool("version") {
+		versionPrinter(ctx)
+		return nil
+	}
+	if ctx.GlobalBool("plugin") {
+		bs, err := json.Marshal(plugin.Metadata{
+			Version: fission.Version,
+			Usage:   ctx.App.Usage,
+		})
+		if err != nil {
+			log.Fatal(fmt.Sprintf("Failed to marshal plugin metadata to JSON: %v", err))
+		}
+		fmt.Println(string(bs))
+		return nil
+	}
+	if len(ctx.Args()) > 0 {
+		handleCommandNotFound(ctx, ctx.Args().First())
+		return nil
+	}
+
+	return cli.ShowAppHelp(ctx)
 }
 
 func handleCommandNotFound(ctx *cli.Context, subCommand string) {
@@ -355,6 +381,9 @@ To install it for your local Fission CLI:
 	// Rebuild global arguments string (urfave/cli does not have an option to get the raw input of the global flags)
 	var globalArgs []string
 	for _, globalFlagName := range ctx.GlobalFlagNames() {
+		if globalFlagName == "plugin" {
+			continue
+		}
 		val := fmt.Sprintf("%v", ctx.GlobalGeneric(globalFlagName))
 		if len(val) > 0 {
 			globalArgs = append(globalArgs, fmt.Sprintf("--%v", globalFlagName), val)

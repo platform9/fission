@@ -17,10 +17,10 @@ limitations under the License.
 package main
 
 import (
-	"os"
+	"log"
 
 	"github.com/docopt/docopt-go"
-	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 
 	"github.com/fission/fission"
 )
@@ -34,6 +34,12 @@ func getStringArgWithDefault(arg interface{}, defaultValue string) string {
 }
 
 func main() {
+	logger, err := zap.NewProduction()
+	if err != nil {
+		log.Fatalf("can't initialize zap logger: %v", err)
+	}
+	defer logger.Sync()
+
 	usage := `Package to perform operations needed prior to fission installation
 Usage:
   pre-upgrade-checks --fn-pod-namespace=<podNamespace> --envbuilder-namespace=<envBuilderNamespace>
@@ -43,20 +49,20 @@ Options:
 
 	arguments, err := docopt.Parse(usage, nil, true, fission.BuildInfo().String(), false)
 	if err != nil {
-		log.Fatalf("Error: %v", err)
+		logger.Fatal("Could not parse command line arguments", zap.Error(err))
 	}
 
 	functionPodNs := getStringArgWithDefault(arguments["--fn-pod-namespace"], "fission-function")
 	envBuilderNs := getStringArgWithDefault(arguments["--envbuilder-namespace"], "fission-builder")
 
-	crdBackedClient, err := makePreUpgradeTaskClient(functionPodNs, envBuilderNs)
+	crdBackedClient, err := makePreUpgradeTaskClient(logger, functionPodNs, envBuilderNs)
 	if err != nil {
-		log.Printf("Error creating a crd client : %v, please retry helm upgrade", err)
-		os.Exit(1)
+		logger.Fatal("error creating a crd client, please retry helm upgrade",
+			zap.Error(err))
 	}
 
 	if !crdBackedClient.IsFissionReInstall() {
-		log.Printf("Nothing to do since CRDs are not present on the cluster")
+		logger.Info("nothing to do since CRDs are not present on the cluster")
 		return
 	}
 

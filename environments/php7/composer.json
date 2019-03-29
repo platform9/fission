@@ -5,7 +5,8 @@
         }
     },
     "require": {
-        "zendframework/zend-diactoros": "^1.3",
-        "monolog/monolog": "^1.22"
+        "monolog/monolog": "^1.22",
+        "react/http": "^0.8.4",
+        "nikic/php-parser": "^4.2"
     }
 }

@@ -75,7 +75,6 @@ upgrade_tests
 REPO=gcr.io/fission-ci
 IMAGE=fission-bundle
 FETCHER_IMAGE=$REPO/fetcher
-FLUENTD_IMAGE=gcr.io/fission-ci/fluentd
 BUILDER_IMAGE=$REPO/builder
 TAG=upgrade-test
 PRUNE_INTERVAL=1 # Unit - Minutes; Controls the interval to run archivePruner.
@@ -85,15 +84,13 @@ build_and_push_fission_bundle $IMAGE:$TAG
 
 build_and_push_fetcher $FETCHER_IMAGE:$TAG
 
-build_and_push_fluentd $FLUENTD_IMAGE:$TAG
-
 build_fission_cli
 
 sudo mv $ROOT/fission/fission /usr/local/bin/
 
 ## Upgrade 
 
-helmVars=repository=$repo,image=$IMAGE,imageTag=$TAG,fetcherImage=$FETCHER_IMAGE,fetcherImageTag=$TAG,logger.fluentdImage=$FLUENTD_IMAGE,logger.fluentdImageTag=$TAG,functionNamespace=$fns,controllerPort=$controllerNodeport,pullPolicy=Always,analytics=false,pruneInterval=$pruneInterval,routerServiceType=$routerServiceType
+helmVars=repository=$repo,image=$IMAGE,imageTag=$TAG,fetcherImage=$FETCHER_IMAGE,fetcherImageTag=$TAG,functionNamespace=$fns,controllerPort=$controllerNodeport,pullPolicy=Always,analytics=false,pruneInterval=$pruneInterval,routerServiceType=$routerServiceType
 
 echo "Upgrading fission"
 helm upgrade	\

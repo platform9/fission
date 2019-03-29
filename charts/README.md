@@ -43,10 +43,10 @@ Parameter | Description | Default
 `routerServiceType` | Type of Fission Router service to use. For minikube, set this to NodePort, elsewhere use LoadBalancer or ClusterIP. | `LoadBalancer`
 `repository` | Image base repository | `index.docker.io`
 `image` | Fission image repository | `fission/fission-bundle`
-`imageTag` | Fission image tag | `1.0.0`
+`imageTag` | Fission image tag | `1.1.0`
 `pullPolicy` | Image pull policy | `IfNotPresent`
 `fetcherImage` | Fission fetcher repository | `fission/fetcher`
-`fetcherImageTag` | Fission fetcher image tag | `1.0.0`
+`fetcherImageTag` | Fission fetcher image tag | `1.1.0`
 `controllerPort` | Fission Controller service port | `31313`
 `routerPort` | Fission Router service port | ` 31314`
 `functionNamespace` | Namespace in which to run fission functions (this is different from the release namespace) | `fission-function`
@@ -71,8 +71,9 @@ Parameter | Description | Default
 --------- | ----------- | -------
 `createNamespace` | If true, create `fission-function` and `fission-builder` namespaces | ` true`
 `logger.influxdbAdmin` | Log database admin username | `admin`
-`logger.fluentdImage` | Logger fluentd image | `fission/fluentd`
-`logger.fluentdImageTag` | Fission ui image tag | `1.0.0`
+`logger.fluentdImageRepository` | Logger fluentbit image repository | `index.docker.io`
+`logger.fluentdImage` | Logger fluentbit image | `fluent/fluent-bit`
+`logger.fluentdImageTag` | Logger fluentbit image tag | `1.0.4`
 `nats.enabled` | Nats streaming enabled | `true`
 `nats.authToken` | Nats streaming auth token | `defaultFissionAuthToken`
 `nats.clusterID` | Nats streaming clusterID | `fissionMQTrigger`

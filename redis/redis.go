@@ -26,30 +26,30 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/gomodule/redigo/redis"
-	log "github.com/sirupsen/logrus"
+	"github.com/pkg/errors"
+	"go.uber.org/zap"
 
 	"github.com/fission/fission/redis/build/gen"
 )
 
-func NewClient() redis.Conn {
+func NewClient() (redis.Conn, error) {
 	redisIP := os.Getenv("REDIS_SERVICE_HOST") // TODO: Do this here or somewhere earlier?
 	redisPort := os.Getenv("REDIS_SERVICE_PORT")
-	redisUrl := fmt.Sprintf("%s:%s", redisIP, redisPort)
 
-	if len(redisUrl) == 0 {
-		log.Error("Could not reach Redis in cluster at IP ", redisUrl)
-		return nil
+	if len(redisIP) == 0 || len(redisPort) == 0 {
+		return nil, errors.New("redis host or port not supplied")
 	}
 
-	c, err := redis.Dial("tcp", redisUrl)
+	redisURL := fmt.Sprintf("%s:%s", redisIP, redisPort)
+
+	c, err := redis.Dial("tcp", redisURL)
 	if err != nil {
-		log.Errorf("Could not connect to Redis: %v\n", err)
-		return nil
+		return nil, errors.Wrapf(err, "could not connect to Redis at url %q", redisURL)
 	}
-	return c
+	return c, nil
 }
 
-func Record(triggerName string, recorderName string, reqUID string, request *http.Request, originalUrl url.URL, payload string, response *http.Response, namespace string, timestamp int64) {
+func Record(logger *zap.Logger, triggerName string, recorderName string, reqUID string, request *http.Request, originalUrl url.URL, payload string, response *http.Response, namespace string, timestamp int64) {
 	// Case where the function should not have been recorded
 	if len(reqUID) == 0 {
 		return
@@ -58,8 +58,9 @@ func Record(triggerName string, recorderName string, reqUID string, request *htt
 	fullPath := originalUrl.String()
 	escPayload := string(json.RawMessage(payload))
 
-	client := NewClient()
-	if client == nil {
+	client, err := NewClient()
+	if err != nil {
+		logger.Error("could not create redis client", zap.Error(err))
 		return
 	}
 
@@ -92,7 +93,7 @@ func Record(triggerName string, recorderName string, reqUID string, request *htt
 		PostForm: postForm,
 	}
 
-	log.Info("Storing request > ", req)
+	logger.Info("storing request", zap.Any("request", req))
 
 	resp := &redisCache.Response{
 		Status:     response.Status,
@@ -107,19 +108,19 @@ func Record(triggerName string, recorderName string, reqUID string, request *htt
 
 	data, err := proto.Marshal(ureq)
 	if err != nil {
-		log.Error("Error marshalling request: ", err)
+		logger.Error("error marshalling request", zap.Error(err))
 		return
 	}
 
 	_, err = client.Do("HMSET", reqUID, "ReqResponse", data, "Timestamp", timestamp, "Trigger", triggerName)
 	if err != nil {
-		log.Error("Error saving request: ", err)
+		logger.Error("error saving request", zap.Error(err))
 		return
 	}
 
 	_, err = client.Do("LPUSH", recorderName, reqUID)
 	if err != nil {
-		log.Error("Error saving recorder-request pair: ", err)
+		logger.Error("error saving recorder-request pair", zap.Error(err))
 		return
 	}
 }

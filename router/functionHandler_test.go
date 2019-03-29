@@ -24,9 +24,11 @@ import (
 	"testing"
 	"time"
 
+	"go.uber.org/zap"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func createBackendService(testResponseString string) *url.URL {
@@ -53,8 +55,10 @@ func TestFunctionProxying(t *testing.T) {
 	log.Printf("Created backend svc at %v", backendURL)
 
 	fn := &metav1.ObjectMeta{Name: "foo", Namespace: metav1.NamespaceDefault}
+	logger, err := zap.NewDevelopment()
+	panicIf(err)
 
-	fmap := makeFunctionServiceMap(0)
+	fmap := makeFunctionServiceMap(logger, 0)
 	fmap.assign(fn, backendURL)
 
 	httpTrigger := &crd.HTTPTrigger{
@@ -70,7 +74,9 @@ func TestFunctionProxying(t *testing.T) {
 		},
 	}
 
-	fh := &functionHandler{fmap: fmap,
+	fh := &functionHandler{
+		logger:   logger,
+		fmap:     fmap,
 		function: fn,
 		tsRoundTripperParams: &tsRoundTripperParams{
 			timeout:         50 * time.Millisecond,

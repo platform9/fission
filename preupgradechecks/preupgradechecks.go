@@ -18,10 +18,10 @@ package main
 
 import (
 	"fmt"
-	"os"
 
 	multierror "github.com/hashicorp/go-multierror"
-	log "github.com/sirupsen/logrus"
+	"github.com/pkg/errors"
+	"go.uber.org/zap"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,6 +33,7 @@ import (
 
 type (
 	PreUpgradeTaskClient struct {
+		logger        *zap.Logger
 		fissionClient *crd.FissionClient
 		k8sClient     *kubernetes.Clientset
 		apiExtClient  *apiextensionsclient.Clientset
@@ -46,19 +47,14 @@ const (
 	FunctionCRD = "functions.fission.io"
 )
 
-func fatal(msg string) {
-	os.Stderr.WriteString(msg + "\n")
-	os.Exit(1)
-}
-
-func makePreUpgradeTaskClient(fnPodNs, envBuilderNs string) (*PreUpgradeTaskClient, error) {
+func makePreUpgradeTaskClient(logger *zap.Logger, fnPodNs, envBuilderNs string) (*PreUpgradeTaskClient, error) {
 	fissionClient, k8sClient, apiExtClient, err := crd.MakeFissionClient()
 	if err != nil {
-		log.Errorf("Error making fission client")
-		return nil, err
+		return nil, errors.Wrap(err, "error making fission client")
 	}
 
 	return &PreUpgradeTaskClient{
+		logger:        logger.Named("pre_upgrade_task_client"),
 		fissionClient: fissionClient,
 		k8sClient:     k8sClient,
 		fnPodNs:       fnPodNs,
@@ -86,7 +82,7 @@ func (client *PreUpgradeTaskClient) IsFissionReInstall() bool {
 // VerifyFunctionSpecReferences verifies that a function references secrets, configmaps, pkgs in its own namespace and
 // outputs a list of functions that don't adhere to this requirement.
 func (client *PreUpgradeTaskClient) VerifyFunctionSpecReferences() {
-	log.Printf("Verifying Function spec references for all functions in the cluster")
+	client.logger.Info("verifying function spec references for all functions in the cluster")
 
 	var result *multierror.Error
 	var err error
@@ -100,7 +96,9 @@ func (client *PreUpgradeTaskClient) VerifyFunctionSpecReferences() {
 	}
 
 	if err != nil {
-		fatal(fmt.Sprintf("Error: %v listing functions even after %d retries", err, MaxRetries))
+		client.logger.Fatal("error listing functions after max retries",
+			zap.Error(err),
+			zap.Int("max_retries", MaxRetries))
 	}
 
 	// check that all secrets, configmaps, packages are in the same namespace
@@ -125,12 +123,12 @@ func (client *PreUpgradeTaskClient) VerifyFunctionSpecReferences() {
 	}
 
 	if result != nil {
-		log.Printf("Installation failed due to the following errors :")
-		log.Printf("Summary : A function cannot reference secrets, configmaps and packages outside it's own namespace")
-		fatal(result.Error())
+		client.logger.Fatal("installation failed",
+			zap.Error(err),
+			zap.String("summary", "a function cannot reference secrets, configmaps and packages outside it's own namespace"))
 	}
 
-	log.Printf("Function Spec References verified")
+	client.logger.Info("function spec references verified")
 }
 
 // deleteClusterRoleBinding deletes the clusterRoleBinding passed as an argument to it.
@@ -152,11 +150,13 @@ func (client *PreUpgradeTaskClient) RemoveClusterAdminRolesForFissionSAs() {
 	for _, clusterRoleBinding := range clusterRoleBindings {
 		err := client.deleteClusterRoleBinding(clusterRoleBinding)
 		if err != nil {
-			fatal(fmt.Sprintf("Error deleting rolebinding : %s, err : %v", clusterRoleBinding, err))
+			client.logger.Fatal("error deleting rolebinding",
+				zap.Error(err),
+				zap.String("role_binding", clusterRoleBinding))
 		}
 	}
 
-	log.Println("Removed cluster admin privileges for fission-builder and fission-fetcher Service Accounts")
+	client.logger.Info("femoved cluster admin privileges for fission-builder and fission-fetcher service accounts")
 }
 
 // NeedRoleBindings checks if there is atleast one package or function in default namespace.
@@ -181,27 +181,40 @@ func (client *PreUpgradeTaskClient) NeedRoleBindings() bool {
 // Setup appropriate role bindings for fission-fetcher and fission-builder SAs
 func (client *PreUpgradeTaskClient) SetupRoleBindings() {
 	if !client.NeedRoleBindings() {
-		log.Printf("No fission objects found, so no role-bindings to create")
+		client.logger.Info("no fission objects found, so no role-bindings to create")
 		return
 	}
 
 	// the fact that we're here implies that there had been a prior installation of fission and objects are present still
 	// so, we go ahead and create the role-bindings necessary for the fission-fetcher and fission-builder Service Accounts.
-	err := fission.SetupRoleBinding(client.k8sClient, fission.PackageGetterRB, metav1.NamespaceDefault, fission.PackageGetterCR, fission.ClusterRole, fission.FissionFetcherSA, client.fnPodNs)
+	err := fission.SetupRoleBinding(client.logger, client.k8sClient, fission.PackageGetterRB, metav1.NamespaceDefault, fission.PackageGetterCR, fission.ClusterRole, fission.FissionFetcherSA, client.fnPodNs)
 	if err != nil {
-		fatal(fmt.Sprintf("Error setting up rolebinding %s for %s.%s service account", fission.PackageGetterRB, fission.FissionFetcherSA, client.fnPodNs))
+		client.logger.Fatal("error setting up rolebinding for service account",
+			zap.Error(err),
+			zap.String("role_binding", fission.PackageGetterRB),
+			zap.String("service_account", fission.FissionFetcherSA),
+			zap.String("service_account_namespace", client.fnPodNs))
 	}
 
-	err = fission.SetupRoleBinding(client.k8sClient, fission.PackageGetterRB, metav1.NamespaceDefault, fission.PackageGetterCR, fission.ClusterRole, fission.FissionBuilderSA, client.envBuilderNs)
+	err = fission.SetupRoleBinding(client.logger, client.k8sClient, fission.PackageGetterRB, metav1.NamespaceDefault, fission.PackageGetterCR, fission.ClusterRole, fission.FissionBuilderSA, client.envBuilderNs)
 	if err != nil {
-		fatal(fmt.Sprintf("Error setting up rolebinding %s for %s.%s service account", fission.PackageGetterRB, fission.FissionBuilderSA, client.envBuilderNs))
+		client.logger.Fatal("error setting up rolebinding for service account",
+			zap.Error(err),
+			zap.String("role_binding", fission.PackageGetterRB),
+			zap.String("service_account", fission.FissionBuilderSA),
+			zap.String("service_account_namespace", client.envBuilderNs))
 	}
 
-	err = fission.SetupRoleBinding(client.k8sClient, fission.SecretConfigMapGetterRB, metav1.NamespaceDefault, fission.SecretConfigMapGetterCR, fission.ClusterRole, fission.FissionFetcherSA, client.fnPodNs)
+	err = fission.SetupRoleBinding(client.logger, client.k8sClient, fission.SecretConfigMapGetterRB, metav1.NamespaceDefault, fission.SecretConfigMapGetterCR, fission.ClusterRole, fission.FissionFetcherSA, client.fnPodNs)
 	if err != nil {
-		fatal(fmt.Sprintf("Error setting up rolebinding %s for %s.%s service account", fission.SecretConfigMapGetterRB, fission.FissionFetcherSA, client.fnPodNs))
+		client.logger.Fatal("error setting up rolebinding for service account",
+			zap.Error(err),
+			zap.String("role_binding", fission.SecretConfigMapGetterRB),
+			zap.String("service_account", fission.FissionFetcherSA),
+			zap.String("service_account_namespace", client.fnPodNs))
 	}
 
-	log.Printf("Created role-bindings : %s and %s in default namespace", fission.PackageGetterRB, fission.SecretConfigMapGetterRB)
+	client.logger.Info("created rolebindings in default namespace",
+		zap.Strings("role_bindings", []string{fission.PackageGetterRB, fission.SecretConfigMapGetterRB}))
 	return
 }

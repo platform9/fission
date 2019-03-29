@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/dchest/uniuri"
+	"go.uber.org/zap"
 
 	"github.com/fission/fission/storagesvc"
 )
@@ -52,9 +53,12 @@ func TestStorageService(t *testing.T) {
 	port := 8080
 	enableArchivePruner := false
 
+	logger, err := zap.NewDevelopment()
+	panicIf(err)
+
 	log.Println("starting storage svc")
 	_ = storagesvc.RunStorageService(
-		storagesvc.StorageTypeLocal, "/tmp", testId, port, enableArchivePruner)
+		logger, storagesvc.StorageTypeLocal, "/tmp", testId, port, enableArchivePruner)
 
 	time.Sleep(time.Second)
 	client := MakeClient(fmt.Sprintf("http://localhost:%v/", port))

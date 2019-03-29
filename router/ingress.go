@@ -17,9 +17,9 @@ limitations under the License.
 package router
 
 import (
-	"log"
 	"os"
 
+	"go.uber.org/zap"
 	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,16 +38,16 @@ func init() {
 	}
 }
 
-func createIngress(trigger *crd.HTTPTrigger, kubeClient *kubernetes.Clientset) {
+func createIngress(logger *zap.Logger, trigger *crd.HTTPTrigger, kubeClient *kubernetes.Clientset) {
 
 	if !trigger.Spec.CreateIngress {
-		log.Printf("Skipping creation of ingress for trigger: %v", trigger.Metadata.Name)
+		logger.Info("skipping creation of ingress for trigger", zap.String("trigger", trigger.Metadata.Name))
 		return
 	}
 
 	_, err := kubeClient.ExtensionsV1beta1().Ingresses(podNamespace).Get(trigger.Metadata.Name, v1.GetOptions{})
 	if err == nil {
-		log.Printf("Ingress for trigger exists already %v", trigger.Metadata.Name)
+		logger.Info("ingress for trigger exists already", zap.String("trigger", trigger.Metadata.Name))
 		return
 	}
 
@@ -87,10 +87,10 @@ func createIngress(trigger *crd.HTTPTrigger, kubeClient *kubernetes.Clientset) {
 
 	_, err = kubeClient.ExtensionsV1beta1().Ingresses(podNamespace).Create(ing)
 	if err != nil {
-		log.Printf("Failed to create ingress: %v", err)
+		logger.Error("failed to create ingress", zap.Error(err))
 		return
 	}
-	log.Printf("Created ingress successfully for trigger %v", trigger.Metadata.Name)
+	logger.Info("created ingress successfully for trigger", zap.String("trigger", trigger.Metadata.Name))
 }
 
 func getDeployLabels(trigger *crd.HTTPTrigger) map[string]string {
@@ -101,41 +101,46 @@ func getDeployLabels(trigger *crd.HTTPTrigger) map[string]string {
 	}
 }
 
-func deleteIngress(trigger *crd.HTTPTrigger, kubeClient *kubernetes.Clientset) {
+func deleteIngress(logger *zap.Logger, trigger *crd.HTTPTrigger, kubeClient *kubernetes.Clientset) {
 	if !trigger.Spec.CreateIngress {
 		return
 	}
 
 	ingress, err := kubeClient.ExtensionsV1beta1().Ingresses(podNamespace).Get(trigger.Metadata.Name, v1.GetOptions{})
 	if err != nil {
-		log.Printf("Failed to get ingress when deleting trigger: %v, %v", err, trigger)
+		logger.Error("failed to get ingress when deleting trigger", zap.Error(err), zap.String("trigger", trigger.Metadata.Name))
 	}
 
 	err = kubeClient.ExtensionsV1beta1().Ingresses(podNamespace).Delete(ingress.Name, &v1.DeleteOptions{})
 
 	if err != nil {
-		log.Printf("Failed to delete ingress %v error: %v", ingress, err)
+		logger.Error("failed to delete ingress for trigger",
+			zap.Error(err),
+			zap.Any("ingress", ingress),
+			zap.String("trigger", trigger.Metadata.Name))
 	}
 
 }
 
-func updateIngress(oldT *crd.HTTPTrigger, newT *crd.HTTPTrigger, kubeClient *kubernetes.Clientset) {
+func updateIngress(logger *zap.Logger, oldT *crd.HTTPTrigger, newT *crd.HTTPTrigger, kubeClient *kubernetes.Clientset) {
 
 	if oldT.Spec.CreateIngress == false && newT.Spec.CreateIngress == true {
-		createIngress(newT, kubeClient)
+		createIngress(logger, newT, kubeClient)
 		return
 	}
 
 	if newT.Spec.CreateIngress == false && oldT.Spec.CreateIngress == true {
-		deleteIngress(oldT, kubeClient)
+		deleteIngress(logger, oldT, kubeClient)
 		return
 	}
 
 	if newT.Spec.Host != oldT.Spec.Host || newT.Spec.RelativeURL != oldT.Spec.RelativeURL {
-		log.Printf("Updating ingress for trigger %v", oldT.Metadata.Name)
+		logger.Info("updating ingress for trigger", zap.String("trigger", oldT.Metadata.Name))
 		ingress, err := kubeClient.ExtensionsV1beta1().Ingresses(podNamespace).Get(oldT.Metadata.Name, v1.GetOptions{})
 		if err != nil {
-			log.Printf("Failed to get ingress when updating trigger: %v", err)
+			logger.Error("failed to get ingress when updating trigger",
+				zap.Error(err),
+				zap.String("trigger", oldT.Metadata.Name))
 		}
 
 		if newT.Spec.Host != oldT.Spec.Host {
@@ -148,7 +153,7 @@ func updateIngress(oldT *crd.HTTPTrigger, newT *crd.HTTPTrigger, kubeClient *kub
 
 		_, err = kubeClient.ExtensionsV1beta1().Ingresses(podNamespace).Update(ingress)
 		if err != nil {
-			log.Printf("Failed to update ingress for trigger: %v", err)
+			logger.Error("failed to update ingress for trigger", zap.String("trigger", oldT.Metadata.Name))
 		}
 	}
 

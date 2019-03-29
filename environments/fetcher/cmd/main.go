@@ -8,21 +8,15 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/signal"
-	"runtime/debug"
-	"syscall"
 
 	"go.opencensus.io/exporter/jaeger"
 	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/trace"
+	"go.uber.org/zap"
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/environments/fetcher"
 )
-
-func dumpStackTrace() {
-	debug.PrintStack()
-}
 
 func registerTraceExporter(collectorEndpoint string) error {
 	if collectorEndpoint == "" {
@@ -49,15 +43,11 @@ func registerTraceExporter(collectorEndpoint string) error {
 
 // Usage: fetcher <shared volume path>
 func main() {
-	// register signal handler for dumping stack trace.
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, syscall.SIGTERM)
-	go func() {
-		<-c
-		log.Println("Received SIGTERM : Dumping stack trace")
-		dumpStackTrace()
-		os.Exit(1)
-	}()
+	logger, err := zap.NewProduction()
+	if err != nil {
+		log.Fatalf("can't initialize zap logger: %v", err)
+	}
+	defer logger.Sync()
 
 	flag.Usage = fetcherUsage
 	collectorEndpoint := flag.String("jaeger-collector-endpoint", "", "")
@@ -77,18 +67,18 @@ func main() {
 		if os.IsNotExist(err) {
 			err = os.MkdirAll(dir, os.ModeDir|0700)
 			if err != nil {
-				log.Fatalf("Error creating directory: %v", err)
+				logger.Fatal("error creating directory", zap.Error(err), zap.String("directory", dir))
 			}
 		}
 	}
 
 	if err := registerTraceExporter(*collectorEndpoint); err != nil {
-		log.Fatalf("Could not register trace exporter: %v", err)
+		logger.Fatal("could not register trace exporter", zap.Error(err), zap.String("collector_endpoint", *collectorEndpoint))
 	}
 
-	f, err := fetcher.MakeFetcher(dir, *secretDir, *configDir)
+	f, err := fetcher.MakeFetcher(logger, dir, *secretDir, *configDir)
 	if err != nil {
-		log.Fatalf("Error making fetcher: %v", err)
+		logger.Fatal("error making fetcher", zap.Error(err))
 	}
 
 	readyToServe := false
@@ -100,13 +90,13 @@ func main() {
 
 			err := json.Unmarshal([]byte(*specializePayload), &specializeReq)
 			if err != nil {
-				log.Fatalf("Error decoding specialize request: %v", err)
+				logger.Fatal("error decoding specialize request", zap.Error(err))
 			}
 
 			ctx := context.Background()
 			err = f.SpecializePod(ctx, specializeReq.FetchReq, specializeReq.LoadReq)
 			if err != nil {
-				log.Fatalf("Error specialing function poadt: %v", err)
+				logger.Fatal("error specializing function pod", zap.Error(err))
 			}
 
 			readyToServe = true
@@ -129,12 +119,12 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	log.Println("Fetcher ready to receive requests")
+	logger.Info("fetcher ready to receive requests")
 	http.ListenAndServe(":8000", &ochttp.Handler{
 		Handler: mux,
 	})
 }
 
 func fetcherUsage() {
-	fmt.Printf("Usage: fetcher [-specialize-on-startup] [-specialize-request <json>] [-secret-dir <string>] [-cfgmap-dir <string>] <shared volume path> \n")
+	fmt.Println("Usage: fetcher [-specialize-on-startup] [-specialize-request <json>] [-secret-dir <string>] [-cfgmap-dir <string>] <shared volume path>")
 }

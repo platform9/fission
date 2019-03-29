@@ -17,13 +17,19 @@ limitations under the License.
 package controller
 
 import (
+	"go.uber.org/zap"
+
 	"github.com/fission/fission/crd"
 )
 
-func makeCRDBackedAPI() (*API, error) {
+func makeCRDBackedAPI(logger *zap.Logger) (*API, error) {
 	fissionClient, kubernetesClient, _, err := crd.MakeFissionClient()
 	if err != nil {
 		return nil, err
 	}
-	return &API{fissionClient: fissionClient, kubernetesClient: kubernetesClient}, nil
+	return &API{
+		logger:           logger.Named("api"),
+		fissionClient:    fissionClient,
+		kubernetesClient: kubernetesClient,
+	}, nil
 }

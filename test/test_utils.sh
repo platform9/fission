@@ -107,19 +107,6 @@ build_and_push_builder() {
     popd
 }
 
-build_and_push_fluentd(){
-    image_tag=$1
-
-    pushd $ROOT/logger/fluentd
-    docker build -q -t $image_tag .
-
-    gcloud_login
-
-    gcloud docker -- push $image_tag
-    popd
-
-}
-
 build_and_push_env_runtime() {
     env=$1
     image_tag=$2
@@ -183,17 +170,15 @@ helm_install_fission() {
     fetcherImageTag=$6
     controllerNodeport=$7
     routerNodeport=$8
-    fluentdImage=$9
-    fluentdImageTag=${10}
-    pruneInterval="${11}"
-    routerServiceType=${12}
-    serviceType=${13}
-    preUpgradeCheckImage=${14}
+    pruneInterval=$9
+    routerServiceType=${10}
+    serviceType=${11}
+    preUpgradeCheckImage=${12}
 
     ns=f-$id
     fns=f-func-$id
 
-    helmVars=repository=$repo,image=$image,imageTag=$imageTag,fetcherImage=$fetcherImage,fetcherImageTag=$fetcherImageTag,functionNamespace=$fns,controllerPort=$controllerNodeport,routerPort=$routerNodeport,pullPolicy=Always,analytics=false,logger.fluentdImage=$fluentdImage,logger.fluentdImageTag=$fluentdImageTag,pruneInterval=$pruneInterval,routerServiceType=$routerServiceType,serviceType=$serviceType,preUpgradeChecksImage=$preUpgradeCheckImage,prometheus.server.persistentVolume.enabled=false,prometheus.alertmanager.enabled=false,prometheus.kubeStateMetrics.enabled=false,prometheus.nodeExporter.enabled=false
+    helmVars=repository=$repo,image=$image,imageTag=$imageTag,fetcherImage=$fetcherImage,fetcherImageTag=$fetcherImageTag,functionNamespace=$fns,controllerPort=$controllerNodeport,routerPort=$routerNodeport,pullPolicy=Always,analytics=false,pruneInterval=$pruneInterval,routerServiceType=$routerServiceType,serviceType=$serviceType,preUpgradeChecksImage=$preUpgradeCheckImage,prometheus.server.persistentVolume.enabled=false,prometheus.alertmanager.enabled=false,prometheus.kubeStateMetrics.enabled=false,prometheus.nodeExporter.enabled=false
 
     timeout 30 bash -c "helm_setup"
 
@@ -495,12 +480,10 @@ install_and_test() {
     imageTag=$3
     fetcherImage=$4
     fetcherImageTag=$5
-    fluentdImage=$6
-    fluentdImageTag=$7
-    pruneInterval=$8
-    routerServiceType=$9
-    serviceType=${10}
-    preUpgradeCheckImage=${11}
+    pruneInterval=$6
+    routerServiceType=$7
+    serviceType=$8
+    preUpgradeCheckImage=$9
 
 
     controllerPort=31234
@@ -510,7 +493,7 @@ install_and_test() {
     
     id=$(generate_test_id)
     trap "helm_uninstall_fission $id" EXIT
-    helm_install_fission $id $repo $image $imageTag $fetcherImage $fetcherImageTag $controllerPort $routerPort $fluentdImage $fluentdImageTag $pruneInterval $routerServiceType $serviceType $preUpgradeCheckImage
+    helm_install_fission $id $repo $image $imageTag $fetcherImage $fetcherImageTag $controllerPort $routerPort $pruneInterval $routerServiceType $serviceType $preUpgradeCheckImage
     helm status $id | grep STATUS | grep -i deployed
     if [ $? -ne 0 ]; then
         describe_all_pods $id

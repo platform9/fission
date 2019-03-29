@@ -3,11 +3,12 @@ package util
 import (
 	"fmt"
 
+	yaml "gopkg.in/yaml.v2"
+
 	"github.com/fission/fission"
 	"github.com/fission/fission/controller/client"
 	"github.com/fission/fission/fission/log"
 	"github.com/fission/fission/fission/plugin"
-	yaml "gopkg.in/yaml.v2"
 )
 
 // Versions is a container of versions of the client (and its plugins) and server (and its plugins).

@@ -19,7 +19,6 @@ package messageQueue
 import (
 	"bytes"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -29,12 +28,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Azure/azure-sdk-for-go/storage"
+	"github.com/pkg/errors"
+	"go.uber.org/zap"
+
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
-
-	log "github.com/sirupsen/logrus"
-
-	"github.com/Azure/azure-sdk-for-go/storage"
 )
 
 // TODO: some of these constants should probably be environment variables
@@ -55,6 +54,7 @@ const (
 
 // AzureStorageConnection represents an Azure storage connection.
 type AzureStorageConnection struct {
+	logger     *zap.Logger
 	routerURL  string
 	service    AzureQueueService
 	httpClient AzureHTTPClient
@@ -173,7 +173,7 @@ func newAzureQueueService(client storage.Client) AzureQueueService {
 	}
 }
 
-func newAzureStorageConnection(routerURL string, config MessageQueueConfig) (MessageQueue, error) {
+func newAzureStorageConnection(logger *zap.Logger, routerURL string, config MessageQueueConfig) (MessageQueue, error) {
 	account := os.Getenv("AZURE_STORAGE_ACCOUNT_NAME")
 	if len(account) == 0 {
 		return nil, errors.New("Required environment variable 'AZURE_STORAGE_ACCOUNT_NAME' is not set")
@@ -184,13 +184,14 @@ func newAzureStorageConnection(routerURL string, config MessageQueueConfig) (Mes
 		return nil, errors.New("Required environment variable 'AZURE_STORAGE_ACCOUNT_KEY' is not set")
 	}
 
-	log.Infof("Creating Azure storage connection to storage account '%s'.", account)
+	logger.Info("creating Azure storage connection to storage account", zap.String("account", account))
 
 	client, err := storage.NewBasicClient(account, key)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to Azure create storage client: %v", err)
+		return nil, errors.Wrap(err, "failed to create Azure storage client")
 	}
 	return &AzureStorageConnection{
+		logger:    logger.Named("azue_storage"),
 		routerURL: routerURL,
 		service:   newAzureQueueService(client),
 		httpClient: &http.Client{
@@ -200,10 +201,10 @@ func newAzureStorageConnection(routerURL string, config MessageQueueConfig) (Mes
 }
 
 func (asc AzureStorageConnection) subscribe(trigger *crd.MessageQueueTrigger) (messageQueueSubscription, error) {
-	log.Infof("Subscribing to Azure storage queue '%s'.", trigger.Spec.Topic)
+	asc.logger.Info("subscribing to Azure storage queue", zap.String("queue", trigger.Spec.Topic))
 
 	if trigger.Spec.FunctionReference.Type != fission.FunctionReferenceTypeFunctionName {
-		return nil, fmt.Errorf("Unsupported function reference type (%v) for trigger %v", trigger.Spec.FunctionReference.Type, trigger.Metadata.Name)
+		return nil, fmt.Errorf("unsupported function reference type (%v) for trigger %q", trigger.Spec.FunctionReference.Type, trigger.Metadata.Name)
 	}
 
 	subscription := &AzureQueueSubscription{
@@ -226,7 +227,7 @@ func (asc AzureStorageConnection) subscribe(trigger *crd.MessageQueueTrigger) (m
 func (asc AzureStorageConnection) unsubscribe(subscription messageQueueSubscription) error {
 	sub := subscription.(*AzureQueueSubscription)
 
-	log.Infof("Unsubscribing from Azure storage queue '%s'.", sub.queueName)
+	asc.logger.Info("unsubscribing from Azure storage queue", zap.String("queue", sub.queueName))
 
 	// Let the worker know we've unsubscribed
 	sub.unsubscribe <- true
@@ -245,7 +246,7 @@ func runAzureQueueSubscription(conn AzureStorageConnection, sub *AzureQueueSubsc
 	timer := time.NewTimer(AzureQueuePollingInterval)
 
 	for {
-		log.Infof("Waiting for %v before polling Azure storage queue '%s'.", AzureQueuePollingInterval, sub.queueName)
+		conn.logger.Info("waiting before polling Azure storage queue", zap.Duration("interval_length", AzureQueuePollingInterval), zap.String("queue", sub.queueName))
 		select {
 		case <-sub.unsubscribe:
 			timer.Stop()
@@ -261,18 +262,18 @@ func runAzureQueueSubscription(conn AzureStorageConnection, sub *AzureQueueSubsc
 }
 
 func pollAzureQueueSubscription(conn AzureStorageConnection, sub *AzureQueueSubscription, wg *sync.WaitGroup) {
-	log.Infof("Polling messages for Azure storage queue '%s'.", sub.queueName)
+	conn.logger.Info("polling for messages from Azure storage queue", zap.String("queue", sub.queueName))
 
 	err := sub.queue.Create(nil)
 	if err != nil {
-		log.Errorf("Failed to create message queue '%s': %v", sub.queueName, err)
+		conn.logger.Error("failed to create message queue", zap.Error(err), zap.String("queue", sub.queueName))
 		return
 	}
 
 	for {
 		err := sub.queue.Create(nil)
 		if err != nil {
-			log.Errorf("Failed to create message queue '%s': %v", sub.queueName, err)
+			conn.logger.Error("failed to create message queue", zap.Error(err), zap.String("queue", sub.queueName))
 			return
 		}
 
@@ -281,7 +282,7 @@ func pollAzureQueueSubscription(conn AzureStorageConnection, sub *AzureQueueSubs
 			VisibilityTimeout: int(AzureMessageVisibilityTimeout / time.Second),
 		})
 		if err != nil {
-			log.Errorf("Failed to retrieve messages from Azure storage queue '%s': %v", sub.queueName, err)
+			conn.logger.Error("failed to retrieve messages from Azure storage queue", zap.Error(err), zap.String("queue", sub.queueName))
 			break
 		}
 		if len(messages) == 0 {
@@ -301,15 +302,15 @@ func pollAzureQueueSubscription(conn AzureStorageConnection, sub *AzureQueueSubs
 func invokeTriggeredFunction(conn AzureStorageConnection, sub *AzureQueueSubscription, message AzureMessage) {
 	defer message.Delete(nil)
 
-	log.Printf("Making HTTP request to %s.", sub.functionURL)
+	conn.logger.Info("making HTTP request to invoke function", zap.String("function_url", sub.functionURL))
 
 	for i := 0; i <= AzureQueueRetryLimit; i++ {
 		if i > 0 {
-			log.Infof("Retry #%d for request to %s.", i, sub.functionURL)
+			conn.logger.Info("retrying function invocation", zap.Int("retry", i), zap.String("function_url", sub.functionURL))
 		}
 		request, err := http.NewRequest("POST", sub.functionURL, bytes.NewReader(message.Bytes()))
 		if err != nil {
-			log.Errorf("Failed to create HTTP request to %s: %v", sub.functionURL, err)
+			conn.logger.Error("failed to create HTTP request to invoke function", zap.Error(err), zap.String("function_url", sub.functionURL))
 			continue
 		}
 
@@ -324,19 +325,22 @@ func invokeTriggeredFunction(conn AzureStorageConnection, sub *AzureQueueSubscri
 
 		response, err := conn.httpClient.Do(request)
 		if err != nil {
-			log.Errorf("Request to %s failed: %v", sub.functionURL, err)
+			conn.logger.Error("sending function invocation request failed", zap.Error(err), zap.String("function_url", sub.functionURL))
 			continue
 		}
 		defer response.Body.Close()
 
 		body, err := ioutil.ReadAll(response.Body)
 		if err != nil {
-			log.Errorf("Failed to read response body from %s: %v.", sub.functionURL, err)
+			conn.logger.Error("failed to read response body from function invocation", zap.Error(err), zap.String("function_url", sub.functionURL))
 			continue
 		}
 
 		if response.StatusCode < 200 || response.StatusCode >= 300 {
-			log.Printf("Request to %s returned failure: %s (%d).", sub.functionURL, string(body), response.StatusCode)
+			conn.logger.Error("function invocation request returned a failure status code",
+				zap.String("function_url", sub.functionURL),
+				zap.String("body", string(body)),
+				zap.Int("status_code", response.StatusCode))
 			continue
 		}
 
@@ -344,14 +348,19 @@ func invokeTriggeredFunction(conn AzureStorageConnection, sub *AzureQueueSubscri
 			outputQueue := conn.service.GetQueue(sub.outputQueueName)
 			err = outputQueue.Create(nil)
 			if err != nil {
-				log.Errorf("Failed to create output queue '%s': %v.", sub.outputQueueName, err)
+				conn.logger.Error("failed to create output queue",
+					zap.Error(err),
+					zap.String("output_queue", sub.outputQueueName),
+					zap.String("function_url", sub.functionURL))
 				return
 			}
 
 			outputMessage := outputQueue.NewMessage(string(body))
 			err = outputMessage.Put(nil)
 			if err != nil {
-				log.Errorf("Failed to post response body from %s to output queue '%s': %v.", sub.functionURL, sub.outputQueueName, err)
+				conn.logger.Error("failed to post response body from function invocation to output queue",
+					zap.String("output_queue", sub.outputQueueName),
+					zap.String("function_url", sub.functionURL))
 				return
 			}
 		}
@@ -360,20 +369,28 @@ func invokeTriggeredFunction(conn AzureStorageConnection, sub *AzureQueueSubscri
 		return
 	}
 
-	log.Errorf("Request to %s failed after %d retries; moving message to poison queue.", sub.functionURL, AzureQueueRetryLimit)
+	conn.logger.Error("function invocation retired too many times - moving message to poison queue",
+		zap.Int("retry_limit", AzureQueueRetryLimit),
+		zap.String("function_url", sub.functionURL))
 
 	poisonQueueName := sub.queueName + AzurePoisonQueueSuffix
 	poisonQueue := conn.service.GetQueue(poisonQueueName)
 	err := poisonQueue.Create(nil)
 	if err != nil {
-		log.Errorf("Failed to create poison queue '%s': %v", poisonQueueName, err)
+		conn.logger.Error("failed to create poison queue",
+			zap.Error(err),
+			zap.String("poison_queue_name", poisonQueueName),
+			zap.String("function_url", sub.functionURL))
 		return
 	}
 
 	poisonMessage := poisonQueue.NewMessage(string(message.Bytes()))
 	err = poisonMessage.Put(nil)
 	if err != nil {
-		log.Errorf("Failed to post response body from %s to output queue '%s': %v", sub.functionURL, poisonQueueName, err)
+		conn.logger.Error("failed to post response body from function invocation failure poison queue",
+			zap.Error(err),
+			zap.String("poison_queue_name", poisonQueueName),
+			zap.String("function_url", sub.functionURL))
 		return
 	}
 }

@@ -18,11 +18,11 @@ package canaryconfigmgr
 
 import (
 	"context"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fission/fission/cache"
-	"time"
 )
 
 type (
