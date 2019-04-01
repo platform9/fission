@@ -60,7 +60,7 @@ func DumpInfo(c *cli.Context) error {
 	}
 
 	client := util.GetApiClient(util.GetServerUrl())
-	_, k8sClient := util.GetKubernetesClient(util.GetKubeConfigPath())
+	_, k8sClient := util.GetKubernetesClient()
 
 	ress := map[string]resources.Resource{
 		// kubernetes info

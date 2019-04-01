@@ -754,8 +754,8 @@ func fnTest(c *cli.Context) error {
 	routerURL := os.Getenv("FISSION_ROUTER")
 	if len(routerURL) == 0 {
 		// Portforward to the fission router
-		localRouterPort := util.SetupPortForward(util.GetKubeConfigPath(),
-			util.GetFissionNamespace(), "application=fission-router")
+		localRouterPort := util.SetupPortForward(util.GetFissionNamespace(),
+			"application=fission-router")
 		routerURL = "127.0.0.1:" + localRouterPort
 	} else {
 		routerURL = strings.TrimPrefix(routerURL, "http://")
