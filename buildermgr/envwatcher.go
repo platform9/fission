@@ -106,7 +106,6 @@ func makeEnvironmentWatcher(
 	}
 
 	builderImagePullPolicy := fission.GetImagePullPolicy(os.Getenv("BUILDER_IMAGE_PULL_POLICY"))
-	collectorEndpoint := os.Getenv("TRACE_JAEGER_COLLECTOR_ENDPOINT")
 
 	envWatcher := &environmentWatcher{
 		logger:                 logger.Named("environment_watcher"),
