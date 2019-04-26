@@ -369,7 +369,7 @@ func (gp *GenericPool) createPool() error {
 					Labels:      gp.labelsForPool,
 					Annotations: podAnnotations,
 				},
-				Spec: fission.MergePodSpecs(&apiv1.PodSpec{
+				Spec: apiv1.PodSpec{
 					Volumes: []apiv1.Volume{
 						{
 							Name: fission.SharedVolumeUserfunc,
@@ -420,7 +420,7 @@ func (gp *GenericPool) createPool() error {
 					// sleep time of preStop to make sure that SIGTERM is sent
 					// to pod after 6 mins.
 					TerminationGracePeriodSeconds: &gracePeriodSeconds,
-				}, gp.env.Spec.Runtime.PodSpec),
+				},
 			},
 		},
 	}

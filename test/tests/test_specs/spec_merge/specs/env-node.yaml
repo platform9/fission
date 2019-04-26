@@ -1,0 +1,48 @@
+apiVersion: fission.io/v1
+kind: Environment
+metadata:
+  creationTimestamp: null
+  name: node
+  namespace: default
+spec:
+  TerminationGracePeriod: 360
+  builder: {}
+  keeparchive: false
+  poolsize: 3
+  resources: {}
+  runtime:
+    functionendpointport: 0
+    image: fission/node-env
+    loadendpointpath: ""
+    loadendpointport: 0
+    podspec:
+      priorityClassName: "system-cluster-critical"
+      Containers:
+      - name: node
+        image: fission/node-env
+        volumeMounts:
+          - name: funcvol
+            mounthPath: /etc/funcdata
+            readOnly: true
+      initContainers:
+      - name: init-py
+        image: fission/python-env 
+        command: ['sh', '-c', 'cat /etc/infopod/labels']
+        volumeMounts:
+          - name: infopod
+            mountPath: /etc/infopod
+            readOnly: false
+      volumes:
+        - name: infopod
+          downwardAPI:
+            items:
+              - path: "labels"
+                fieldRef:
+                  fieldPath: metadata.labels
+        - name: funcvol
+          downwardAPI:
+            items:
+              - path: "labels"
+                fieldRef:
+                  fieldPath: metadata.labels
+  version: 1
