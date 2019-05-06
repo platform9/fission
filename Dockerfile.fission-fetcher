@@ -19,12 +19,8 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a \
     -asmflags=-trimpath=$GOPATH \
     -ldflags "-X github.com/fission/fission.GitCommit=${GITCOMMIT} -X github.com/fission/fission.BuildDate=${BUILDDATE} -X github.com/fission/fission.Version=${BUILDVERSION}"
 
-FROM alpine:latest as emptydir
-RUN mkdir /emptytmp && chmod 1777 /emptytmp
-
-FROM scratch
+FROM alpine:3.4
 COPY --from=builder /go/bin/fetcher /
-COPY --from=emptydir /emptytmp /tmp
-COPY --from=emptydir /bin/sleep /bin/sleep
+EXPOSE 8000
 
 ENTRYPOINT ["/fetcher"]

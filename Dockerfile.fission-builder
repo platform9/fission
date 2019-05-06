@@ -12,15 +12,19 @@ ARG BUILDDATE=unknown
 ARG GOPKG=github.com/fission/fission
 COPY . /go/src/${GOPKG}
 RUN rm -f /go/src/${GOPKG}/Dockerfile*
-WORKDIR /go/src/${GOPKG}/fission-bundle
+WORKDIR /go/src/${GOPKG}/builder
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a \
-    -o /go/bin/fission-bundle \
+    -o /go/bin/fission-builder \
     -gcflags=-trimpath=$GOPATH \
     -asmflags=-trimpath=$GOPATH \
     -ldflags "-X github.com/fission/fission.GitCommit=${GITCOMMIT} -X github.com/fission/fission.BuildDate=${BUILDDATE} -X github.com/fission/fission.Version=${BUILDVERSION}"
 
-FROM alpine:3.4
+FROM alpine:3.5
 RUN apk add --update ca-certificates❗
-COPY --from=builder /go/bin/fission-bundle /
+RUN apk update
+# Install some utility libraries for builders extending image
+RUN apk add coreutils binutils findutils grep
+COPY --from=builder /go/bin/fission-builder /
 
-ENTRYPOINT ["/fission-bundle"]
+ENTRYPOINT ["/fission-builder"]
+EXPOSE 8001
