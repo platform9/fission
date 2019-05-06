@@ -18,21 +18,18 @@ build:
       docker:
         dockerfile: Dockerfile.fission-bundle
     - image: vishalbiyani/fetcher
-      context: environments/fetcher/cmd
       docker:
-        dockerfile: Dockerfile.fission-fetcher
+        dockerfile: environments/fetcher/cmd/Dockerfile.fission-fetcher
     - image: vishalbiyani/builder
-      context: builder
       docker:
-        dockerfile: Dockerfile.fission-builder
+        dockerfile: builder/Dockerfile.fission-builder
     - image: vishalbiyani/preupgradechecks
-      context: preupgradechecks
       docker:
-        dockerfile: Dockerfile.fission-preupgradechecks                
+        dockerfile: preupgradechecks/Dockerfile.fission-preupgradechecks                
   tagPolicy:
-    dateTime:
-      format: 2006-01-02_15-04-05.999_MST
-      timezone: Local
+    envTemplate:
+      template: "{{.IMAGE_NAME}}:{{.TAG}}"
+
 deploy:
   helm:
     releases:
@@ -41,7 +38,6 @@ deploy:
         valuesFiles:
           - ./charts/fission-all/values.yaml
         namespace: "fission"
-#        version: ""
         setValues:
           fetcherImage: vishalbiyani/fetcher
           image: vishalbiyani/fission
