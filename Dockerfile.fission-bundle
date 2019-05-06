@@ -1,4 +1,5 @@
-FROM golang:1.10.1 as builder
+FROM golang:1.11-alpine as builder
+RUN apk add bash ca-certificates git gcc g++ libc-dev
 
 ARG GITCOMMIT=unknown
 # E.g. GITCOMMIT=$(git rev-parse HEAD)
@@ -13,14 +14,15 @@ ARG GOPKG=github.com/fission/fission
 COPY . /go/src/${GOPKG}
 RUN rm -f /go/src/${GOPKG}/Dockerfile*
 WORKDIR /go/src/${GOPKG}/fission-bundle
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a \
+ENV GO111MODULE=on
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -mod vendor \
     -o /go/bin/fission-bundle \
     -gcflags=-trimpath=$GOPATH \
     -asmflags=-trimpath=$GOPATH \
     -ldflags "-X github.com/fission/fission.GitCommit=${GITCOMMIT} -X github.com/fission/fission.BuildDate=${BUILDDATE} -X github.com/fission/fission.Version=${BUILDVERSION}"
 
 FROM alpine:3.4
-RUN apk add --update ca-certificates❗
+RUN apk add --update ca-certificates
 COPY --from=builder /go/bin/fission-bundle /
 
 ENTRYPOINT ["/fission-bundle"]

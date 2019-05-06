@@ -1,4 +1,5 @@
-FROM golang:1.10.1 as builder
+FROM golang:1.11-alpine as builder
+RUN apk add bash ca-certificates git gcc g++ libc-dev
 
 ARG GITCOMMIT=unknown
 # E.g. GITCOMMIT=$(git rev-parse HEAD)
@@ -20,7 +21,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a \
     -ldflags "-X github.com/fission/fission.GitCommit=${GITCOMMIT} -X github.com/fission/fission.BuildDate=${BUILDDATE} -X github.com/fission/fission.Version=${BUILDVERSION}"
 
 FROM alpine:3.5
-RUN apk add --update ca-certificates❗
+RUN apk add --update ca-certificates
 RUN apk update
 # Install some utility libraries for builders extending image
 RUN apk add coreutils binutils findutils grep
