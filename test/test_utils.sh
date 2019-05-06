@@ -58,8 +58,10 @@ build_and_push_pre_upgrade_check_image() {
     image_tag=$1
 
     pushd $ROOT/preupgradechecks
-    ./build.sh
-    docker build -q -t $image_tag .
+    version=$(git rev-parse HEAD)
+    date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+    gitcommit=$(git rev-parse HEAD)
+    docker build -q -t $image_tag -f Dockerfile.fission-preupgradechecks --build-arg GITCOMMIT=$gitcommit --build-arg BUILDDATE=$date --build-arg BUILDVERSION=$version .
 
     gcloud_login
 
@@ -70,22 +72,24 @@ build_and_push_pre_upgrade_check_image() {
 build_and_push_fission_bundle() {
     image_tag=$1
 
-    pushd $ROOT/fission-bundle
-    ./build.sh
-    docker build -q -t $image_tag .
+    version=$(git rev-parse HEAD)
+    date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+    gitcommit=$(git rev-parse HEAD)
+    docker build -q -t $image_tag -f Dockerfile.fission-bundle --build-arg GITCOMMIT=$gitcommit --build-arg BUILDDATE=$date --build-arg BUILDVERSION=$version .
 
     gcloud_login
 
     gcloud docker -- push $image_tag
-    popd
 }
 
 build_and_push_fetcher() {
     image_tag=$1
 
     pushd $ROOT/environments/fetcher/cmd
-    ./build.sh
-    docker build -q -t $image_tag .
+    version=$(git rev-parse HEAD)
+    date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+    gitcommit=$(git rev-parse HEAD)
+    docker build -q -t $image_tag -f Dockerfile.fission-fetcher --build-arg GITCOMMIT=$gitcommit --build-arg BUILDDATE=$date --build-arg BUILDVERSION=$version .
 
     gcloud_login
 
@@ -98,8 +102,10 @@ build_and_push_builder() {
     image_tag=$1
 
     pushd $ROOT/builder/cmd
-    ./build.sh
-    docker build -q -t $image_tag .
+    version=$(git rev-parse HEAD)
+    date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+    gitcommit=$(git rev-parse HEAD)
+    docker build -q -t $image_tag -f Dockerfile.fission-builder --build-arg GITCOMMIT=$gitcommit --build-arg BUILDDATE=$date --build-arg BUILDVERSION=$version .
 
     gcloud_login
 
