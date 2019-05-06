@@ -3,27 +3,28 @@
 # build and deploy Fission to Kubernetes cluster.
 #
 ############## Usage ##############
-# This needs Skaffold installed on your development machine. You can run `skaffold run` to build
-# and deploy with helm. For building and pushing images, you can use `skaffold build`
-# If certain parts of code don't change - you can comment build for those images (For ex. preupgradechecks)
-# Limitations:
-# 1) Currently there is a issue with helm tags in Skaffold - so imageTag etc. does not work.
+# Skaffold CLI should be installed on your machine. 
+# Change <DOCKRHUB_REPO> -> to your Dockerhub username
+# Run `skaffold run` to build and deploy with helm. 
+# Run`skaffold build` to only build and push images
+############## Current Limitations ##############
+# 1) You can not refer to dynamically generated tag from build section in Helm values
+# - hence you have to use "latest" tag
+############### Possible enhancements ##############
+# 1) Add profiles to suit various deployment needs
 ####################################
 apiVersion: skaffold/v1beta9
 kind: Config
 build:
   artifacts:
-    - image: vishalbiyani/fission
+    - image: <DOCKRHUB_REPO>/fission
       context: .
       docker:
         dockerfile: Dockerfile.fission-bundle
-    - image: vishalbiyani/fetcher
+    - image: <DOCKRHUB_REPO>/fetcher
       docker:
         dockerfile: environments/fetcher/cmd/Dockerfile.fission-fetcher
-    - image: vishalbiyani/builder
-      docker:
-        dockerfile: builder/Dockerfile.fission-builder
-    - image: vishalbiyani/preupgradechecks
+    - image: <DOCKRHUB_REPO>/preupgradechecks
       docker:
         dockerfile: preupgradechecks/Dockerfile.fission-preupgradechecks                
   tagPolicy:
@@ -39,11 +40,11 @@ deploy:
           - ./charts/fission-all/values.yaml
         namespace: "fission"
         setValues:
-          fetcherImage: vishalbiyani/fetcher
-          image: vishalbiyani/fission
+          fetcherImage: <DOCKRHUB_REPO>/fetcher
+          image: <DOCKRHUB_REPO>/fission
           imageTag: latest
           namespace: fission
-          preUpgradeChecksImage: vishalbiyani/preupgradechecks
+          preUpgradeChecksImage: <DOCKRHUB_REPO>/preupgradechecks
         setValueTemplates: {}
         wait: true
         recreatePods: false
