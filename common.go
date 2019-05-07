@@ -34,7 +34,7 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/imdario/mergo"
 	"github.com/mholt/archiver"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -116,6 +116,38 @@ func MergeContainerSpecs(specs ...*apiv1.Container) apiv1.Container {
 	return *result
 }
 
+// MergeContainer is a specialized implementation of MergeContainerSpecs
+func MergeContainer(deployContainers *apiv1.Container, containerSpec *apiv1.Container) error {
+
+	if containerSpec == nil {
+		return nil
+	}
+
+	if deployContainers.Name == containerSpec.Name {
+
+		volMap := make(map[string]*apiv1.VolumeMount)
+		for _, vol := range deployContainers.VolumeMounts {
+			volMap[vol.Name] = &vol
+		}
+		for _, specVol := range containerSpec.VolumeMounts {
+			_, ok := volMap[specVol.Name]
+			if ok {
+				// Error out?
+				fmt.Println("Found a conflicting vol mount!")
+			} else {
+				mergo.Merge(&deployContainers, specVol)
+			}
+		}
+		deployContainers.Env = append(deployContainers.Env, containerSpec.Env...)
+	} else {
+		err := mergo.Merge(deployContainers, containerSpec)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func MergePodSpecs(specs ...*apiv1.PodSpec) apiv1.PodSpec {
 	result := &apiv1.PodSpec{}
 	for _, spec := range specs {
@@ -129,6 +161,55 @@ func MergePodSpecs(specs ...*apiv1.PodSpec) apiv1.PodSpec {
 		}
 	}
 	return *result
+}
+
+func MergePodSpec(deploySpec *apiv1.PodSpec, podSpec *apiv1.PodSpec) error {
+	if podSpec == nil {
+		return nil
+	}
+	contaninerList := podSpec.Containers
+	volumeList := podSpec.Volumes
+
+	fmt.Println("Inside PodSpec")
+	//Merge containers
+	specContainers := make(map[string]*apiv1.Container)
+	for _, c := range contaninerList {
+		specContainers[c.Name] = &c
+	}
+
+	for _, c := range deploySpec.Containers {
+		_, ok := specContainers[c.Name]
+		if ok {
+			MergeContainer(&c, specContainers[c.Name])
+		} else {
+			mergo.Merge(&deploySpec.Containers, specContainers[c.Name])
+		}
+	}
+
+	//Merge volumes
+	specVolumes := make(map[string]*apiv1.Volume)
+	for _, vol := range volumeList {
+		specVolumes[vol.Name] = &vol
+	}
+
+	for _, vol := range deploySpec.Volumes {
+		_, ok := specVolumes[vol.Name]
+		if ok {
+			mergo.Merge(&vol.VolumeSource, specVolumes[vol.Name].VolumeSource)
+		} else {
+			mergo.Merge(&deploySpec.Volumes, specVolumes[vol.Name])
+		}
+	}
+
+	fmt.Println("DeploySpec Before Merge")
+	fmt.Printf("%+v\n", deploySpec)
+	// Set containers and volumes to nil & merge rest of pod spec
+	podSpec.Containers = nil
+	podSpec.Volumes = nil
+	mergo.Merge(&deploySpec, podSpec)
+	fmt.Println("DeploySpec After Merge")
+	fmt.Printf("%+v\n", deploySpec)
+	return nil
 }
 
 // IsNetworkDialError returns true if its a network dial error

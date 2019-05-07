@@ -15,6 +15,12 @@ spec:
     image: fission/node-env
     loadendpointpath: ""
     loadendpointport: 0
+    container:
+      name: node
+      volumeMounts:
+        - name: cvol
+          mountPath: /etc/cvoldata
+          readOnly: true
     podspec:
       priorityClassName: "system-cluster-critical"
       Containers:
@@ -25,8 +31,8 @@ spec:
             mounthPath: /etc/funcdata
             readOnly: true
       initContainers:
-      - name: init-py
-        image: fission/python-env 
+      - name: init-node
+        image: fission/node-env 
         command: ['sh', '-c', 'cat /etc/infopod/labels']
         volumeMounts:
           - name: infopod
@@ -45,4 +51,10 @@ spec:
               - path: "labels"
                 fieldRef:
                   fieldPath: metadata.labels
+        - name: cvol
+          downwardAPI:
+            items:
+              - path: "labels"
+                fieldRef:
+                  fieldPath: metadata.labels                  
   version: 1
