@@ -370,26 +370,6 @@ func (gp *GenericPool) createPool() error {
 					Annotations: podAnnotations,
 				},
 				Spec: apiv1.PodSpec{
-					Volumes: []apiv1.Volume{
-						{
-							Name: fission.SharedVolumeUserfunc,
-							VolumeSource: apiv1.VolumeSource{
-								EmptyDir: &apiv1.EmptyDirVolumeSource{},
-							},
-						},
-						{
-							Name: fission.SharedVolumeSecrets,
-							VolumeSource: apiv1.VolumeSource{
-								EmptyDir: &apiv1.EmptyDirVolumeSource{},
-							},
-						},
-						{
-							Name: fission.SharedVolumeConfigmaps,
-							VolumeSource: apiv1.VolumeSource{
-								EmptyDir: &apiv1.EmptyDirVolumeSource{},
-							},
-						},
-					},
 					Containers: []apiv1.Container{apiv1.Container{
 						Name:                   gp.env.Metadata.Name,
 						Image:                  gp.env.Spec.Runtime.Image,
@@ -424,19 +404,19 @@ func (gp *GenericPool) createPool() error {
 		},
 	}
 
+	// Order of merging is important here - first fetcher, then containers and lastly pod spec
 	err := gp.fetcherConfig.AddFetcherToPodSpec(&deployment.Spec.Template.Spec, gp.env.Metadata.Name)
 	if err != nil {
 		return err
 	}
-
-	//err = fission.MergeContainer(&deployment.Spec.Template.Spec.Containers[0], gp.env.Spec.Runtime.Container)
-	//if err != nil {
-	//	return err
-	//}
-	//err = fission.MergePodSpec(&deployment.Spec.Template.Spec, gp.env.Spec.Runtime.PodSpec)
-	//if err != nil {
-	//	return err
-	//}
+	err = fission.MergeContainer(&deployment.Spec.Template.Spec.Containers[0], *gp.env.Spec.Runtime.Container)
+	if err != nil {
+		return err
+	}
+	err = fission.MergePodSpec(&deployment.Spec.Template.Spec, gp.env.Spec.Runtime.PodSpec)
+	if err != nil {
+		return err
+	}
 
 	depl, err := gp.kubernetesClient.ExtensionsV1beta1().Deployments(gp.namespace).Create(deployment)
 	if err != nil {

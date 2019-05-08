@@ -22,14 +22,16 @@ spec:
           mountPath: /etc/cvoldata
           readOnly: true
     podspec:
-      priorityClassName: "system-cluster-critical"
       Containers:
       - name: node
         image: fission/node-env
         volumeMounts:
           - name: funcvol
-            mounthPath: /etc/funcdata
+            mountPath: /etc/funcdata
             readOnly: true
+      - name: yanode
+        image: fission/node-env
+        command: ['sh', '-c', 'sleep 36000000000']
       initContainers:
       - name: init-node
         image: fission/node-env 

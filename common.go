@@ -10,7 +10,7 @@ You may obtain a copy of the License at
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
+See the License for the aecific language governing permissions and
 limitations under the License.
 */
 
@@ -32,6 +32,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/gorilla/handlers"
+	"github.com/hashicorp/go-multierror"
 	"github.com/imdario/mergo"
 	"github.com/mholt/archiver"
 	uuid "github.com/satori/go.uuid"
@@ -117,99 +118,152 @@ func MergeContainerSpecs(specs ...*apiv1.Container) apiv1.Container {
 }
 
 // MergeContainer is a specialized implementation of MergeContainerSpecs
-func MergeContainer(deployContainers *apiv1.Container, containerSpec *apiv1.Container) error {
+func MergeContainer(deployContainer *apiv1.Container, containerSpec apiv1.Container) error {
 
-	if containerSpec == nil {
+	if &containerSpec == nil {
 		return nil
 	}
 
-	if deployContainers.Name == containerSpec.Name {
-
+	if deployContainer.Name == containerSpec.Name {
 		volMap := make(map[string]*apiv1.VolumeMount)
-		for _, vol := range deployContainers.VolumeMounts {
+		for _, vol := range deployContainer.VolumeMounts {
 			volMap[vol.Name] = &vol
 		}
 		for _, specVol := range containerSpec.VolumeMounts {
 			_, ok := volMap[specVol.Name]
 			if ok {
-				// Error out?
-				fmt.Println("Found a conflicting vol mount!")
+				// Error or Warning?
+
 			} else {
-				mergo.Merge(&deployContainers, specVol)
+				deployContainer.VolumeMounts = append(deployContainer.VolumeMounts, specVol)
 			}
 		}
-		deployContainers.Env = append(deployContainers.Env, containerSpec.Env...)
+		deployContainer.Env = append(deployContainer.Env, containerSpec.Env...)
 	} else {
-		err := mergo.Merge(deployContainers, containerSpec)
-		if err != nil {
-			return err
-		}
+		fmt.Println("Container name does not match - please use podspec to add additional containers")
 	}
 	return nil
 }
 
-func MergePodSpecs(specs ...*apiv1.PodSpec) apiv1.PodSpec {
-	result := &apiv1.PodSpec{}
-	for _, spec := range specs {
-		if spec == nil {
-			continue
-		}
-
-		err := mergo.Merge(result, spec)
-		if err != nil {
-			panic(err)
-		}
-	}
-	return *result
-}
-
 func MergePodSpec(deploySpec *apiv1.PodSpec, podSpec *apiv1.PodSpec) error {
-	if podSpec == nil {
+	if &podSpec == nil {
 		return nil
 	}
-	contaninerList := podSpec.Containers
-	volumeList := podSpec.Volumes
 
-	fmt.Println("Inside PodSpec")
-	//Merge containers
-	specContainers := make(map[string]*apiv1.Container)
-	for _, c := range contaninerList {
-		specContainers[c.Name] = &c
+	// Get X from spec, if they exist in deployment - merge/ignore, else append
+	// Same pattern for all lists (Mergo can not handle lists)
+	// At some point this is better done with generics/reflection!
+	mergeContainerLists(deploySpec, podSpec)
+	mergeInitContainerList(deploySpec, podSpec)
+	mergeVolumeLists(deploySpec, podSpec)
+
+	if podSpec.NodeName != "" {
+		deploySpec.NodeName = podSpec.NodeName
+	}
+
+	if podSpec.Subdomain != "" {
+		deploySpec.Subdomain = podSpec.Subdomain
+	}
+
+	if podSpec.SchedulerName != "" {
+		deploySpec.SchedulerName = podSpec.SchedulerName
+	}
+
+	if podSpec.PriorityClassName != "" {
+		deploySpec.PriorityClassName = podSpec.PriorityClassName
+	}
+
+	for _, obj := range podSpec.ImagePullSecrets {
+		deploySpec.ImagePullSecrets = append(deploySpec.ImagePullSecrets, obj)
+	}
+
+	for _, obj := range podSpec.Tolerations {
+		deploySpec.Tolerations = append(deploySpec.Tolerations, obj)
+	}
+
+	for _, obj := range podSpec.HostAliases {
+		deploySpec.HostAliases = append(deploySpec.HostAliases, obj)
+	}
+
+	var multierr *multierror.Error
+
+	err := mergo.Merge(&deploySpec.NodeSelector, podSpec.NodeSelector)
+	if err != nil {
+		multierror.Append(multierr, err)
+	}
+
+	err = mergo.Merge(&deploySpec.SecurityContext, podSpec.SecurityContext)
+	if err != nil {
+		multierror.Append(multierr, err)
+	}
+
+	err = mergo.Merge(&deploySpec.Affinity, podSpec.Affinity)
+	if err != nil {
+		multierror.Append(multierr, err)
+	}
+
+	return multierr.ErrorOrNil()
+}
+
+func mergeContainerLists(deploySpec *apiv1.PodSpec, podSpec *apiv1.PodSpec) {
+	specList := podSpec.Containers
+	specContainers := make(map[string]apiv1.Container)
+	for _, c := range specList {
+		specContainers[c.Name] = c
 	}
 
 	for _, c := range deploySpec.Containers {
-		_, ok := specContainers[c.Name]
+		container, ok := specContainers[c.Name]
 		if ok {
-			MergeContainer(&c, specContainers[c.Name])
-		} else {
-			mergo.Merge(&deploySpec.Containers, specContainers[c.Name])
+			MergeContainer(&c, container)
+			delete(specContainers, c.Name)
 		}
 	}
 
-	//Merge volumes
-	specVolumes := make(map[string]*apiv1.Volume)
+	for _, container := range specContainers {
+		deploySpec.Containers = append(deploySpec.Containers, container)
+	}
+}
+
+func mergeInitContainerList(deploySpec *apiv1.PodSpec, podSpec *apiv1.PodSpec) {
+	specList := podSpec.InitContainers
+	specContainers := make(map[string]apiv1.Container)
+	for _, c := range specList {
+		specContainers[c.Name] = c
+	}
+
+	for _, c := range deploySpec.InitContainers {
+		container, ok := specContainers[c.Name]
+		if ok {
+			MergeContainer(&c, container)
+			delete(specContainers, c.Name)
+		}
+	}
+
+	for _, container := range specContainers {
+		deploySpec.InitContainers = append(deploySpec.InitContainers, container)
+	}
+}
+
+func mergeVolumeLists(deploySpec *apiv1.PodSpec, podSpec *apiv1.PodSpec) {
+	volumeList := podSpec.Volumes
+	specVolumes := make(map[string]apiv1.Volume)
 	for _, vol := range volumeList {
-		specVolumes[vol.Name] = &vol
+		specVolumes[vol.Name] = vol
 	}
 
 	for _, vol := range deploySpec.Volumes {
 		_, ok := specVolumes[vol.Name]
 		if ok {
-			mergo.Merge(&vol.VolumeSource, specVolumes[vol.Name].VolumeSource)
+			fmt.Println("Can't append a volume with same name")
 		} else {
-			mergo.Merge(&deploySpec.Volumes, specVolumes[vol.Name])
+			delete(specVolumes, vol.Name)
 		}
 	}
 
-	fmt.Println("DeploySpec Before Merge")
-	fmt.Printf("%+v\n", deploySpec)
-	// Set containers and volumes to nil & merge rest of pod spec
-	podSpec.Containers = nil
-	podSpec.Volumes = nil
-	mergo.Merge(&deploySpec, podSpec)
-	fmt.Println("DeploySpec After Merge")
-	fmt.Printf("%+v\n", deploySpec)
-	return nil
+	for _, volume := range specVolumes {
+		deploySpec.Volumes = append(deploySpec.Volumes, volume)
+	}
 }
 
 // IsNetworkDialError returns true if its a network dial error
