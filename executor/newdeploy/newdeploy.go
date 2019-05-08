@@ -220,7 +220,7 @@ func (deploy *NewDeploy) getDeploymentSpec(fn *crd.Function, env *crd.Environmen
 						},
 					},
 					Containers: []apiv1.Container{
-						apiv1.Container{
+						{
 							Name:                   fn.Metadata.Name,
 							Image:                  env.Spec.Runtime.Image,
 							ImagePullPolicy:        deploy.runtimeImagePullPolicy,

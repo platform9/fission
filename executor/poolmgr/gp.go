@@ -370,7 +370,7 @@ func (gp *GenericPool) createPool() error {
 					Annotations: podAnnotations,
 				},
 				Spec: apiv1.PodSpec{
-					Containers: []apiv1.Container{apiv1.Container{
+					Containers: []apiv1.Container{{
 						Name:                   gp.env.Metadata.Name,
 						Image:                  gp.env.Spec.Runtime.Image,
 						ImagePullPolicy:        gp.runtimeImagePullPolicy,

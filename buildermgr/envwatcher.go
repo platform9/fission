@@ -514,7 +514,7 @@ func (envw *environmentWatcher) createBuilderDeployment(env *crd.Environment, ns
 					Annotations: podAnnotations,
 				},
 				Spec: apiv1.PodSpec{
-					Containers: []apiv1.Container{apiv1.Container{
+					Containers: []apiv1.Container{{
 						Name:                   "builder",
 						Image:                  env.Spec.Builder.Image,
 						ImagePullPolicy:        envw.builderImagePullPolicy,
