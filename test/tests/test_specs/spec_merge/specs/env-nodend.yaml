@@ -2,7 +2,7 @@ apiVersion: fission.io/v1
 kind: Environment
 metadata:
   creationTimestamp: null
-  name: node
+  name: nodend
   namespace: default
 spec:
   TerminationGracePeriod: 360
@@ -16,22 +16,25 @@ spec:
     loadendpointpath: ""
     loadendpointport: 0
     container:
-      name: node
+      name: nodehellond
       volumeMounts:
         - name: cvol
           mountPath: /etc/cvoldata
           readOnly: true
     podspec:
+      # A container which will be merged with for pool manager
       Containers:
-      - name: node
+      - name: nodehellond
         image: fission/node-env
         volumeMounts:
           - name: funcvol
             mountPath: /etc/funcdata
             readOnly: true
+      # A additional container in the pods
       - name: yanode
         image: fission/node-env
         command: ['sh', '-c', 'sleep 36000000000']
+      # Init container before function
       initContainers:
       - name: init-node
         image: fission/node-env 
@@ -40,6 +43,12 @@ spec:
           - name: infopod
             mountPath: /etc/infopod
             readOnly: false
+      tolerations:
+      - key: "reservation"
+        operator: "Equal"
+        value: "fission"
+        effect: "NoSchedule"      
+      # Additional volumes
       volumes:
         - name: infopod
           downwardAPI:

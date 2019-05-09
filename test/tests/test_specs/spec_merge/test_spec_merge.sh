@@ -2,8 +2,8 @@
 
 set -euo pipefail
 
-fn=spec-$(date +%N)
-env=nodejs-$fn
+fn_p=nodehellop
+fn_nd=nodehellond
 
 cleanup() {
     log "Cleaning up..."
@@ -17,4 +17,6 @@ pushd $(dirname $0)
 
 fission spec apply
 
-fission fn test --name $fn
+fission fn test --name $fn_p
+
+fission fn test --name $fn_nd

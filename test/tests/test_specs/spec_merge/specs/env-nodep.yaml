@@ -1,0 +1,71 @@
+apiVersion: fission.io/v1
+kind: Environment
+metadata:
+  creationTimestamp: null
+  name: nodep
+  namespace: default
+spec:
+  TerminationGracePeriod: 360
+  builder: {}
+  keeparchive: false
+  poolsize: 3
+  resources: {}
+  runtime:
+    functionendpointport: 0
+    image: fission/node-env
+    loadendpointpath: ""
+    loadendpointport: 0
+    container:
+      name: nodep
+      volumeMounts:
+        - name: cvol
+          mountPath: /etc/cvoldata
+          readOnly: true
+    podspec:
+      # A container which will be merged with for pool manager
+      Containers:
+      - name: nodep
+        image: fission/node-env
+        volumeMounts:
+          - name: funcvol
+            mountPath: /etc/funcdata
+            readOnly: true
+      # A additional container in the pods
+      - name: yanode
+        image: fission/node-env
+        command: ['sh', '-c', 'sleep 36000000000']
+      # Init container before function
+      initContainers:
+      - name: init-node
+        image: fission/node-env 
+        command: ['sh', '-c', 'cat /etc/infopod/labels']
+        volumeMounts:
+          - name: infopod
+            mountPath: /etc/infopod
+            readOnly: false
+      tolerations:
+      - key: "reservation"
+        operator: "Equal"
+        value: "fission"
+        effect: "NoSchedule"      
+      # Additional volumes
+      volumes:
+        - name: infopod
+          downwardAPI:
+            items:
+              - path: "labels"
+                fieldRef:
+                  fieldPath: metadata.labels
+        - name: funcvol
+          downwardAPI:
+            items:
+              - path: "labels"
+                fieldRef:
+                  fieldPath: metadata.labels
+        - name: cvol
+          downwardAPI:
+            items:
+              - path: "labels"
+                fieldRef:
+                  fieldPath: metadata.labels                  
+  version: 1

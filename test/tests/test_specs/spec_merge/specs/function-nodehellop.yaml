@@ -16,7 +16,7 @@ spec:
     type: url
     url: archive://hello-js-leSC
   environment:
-    name: node
+    name: nodep
     namespace: default
   source:
     checksum: {}
@@ -28,7 +28,7 @@ apiVersion: fission.io/v1
 kind: Function
 metadata:
   creationTimestamp: null
-  name: hellonode
+  name: nodehellop
   namespace: default
 spec:
   InvokeStrategy:
@@ -40,7 +40,7 @@ spec:
     StrategyType: execution
   configmaps: null
   environment:
-    name: node
+    name: nodep
     namespace: default
   package:
     packageref:

@@ -41,6 +41,7 @@ import (
 	fetcherClient "github.com/fission/fission/environments/fetcher/client"
 	fetcherConfig "github.com/fission/fission/environments/fetcher/config"
 	"github.com/fission/fission/executor/fscache"
+	"github.com/fission/fission/executor/util"
 )
 
 type (
@@ -409,11 +410,11 @@ func (gp *GenericPool) createPool() error {
 	if err != nil {
 		return err
 	}
-	err = fission.MergeContainer(&deployment.Spec.Template.Spec.Containers[0], *gp.env.Spec.Runtime.Container)
+	err = util.MergeContainer(&deployment.Spec.Template.Spec.Containers[0], *gp.env.Spec.Runtime.Container)
 	if err != nil {
 		return err
 	}
-	err = fission.MergePodSpec(&deployment.Spec.Template.Spec, gp.env.Spec.Runtime.PodSpec)
+	err = util.MergePodSpec(&deployment.Spec.Template.Spec, gp.env.Spec.Runtime.PodSpec)
 	if err != nil {
 		return err
 	}

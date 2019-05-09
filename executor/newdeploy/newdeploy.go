@@ -32,6 +32,7 @@ import (
 
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
+	"github.com/fission/fission/executor/util"
 	multierror "github.com/hashicorp/go-multierror"
 )
 
@@ -199,26 +200,6 @@ func (deploy *NewDeploy) getDeploymentSpec(fn *crd.Function, env *crd.Environmen
 					Annotations: podAnnotations,
 				},
 				Spec: apiv1.PodSpec{
-					Volumes: []apiv1.Volume{
-						{
-							Name: fission.SharedVolumeUserfunc,
-							VolumeSource: apiv1.VolumeSource{
-								EmptyDir: &apiv1.EmptyDirVolumeSource{},
-							},
-						},
-						{
-							Name: fission.SharedVolumeSecrets,
-							VolumeSource: apiv1.VolumeSource{
-								EmptyDir: &apiv1.EmptyDirVolumeSource{},
-							},
-						},
-						{
-							Name: fission.SharedVolumeConfigmaps,
-							VolumeSource: apiv1.VolumeSource{
-								EmptyDir: &apiv1.EmptyDirVolumeSource{},
-							},
-						},
-					},
 					Containers: []apiv1.Container{
 						{
 							Name:                   fn.Metadata.Name,
@@ -245,12 +226,22 @@ func (deploy *NewDeploy) getDeploymentSpec(fn *crd.Function, env *crd.Environmen
 		},
 	}
 
+	// Order of merging is important here - first fetcher, then containers and lastly pod spec
 	deploy.fetcherConfig.AddSpecializingFetcherToPodSpec(
 		&deployment.Spec.Template.Spec,
 		fn.Metadata.Name,
 		fn,
 		env,
 	)
+
+	err := util.MergeContainer(&deployment.Spec.Template.Spec.Containers[0], *env.Spec.Runtime.Container)
+	if err != nil {
+		return nil, err
+	}
+	err = util.MergePodSpec(&deployment.Spec.Template.Spec, env.Spec.Runtime.PodSpec)
+	if err != nil {
+		return nil, err
+	}
 
 	return deployment, nil
 }

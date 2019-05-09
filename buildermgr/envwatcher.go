@@ -35,6 +35,7 @@ import (
 	"github.com/fission/fission"
 	"github.com/fission/fission/crd"
 	fetcherConfig "github.com/fission/fission/environments/fetcher/config"
+	"github.com/fission/fission/executor/util"
 )
 
 type requestType int
@@ -542,6 +543,11 @@ func (envw *environmentWatcher) createBuilderDeployment(env *crd.Environment, ns
 	}
 
 	err := envw.fetcherConfig.AddFetcherToPodSpec(&deployment.Spec.Template.Spec, "builder")
+	if err != nil {
+		return nil, err
+	}
+
+	err = util.MergeContainer(&deployment.Spec.Template.Spec.Containers[0], *env.Spec.Builder.Container)
 	if err != nil {
 		return nil, err
 	}

@@ -1,0 +1,24 @@
+apiVersion: fission.io/v1
+kind: Function
+metadata:
+  creationTimestamp: null
+  name: nodehellond
+  namespace: default
+spec:
+  InvokeStrategy:
+    ExecutionStrategy:
+      ExecutorType: newdeploy
+      MaxScale: 3
+      MinScale: 1
+      TargetCPUPercent: 80
+    StrategyType: execution
+  configmaps: null
+  environment:
+    name: nodend
+    namespace: default
+  package:
+    packageref:
+      name: hello-js-vm2y
+      namespace: default
+  resources: {}
+  secrets: null
