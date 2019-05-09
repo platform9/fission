@@ -44,21 +44,6 @@ func MakePrometheusClient(logger *zap.Logger, prometheusSvc string) (*Prometheus
 
 	apiQueryClient := promClient.NewQueryAPI(promApiClient)
 
-	// By default, the prometheus client library doesn't test server connectivity when creating
-	// prometheus client. As a workaround, here we send out a test query string to ensure that
-	// prometheus server is running.
-	for i := 0; i < 15; i++ {
-		_, err = apiQueryClient.Query(context.Background(), "http_requests_total", time.Now())
-		if err == nil {
-			break
-		}
-		time.Sleep(time.Second)
-	}
-
-	if err != nil {
-		return nil, errors.Wrap(err, "error sending test query to prometheus server")
-	}
-
 	logger.Info("successfully made prometheus client with service", zap.String("service", prometheusSvc))
 	return &PrometheusApiClient{
 		logger: logger.Named("prometheus_api_client"),
