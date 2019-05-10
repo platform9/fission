@@ -37,6 +37,7 @@ before_script:
   - hack/verify-govet.sh
   - helm lint charts/fission-all/ charts/fission-core/
   - go mod download
+  - go mod vendor
   - go build -o fission/fission fission/*.go
   - hack/runtests.sh
 
