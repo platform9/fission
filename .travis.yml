@@ -38,7 +38,6 @@ before_script:
   - helm lint charts/fission-all/ charts/fission-core/
   - go mod download
   - go build -o fission/fission fission/*.go
-  - ./fission-bundle/build.sh
   - hack/runtests.sh
 
 script:

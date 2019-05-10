@@ -324,6 +324,7 @@ fi
 
 release_environment_check $version $chartsrepo
 
+go mod vendor
 # Build release-builder image
 docker build -t fission-release-builder -f $GOPATH/src/github.com/fission/fission/hack/Dockerfile .
 

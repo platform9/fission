@@ -12,7 +12,6 @@ ARG BUILDDATE=unknown
 
 ARG GOPKG=github.com/fission/fission
 COPY . /go/src/${GOPKG}
-RUN rm -f /go/src/${GOPKG}/Dockerfile*
 WORKDIR /go/src/${GOPKG}/builder
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a \
     -o /go/bin/fission-builder \

@@ -4,7 +4,8 @@
 #
 ############## Usage ##############
 # Skaffold CLI should be installed on your machine. 
-# Change <DOCKRHUB_REPO> -> to your Dockerhub username
+# Change vishalbiyani -> to your Dockerhub username
+# RUn `go mod vendor` so that all dependencies are downloaded
 # Run `skaffold run` to build and deploy with helm. 
 # Run`skaffold build` to only build and push images
 ############## Current Limitations ##############
@@ -17,19 +18,19 @@ apiVersion: skaffold/v1beta9
 kind: Config
 build:
   artifacts:
-    - image: <DOCKRHUB_REPO>/fission
+    - image: vishalbiyani/fission
       context: .
       docker:
         dockerfile: Dockerfile.fission-bundle
-    - image: <DOCKRHUB_REPO>/fetcher
+    - image: vishalbiyani/fetcher
       docker:
         dockerfile: environments/fetcher/cmd/Dockerfile.fission-fetcher
-    - image: <DOCKRHUB_REPO>/preupgradechecks
+    - image: vishalbiyani/preupgradechecks
       docker:
         dockerfile: preupgradechecks/Dockerfile.fission-preupgradechecks                
   tagPolicy:
     envTemplate:
-      template: "{{.IMAGE_NAME}}:{{.TAG}}"
+      template: "{{.IMAGE_NAME}}:skaffold-test"
 
 deploy:
   helm:
@@ -40,11 +41,11 @@ deploy:
           - ./charts/fission-all/values.yaml
         namespace: "fission"
         setValues:
-          fetcherImage: <DOCKRHUB_REPO>/fetcher
-          image: <DOCKRHUB_REPO>/fission
-          imageTag: latest
+          fetcherImage: vishalbiyani/fetcher
+          image: vishalbiyani/fission
+          imageTag: skaffold-test
           namespace: fission
-          preUpgradeChecksImage: <DOCKRHUB_REPO>/preupgradechecks
+          preUpgradeChecksImage: vishalbiyani/preupgradechecks
         setValueTemplates: {}
         wait: true
         recreatePods: false
