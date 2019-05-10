@@ -46,6 +46,7 @@ deploy:
           imageTag: skaffold-test
           namespace: fission
           preUpgradeChecksImage: vishalbiyani/preupgradechecks
+          repository: index.docker.io
         setValueTemplates: {}
         wait: true
         recreatePods: false
