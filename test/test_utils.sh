@@ -81,7 +81,7 @@ build_and_push_pre_upgrade_check_image() {
 build_and_push_fission_bundle() {
     image_tag=$1
 
-    docker build -t $image_tag -f Dockerfile.fission-bundle --build-arg GITCOMMIT=$(getGitCommit) --build-arg BUILDDATE=$(getDate) --build-arg BUILDVERSION=$(getVersion) .
+    docker build -q -t $image_tag -f Dockerfile.fission-bundle --build-arg GITCOMMIT=$(getGitCommit) --build-arg BUILDDATE=$(getDate) --build-arg BUILDVERSION=$(getVersion) .
 
     gcloud_login
 
@@ -91,26 +91,22 @@ build_and_push_fission_bundle() {
 build_and_push_fetcher() {
     image_tag=$1
 
-    #pushd $ROOT/environments/fetcher/cmd
-    docker build -t $image_tag -f $ROOT/environments/fetcher/cmd/Dockerfile.fission-fetcher --build-arg GITCOMMIT=$(getGitCommit) --build-arg BUILDDATE=$(getDate) --build-arg BUILDVERSION=$(getVersion) .
+    docker build -q -t $image_tag -f $ROOT/environments/fetcher/cmd/Dockerfile.fission-fetcher --build-arg GITCOMMIT=$(getGitCommit) --build-arg BUILDDATE=$(getDate) --build-arg BUILDVERSION=$(getVersion) .
 
     gcloud_login
 
     gcloud docker -- push $image_tag
-    #popd
 }
 
 
 build_and_push_builder() {
     image_tag=$1
 
-    pushd $ROOT/builder/cmd
-    docker build -q -t $image_tag -f Dockerfile.fission-builder --build-arg GITCOMMIT=$(getGitCommit) --build-arg BUILDDATE=$(getDate) --build-arg BUILDVERSION=$(getVersion) .
+    docker build -q -t $image_tag -f $ROOT/builder/cmd/Dockerfile.fission-builder --build-arg GITCOMMIT=$(getGitCommit) --build-arg BUILDDATE=$(getDate) --build-arg BUILDVERSION=$(getVersion) .
 
     gcloud_login
 
     gcloud docker -- push $image_tag
-    popd
 }
 
 build_and_push_env_runtime() {
