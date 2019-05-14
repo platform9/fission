@@ -14,7 +14,7 @@ ARG GOPKG=github.com/fission/fission
 COPY . /go/src/${GOPKG}
 WORKDIR /go/src/${GOPKG}/builder
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a \
-    -o /go/bin/fission-builder \
+    -o /go/bin/builder \
     -gcflags=-trimpath=$GOPATH \
     -asmflags=-trimpath=$GOPATH \
     -ldflags "-X github.com/fission/fission.GitCommit=${GITCOMMIT} -X github.com/fission/fission.BuildDate=${BUILDDATE} -X github.com/fission/fission.Version=${BUILDVERSION}"
@@ -24,7 +24,7 @@ RUN apk add --update ca-certificates
 RUN apk update
 # Install some utility libraries for builders extending image
 RUN apk add coreutils binutils findutils grep
-COPY --from=builder /go/bin/fission-builder /
+COPY --from=builder /go/bin/builder /
 
-ENTRYPOINT ["/fission-builder"]
+ENTRYPOINT ["/builder"]
 EXPOSE 8001
