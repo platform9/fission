@@ -21,7 +21,7 @@ build:
     - image: vishalbiyani/fission
       context: .
       docker:
-        dockerfile: Dockerfile.fission-bundle
+        dockerfile: fission-bundle/Dockerfile.fission-bundle
     - image: vishalbiyani/fetcher
       docker:
         dockerfile: environments/fetcher/cmd/Dockerfile.fission-fetcher
