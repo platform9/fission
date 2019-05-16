@@ -234,13 +234,18 @@ func (deploy *NewDeploy) getDeploymentSpec(fn *crd.Function, env *crd.Environmen
 		env,
 	)
 
-	err := util.MergeContainer(&deployment.Spec.Template.Spec.Containers[0], *env.Spec.Runtime.Container)
-	if err != nil {
-		return nil, err
+	if env.Spec.Runtime.Container != nil {
+		err := util.MergeContainer(&deployment.Spec.Template.Spec.Containers[0], *env.Spec.Runtime.Container)
+		if err != nil {
+			return nil, err
+		}
 	}
-	err = util.MergePodSpec(&deployment.Spec.Template.Spec, env.Spec.Runtime.PodSpec)
-	if err != nil {
-		return nil, err
+
+	if env.Spec.Runtime.PodSpec != nil {
+		err := util.MergePodSpec(&deployment.Spec.Template.Spec, env.Spec.Runtime.PodSpec)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return deployment, nil

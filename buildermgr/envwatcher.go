@@ -547,9 +547,11 @@ func (envw *environmentWatcher) createBuilderDeployment(env *crd.Environment, ns
 		return nil, err
 	}
 
-	err = util.MergeContainer(&deployment.Spec.Template.Spec.Containers[0], *env.Spec.Builder.Container)
-	if err != nil {
-		return nil, err
+	if env.Spec.Builder.Container != nil {
+		err = util.MergeContainer(&deployment.Spec.Template.Spec.Containers[0], *env.Spec.Builder.Container)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	envw.logger.Info("creating builder deployment", zap.String("deployment", name))

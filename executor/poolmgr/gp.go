@@ -410,13 +410,18 @@ func (gp *GenericPool) createPool() error {
 	if err != nil {
 		return err
 	}
-	err = util.MergeContainer(&deployment.Spec.Template.Spec.Containers[0], *gp.env.Spec.Runtime.Container)
-	if err != nil {
-		return err
+	if gp.env.Spec.Runtime.Container != nil {
+		err = util.MergeContainer(&deployment.Spec.Template.Spec.Containers[0], *gp.env.Spec.Runtime.Container)
+		if err != nil {
+			return err
+		}
 	}
-	err = util.MergePodSpec(&deployment.Spec.Template.Spec, gp.env.Spec.Runtime.PodSpec)
-	if err != nil {
-		return err
+
+	if gp.env.Spec.Runtime.PodSpec != nil {
+		err = util.MergePodSpec(&deployment.Spec.Template.Spec, gp.env.Spec.Runtime.PodSpec)
+		if err != nil {
+			return err
+		}
 	}
 
 	depl, err := gp.kubernetesClient.ExtensionsV1beta1().Deployments(gp.namespace).Create(deployment)
