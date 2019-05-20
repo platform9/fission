@@ -201,7 +201,7 @@ func (deploy *NewDeploy) getDeploymentSpec(fn *crd.Function, env *crd.Environmen
 				},
 				Spec: apiv1.PodSpec{
 					Containers: []apiv1.Container{
-						{
+						util.MergeContainerSpecs(&apiv1.Container{
 							Name:                   fn.Metadata.Name,
 							Image:                  env.Spec.Runtime.Image,
 							ImagePullPolicy:        deploy.runtimeImagePullPolicy,
@@ -217,7 +217,7 @@ func (deploy *NewDeploy) getDeploymentSpec(fn *crd.Function, env *crd.Environmen
 								},
 							},
 							Resources: resources,
-						},
+						}, env.Spec.Runtime.Container),
 					},
 					ServiceAccountName:            "fission-fetcher",
 					TerminationGracePeriodSeconds: &gracePeriodSeconds,
@@ -233,13 +233,6 @@ func (deploy *NewDeploy) getDeploymentSpec(fn *crd.Function, env *crd.Environmen
 		fn,
 		env,
 	)
-
-	if env.Spec.Runtime.Container != nil {
-		err := util.MergeContainer(&deployment.Spec.Template.Spec.Containers[0], *env.Spec.Runtime.Container)
-		if err != nil {
-			return nil, err
-		}
-	}
 
 	if env.Spec.Runtime.PodSpec != nil {
 		err := util.MergePodSpec(&deployment.Spec.Template.Spec, env.Spec.Runtime.PodSpec)
