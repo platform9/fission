@@ -17,7 +17,7 @@ type (
 		url string
 	}
 	AnalyticsData struct {
-		id                string
+		ID                string `json:"ID"`
 		FunctionCallCount uint64 `json:"FunctionCallCount"`
 	}
 )
@@ -49,7 +49,7 @@ func (a *Analytics) run() {
 	ticker := time.NewTicker(24 * time.Hour)
 	for range ticker.C {
 		msg := a.gatherData()
-		msg.id = a.id
+		msg.ID = a.id
 
 		msgbytes, err := json.Marshal(*msg)
 		if err != nil {
