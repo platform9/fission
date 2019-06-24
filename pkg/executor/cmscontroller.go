@@ -19,7 +19,7 @@ package executor
 import (
 	"time"
 
-	"github.com/fission/fission/crd"
+	"github.com/fission/fission/pkg/crd"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
