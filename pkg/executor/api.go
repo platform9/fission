@@ -141,6 +141,8 @@ func (executor *Executor) Serve(port int) {
 	defer cancel()
 	executor.ndm.Run(ctx)
 	executor.gpm.Run(ctx)
+	executor.cms.Run(ctx)
+
 	r.Use(utils.LoggingMiddleware(executor.logger))
 	err := http.ListenAndServe(address, &ochttp.Handler{
 		Handler: r,
