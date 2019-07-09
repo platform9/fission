@@ -87,22 +87,7 @@ func initConfigmapController(logger *zap.Logger, fissionClient *crd.FissionClien
 				if err != nil {
 					logger.Error("Failed to get functions related to secret", zap.String("secret_name", newCm.ObjectMeta.Name), zap.String("secret_namespace", newCm.ObjectMeta.Namespace))
 				}
-
-				for _, f := range funcs {
-					// Poolmgr automatically picks up latest configmaps during specialization
-					if f.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType == fv1.ExecutorTypeNewdeploy {
-						err := ndm.RecycleFuncPods(logger, f)
-						if err != nil {
-							logger.Error("Failed to recycle pods for function after configmap changed",
-								zap.Error(err),
-								zap.Any("function", f))
-						}
-					}
-
-					if f.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType == fv1.ExecutorTypePoolmgr {
-						// Future implementation
-					}
-				}
+				recyclePods(logger, funcs, ndm, gpm)
 			}
 
 		},
@@ -150,21 +135,7 @@ func initSecretController(logger *zap.Logger, fissionClient *crd.FissionClient,
 				if err != nil {
 					logger.Error("Failed to get functions related to secret", zap.String("secret_name", newS.ObjectMeta.Name), zap.String("secret_namespace", newS.ObjectMeta.Namespace))
 				}
-				for _, f := range funcs {
-					// Poolmgr automatically picks up latest configmaps during specialization
-					if f.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType == fv1.ExecutorTypeNewdeploy {
-						err := ndm.RecycleFuncPods(logger, f)
-						if err != nil {
-							logger.Error("Failed to recycle pods for function after secret changed",
-								zap.Error(err),
-								zap.Any("function", f))
-						}
-					}
-
-					if f.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType == fv1.ExecutorTypePoolmgr {
-						// Future implementation
-					}
-				}
+				recyclePods(logger, funcs, ndm, gpm)
 			}
 
 		},
@@ -189,4 +160,21 @@ func getSecretRelatedFuncs(logger *zap.Logger, m *metav1.ObjectMeta, fissionClie
 		}
 	}
 	return relatedFunctions, nil
+}
+
+func recyclePods(logger *zap.Logger, funcs []fv1.Function, ndm *nd.NewDeploy, gpm *gpm.GenericPoolManager) {
+	for _, f := range funcs {
+		var err error
+		if f.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType == fv1.ExecutorTypeNewdeploy {
+			err = ndm.RecycleFuncPods(logger, f)
+		}
+		if f.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType == fv1.ExecutorTypePoolmgr {
+			err = gpm.RecycleFuncPods(logger, f)
+		}
+		if err != nil {
+			logger.Error("Failed to recycle pods for function after configmap changed",
+				zap.Error(err),
+				zap.Any("function", f))
+		}
+	}
 }

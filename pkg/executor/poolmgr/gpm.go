@@ -25,7 +25,9 @@ import (
 
 	"github.com/fission/fission/pkg/utils"
 	"go.uber.org/zap"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	k8sTypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	k8sCache "k8s.io/client-go/tools/cache"
@@ -128,6 +130,41 @@ func (gpm *GenericPoolManager) Run(ctx context.Context) {
 	go gpm.funcController.Run(ctx.Done())
 	go gpm.pkgController.Run(ctx.Done())
 	go gpm.idleObjectReaper()
+}
+
+func (gpm *GenericPoolManager) RecycleFuncPods(logger *zap.Logger, f fv1.Function) error {
+
+	env, err := gpm.fissionClient.Environments(f.Spec.Environment.Namespace).Get(f.Spec.Environment.Name)
+	if err != nil {
+		return err
+	}
+
+	gp, err := gpm.GetPool(env)
+	if err != nil {
+		return err
+	}
+
+	funcLabels := gp.labelsForFunction(&f.Metadata)
+
+	podList, err := gpm.kubernetesClient.CoreV1().Pods(metav1.NamespaceAll).List(metav1.ListOptions{
+		LabelSelector: labels.Set(funcLabels).AsSelector().String(),
+	})
+
+	if err != nil {
+		return err
+	}
+
+	for _, po := range podList.Items {
+		err := gpm.kubernetesClient.CoreV1().Pods(po.ObjectMeta.Namespace).Delete(po.ObjectMeta.Name, &metav1.DeleteOptions{})
+		if k8serrors.IsNotFound(err) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (gpm *GenericPoolManager) service() {
