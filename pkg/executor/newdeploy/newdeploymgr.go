@@ -40,6 +40,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	k8sCache "k8s.io/client-go/tools/cache"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 
 	fv1 "github.com/fission/fission/pkg/apis/fission.io/v1"
 	"github.com/fission/fission/pkg/crd"
@@ -248,6 +249,9 @@ func (deploy *NewDeploy) RecycleFuncPods(logger *zap.Logger, f fv1.Function) err
 
 	for _, po := range podList.Items {
 		err := deploy.kubernetesClient.CoreV1().Pods(po.ObjectMeta.Namespace).Delete(po.ObjectMeta.Name, &metav1.DeleteOptions{})
+		if k8serrors.IsNotFound(err) {
+			return nil
+		}
 		if err != nil {
 			return err
 		}

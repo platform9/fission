@@ -77,13 +77,17 @@ func initConfigmapController(logger *zap.Logger, fissionClient *crd.FissionClien
 			newCm := newObj.(*apiv1.ConfigMap)
 			if oldCm.ObjectMeta.ResourceVersion != newCm.ObjectMeta.ResourceVersion {
 				if newCm.ObjectMeta.Namespace != "kube-system" {
-					logger.Info("Configmap changed",
+					logger.Debug("Configmap changed",
 						zap.String("configmap_name", newCm.ObjectMeta.Name),
 						zap.String("configmap_namespace", newCm.ObjectMeta.Namespace))
 
 				}
 
-				funcs := getConfigmapRelatedFuncs(logger, &newCm.ObjectMeta, fissionClient)
+				funcs, err := getConfigmapRelatedFuncs(logger, &newCm.ObjectMeta, fissionClient)
+				if err != nil {
+					logger.Error("Failed to get functions related to secret", zap.String("secret_name", newCm.ObjectMeta.Name), zap.String("secret_namespace", newCm.ObjectMeta.Namespace))
+				}
+
 				for _, f := range funcs {
 					// Poolmgr automatically picks up latest configmaps during specialization
 					if f.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType == fv1.ExecutorTypeNewdeploy {
@@ -106,10 +110,10 @@ func initConfigmapController(logger *zap.Logger, fissionClient *crd.FissionClien
 	return store, controller
 }
 
-func getConfigmapRelatedFuncs(logger *zap.Logger, m *metav1.ObjectMeta, fissionClient *crd.FissionClient) []fv1.Function {
+func getConfigmapRelatedFuncs(logger *zap.Logger, m *metav1.ObjectMeta, fissionClient *crd.FissionClient) ([]fv1.Function, error) {
 	funcList, err := fissionClient.Functions(metav1.NamespaceAll).List(metav1.ListOptions{})
 	if err != nil {
-		logger.Error("Error getting functions while updating configmap", zap.Error(err), zap.Any("configmap", m))
+		return nil, err
 	}
 	// In future a cache that populates at start and is updated on changes might be better solution
 	relatedFunctions := make([]fv1.Function, 0)
@@ -121,7 +125,7 @@ func getConfigmapRelatedFuncs(logger *zap.Logger, m *metav1.ObjectMeta, fissionC
 			}
 		}
 	}
-	return relatedFunctions
+	return relatedFunctions, nil
 }
 
 func initSecretController(logger *zap.Logger, fissionClient *crd.FissionClient,
@@ -142,7 +146,10 @@ func initSecretController(logger *zap.Logger, fissionClient *crd.FissionClient,
 
 				}
 
-				funcs := getSecretRelatedFuncs(logger, &newS.ObjectMeta, fissionClient)
+				funcs, err := getSecretRelatedFuncs(logger, &newS.ObjectMeta, fissionClient)
+				if err != nil {
+					logger.Error("Failed to get functions related to secret", zap.String("secret_name", newS.ObjectMeta.Name), zap.String("secret_namespace", newS.ObjectMeta.Namespace))
+				}
 				for _, f := range funcs {
 					// Poolmgr automatically picks up latest configmaps during specialization
 					if f.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType == fv1.ExecutorTypeNewdeploy {
@@ -166,10 +173,10 @@ func initSecretController(logger *zap.Logger, fissionClient *crd.FissionClient,
 
 }
 
-func getSecretRelatedFuncs(logger *zap.Logger, m *metav1.ObjectMeta, fissionClient *crd.FissionClient) []fv1.Function {
+func getSecretRelatedFuncs(logger *zap.Logger, m *metav1.ObjectMeta, fissionClient *crd.FissionClient) ([]fv1.Function, error) {
 	funcList, err := fissionClient.Functions(metav1.NamespaceAll).List(metav1.ListOptions{})
 	if err != nil {
-		logger.Error("Error getting functions while updating secrets", zap.Error(err), zap.Any("configmap", m))
+		return nil, err
 	}
 	// In future a cache that populates at start and is updated on changes might be better solution
 	relatedFunctions := make([]fv1.Function, 0)
@@ -181,5 +188,5 @@ func getSecretRelatedFuncs(logger *zap.Logger, m *metav1.ObjectMeta, fissionClie
 			}
 		}
 	}
-	return relatedFunctions
+	return relatedFunctions, nil
 }
