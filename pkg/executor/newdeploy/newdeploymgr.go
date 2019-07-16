@@ -33,7 +33,6 @@ import (
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	k8sErrs "k8s.io/apimachinery/pkg/api/errors"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
@@ -239,7 +238,7 @@ func (deploy *NewDeploy) RecycleFuncPods(logger *zap.Logger, f fv1.Function) err
 		UID:       env.Metadata.UID,
 	})
 
-	podList, err := deploy.kubernetesClient.CoreV1().Pods(metav1.NamespaceAll).List(metav1.ListOptions{
+	dep, err := deploy.kubernetesClient.ExtensionsV1beta1().Deployments(metav1.NamespaceAll).List(metav1.ListOptions{
 		LabelSelector: labels.Set(funcLabels).AsSelector().String(),
 	})
 
@@ -247,11 +246,16 @@ func (deploy *NewDeploy) RecycleFuncPods(logger *zap.Logger, f fv1.Function) err
 		return err
 	}
 
-	for _, po := range podList.Items {
-		err := deploy.kubernetesClient.CoreV1().Pods(po.ObjectMeta.Namespace).Delete(po.ObjectMeta.Name, &metav1.DeleteOptions{})
-		if k8serrors.IsNotFound(err) {
-			return nil
-		}
+	patch := fmt.Sprintf(`{"spec" : {"template": {"spec":{"containers":[{"name": "%s", "env":[{"name": "%s", "value": "%s"}]}]}}}}`,
+		f.Metadata.Name,
+		fv1.LastUpdateTimestamp,
+		time.Now().String())
+
+	// Ideally there should be only one deployment but for now we rely on label/selector to ensure that condition
+	for _, deployment := range dep.Items {
+		_, err := deploy.kubernetesClient.ExtensionsV1beta1().Deployments(deployment.ObjectMeta.Namespace).Patch(deployment.ObjectMeta.Name,
+			k8sTypes.StrategicMergePatchType,
+			[]byte(patch))
 		if err != nil {
 			return err
 		}

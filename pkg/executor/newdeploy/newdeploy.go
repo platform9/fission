@@ -185,6 +185,9 @@ func (deploy *NewDeploy) getDeploymentSpec(fn *fv1.Function, env *fv1.Environmen
 	}
 	resources := deploy.getResources(env, fn)
 
+	maxUnavailable := intstr.FromString("20%")
+	maxSurge := intstr.FromString("100%")
+
 	deployment := &v1beta1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   deployName,
@@ -217,6 +220,12 @@ func (deploy *NewDeploy) getDeploymentSpec(fn *fv1.Function, env *fv1.Environmen
 									},
 								},
 							},
+							Env: []apiv1.EnvVar{
+								apiv1.EnvVar{
+									Name:  fv1.LastUpdateTimestamp,
+									Value: time.Now().String(),
+								},
+							},
 							// https://istio.io/docs/setup/kubernetes/additional-setup/requirements/
 							Ports: []apiv1.ContainerPort{
 								{
@@ -229,6 +238,13 @@ func (deploy *NewDeploy) getDeploymentSpec(fn *fv1.Function, env *fv1.Environmen
 					},
 					ServiceAccountName:            "fission-fetcher",
 					TerminationGracePeriodSeconds: &gracePeriodSeconds,
+				},
+			},
+			Strategy: v1beta1.DeploymentStrategy{
+				Type: v1beta1.RollingUpdateDeploymentStrategyType,
+				RollingUpdate: &v1beta1.RollingUpdateDeployment{
+					MaxUnavailable: &maxUnavailable,
+					MaxSurge:       &maxSurge,
 				},
 			},
 		},

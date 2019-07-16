@@ -22,6 +22,11 @@ const (
 )
 
 const (
+	//LastUpdateTimestamp env variable is used for updating configmaps and secrets in pods
+	LastUpdateTimestamp string = "LASTUPDATE_TIMESTAMP"
+)
+
+const (
 	ChecksumTypeSHA256 ChecksumType = "sha256"
 )
 
