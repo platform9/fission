@@ -221,7 +221,7 @@ func (deploy *NewDeploy) getDeploymentSpec(fn *fv1.Function, env *fv1.Environmen
 								},
 							},
 							Env: []apiv1.EnvVar{
-								apiv1.EnvVar{
+								{
 									Name:  fv1.LastUpdateTimestamp,
 									Value: time.Now().String(),
 								},
