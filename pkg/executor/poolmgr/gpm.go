@@ -144,6 +144,13 @@ func (gpm *GenericPoolManager) RecycleFuncPods(logger *zap.Logger, f fv1.Functio
 		return err
 	}
 
+	funcSvc, err := gp.fsCache.GetByFunction(&f.Metadata)
+	if err != nil {
+		return err
+	}
+
+	gp.fsCache.DeleteEntry(funcSvc)
+
 	funcLabels := gp.labelsForFunction(&f.Metadata)
 
 	podList, err := gpm.kubernetesClient.CoreV1().Pods(metav1.NamespaceAll).List(metav1.ListOptions{

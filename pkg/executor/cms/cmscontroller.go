@@ -47,7 +47,7 @@ type (
 //MakeConfigSecretController makes a controller for configmaps and secrets which changes related functions
 func MakeConfigSecretController(logger *zap.Logger, fissionClient *crd.FissionClient,
 	kubernetesClient *kubernetes.Clientset, ndm *nd.NewDeploy, gpm *gpm.GenericPoolManager) *ConfigSecretController {
-	logger.Info("Creating ConfigMap & Secret Controller")
+	logger.Debug("Creating ConfigMap & Secret Controller")
 	_, cmcontroller := initConfigmapController(logger, fissionClient, kubernetesClient, ndm, gpm)
 	_, scontroller := initSecretController(logger, fissionClient, kubernetesClient, ndm, gpm)
 	cmsController := &ConfigSecretController{
@@ -125,7 +125,7 @@ func initSecretController(logger *zap.Logger, fissionClient *crd.FissionClient,
 			newS := newObj.(*apiv1.Secret)
 			if oldS.ObjectMeta.ResourceVersion != newS.ObjectMeta.ResourceVersion {
 				if newS.ObjectMeta.Namespace != "kube-system" {
-					logger.Info("Secret changed",
+					logger.Debug("Secret changed",
 						zap.String("configmap_name", newS.ObjectMeta.Name),
 						zap.String("configmap_namespace", newS.ObjectMeta.Namespace))
 
@@ -165,12 +165,14 @@ func getSecretRelatedFuncs(logger *zap.Logger, m *metav1.ObjectMeta, fissionClie
 func recyclePods(logger *zap.Logger, funcs []fv1.Function, ndm *nd.NewDeploy, gpm *gpm.GenericPoolManager) {
 	for _, f := range funcs {
 		var err error
-		if f.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType == fv1.ExecutorTypeNewdeploy {
+
+		switch f.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType {
+		case fv1.ExecutorTypeNewdeploy:
 			err = ndm.RecycleFuncPods(logger, f)
-		}
-		if f.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType == fv1.ExecutorTypePoolmgr {
+		case fv1.ExecutorTypePoolmgr:
 			err = gpm.RecycleFuncPods(logger, f)
 		}
+
 		if err != nil {
 			logger.Error("Failed to recycle pods for function after configmap changed",
 				zap.Error(err),
