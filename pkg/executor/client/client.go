@@ -100,7 +100,7 @@ func (c *Client) service() {
 							c.logger.Error("error tapping function service address", zap.Error(err), zap.String("address", u))
 						}
 					}
-					c.logger.Info("tapped services in batch", zap.Int("service_count", len(urls)))
+					c.logger.Debug("tapped services in batch", zap.Int("service_count", len(urls)))
 				}()
 			}
 		}

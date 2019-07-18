@@ -253,7 +253,6 @@ func (ts *HTTPTriggerSet) initTriggerController() (k8sCache.Store, k8sCache.Cont
 					ts.logger.Error("unable to lookup function in functionRecorderMap", zap.Error(err))
 				} else {
 					ts.logger.Error("unable to lookup function in functionRecorderMap")
-
 				}
 			},
 			DeleteFunc: func(obj interface{}) {
@@ -304,7 +303,7 @@ func (ts *HTTPTriggerSet) initFunctionController() (k8sCache.Store, k8sCache.Con
 						rr.functionMetadataMap[fn.Metadata.Name] != nil &&
 						rr.functionMetadataMap[fn.Metadata.Name].ResourceVersion != fn.Metadata.ResourceVersion {
 						// invalidate resolver cache
-						ts.logger.Info("invalidating resolver cache")
+						ts.logger.Debug("invalidating resolver cache")
 						err := ts.resolver.delete(key.namespace, key.triggerName, key.triggerResourceVersion)
 						if err != nil {
 							ts.logger.Error("error deleting functionReferenceResolver cache", zap.Error(err))

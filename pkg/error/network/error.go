@@ -26,7 +26,7 @@ import (
 
 type (
 	Error struct {
-		err error
+		err net.Error
 	}
 )
 
@@ -85,6 +85,28 @@ func (e Error) IsConnRefusedError() bool {
 			switch errno {
 			case syscall.ECONNREFUSED:
 				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// IsTimeoutError returns true if its a network timeout error
+func (e Error) IsTimeoutError() bool {
+	if e.err.Timeout() {
+		return true
+	}
+
+	opErr, ok := e.err.(*net.OpError)
+	if ok {
+		switch t := opErr.Err.(type) {
+		case *os.SyscallError:
+			if errno, ok := t.Err.(syscall.Errno); ok {
+				switch errno {
+				case syscall.ETIMEDOUT:
+					return true
+				}
 			}
 		}
 	}

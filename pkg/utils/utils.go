@@ -72,7 +72,7 @@ func LoggingMiddleware(logger *zap.Logger) func(next http.Handler) http.Handler 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			requestURI := r.RequestURI
-			if !strings.Contains(requestURI, "healthz") {
+			if !strings.HasSuffix(requestURI, "healthz") {
 				// Call the next handler, which can be another middleware in the chain, or the final handler.
 				handlers.CustomLoggingHandler(os.Stdout, next, func(writer io.Writer, params handlers.LogFormatterParams) {
 					host, _, err := net.SplitHostPort(params.Request.RemoteAddr)
@@ -81,7 +81,7 @@ func LoggingMiddleware(logger *zap.Logger) func(next http.Handler) http.Handler 
 						host = params.Request.RemoteAddr
 					}
 
-					logger.Info("handled",
+					logger.Debug("handled",
 						zap.String("host", host),
 						zap.String("method", params.Request.Method),
 						zap.String("uri", params.Request.RequestURI),
