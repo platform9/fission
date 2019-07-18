@@ -132,7 +132,7 @@ func (gpm *GenericPoolManager) Run(ctx context.Context) {
 	go gpm.idleObjectReaper()
 }
 
-func (gpm *GenericPoolManager) RecycleFuncPods(logger *zap.Logger, f fv1.Function) error {
+func (gpm *GenericPoolManager) RefreshFuncPods(logger *zap.Logger, f fv1.Function) error {
 
 	env, err := gpm.fissionClient.Environments(f.Spec.Environment.Namespace).Get(f.Spec.Environment.Name)
 	if err != nil {

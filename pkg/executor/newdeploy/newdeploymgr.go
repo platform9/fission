@@ -224,8 +224,8 @@ func (deploy *NewDeploy) GetFuncSvc(ctx context.Context, metadata *metav1.Object
 	return deploy.createFunction(fn, false)
 }
 
-// RecycleFuncPods deleted pods related to the function so that new pods are replenished
-func (deploy *NewDeploy) RecycleFuncPods(logger *zap.Logger, f fv1.Function) error {
+// RefreshFuncPods deleted pods related to the function so that new pods are replenished
+func (deploy *NewDeploy) RefreshFuncPods(logger *zap.Logger, f fv1.Function) error {
 
 	env, err := deploy.fissionClient.Environments(f.Spec.Environment.Namespace).Get(f.Spec.Environment.Name)
 	if err != nil {

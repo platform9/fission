@@ -168,9 +168,9 @@ func recyclePods(logger *zap.Logger, funcs []fv1.Function, ndm *nd.NewDeploy, gp
 
 		switch f.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType {
 		case fv1.ExecutorTypeNewdeploy:
-			err = ndm.RecycleFuncPods(logger, f)
+			err = ndm.RefreshFuncPods(logger, f)
 		case fv1.ExecutorTypePoolmgr:
-			err = gpm.RecycleFuncPods(logger, f)
+			err = gpm.RefreshFuncPods(logger, f)
 		}
 
 		if err != nil {
