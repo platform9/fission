@@ -17,8 +17,6 @@ limitations under the License.
 package messageQueue
 
 import (
-	"errors"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -28,6 +26,7 @@ import (
 	cluster "github.com/bsm/sarama-cluster"
 	"github.com/fission/fission/pkg/types"
 	"github.com/fission/fission/pkg/utils"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
 	fv1 "github.com/fission/fission/pkg/apis/fission.io/v1"
@@ -115,7 +114,7 @@ func (kafka Kafka) subscribe(trigger *fv1.MessageQueueTrigger) (messageQueueSubs
 	// consume messages
 	go func() {
 		for msg := range consumer.Messages() {
-			kafka.logger.Info("calling message handler", zap.String("message", string(msg.Value[:])))
+			kafka.logger.Debug("calling message handler", zap.String("message", string(msg.Value[:])))
 			if kafkaMsgHandler(&kafka, producer, trigger, msg) {
 				consumer.MarkOffset(msg, "") // mark message as processed
 			}
@@ -139,7 +138,7 @@ func kafkaMsgHandler(kafka *Kafka, producer sarama.SyncProducer, trigger *fv1.Me
 	}
 
 	url := kafka.routerUrl + "/" + strings.TrimPrefix(utils.UrlForFunction(trigger.Spec.FunctionReference.Name, trigger.Metadata.Namespace), "/")
-	kafka.logger.Info("making HTTP request", zap.String("url", url))
+	kafka.logger.Debug("making HTTP request", zap.String("url", url))
 
 	// Generate the Headers
 	fissionHeaders := map[string]string{
@@ -202,16 +201,20 @@ func kafkaMsgHandler(kafka *Kafka, producer sarama.SyncProducer, trigger *fv1.Me
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
-	kafka.logger.Info("got response from function invocation",
+
+	kafka.logger.Debug("got response from function invocation",
 		zap.String("function_url", url),
 		zap.String("trigger", trigger.Metadata.Name),
 		zap.String("body", string(body)))
+
 	if err != nil {
-		errorHandler(kafka.logger, trigger, producer, fmt.Sprintf("request body error: %v", string(body)))
+		errorHandler(kafka.logger, trigger, producer, url,
+			errors.Wrapf(err, "request body error: %v", string(body)))
 		return false
 	}
 	if resp.StatusCode != 200 {
-		errorHandler(kafka.logger, trigger, producer, fmt.Sprintf("request returned failure: %v", resp.StatusCode))
+		errorHandler(kafka.logger, trigger, producer, url,
+			errors.Wrapf(err, "request returned failure: %v", resp.StatusCode))
 		return false
 	}
 	if len(trigger.Spec.ResponseTopic) > 0 {
@@ -245,20 +248,21 @@ func kafkaMsgHandler(kafka *Kafka, producer sarama.SyncProducer, trigger *fv1.Me
 	return true
 }
 
-func errorHandler(logger *zap.Logger, trigger *fv1.MessageQueueTrigger, producer sarama.SyncProducer, body string) {
+func errorHandler(logger *zap.Logger, trigger *fv1.MessageQueueTrigger, producer sarama.SyncProducer, funcUrl string, err error) {
 	if len(trigger.Spec.ErrorTopic) > 0 {
-		_, _, err := producer.SendMessage(&sarama.ProducerMessage{
+		_, _, e := producer.SendMessage(&sarama.ProducerMessage{
 			Topic: trigger.Spec.ErrorTopic,
-			Value: sarama.StringEncoder(body),
+			Value: sarama.StringEncoder(err.Error()),
 		})
-		if err != nil {
-			logger.Warn("failed to publish message to error topic",
-				zap.Error(err),
+		if e != nil {
+			logger.Error("failed to publish message to error topic",
+				zap.Error(e),
+				zap.String("trigger", trigger.Metadata.Name),
+				zap.String("message", err.Error()),
 				zap.String("topic", trigger.Spec.Topic))
-			return
 		}
 	} else {
 		logger.Error("message received to publish to error topic, but no error topic was set",
-			zap.String("message", body))
+			zap.String("message", err.Error()), zap.String("trigger", trigger.Metadata.Name), zap.String("function_url", funcUrl))
 	}
 }

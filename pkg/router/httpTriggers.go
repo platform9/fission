@@ -245,14 +245,10 @@ func (ts *HTTPTriggerSet) initTriggerController() (k8sCache.Store, k8sCache.Cont
 				// Check if this trigger's function needs to be recorded
 				fnRef := trigger.Spec.FunctionReference.Name
 				recorder, err := ts.recorderSet.functionRecorderMap.lookup(fnRef)
-				if err == nil && recorder != nil {
+				if err == nil {
 					if len(recorder.Spec.Triggers) == 0 {
 						ts.recorderSet.triggerRecorderMap.assign(trigger.Metadata.Name, recorder)
 					}
-				} else if err != nil {
-					ts.logger.Error("unable to lookup function in functionRecorderMap", zap.Error(err))
-				} else {
-					ts.logger.Error("unable to lookup function in functionRecorderMap")
 				}
 			},
 			DeleteFunc: func(obj interface{}) {
@@ -308,7 +304,6 @@ func (ts *HTTPTriggerSet) initFunctionController() (k8sCache.Store, k8sCache.Con
 						if err != nil {
 							ts.logger.Error("error deleting functionReferenceResolver cache", zap.Error(err))
 						}
-
 						break
 					}
 				}

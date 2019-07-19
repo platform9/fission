@@ -85,9 +85,6 @@ func MakeNewDeploy(
 	fetcherConfig *fetcherConfig.Config,
 	instanceID string,
 ) *NewDeploy {
-
-	logger.Info("creating NewDeploy ExecutorType")
-
 	enableIstio := false
 	if len(os.Getenv("ENABLE_ISTIO")) > 0 {
 		istio, err := strconv.ParseBool(os.Getenv("ENABLE_ISTIO"))
@@ -184,7 +181,7 @@ func (deploy *NewDeploy) initEnvController() (k8sCache.Store, k8sCache.Controlle
 			oldEnv := oldObj.(*fv1.Environment)
 			// Currently only an image update in environment calls for function's deployment recreation. In future there might be more attributes which would want to do it
 			if oldEnv.Spec.Runtime.Image != newEnv.Spec.Runtime.Image {
-				deploy.logger.Info("Updating all function of the environment that changed, old env:", zap.Any("environment", oldEnv))
+				deploy.logger.Debug("Updating all function of the environment that changed, old env:", zap.Any("environment", oldEnv))
 				funcs := deploy.getEnvFunctions(&newEnv.Metadata)
 				for _, f := range funcs {
 					function, err := deploy.fissionClient.Functions(f.Metadata.Namespace).Get(f.Metadata.Name)
@@ -535,7 +532,8 @@ func (deploy *NewDeploy) updateFuncDeployment(fn *fv1.Function, env *fv1.Environ
 	fnObjName := fsvc.Name
 
 	deployLabels := deploy.getDeployLabels(fn.Metadata, env.Metadata)
-	deploy.logger.Info("updating deployment due to function/environment update", zap.String("deployment", fnObjName), zap.Any("function", fn.Metadata.Name))
+	deploy.logger.Info("updating deployment due to function/environment update",
+		zap.String("deployment", fnObjName), zap.Any("function", fn.Metadata.Name))
 
 	newDeployment, err := deploy.getDeploymentSpec(fn, env, fnObjName, deployLabels)
 	if err != nil {
@@ -629,7 +627,7 @@ func (deploy *NewDeploy) updateKubeObjRefRV(fsvc *fscache.FuncSvc, objKind strin
 // updateStatus is a function which updates status of update.
 // Current implementation only logs messages, in future it will update function status
 func (deploy *NewDeploy) updateStatus(fn *fv1.Function, err error, message string) {
-	deploy.logger.Info("function status update", zap.Error(err), zap.Any("function", fn), zap.String("message", message))
+	deploy.logger.Error("function status update", zap.Error(err), zap.Any("function", fn), zap.String("message", message))
 }
 
 // IsValid does a get on the service address to ensure it's a valid service, then

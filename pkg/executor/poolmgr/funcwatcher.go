@@ -78,7 +78,7 @@ func (gpm *GenericPoolManager) makeFuncController(fissionClient *crd.FissionClie
 				if err != nil {
 					gpm.logger.Error("error creating rolebinding", zap.Error(err), zap.String("role_binding", types.SecretConfigMapGetterRB))
 				} else {
-					gpm.logger.Info("successfully set up rolebinding for fetcher service account for function",
+					gpm.logger.Debug("successfully set up rolebinding for fetcher service account for function",
 						zap.String("service_account", types.FissionFetcherSA),
 						zap.String("service_account_namepsace", envNs),
 						zap.String("function_name", fn.Metadata.Name),
@@ -194,7 +194,7 @@ func (gpm *GenericPoolManager) makeFuncController(fissionClient *crd.FissionClie
 					if err != nil {
 						gpm.logger.Error("error creating rolebinding", zap.Error(err), zap.String("role_binding", types.SecretConfigMapGetterRB))
 					} else {
-						gpm.logger.Info("successfully set up rolebinding for fetcher service account for function",
+						gpm.logger.Debug("successfully set up rolebinding for fetcher service account for function",
 							zap.String("service_account", types.FissionFetcherSA),
 							zap.String("service_account_namepsace", envNs),
 							zap.String("function_name", newFunc.Metadata.Name),

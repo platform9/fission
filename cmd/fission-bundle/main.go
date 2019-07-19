@@ -232,7 +232,9 @@ Options:
 	if isDebugEnv {
 		logger, err = zap.NewDevelopment()
 	} else {
-		logger, err = zap.NewProduction()
+		config := zap.NewProductionConfig()
+		config.DisableStacktrace = true
+		logger, err = config.Build()
 	}
 	if err != nil {
 		log.Fatalf("can't initialize zap logger: %v", err)

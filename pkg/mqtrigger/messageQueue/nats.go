@@ -116,7 +116,7 @@ func msgHandler(nats *Nats, trigger *fv1.MessageQueueTrigger) func(*ns.Msg) {
 		// the triggers can only be created in the same namespace as the function.
 		// so essentially, function namespace = trigger namespace.
 		url := nats.routerUrl + "/" + strings.TrimPrefix(utils.UrlForFunction(trigger.Spec.FunctionReference.Name, trigger.Metadata.Namespace), "/")
-		nats.logger.Info("making HTTP request", zap.String("url", url))
+		nats.logger.Debug("making HTTP request", zap.String("url", url))
 
 		headers := map[string]string{
 			"X-Fission-MQTrigger-Topic":      trigger.Spec.Topic,

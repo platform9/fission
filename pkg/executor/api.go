@@ -24,7 +24,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/fission/fission/pkg/utils"
 	"github.com/gorilla/mux"
 	"go.opencensus.io/plugin/ochttp"
 	"go.uber.org/zap"
@@ -73,16 +72,17 @@ func (executor *Executor) getServiceForFunctionApi(w http.ResponseWriter, r *htt
 // invalidates the cache entry if the pod address was cached.
 func (executor *Executor) getServiceForFunction(ctx context.Context, m *metav1.ObjectMeta) (string, error) {
 	// Check function -> svc cache
-	executor.logger.Info("checking for cached function service",
+	executor.logger.Debug("checking for cached function service",
 		zap.String("function_name", m.Name),
 		zap.String("function_namespace", m.Namespace))
+
 	fsvc, err := executor.fsCache.GetByFunction(m)
 	if err == nil {
 		if executor.isValidAddress(fsvc) {
 			// Cached, return svc address
 			return fsvc.Address, nil
 		} else {
-			executor.logger.Info("deleting cache entry for invalid address",
+			executor.logger.Debug("deleting cache entry for invalid address",
 				zap.String("function_name", m.Name),
 				zap.String("function_namespace", m.Namespace),
 				zap.String("address", fsvc.Address))
@@ -131,22 +131,23 @@ func (executor *Executor) healthHandler(w http.ResponseWriter, r *http.Request) 
 }
 
 func (executor *Executor) Serve(port int) {
-	r := mux.NewRouter()
-	r.HandleFunc("/v2/getServiceForFunction", executor.getServiceForFunctionApi).Methods("POST")
-	r.HandleFunc("/v2/tapService", executor.tapService).Methods("POST")
-	r.HandleFunc("/healthz", executor.healthHandler).Methods("GET")
-	address := fmt.Sprintf(":%v", port)
 	executor.logger.Info("starting executor", zap.Int("port", port))
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	executor.ndm.Run(ctx)
 	executor.gpm.Run(ctx)
 	executor.cms.Run(ctx)
 
-	r.Use(utils.LoggingMiddleware(executor.logger))
+	r := mux.NewRouter()
+	r.HandleFunc("/v2/getServiceForFunction", executor.getServiceForFunctionApi).Methods("POST")
+	r.HandleFunc("/v2/tapService", executor.tapService).Methods("POST")
+	r.HandleFunc("/healthz", executor.healthHandler).Methods("GET")
+
+	address := fmt.Sprintf(":%v", port)
+
 	err := http.ListenAndServe(address, &ochttp.Handler{
 		Handler: r,
-		// Propagation: &b3.HTTPFormat{},
 	})
 	executor.logger.Fatal("done listening", zap.Error(err))
 }

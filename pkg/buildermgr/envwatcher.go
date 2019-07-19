@@ -102,7 +102,7 @@ func makeEnvironmentWatcher(
 	if len(enableIstio) > 0 {
 		istio, err := strconv.ParseBool(enableIstio)
 		if err != nil {
-			logger.Info("Failed to parse ENABLE_ISTIO, defaults to false")
+			logger.Error("Failed to parse ENABLE_ISTIO, defaults to false")
 		}
 		useIstio = istio
 	}

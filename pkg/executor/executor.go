@@ -38,7 +38,6 @@ import (
 	"github.com/fission/fission/pkg/executor/poolmgr"
 	"github.com/fission/fission/pkg/executor/reaper"
 	fetcherConfig "github.com/fission/fission/pkg/fetcher/config"
-	"github.com/fission/fission/pkg/utils"
 )
 
 type (
@@ -118,7 +117,7 @@ func (executor *Executor) serveCreateFuncServices() {
 		} else {
 			// There's an existing request for this function, wait for it to finish
 			go func() {
-				executor.logger.Info("waiting for concurrent request for the same function",
+				executor.logger.Debug("waiting for concurrent request for the same function",
 					zap.Any("function", m))
 				wg.Wait()
 
@@ -150,7 +149,7 @@ func (executor *Executor) getFunctionExecutorType(meta *metav1.ObjectMeta) (fv1.
 }
 
 func (executor *Executor) createServiceForFunction(ctx context.Context, meta *metav1.ObjectMeta) (*fscache.FuncSvc, error) {
-	executor.logger.Info("no cached function service found, creating one",
+	executor.logger.Debug("no cached function service found, creating one",
 		zap.String("function_name", meta.Name),
 		zap.String("function_namespace", meta.Namespace))
 
@@ -209,9 +208,6 @@ func serveMetric(logger *zap.Logger) {
 // StartExecutor Starts executor and the executor components such as Poolmgr,
 // deploymgr and potential future executor types
 func StartExecutor(logger *zap.Logger, fissionNamespace string, functionNamespace string, envBuilderNamespace string, port int) error {
-	// setup a signal handler for SIGTERM
-	utils.SetupStackTraceHandler()
-
 	fissionClient, kubernetesClient, _, err := crd.MakeFissionClient()
 
 	err = fissionClient.WaitForCRDs()

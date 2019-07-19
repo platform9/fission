@@ -168,7 +168,7 @@ func (mqt *MessageQueueTriggerManager) syncTriggers() {
 		newTriggers, err := mqt.fissionClient.MessageQueueTriggers(metav1.NamespaceAll).List(metav1.ListOptions{})
 		if err != nil {
 			if utils.IsNetworkError(err) {
-				mqt.logger.Info("encountered network error, will retry", zap.Error(err))
+				mqt.logger.Error("encountered network error, will retry", zap.Error(err))
 				time.Sleep(5 * time.Second)
 				continue
 			}

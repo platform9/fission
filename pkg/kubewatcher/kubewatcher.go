@@ -264,11 +264,11 @@ func (ws *watchSubscription) eventDispatchLoop() {
 		if !more {
 			if ws.isStopped() {
 				// watch is removed by user.
-				ws.logger.Info("watch stopped", zap.String("watch_name", ws.watch.Metadata.Name))
+				ws.logger.Warn("watch stopped", zap.String("watch_name", ws.watch.Metadata.Name))
 				return
 			} else {
 				// watch closed due to timeout, restart it.
-				ws.logger.Info("watch timed out - restarting", zap.String("watch_name", ws.watch.Metadata.Name))
+				ws.logger.Warn("watch timed out - restarting", zap.String("watch_name", ws.watch.Metadata.Name))
 				err := ws.restartWatch()
 				if err != nil {
 					ws.logger.Panic("failed to restart watch", zap.Error(err), zap.String("watch_name", ws.watch.Metadata.Name))
@@ -279,7 +279,7 @@ func (ws *watchSubscription) eventDispatchLoop() {
 
 		if ev.Type == watch.Error {
 			e := errors.FromObject(ev.Object)
-			ws.logger.Info("watch error - retrying after one second", zap.Error(e), zap.String("watch_name", ws.watch.Metadata.Name))
+			ws.logger.Warn("watch error - retrying after one second", zap.Error(e), zap.String("watch_name", ws.watch.Metadata.Name))
 			// Start from the beginning to get around "too old resource version"
 			ws.lastResourceVersion = ""
 			time.Sleep(time.Second)

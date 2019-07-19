@@ -29,8 +29,6 @@ import (
 	_ "github.com/graymeta/stow/local"
 	"go.opencensus.io/plugin/ochttp"
 	"go.uber.org/zap"
-
-	"github.com/fission/fission/pkg/utils"
 )
 
 type (
@@ -79,12 +77,9 @@ func (ss *StorageService) uploadHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// TODO: allow headers to add more metadata (e.g. environment
-	// and function metadata)
-	ss.logger.Info("handling upload",
+	// TODO: allow headers to add more metadata (e.g. environment and function metadata)
+	ss.logger.Debug("handling upload",
 		zap.String("filename", handler.Filename))
-	//fileMetadata := make(map[string]interface{})
-	//fileMetadata["filename"] = handler.Filename
 
 	id, err := ss.storageClient.putFile(file, int64(fileSize))
 	if err != nil {
@@ -183,19 +178,14 @@ func (ss *StorageService) Start(port int) {
 
 	address := fmt.Sprintf(":%v", port)
 
-	r.Use(utils.LoggingMiddleware(ss.logger))
 	err := http.ListenAndServe(address, &ochttp.Handler{
 		Handler: r,
-		// Propagation: &b3.HTTPFormat{},
 	})
 
 	ss.logger.Fatal("done listening", zap.Error(err))
 }
 
 func RunStorageService(logger *zap.Logger, storageType StorageType, storagePath string, containerName string, port int, enablePruner bool) *StorageService {
-	// setup a signal handler for SIGTERM
-	utils.SetupStackTraceHandler()
-
 	// create a storage client
 	storageClient, err := MakeStowClient(logger, storageType, storagePath, containerName)
 	if err != nil {

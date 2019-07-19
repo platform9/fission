@@ -22,13 +22,10 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/fission/fission/pkg/crd"
-	"github.com/fission/fission/pkg/utils"
 )
 
 func Start(logger *zap.Logger, port int, unitTestFlag bool) {
 	cLogger := logger.Named("controller")
-	// setup a signal handler for SIGTERM
-	utils.SetupStackTraceHandler()
 
 	fc, kc, apiExtClient, err := crd.MakeFissionClient()
 	if err != nil {
@@ -48,7 +45,7 @@ func Start(logger *zap.Logger, port int, unitTestFlag bool) {
 	ctx, cancel := context.WithCancel(context.Background())
 	featureStatus, err := ConfigureFeatures(ctx, cLogger, unitTestFlag, fc, kc)
 	if err != nil {
-		cLogger.Info("error configuring features - proceeding without optional features", zap.Error(err))
+		cLogger.Error("error configuring features - proceeding without optional features", zap.Error(err))
 	}
 	defer cancel()
 

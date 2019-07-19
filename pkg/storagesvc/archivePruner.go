@@ -52,7 +52,7 @@ func MakeArchivePruner(logger *zap.Logger, stowClient *StowClient, pruneInterval
 
 // pruneArchives listens to archiveChannel for archive ids that need to be deleted
 func (pruner *ArchivePruner) pruneArchives() {
-	pruner.logger.Info("listening to archiveChannel to prune archives")
+	pruner.logger.Debug("listening to archiveChannel to prune archives")
 	for {
 		select {
 		case archiveID := <-pruner.archiveChan:

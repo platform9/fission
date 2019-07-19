@@ -169,7 +169,7 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (*http.Res
 
 			rdr1.Read(p)
 			postedBody = string(p)
-			roundTripper.logger.Info("roundtripper posted body", zap.String("body", postedBody))
+			roundTripper.logger.Debug("roundtripper posted body", zap.String("body", postedBody))
 			req.Body = rdr2
 		}
 	}
@@ -360,7 +360,7 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (*http.Res
 		} else {
 			roundTripper.logger.Debug("request errored out - backing off before retrying",
 				zap.String("url", req.URL.Host),
-				zap.Duration("backoff_time", executingTimeout),
+				zap.String("function_name", fnMeta.Name),
 				zap.Error(err))
 			retryCounter++
 		}
@@ -418,7 +418,7 @@ func (fh functionHandler) handler(responseWriter http.ResponseWriter, request *h
 		UID := strings.ToLower(uuid.NewV4().String())
 		reqUID = "REQ" + UID
 		request.Header.Set("X-Fission-ReqUID", reqUID)
-		fh.logger.Info("record request", zap.String("request_id", reqUID))
+		fh.logger.Debug("record request", zap.String("request_id", reqUID))
 	}
 
 	if fh.httpTrigger != nil && fh.httpTrigger.Spec.FunctionReference.Type == types.FunctionReferenceTypeFunctionWeights {
@@ -555,7 +555,7 @@ func (fh *functionHandler) getServiceEntry() (serviceUrl *url.URL, serviceUrlFro
 			var u *url.URL
 			// Get service entry from executor and update cache if its the first goroutine
 			if firstToTheLock { // first to the service url
-				fh.logger.Info("calling getServiceForFunction",
+				fh.logger.Debug("calling getServiceForFunction",
 					zap.String("function_name", fh.function.Name))
 				u, err = fh.getServiceEntryFromExecutor(ctx)
 				if err != nil {

@@ -18,21 +18,12 @@ package utils
 
 import (
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net"
-	"net/http"
-	"os"
-	"os/signal"
 	"path/filepath"
-	"runtime/debug"
-	"strings"
-	"syscall"
 
-	"github.com/gorilla/handlers"
 	"github.com/mholt/archiver"
 	uuid "github.com/satori/go.uuid"
-	"go.uber.org/zap"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -45,18 +36,6 @@ func UrlForFunction(name, namespace string) string {
 	return fmt.Sprintf("%v/%v", prefix, name)
 }
 
-func SetupStackTraceHandler() {
-	// register signal handler for dumping stack trace.
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, syscall.SIGTERM)
-	go func() {
-		<-c
-		fmt.Println("Received SIGTERM : Dumping stack trace")
-		debug.PrintStack()
-		os.Exit(1)
-	}()
-}
-
 // IsNetworkError returns true if an error is a network error, and false otherwise.
 func IsNetworkError(err error) bool {
 	_, ok := err.(net.Error)
@@ -66,33 +45,6 @@ func IsNetworkError(err error) bool {
 // GetFunctionIstioServiceName return service name of function for istio feature
 func GetFunctionIstioServiceName(fnName, fnNamespace string) string {
 	return fmt.Sprintf("istio-%v-%v", fnName, fnNamespace)
-}
-
-func LoggingMiddleware(logger *zap.Logger) func(next http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			requestURI := r.RequestURI
-			if !strings.HasSuffix(requestURI, "healthz") {
-				// Call the next handler, which can be another middleware in the chain, or the final handler.
-				handlers.CustomLoggingHandler(os.Stdout, next, func(writer io.Writer, params handlers.LogFormatterParams) {
-					host, _, err := net.SplitHostPort(params.Request.RemoteAddr)
-
-					if err != nil {
-						host = params.Request.RemoteAddr
-					}
-
-					logger.Debug("handled",
-						zap.String("host", host),
-						zap.String("method", params.Request.Method),
-						zap.String("uri", params.Request.RequestURI),
-						zap.String("proto", params.Request.Proto),
-						zap.Int("status_code", params.StatusCode),
-						zap.Int("size", params.Size))
-
-				}).ServeHTTP(w, r)
-			}
-		})
-	}
 }
 
 // IsReadyPod checks both all containers in a pod are ready and whether

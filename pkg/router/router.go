@@ -56,7 +56,6 @@ import (
 	"github.com/fission/fission/pkg/crd"
 	executorClient "github.com/fission/fission/pkg/executor/client"
 	"github.com/fission/fission/pkg/throttler"
-	"github.com/fission/fission/pkg/utils"
 )
 
 // request url ---[mux]---> Function(name,uid) ----[fmap]----> k8s service url
@@ -89,9 +88,6 @@ func serveMetric(logger *zap.Logger) {
 }
 
 func Start(logger *zap.Logger, port int, executorUrl string) {
-	// setup a signal handler for SIGTERM
-	utils.SetupStackTraceHandler()
-
 	_ = MakeAnalytics("")
 
 	fmap := makeFunctionServiceMap(logger, time.Minute)
@@ -168,7 +164,7 @@ func Start(logger *zap.Logger, port int, executorUrl string) {
 	svcAddrRetryCount, err := strconv.Atoi(svcAddrRetryCountStr)
 	if err != nil {
 		svcAddrRetryCount = 5
-		logger.Error("failed to parse service address retry count from 'ROUTER_ROUND_TRIP_SVC_ADDRESS_MAX_RETRIES' - set to the default value",
+		logger.Error("failed to parse service address retry count from 'ROUTER_SVC_ADDRESS_MAX_RETRIES' - set to the default value",
 			zap.Error(err),
 			zap.String("value", svcAddrRetryCountStr),
 			zap.Int("default", svcAddrRetryCount))

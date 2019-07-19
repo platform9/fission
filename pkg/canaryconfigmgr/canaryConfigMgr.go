@@ -141,7 +141,7 @@ func (canaryCfgMgr *canaryConfigMgr) Run(ctx context.Context) {
 }
 
 func (canaryCfgMgr *canaryConfigMgr) addCanaryConfig(canaryConfig *fv1.CanaryConfig) {
-	canaryCfgMgr.logger.Info("addCanaryConfig called", zap.String("canary_config", canaryConfig.Metadata.Name))
+	canaryCfgMgr.logger.Debug("addCanaryConfig called", zap.String("canary_config", canaryConfig.Metadata.Name))
 
 	// for each canary config, create a ticker with increment interval
 	interval, err := time.ParseDuration(canaryConfig.Spec.WeightIncrementDuration)
@@ -278,7 +278,7 @@ func (canaryCfgMgr *canaryConfigMgr) RollForwardOrBack(canaryConfig *fv1.CanaryC
 
 		if err != nil {
 			// silently ignore. wait for next window to increment weight
-			canaryCfgMgr.logger.Info("error calculating failure percentage",
+			canaryCfgMgr.logger.Error("error calculating failure percentage",
 				zap.Error(err),
 				zap.String("name", canaryConfig.Metadata.Name),
 				zap.String("namespace", canaryConfig.Metadata.Namespace),
@@ -310,6 +310,7 @@ func (canaryCfgMgr *canaryConfigMgr) RollForwardOrBack(canaryConfig *fv1.CanaryC
 			err := canaryCfgMgr.rollback(canaryConfig, triggerObj)
 			if err != nil {
 				canaryCfgMgr.logger.Error("error rolling back canary config",
+					zap.Error(err),
 					zap.String("name", canaryConfig.Metadata.Name),
 					zap.String("namespace", canaryConfig.Metadata.Namespace),
 					zap.String("version", canaryConfig.Metadata.ResourceVersion))
@@ -369,17 +370,17 @@ func (canaryCfgMgr *canaryConfigMgr) updateHttpTriggerWithRetries(triggerName, t
 		_, err = canaryCfgMgr.fissionClient.HTTPTriggers(triggerNamespace).Update(triggerObj)
 		switch {
 		case err == nil:
-			canaryCfgMgr.logger.Info("updated http trigger", zap.String("trigger_name", triggerName), zap.String("trigger_namespace", triggerNamespace))
+			canaryCfgMgr.logger.Debug("updated http trigger", zap.String("trigger_name", triggerName), zap.String("trigger_namespace", triggerNamespace))
 			return nil
 		case k8serrors.IsConflict(err):
-			canaryCfgMgr.logger.Info("conflict in updating http trigger, retrying",
+			canaryCfgMgr.logger.Error("conflict in updating http trigger, retrying",
 				zap.Error(err),
 				zap.String("trigger_name", triggerName),
 				zap.String("trigger_namespace", triggerNamespace))
 			continue
 		default:
 			e := "error updating http trigger"
-			canaryCfgMgr.logger.Info(e,
+			canaryCfgMgr.logger.Error(e,
 				zap.Error(err),
 				zap.String("trigger_name", triggerName),
 				zap.String("trigger_namespace", triggerNamespace))
@@ -466,7 +467,10 @@ func (canaryCfgMgr *canaryConfigMgr) rollForward(canaryConfig *fv1.CanaryConfig,
 		}
 	}
 
-	canaryCfgMgr.logger.Info("incremented functionWeights", zap.Any("function_weights", functionWeights))
+	canaryCfgMgr.logger.Info("incremented functionWeights",
+		zap.String("name", canaryConfig.Metadata.Name),
+		zap.String("namespace", canaryConfig.Metadata.Namespace),
+		zap.Any("function_weights", functionWeights))
 
 	err := canaryCfgMgr.updateHttpTriggerWithRetries(trigger.Metadata.Name, trigger.Metadata.Namespace, functionWeights)
 	return doneProcessingCanaryConfig, err
@@ -477,7 +481,7 @@ func (canaryCfgMgr *canaryConfigMgr) reSyncCanaryConfigs() {
 		canaryConfig := obj.(*fv1.CanaryConfig)
 		_, err := canaryCfgMgr.canaryCfgCancelFuncMap.lookup(&canaryConfig.Metadata)
 		if err != nil && canaryConfig.Status.Status == types.CanaryConfigStatusPending {
-			canaryCfgMgr.logger.Info("adding canary config from resync loop",
+			canaryCfgMgr.logger.Debug("adding canary config from resync loop",
 				zap.String("name", canaryConfig.Metadata.Name),
 				zap.String("namespace", canaryConfig.Metadata.Namespace),
 				zap.String("version", canaryConfig.Metadata.ResourceVersion))
@@ -489,7 +493,7 @@ func (canaryCfgMgr *canaryConfigMgr) reSyncCanaryConfigs() {
 }
 
 func (canaryCfgMgr *canaryConfigMgr) deleteCanaryConfig(canaryConfig *fv1.CanaryConfig) {
-	canaryCfgMgr.logger.Info("delete event received for canary config",
+	canaryCfgMgr.logger.Debug("delete event received for canary config",
 		zap.String("name", canaryConfig.Metadata.Name),
 		zap.String("namespace", canaryConfig.Metadata.Namespace),
 		zap.String("version", canaryConfig.Metadata.ResourceVersion))
