@@ -81,7 +81,8 @@ func (kafka Kafka) subscribe(trigger *fv1.MessageQueueTrigger) (messageQueueSubs
 	consumerConfig.Group.Return.Notifications = true
 	consumerConfig.Config.Version = kafka.version
 	consumer, err := cluster.NewConsumer(kafka.brokers, string(trigger.Metadata.UID), []string{trigger.Spec.Topic}, consumerConfig)
-	kafka.logger.Info("created a new consumer", zap.Any("consumer", consumer))
+	kafka.logger.Info(fmt.Sprintf("created a new consumer: %#v", consumer))
+
 	if err != nil {
 		panic(err)
 	}
@@ -93,7 +94,8 @@ func (kafka Kafka) subscribe(trigger *fv1.MessageQueueTrigger) (messageQueueSubs
 	producerConfig.Producer.Return.Successes = true
 	producerConfig.Version = kafka.version
 	producer, err := sarama.NewSyncProducer(kafka.brokers, producerConfig)
-	kafka.logger.Info("created a new producer", zap.Any("producer", producer))
+	kafka.logger.Info(fmt.Sprintf("created a new producer: %#v", producer))
+
 	if err != nil {
 		panic(err)
 	}
