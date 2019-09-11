@@ -296,12 +296,18 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (*http.Res
 		if roundTripper.timeout <= 0 {
 			roundTripper.timeout = fv1.DEFAULT_FUNCTION_TIMEOUT
 		}
-		roundTripper.logger.Debug("Creating context for request for ", zap.Any("Time", roundTripper.timeout))
-		ctx, closeCtx := context.WithTimeout(context.Background(), time.Duration(roundTripper.timeout)*time.Second)
+
+		roundTripper.logger.Debug("Creating context for request for ", zap.Any("time", roundTripper.timeout))
+		// pass request context as parent context for the case
+		// that user aborts connection before timeout. Otherwise,
+		// the request won't be canceled until the deadline exceeded
+		// which may be a potential security issue.
+		ctx, closeCtx := context.WithTimeout(req.Context(), time.Duration(roundTripper.timeout)*time.Second)
 
 		// forward the request to the function service
 		resp, err = ocRoundTripper.RoundTrip(req.WithContext(ctx))
 		closeCtx()
+
 		if err == nil {
 			// Track metrics
 			httpMetricLabels.code = resp.StatusCode
@@ -348,7 +354,6 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (*http.Res
 
 		// if transport.RoundTrip returns a non-network dial error (e.g. "context canceled"), then relay it back to user
 		if !isNetDialErr {
-			err = errors.Wrapf(err, "error sending request to function %v", fnMeta.Name)
 			return resp, err
 		}
 
@@ -452,6 +457,27 @@ func (fh functionHandler) handler(responseWriter http.ResponseWriter, request *h
 		timeout = fh.functionTimeoutMap[fh.function.GetUID()]
 	}
 
+	errorHandler := func(rw http.ResponseWriter, req *http.Request, err error) {
+		status := http.StatusBadGateway
+		switch err {
+		case context.Canceled:
+			// 499 CLIENT CLOSED REQUEST
+			// A non-standard status code introduced by nginx for the case
+			// when a client closes the connection while nginx is processing the request.
+			// Reference: https://httpstatuses.com/499
+			status = 499
+			fh.logger.Debug("client closes the connection", zap.Any("request_header", req.Header))
+		case context.DeadlineExceeded:
+			status = http.StatusGatewayTimeout
+			fh.logger.Error("function not responses before the timeout", zap.Any("request_header", req.Header))
+		default:
+			fh.logger.Error("error sending request to function",
+				zap.Error(err), zap.Any("function", fh.function), zap.Any("request_header", req.Header))
+		}
+		// TODO: return error message that contains traceable UUID back to user. Issue #693
+		rw.WriteHeader(status)
+	}
+
 	proxy := &httputil.ReverseProxy{
 		Director: director,
 		Transport: &RetryingRoundTripper{
@@ -459,6 +485,7 @@ func (fh functionHandler) handler(responseWriter http.ResponseWriter, request *h
 			funcHandler: &fh,
 			timeout:     timeout,
 		},
+		ErrorHandler: errorHandler,
 	}
 
 	proxy.ServeHTTP(responseWriter, request)
