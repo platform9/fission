@@ -457,27 +457,6 @@ func (fh functionHandler) handler(responseWriter http.ResponseWriter, request *h
 		timeout = fh.functionTimeoutMap[fh.function.GetUID()]
 	}
 
-	errorHandler := func(rw http.ResponseWriter, req *http.Request, err error) {
-		status := http.StatusBadGateway
-		switch err {
-		case context.Canceled:
-			// 499 CLIENT CLOSED REQUEST
-			// A non-standard status code introduced by nginx for the case
-			// when a client closes the connection while nginx is processing the request.
-			// Reference: https://httpstatuses.com/499
-			status = 499
-			fh.logger.Debug("client closes the connection", zap.Any("request_header", req.Header))
-		case context.DeadlineExceeded:
-			status = http.StatusGatewayTimeout
-			fh.logger.Error("function not responses before the timeout", zap.Any("request_header", req.Header))
-		default:
-			fh.logger.Error("error sending request to function",
-				zap.Error(err), zap.Any("function", fh.function), zap.Any("request_header", req.Header))
-		}
-		// TODO: return error message that contains traceable UUID back to user. Issue #693
-		rw.WriteHeader(status)
-	}
-
 	proxy := &httputil.ReverseProxy{
 		Director: director,
 		Transport: &RetryingRoundTripper{
@@ -485,7 +464,7 @@ func (fh functionHandler) handler(responseWriter http.ResponseWriter, request *h
 			funcHandler: &fh,
 			timeout:     timeout,
 		},
-		ErrorHandler: errorHandler,
+		ErrorHandler: getProxyErrorHandler(fh.logger, fh.function),
 	}
 
 	proxy.ServeHTTP(responseWriter, request)
@@ -524,6 +503,32 @@ func getCanaryBackend(fnMetadatamap map[string]*metav1.ObjectMeta, fnWtDistribut
 	fnName := findCeil(randomNumber, fnWtDistributionList)
 
 	return fnMetadatamap[fnName]
+}
+
+// getProxyErrorHandler returns a reverse proxy error handler
+func getProxyErrorHandler(logger *zap.Logger, fnMeta *metav1.ObjectMeta) func(rw http.ResponseWriter, req *http.Request, err error) {
+	return func(rw http.ResponseWriter, req *http.Request, err error) {
+		status := http.StatusBadGateway
+		switch err {
+		case context.Canceled:
+			// 499 CLIENT CLOSED REQUEST
+			// A non-standard status code introduced by nginx for the case
+			// when a client closes the connection while nginx is processing the request.
+			// Reference: https://httpstatuses.com/499
+			status = 499
+			logger.Debug("client closes the connection",
+				zap.Any("function", fnMeta), zap.Any("request_header", req.Header))
+		case context.DeadlineExceeded:
+			status = http.StatusGatewayTimeout
+			logger.Error("function not responses before the timeout",
+				zap.Any("function", fnMeta), zap.Any("request_header", req.Header))
+		default:
+			logger.Error("error sending request to function",
+				zap.Error(err), zap.Any("function", fnMeta), zap.Any("request_header", req.Header))
+		}
+		// TODO: return error message that contains traceable UUID back to user. Issue #693
+		rw.WriteHeader(status)
+	}
 }
 
 // addForwardedHostHeader add "forwarded host" to request header

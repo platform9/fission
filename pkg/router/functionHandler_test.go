@@ -17,6 +17,8 @@ limitations under the License.
 package router
 
 import (
+	"context"
+	"errors"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -24,6 +26,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -89,4 +92,26 @@ func TestFunctionProxying(t *testing.T) {
 	fhURL := functionHandlerServer.URL
 
 	testRequest(fhURL, testResponseString)
+}
+
+func TestProxyErrorHandler(t *testing.T) {
+	logger, err := zap.NewDevelopment()
+	assert.Nil(t, err)
+	errHandler := getProxyErrorHandler(logger, nil)
+
+	req, err := http.NewRequest("GET", "http://foobar.com", nil)
+	assert.Nil(t, err)
+
+	req.Header.Set("foo", "bar")
+	respRecorder := httptest.NewRecorder()
+	errHandler(respRecorder, req, context.Canceled)
+	assert.Equal(t, 499, respRecorder.Code)
+
+	respRecorder = httptest.NewRecorder()
+	errHandler(respRecorder, req, context.DeadlineExceeded)
+	assert.Equal(t, http.StatusGatewayTimeout, respRecorder.Code)
+
+	respRecorder = httptest.NewRecorder()
+	errHandler(respRecorder, req, errors.New("dummy"))
+	assert.Equal(t, http.StatusBadGateway, respRecorder.Code)
 }
