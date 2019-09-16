@@ -1,0 +1,14 @@
+ignore:
+  - "charts"
+  - "demos"
+  - "Documentation"
+  - "examples"
+  - "test"
+  - "tools"
+coverage:
+  status:
+    project:
+      default:
+        threshold: 2
+    # Disable patch coverage check since we focus on project coverage.
+    patch: off
