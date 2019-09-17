@@ -602,7 +602,7 @@ func fnUpdate(c *cli.Context) error {
 	function.Spec.InvokeStrategy = *strategy
 
 	if c.IsSet("specializationtimeout") {
-		if c.String("executortype") != types.ExecutorTypeNewdeploy {
+		if strategy.ExecutionStrategy.ExecutorType != types.ExecutorTypeNewdeploy {
 			log.Fatal("specializationtimeout flag is only applicable for newdeploy type of executor")
 		}
 

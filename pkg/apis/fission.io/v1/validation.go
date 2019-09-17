@@ -89,7 +89,7 @@ func (e ValidationError) Error() string {
 }
 
 func AggregateValidationErrors(objName string, err error) error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 
 	result = multierror.Append(result, err)
 
@@ -114,7 +114,7 @@ func MakeValidationErr(errType ValidationErrorType, field string, val interface{
 }
 
 func ValidateKubeLabel(field string, labels map[string]string) error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 
 	for k, v := range labels {
 		// Example: XXX -> YYY
@@ -129,7 +129,7 @@ func ValidateKubeLabel(field string, labels map[string]string) error {
 }
 
 func ValidateKubePort(field string, port int) error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 
 	e := validation.IsValidPortNum(port)
 	if len(e) > 0 {
@@ -140,7 +140,7 @@ func ValidateKubePort(field string, port int) error {
 }
 
 func ValidateKubeName(field string, val string) error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 
 	e := validation.IsDNS1123Label(val)
 	if len(e) > 0 {
@@ -151,7 +151,7 @@ func ValidateKubeName(field string, val string) error {
 }
 
 func ValidateKubeReference(refName string, name string, namespace string) error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 
 	result = multierror.Append(result,
 		ValidateKubeName(fmt.Sprintf("%v.Name", refName), name),
@@ -197,7 +197,7 @@ func IsValidCronSpec(spec string) error {
 /* Resource validation function */
 
 func (checksum Checksum) Validate() error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 
 	switch checksum.Type {
 	case ChecksumTypeSHA256: // no op
@@ -209,7 +209,7 @@ func (checksum Checksum) Validate() error {
 }
 
 func (archive Archive) Validate() error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 
 	if len(archive.Type) > 0 {
 		switch archive.Type {
@@ -227,25 +227,25 @@ func (archive Archive) Validate() error {
 }
 
 func (ref EnvironmentReference) Validate() error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 	result = multierror.Append(result, ValidateKubeReference("EnvironmentReference", ref.Name, ref.Namespace))
 	return result.ErrorOrNil()
 }
 
 func (ref SecretReference) Validate() error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 	result = multierror.Append(result, ValidateKubeReference("SecretReference", ref.Name, ref.Namespace))
 	return result.ErrorOrNil()
 }
 
 func (ref ConfigMapReference) Validate() error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 	result = multierror.Append(result, ValidateKubeReference("ConfigMapReference", ref.Name, ref.Namespace))
 	return result.ErrorOrNil()
 }
 
 func (spec PackageSpec) Validate() error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 
 	result = multierror.Append(result, spec.Environment.Validate())
 
@@ -259,7 +259,7 @@ func (spec PackageSpec) Validate() error {
 }
 
 func (sts PackageStatus) Validate() error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 
 	switch sts.BuildStatus {
 	case BuildStatusPending, BuildStatusRunning, BuildStatusSucceeded, BuildStatusFailed, BuildStatusNone: // no op
@@ -271,19 +271,19 @@ func (sts PackageStatus) Validate() error {
 }
 
 func (ref PackageRef) Validate() error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 	result = multierror.Append(result, ValidateKubeReference("PackageRef", ref.Name, ref.Namespace))
 	return result.ErrorOrNil()
 }
 
 func (ref FunctionPackageRef) Validate() error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 	result = multierror.Append(result, ref.PackageRef.Validate())
 	return result.ErrorOrNil()
 }
 
 func (spec FunctionSpec) Validate() error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 
 	if spec.Environment != (EnvironmentReference{}) {
 		result = multierror.Append(result, spec.Environment.Validate())
@@ -313,7 +313,7 @@ func (spec FunctionSpec) Validate() error {
 }
 
 func (is InvokeStrategy) Validate() error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 
 	switch is.StrategyType {
 	case StrategyTypeExecution: // no op
@@ -327,7 +327,7 @@ func (is InvokeStrategy) Validate() error {
 }
 
 func (es ExecutionStrategy) Validate() error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 
 	switch es.ExecutorType {
 	case ExecutorTypeNewdeploy, ExecutorTypePoolmgr: // no op
@@ -362,7 +362,7 @@ func (es ExecutionStrategy) Validate() error {
 }
 
 func (ref FunctionReference) Validate() error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 
 	switch ref.Type {
 	case FunctionReferenceTypeFunctionName: // no op
@@ -379,7 +379,7 @@ func (ref FunctionReference) Validate() error {
 }
 
 func (runtime Runtime) Validate() error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 
 	if runtime.LoadEndpointPort > 0 {
 		result = multierror.Append(result, ValidateKubePort("Runtime.LoadEndpointPort", int(runtime.LoadEndpointPort)))
@@ -398,7 +398,7 @@ func (builder Builder) Validate() error {
 }
 
 func (spec EnvironmentSpec) Validate() error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 
 	if spec.Version < 1 || spec.Version > 3 {
 		result = multierror.Append(result, MakeValidationErr(ErrorInvalidValue, "EnvironmentSpec.Version", spec.Version, "not a valid environment version"))
@@ -426,7 +426,7 @@ func (spec EnvironmentSpec) Validate() error {
 }
 
 func (spec HTTPTriggerSpec) Validate() error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 
 	switch spec.Method {
 	case http.MethodGet, http.MethodHead, http.MethodPost, http.MethodPut, http.MethodPatch,
@@ -448,7 +448,7 @@ func (spec HTTPTriggerSpec) Validate() error {
 }
 
 func (spec KubernetesWatchTriggerSpec) Validate() error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 
 	switch strings.ToUpper(spec.Type) {
 	case "POD", "SERVICE", "REPLICATIONCONTROLLER", "JOB":
@@ -465,7 +465,7 @@ func (spec KubernetesWatchTriggerSpec) Validate() error {
 }
 
 func (spec MessageQueueTriggerSpec) Validate() error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 
 	result = multierror.Append(result, spec.FunctionReference.Validate())
 
@@ -487,7 +487,7 @@ func (spec MessageQueueTriggerSpec) Validate() error {
 }
 
 func (spec RecorderSpec) Validate() error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 
 	// TODO: Function validation
 	//if len(spec.Function.Name) != 0 {
@@ -514,7 +514,7 @@ func (spec RecorderSpec) Validate() error {
 }
 
 func (spec TimeTriggerSpec) Validate() error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 
 	err := IsValidCronSpec(spec.Cron)
 	if err != nil {

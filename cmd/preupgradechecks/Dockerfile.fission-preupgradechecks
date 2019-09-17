@@ -1,7 +1,4 @@
-FROM alpine:3.10 as base
-RUN apk add --update ca-certificates
-
-FROM golang:1.11-alpine as builder
+FROM golang:1.12-alpine as godep
 RUN apk add bash ca-certificates git gcc g++ libc-dev
 
 ARG GOPKG=github.com/fission/fission
@@ -14,6 +11,11 @@ WORKDIR /go/src/${GOPKG}
 COPY go.* ./
 
 RUN go mod download
+
+From godep as builder
+
+ARG GOPKG
+WORKDIR /go/src/${GOPKG}
 
 # Copy whole fission directory to work dir
 COPY ./ ./
@@ -35,7 +37,8 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -asmflags=-trimpath=$GOPATH \
     -ldflags "-X github.com/fission/fission/pkg/info.GitCommit=${GITCOMMIT} -X github.com/fission/fission/pkg/info.BuildDate=${BUILDDATE} -X github.com/fission/fission/pkg/info.Version=${BUILDVERSION}"
 
-FROM base
+FROM alpine:3.10 as base
+RUN apk add --update ca-certificates
 COPY --from=builder /go/bin/pre-upgrade-checks /
 
 ENTRYPOINT ["/pre-upgrade-checks"]

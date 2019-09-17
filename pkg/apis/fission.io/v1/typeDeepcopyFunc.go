@@ -153,7 +153,7 @@ func validateMetadata(field string, m metav1.ObjectMeta) error {
 }
 
 func (p *Package) Validate() error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 
 	result = multierror.Append(result,
 		validateMetadata("Package", p.Metadata),
@@ -164,7 +164,7 @@ func (p *Package) Validate() error {
 }
 
 func (pl *PackageList) Validate() error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 	// not validate ListMeta
 	for _, p := range pl.Items {
 		result = multierror.Append(result, p.Validate())
@@ -173,7 +173,7 @@ func (pl *PackageList) Validate() error {
 }
 
 func (f *Function) Validate() error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 
 	result = multierror.Append(result,
 		validateMetadata("Function", f.Metadata),
@@ -183,7 +183,7 @@ func (f *Function) Validate() error {
 }
 
 func (fl *FunctionList) Validate() error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 	for _, f := range fl.Items {
 		result = multierror.Append(result, f.Validate())
 	}
@@ -191,7 +191,7 @@ func (fl *FunctionList) Validate() error {
 }
 
 func (e *Environment) Validate() error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 
 	result = multierror.Append(result,
 		validateMetadata("Environment", e.Metadata),
@@ -201,7 +201,7 @@ func (e *Environment) Validate() error {
 }
 
 func (el *EnvironmentList) Validate() error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 	for _, e := range el.Items {
 		result = multierror.Append(result, e.Validate())
 	}
@@ -209,7 +209,7 @@ func (el *EnvironmentList) Validate() error {
 }
 
 func (h *HTTPTrigger) Validate() error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 
 	result = multierror.Append(result,
 		validateMetadata("HTTPTrigger", h.Metadata),
@@ -219,7 +219,7 @@ func (h *HTTPTrigger) Validate() error {
 }
 
 func (hl *HTTPTriggerList) Validate() error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 	for _, h := range hl.Items {
 		result = multierror.Append(result, h.Validate())
 	}
@@ -227,7 +227,7 @@ func (hl *HTTPTriggerList) Validate() error {
 }
 
 func (k *KubernetesWatchTrigger) Validate() error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 
 	result = multierror.Append(result,
 		validateMetadata("KubernetesWatchTrigger", k.Metadata),
@@ -237,7 +237,7 @@ func (k *KubernetesWatchTrigger) Validate() error {
 }
 
 func (kl *KubernetesWatchTriggerList) Validate() error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 	for _, k := range kl.Items {
 		result = multierror.Append(result, k.Validate())
 	}
@@ -245,7 +245,7 @@ func (kl *KubernetesWatchTriggerList) Validate() error {
 }
 
 func (t *TimeTrigger) Validate() error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 
 	result = multierror.Append(result,
 		validateMetadata("TimeTrigger", t.Metadata),
@@ -255,7 +255,7 @@ func (t *TimeTrigger) Validate() error {
 }
 
 func (tl *TimeTriggerList) Validate() error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 	for _, t := range tl.Items {
 		result = multierror.Append(result, t.Validate())
 	}
@@ -263,7 +263,7 @@ func (tl *TimeTriggerList) Validate() error {
 }
 
 func (m *MessageQueueTrigger) Validate() error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 
 	result = multierror.Append(result,
 		validateMetadata("MessageQueueTrigger", m.Metadata),
@@ -273,7 +273,7 @@ func (m *MessageQueueTrigger) Validate() error {
 }
 
 func (ml *MessageQueueTriggerList) Validate() error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 	for _, m := range ml.Items {
 		result = multierror.Append(result, m.Validate())
 	}
@@ -281,7 +281,7 @@ func (ml *MessageQueueTriggerList) Validate() error {
 }
 
 func (r *Recorder) Validate() error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 
 	result = multierror.Append(result,
 		validateMetadata("Recorder", r.Metadata),

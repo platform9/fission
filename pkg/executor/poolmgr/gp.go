@@ -471,7 +471,7 @@ func (gp *GenericPool) waitForReadyPod() error {
 
 			// Since even single pod is not ready, choosing the first pod to inspect is a good approximation. In future this can be done better
 			pod := podList.Items[0]
-			var multierr *multierror.Error
+			multierr := &multierror.Error{}
 			for _, cStatus := range pod.Status.ContainerStatuses {
 				if cStatus.Ready != true {
 					multierr = multierror.Append(multierr, errors.New(fmt.Sprintf("%v: %v", cStatus.State.Waiting.Reason, cStatus.State.Waiting.Message)))

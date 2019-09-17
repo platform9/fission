@@ -488,7 +488,7 @@ func fileChecksum(fileName string) (*fv1.Checksum, error) {
 // includeFiles, but is ignored if there's more than one includeFile.
 func createArchive(client *client.Client, includeFiles []string, noZip bool, specDir string, specFile string) *fv1.Archive {
 
-	var errs *multierror.Error
+	errs := &multierror.Error{}
 
 	// check files existence
 	for _, path := range includeFiles {

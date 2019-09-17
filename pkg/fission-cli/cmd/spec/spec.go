@@ -297,7 +297,7 @@ func (fr *FissionResources) validateFunctionReference(functions map[string]bool,
 }
 
 func (fr *FissionResources) Validate(c *cli.Context) error {
-	var result *multierror.Error
+	result := &multierror.Error{}
 
 	// check references: both dangling refs + garbage
 	//   packages -> archives

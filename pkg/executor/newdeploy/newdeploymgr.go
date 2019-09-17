@@ -187,10 +187,12 @@ func (deploy *NewDeploy) initEnvController() (k8sCache.Store, k8sCache.Controlle
 					function, err := deploy.fissionClient.Functions(f.Metadata.Namespace).Get(f.Metadata.Name)
 					if err != nil {
 						deploy.logger.Error("Error getting function", zap.Error(err), zap.Any("function", function))
+						continue
 					}
 					err = deploy.updateFuncDeployment(function, newEnv)
 					if err != nil {
 						deploy.logger.Error("Error updating function", zap.Error(err), zap.Any("function", function))
+						continue
 					}
 				}
 			}
@@ -312,9 +314,10 @@ func (deploy *NewDeploy) fnCreate(fn *fv1.Function, firstcreate bool) (*fscache.
 	if !firstcreate {
 		// retrieve back the previous obj name for later use.
 		fsvc, err := deploy.fsCache.GetByFunctionUID(fn.Metadata.UID)
-		if err == nil {
-			objName = fsvc.Name
+		if err != nil {
+			return nil, err
 		}
+		objName = fsvc.Name
 	}
 	deployLabels := deploy.getDeployLabels(fn.Metadata, env.Metadata)
 
@@ -337,6 +340,7 @@ func (deploy *NewDeploy) fnCreate(fn *fv1.Function, firstcreate bool) (*fscache.
 		return nil, errors.Wrapf(err, "error creating service %v", objName)
 	}
 	svcAddress := fmt.Sprintf("%v.%v", svc.Name, svc.Namespace)
+
 	depl, err := deploy.createOrGetDeployment(fn, env, objName, deployLabels, ns, firstcreate)
 	if err != nil {
 		deploy.logger.Error("error creating deployment", zap.Error(err), zap.String("deployment", objName))
@@ -558,7 +562,7 @@ func (deploy *NewDeploy) updateFuncDeployment(fn *fv1.Function, env *fv1.Environ
 }
 
 func (deploy *NewDeploy) fnDelete(fn *fv1.Function) error {
-	var multierr *multierror.Error
+	multierr := &multierror.Error{}
 
 	// GetByFunction uses resource version as part of cache key, however,
 	// the resource version in function metadata will be changed when a function

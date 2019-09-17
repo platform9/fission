@@ -160,7 +160,7 @@ func readSpecs(specDir string) (*spec.FissionResources, error) {
 		},
 	}
 
-	var result *multierror.Error
+	result := &multierror.Error{}
 
 	// Users can organize the specdir into subdirs if they want to.
 	err := filepath.Walk(specDir, func(path string, info os.FileInfo, err error) error {

@@ -73,7 +73,7 @@ func MergePodSpec(srcPodSpec *apiv1.PodSpec, targetPodSpec *apiv1.PodSpec) error
 		return nil
 	}
 
-	var multierr *multierror.Error
+	multierr := &multierror.Error{}
 
 	// Get item from spec, if they exist in deployment - merge, else append
 	// Same pattern for all lists (Mergo can not handle lists)
@@ -155,7 +155,7 @@ func mergeContainerLists(srcPodSpec *apiv1.PodSpec, targetPodSpec *apiv1.PodSpec
 		targetContainers[c.Name] = c
 	}
 
-	var multierr *multierror.Error
+	multierr := &multierror.Error{}
 	for _, c := range srcPodSpec.Containers {
 		container, ok := targetContainers[c.Name]
 		if ok {
@@ -179,7 +179,7 @@ func mergeInitContainerList(srcPodSpec *apiv1.PodSpec, targetPodSpec *apiv1.PodS
 		targetContainers[c.Name] = c
 	}
 
-	var multierr *multierror.Error
+	multierr := &multierror.Error{}
 	for _, c := range srcPodSpec.InitContainers {
 		container, ok := targetContainers[c.Name]
 		if ok {
@@ -202,7 +202,7 @@ func mergeVolumeLists(srcPodSpec *apiv1.PodSpec, targetPodSpec *apiv1.PodSpec) e
 		specVolumes[vol.Name] = vol
 	}
 
-	var multierr *multierror.Error
+	multierr := &multierror.Error{}
 	for _, vol := range srcPodSpec.Volumes {
 		_, ok := specVolumes[vol.Name]
 		if ok {

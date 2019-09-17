@@ -86,7 +86,7 @@ func (client *PreUpgradeTaskClient) IsFissionReInstall() bool {
 func (client *PreUpgradeTaskClient) VerifyFunctionSpecReferences() {
 	client.logger.Info("verifying function spec references for all functions in the cluster")
 
-	var result *multierror.Error
+	result := &multierror.Error{}
 	var err error
 	var fList *fv1.FunctionList
 

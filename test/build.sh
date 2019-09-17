@@ -21,22 +21,11 @@ dump_system_info
 
 setupCIBuildEnv
 
-load_docker_cache ${DOCKER_CACHE_DIR}/python-env.tar.gz;
-load_docker_cache ${DOCKER_CACHE_DIR}/jvm-env.tar.gz;
-load_docker_cache ${DOCKER_CACHE_DIR}/go-env.tar.gz;
-load_docker_cache ${DOCKER_CACHE_DIR}/tensorflow-serving-env.tar.gz;
-
-load_docker_cache ${DOCKER_CACHE_DIR}/python-builder.tar.gz;
-load_docker_cache ${DOCKER_CACHE_DIR}/jvm-builder.tar.gz;
-load_docker_cache ${DOCKER_CACHE_DIR}/go-builder.tar.gz;
-
-build_and_push_fission_bundle $REPO/$IMAGE:$TAG
-
-build_and_push_pre_upgrade_check_image $PRE_UPGRADE_CHECK_IMAGE:$TAG
-
-build_and_push_fetcher $FETCHER_IMAGE:$TAG
-
-build_and_push_builder $BUILDER_IMAGE:$TAG
+build_and_push_go_mod_cache_image $REPO/go-mod-image-cache
+build_and_push_fission_bundle $REPO/$IMAGE:$TAG $REPO/go-mod-image-cache
+build_and_push_pre_upgrade_check_image $PRE_UPGRADE_CHECK_IMAGE:$TAG $REPO/go-mod-image-cache
+build_and_push_fetcher $FETCHER_IMAGE:$TAG $REPO/go-mod-image-cache
+build_and_push_builder $BUILDER_IMAGE:$TAG $REPO/go-mod-image-cache
 
 build_and_push_env_runtime python $REPO/python-env:$TAG ""
 build_and_push_env_runtime jvm $REPO/jvm-env:$TAG ""

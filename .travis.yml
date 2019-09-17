@@ -19,7 +19,6 @@ cache:
     - $HOME/google-cloud-sdk/
     - $HOME/k8scli
     - $HOME/tool
-    - $HOME/docker
     - $HOME/.cache/go-build
     - $HOME/gopath/pkg/mod
 
@@ -28,7 +27,7 @@ services:
 
 before_install:
   - sudo apt-get update
-  - sudo apt-get -y -o Dpkg::Options::="--force-confnew" install docker-ce
+#  - sudo apt-get -y -o Dpkg::Options::="--force-confnew" install docker-ce
   - sudo apt-get -y install apache2-utils parallel realpath
   - sudo sysctl net.ipv6.conf.all.disable_ipv6=0
 
@@ -49,9 +48,6 @@ script:
   - cd ${TRAVIS_BUILD_DIR}
   - test/test.sh
   - test/upgrade/fission_upgrade_test.sh
-
-before_cache:
-  - test/save_cache.sh # save docker cache
 
 after_script:
   - bash <(curl -s https://codecov.io/bash)
