@@ -122,6 +122,10 @@ metadata:
     application: fission-api
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      svc: controller
+      application: fission-api
   template:
     metadata:
       labels:
@@ -184,6 +188,10 @@ metadata:
     application: fission-router
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      svc: router
+      application: fission-router
   template:
     metadata:
       labels:
@@ -279,6 +287,9 @@ metadata:
     svc: executor
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      svc: executor
   template:
     metadata:
       labels:
@@ -350,6 +361,9 @@ metadata:
     svc: buildermgr
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      svc: buildermgr
   template:
     metadata:
       labels:
@@ -399,6 +413,9 @@ metadata:
     svc: kubewatcher
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      svc: kubewatcher
   template:
     metadata:
       labels:
@@ -446,6 +463,9 @@ metadata:
     svc: influxdb
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      svc: influxdb
   template:
     metadata:
       labels:
@@ -502,6 +522,9 @@ metadata:
     svc: heapster
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      svc: heapster
   template:
     metadata:
       labels:
@@ -526,6 +549,9 @@ metadata:
     svc: timer
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      svc: timer
   template:
     metadata:
       labels:
@@ -583,6 +609,9 @@ metadata:
   name: nats-streaming
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      svc: nats-streaming
   template:
     metadata:
       labels:
@@ -632,6 +661,10 @@ metadata:
     messagequeue: nats-streaming
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      svc: mqtrigger
+      messagequeue: nats-streaming
   template:
     metadata:
       labels:
@@ -671,6 +704,10 @@ metadata:
     messagequeue: kafka
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      svc: mqtrigger
+      messagequeue: kafka
   template:
     metadata:
       labels:
@@ -712,6 +749,10 @@ metadata:
     messagequeue: azure-storage-queue
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      svc: mqtrigger
+      messagequeue: azure-storage-queue
   template:
     metadata:
       labels:
@@ -754,6 +795,10 @@ metadata:
     application: fission-storage
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      svc: storagesvc
+      application: fission-storage
   template:
     metadata:
       labels:

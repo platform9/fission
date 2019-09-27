@@ -123,6 +123,10 @@ metadata:
     application: fission-api
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      svc: controller
+      application: fission-api
   template:
     metadata:
       labels:
@@ -184,6 +188,10 @@ metadata:
     application: fission-router
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      application: fission-router
+      svc: router
   template:
     metadata:
       labels:
@@ -279,6 +287,9 @@ metadata:
     svc: executor
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      svc: executor
   template:
     metadata:
       labels:
@@ -346,6 +357,9 @@ metadata:
     svc: buildermgr
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      svc: buildermgr
   template:
     metadata:
       labels:
@@ -393,6 +407,9 @@ metadata:
     svc: kubewatcher
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      svc: kubewatcher
   template:
     metadata:
       labels:
@@ -422,6 +439,9 @@ metadata:
     svc: timer
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      svc: timer
   template:
     metadata:
       labels:
@@ -452,6 +472,10 @@ metadata:
     application: fission-storage
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      svc: storagesvc
+      application: fission-storage
   template:
     metadata:
       labels:
