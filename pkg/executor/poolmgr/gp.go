@@ -31,8 +31,8 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	appsv1 "k8s.io/api/apps/v1"
 	apiv1 "k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -51,7 +51,7 @@ type (
 		logger                 *zap.Logger
 		env                    *fv1.Environment
 		replicas               int32                         // num idle pods
-		deployment             *v1beta1.Deployment           // kubernetes deployment
+		deployment             *appsv1.Deployment            // kubernetes deployment
 		namespace              string                        // namespace to keep our resources
 		functionNamespace      string                        // fallback namespace for fission functions
 		podReadyTimeout        time.Duration                 // timeout for generic pods to become ready
@@ -359,12 +359,12 @@ func (gp *GenericPool) createPool() error {
 		podAnnotations["sidecar.istio.io/inject"] = "false"
 	}
 
-	deployment := &v1beta1.Deployment{
+	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   gp.getPoolName(),
 			Labels: gp.labelsForPool,
 		},
-		Spec: v1beta1.DeploymentSpec{
+		Spec: appsv1.DeploymentSpec{
 			Replicas: &gp.replicas,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: gp.labelsForPool,
@@ -434,7 +434,7 @@ func (gp *GenericPool) createPool() error {
 		}
 	}
 
-	depl, err := gp.kubernetesClient.ExtensionsV1beta1().Deployments(gp.namespace).Create(deployment)
+	depl, err := gp.kubernetesClient.AppsV1().Deployments(gp.namespace).Create(deployment)
 	if err != nil {
 		gp.logger.Error("error creating deployment in kubernetes", zap.Error(err), zap.String("deployment", deployment.Name))
 		return err
@@ -447,7 +447,7 @@ func (gp *GenericPool) waitForReadyPod() error {
 	startTime := time.Now()
 	for {
 		// TODO: for now we just poll; use a watch instead
-		depl, err := gp.kubernetesClient.ExtensionsV1beta1().Deployments(gp.namespace).Get(
+		depl, err := gp.kubernetesClient.AppsV1().Deployments(gp.namespace).Get(
 			gp.deployment.ObjectMeta.Name, metav1.GetOptions{})
 		if err != nil {
 			e := "error waiting for ready pod for deployment"
@@ -632,7 +632,7 @@ func (gp *GenericPool) destroy() error {
 	delOpt := metav1.DeleteOptions{
 		PropagationPolicy: &deletePropagation,
 	}
-	err := gp.kubernetesClient.ExtensionsV1beta1().
+	err := gp.kubernetesClient.AppsV1().
 		Deployments(gp.namespace).Delete(gp.deployment.ObjectMeta.Name, &delOpt)
 	if err != nil {
 		gp.logger.Error("error destroying deployment",

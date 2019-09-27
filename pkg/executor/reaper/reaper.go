@@ -97,7 +97,7 @@ func CleanupKubeObject(logger *zap.Logger, kubeClient *kubernetes.Clientset, kub
 		}
 
 	case "deployment":
-		err := kubeClient.ExtensionsV1beta1().Deployments(kubeobj.Namespace).Delete(kubeobj.Name, &delOpt)
+		err := kubeClient.AppsV1().Deployments(kubeobj.Namespace).Delete(kubeobj.Name, &delOpt)
 		if err != nil {
 			logger.Error("error cleaning up deployment", zap.Error(err), zap.String("deployment", kubeobj.Name))
 		}
@@ -115,7 +115,7 @@ func CleanupKubeObject(logger *zap.Logger, kubeClient *kubernetes.Clientset, kub
 }
 
 func cleanupDeployments(logger *zap.Logger, client *kubernetes.Clientset, instanceId string) error {
-	deploymentList, err := client.ExtensionsV1beta1().Deployments(meta_v1.NamespaceAll).List(meta_v1.ListOptions{})
+	deploymentList, err := client.AppsV1().Deployments(meta_v1.NamespaceAll).List(meta_v1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -123,7 +123,7 @@ func cleanupDeployments(logger *zap.Logger, client *kubernetes.Clientset, instan
 		id, ok := dep.ObjectMeta.Labels[types.EXECUTOR_INSTANCEID_LABEL]
 		if ok && id != instanceId {
 			logger.Debug("cleaning up deployment", zap.String("deployment", dep.ObjectMeta.Name))
-			err := client.ExtensionsV1beta1().Deployments(dep.ObjectMeta.Namespace).Delete(dep.ObjectMeta.Name, &delOpt)
+			err := client.AppsV1().Deployments(dep.ObjectMeta.Namespace).Delete(dep.ObjectMeta.Name, &delOpt)
 			if err != nil {
 				logger.Error("error cleaning up deployment",
 					zap.Error(err),
@@ -136,7 +136,7 @@ func cleanupDeployments(logger *zap.Logger, client *kubernetes.Clientset, instan
 		pid, pok := dep.ObjectMeta.Labels[types.POOLMGR_INSTANCEID_LABEL]
 		if pok && pid != instanceId {
 			logger.Debug("cleaning up deployment", zap.String("deployment", dep.ObjectMeta.Name))
-			err := client.ExtensionsV1beta1().Deployments(dep.ObjectMeta.Namespace).Delete(dep.ObjectMeta.Name, &delOpt)
+			err := client.AppsV1().Deployments(dep.ObjectMeta.Namespace).Delete(dep.ObjectMeta.Name, &delOpt)
 			if err != nil {
 				logger.Error("error cleaning up deployment",
 					zap.Error(err),

@@ -23,9 +23,9 @@ import (
 
 	multierror "github.com/hashicorp/go-multierror"
 	"go.uber.org/zap"
+	appsv1 "k8s.io/api/apps/v1"
 	asv1 "k8s.io/api/autoscaling/v1"
 	apiv1 "k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
 	k8s_err "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,11 +39,11 @@ import (
 
 const (
 	DeploymentKind    = "Deployment"
-	DeploymentVersion = "extensions/v1beta1"
+	DeploymentVersion = "apps/v1"
 )
 
 func (deploy *NewDeploy) createOrGetDeployment(fn *fv1.Function, env *fv1.Environment,
-	deployName string, deployLabels map[string]string, deployNamespace string, firstcreate bool) (*v1beta1.Deployment, error) {
+	deployName string, deployLabels map[string]string, deployNamespace string, firstcreate bool) (*appsv1.Deployment, error) {
 
 	minScale := int32(fn.Spec.InvokeStrategy.ExecutionStrategy.MinScale)
 	specializationTimeout := int(fn.Spec.InvokeStrategy.ExecutionStrategy.SpecializationTimeout)
@@ -56,7 +56,7 @@ func (deploy *NewDeploy) createOrGetDeployment(fn *fv1.Function, env *fv1.Enviro
 
 	waitForDeploy := minScale > 0
 
-	existingDepl, err := deploy.kubernetesClient.ExtensionsV1beta1().Deployments(deployNamespace).Get(deployName, metav1.GetOptions{})
+	existingDepl, err := deploy.kubernetesClient.AppsV1().Deployments(deployNamespace).Get(deployName, metav1.GetOptions{})
 	if err == nil {
 		if waitForDeploy {
 			err = deploy.scaleDeployment(existingDepl.Namespace, existingDepl.Name, minScale)
@@ -81,7 +81,7 @@ func (deploy *NewDeploy) createOrGetDeployment(fn *fv1.Function, env *fv1.Enviro
 			return nil, err
 		}
 
-		depl, err := deploy.kubernetesClient.ExtensionsV1beta1().Deployments(deployNamespace).Create(deployment)
+		depl, err := deploy.kubernetesClient.AppsV1().Deployments(deployNamespace).Create(deployment)
 		if err != nil {
 			deploy.logger.Error("error while creating function deployment",
 				zap.Error(err),
@@ -143,12 +143,12 @@ func (deploy *NewDeploy) setupRBACObjs(deployNamespace string, fn *fv1.Function)
 	return nil
 }
 
-func (deploy *NewDeploy) getDeployment(ns, name string) (*v1beta1.Deployment, error) {
-	return deploy.kubernetesClient.ExtensionsV1beta1().Deployments(ns).Get(name, metav1.GetOptions{})
+func (deploy *NewDeploy) getDeployment(ns, name string) (*appsv1.Deployment, error) {
+	return deploy.kubernetesClient.AppsV1().Deployments(ns).Get(name, metav1.GetOptions{})
 }
 
-func (deploy *NewDeploy) updateDeployment(deployment *v1beta1.Deployment, ns string) error {
-	_, err := deploy.kubernetesClient.ExtensionsV1beta1().Deployments(ns).Update(deployment)
+func (deploy *NewDeploy) updateDeployment(deployment *appsv1.Deployment, ns string) error {
+	_, err := deploy.kubernetesClient.AppsV1().Deployments(ns).Update(deployment)
 	return err
 }
 
@@ -156,13 +156,13 @@ func (deploy *NewDeploy) deleteDeployment(ns string, name string) error {
 	// DeletePropagationBackground deletes the object immediately and dependent are deleted later
 	// DeletePropagationForeground not advisable; it markes for deleteion and API can still serve those objects
 	deletePropagation := metav1.DeletePropagationBackground
-	return deploy.kubernetesClient.ExtensionsV1beta1().Deployments(ns).Delete(name, &metav1.DeleteOptions{
+	return deploy.kubernetesClient.AppsV1().Deployments(ns).Delete(name, &metav1.DeleteOptions{
 		PropagationPolicy: &deletePropagation,
 	})
 }
 
 func (deploy *NewDeploy) getDeploymentSpec(fn *fv1.Function, env *fv1.Environment,
-	deployName string, deployLabels map[string]string) (*v1beta1.Deployment, error) {
+	deployName string, deployLabels map[string]string) (*appsv1.Deployment, error) {
 
 	replicas := int32(fn.Spec.InvokeStrategy.ExecutionStrategy.MinScale)
 
@@ -197,12 +197,12 @@ func (deploy *NewDeploy) getDeploymentSpec(fn *fv1.Function, env *fv1.Environmen
 	// rollback, set RevisionHistoryLimit to 0 to disable this feature.
 	revisionHistoryLimit := int32(0)
 
-	deployment := &v1beta1.Deployment{
+	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   deployName,
 			Labels: deployLabels,
 		},
-		Spec: v1beta1.DeploymentSpec{
+		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: deployLabels,
@@ -249,9 +249,9 @@ func (deploy *NewDeploy) getDeploymentSpec(fn *fv1.Function, env *fv1.Environmen
 					TerminationGracePeriodSeconds: &gracePeriodSeconds,
 				},
 			},
-			Strategy: v1beta1.DeploymentStrategy{
-				Type: v1beta1.RollingUpdateDeploymentStrategyType,
-				RollingUpdate: &v1beta1.RollingUpdateDeployment{
+			Strategy: appsv1.DeploymentStrategy{
+				Type: appsv1.RollingUpdateDeploymentStrategyType,
+				RollingUpdate: &appsv1.RollingUpdateDeployment{
 					MaxUnavailable: &maxUnavailable,
 					MaxSurge:       &maxSurge,
 				},
@@ -315,7 +315,7 @@ func (deploy *NewDeploy) getResources(env *fv1.Environment, fn *fv1.Function) ap
 	return resources
 }
 
-func (deploy *NewDeploy) createOrGetHpa(hpaName string, execStrategy *fv1.ExecutionStrategy, depl *v1beta1.Deployment) (*asv1.HorizontalPodAutoscaler, error) {
+func (deploy *NewDeploy) createOrGetHpa(hpaName string, execStrategy *fv1.ExecutionStrategy, depl *appsv1.Deployment) (*asv1.HorizontalPodAutoscaler, error) {
 
 	minRepl := int32(execStrategy.MinScale)
 	if minRepl == 0 {
@@ -414,14 +414,14 @@ func (deploy *NewDeploy) deleteSvc(ns string, name string) error {
 	return deploy.kubernetesClient.CoreV1().Services(ns).Delete(name, &metav1.DeleteOptions{})
 }
 
-func (deploy *NewDeploy) waitForDeploy(depl *v1beta1.Deployment, replicas int32, specializationTimeout int) (*v1beta1.Deployment, error) {
+func (deploy *NewDeploy) waitForDeploy(depl *appsv1.Deployment, replicas int32, specializationTimeout int) (*appsv1.Deployment, error) {
 	// if no specializationTimeout is set, use default value
 	if specializationTimeout < fv1.DefaultSpecializationTimeOut {
 		specializationTimeout = fv1.DefaultSpecializationTimeOut
 	}
 
 	for i := 0; i < specializationTimeout; i++ {
-		latestDepl, err := deploy.kubernetesClient.ExtensionsV1beta1().Deployments(depl.ObjectMeta.Namespace).Get(depl.Name, metav1.GetOptions{})
+		latestDepl, err := deploy.kubernetesClient.AppsV1().Deployments(depl.ObjectMeta.Namespace).Get(depl.Name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}

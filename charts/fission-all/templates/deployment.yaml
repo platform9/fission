@@ -112,7 +112,7 @@ data:
   "config.yaml": {{ include "config" . | b64enc }}
 
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: controller
@@ -174,7 +174,7 @@ spec:
 {{ toYaml .Values.extraCoreComponentPodConfig | indent 6 -}}
 {{- end }}
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: router
@@ -270,7 +270,7 @@ spec:
     svc: executor
 
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: executor
@@ -341,7 +341,7 @@ spec:
 {{- end }}
 
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: buildermgr
@@ -390,7 +390,7 @@ spec:
 {{- end }}
 
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: kubewatcher
@@ -437,7 +437,7 @@ spec:
     svc: influxdb
 
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: influxdb
@@ -492,7 +492,7 @@ spec:
   selector:
     svc: heapster
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: heapster
@@ -517,7 +517,7 @@ spec:
       serviceAccount: {{ .Release.Namespace }}/fission-svc
 {{- end }}
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: timer
@@ -551,7 +551,7 @@ spec:
 # "fission".
 #
 #---
-#apiVersion: extensions/v1beta1
+#apiVersion: apps/v1
 #kind: Deployment
 #metadata:
 #  name: fission-ui
@@ -575,7 +575,7 @@ spec:
 
 {{- if .Values.nats.enabled }}
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
@@ -622,7 +622,7 @@ spec:
 {{ toYaml .Values.extraCoreComponentPodConfig | indent 6 -}}
 {{- end }}
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: mqtrigger-nats-streaming
@@ -661,7 +661,7 @@ spec:
 
 {{- if .Values.kafka.enabled }}
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: mqtrigger-kafka
@@ -702,7 +702,7 @@ spec:
 
 {{- if .Values.azureStorageQueue.enabled }}
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: mqtrigger-azure-storage-queue
@@ -744,7 +744,7 @@ spec:
 {{- end }}
 {{- end }}
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: storagesvc

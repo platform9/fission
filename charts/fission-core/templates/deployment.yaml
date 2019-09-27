@@ -113,7 +113,7 @@ data:
   "config.yaml": {{ include "config" . | b64enc }}
 
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: controller
@@ -174,7 +174,7 @@ spec:
 {{- end }}
 
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: router
@@ -270,7 +270,7 @@ spec:
     svc: executor
 
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: executor
@@ -337,7 +337,7 @@ spec:
 {{- end }}
 
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: buildermgr
@@ -384,7 +384,7 @@ spec:
 {{- end }}
 
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: kubewatcher
@@ -413,7 +413,7 @@ spec:
 {{- end }}
 
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: timer
@@ -442,7 +442,7 @@ spec:
 {{- end }}
 
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: storagesvc
