@@ -28,6 +28,9 @@ metadata:
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     svc: logger
 spec:
+  selector:
+    matchLabels:
+      svc: logger
   template:
     metadata:
       labels:
