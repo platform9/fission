@@ -31,6 +31,7 @@ spec:
   environment:
     name: go
     namespace: default
+  functionTimeout: 60
   package:
     functionName: Handler
     packageref:

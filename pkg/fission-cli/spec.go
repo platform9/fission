@@ -746,7 +746,7 @@ func applyPackages(fclient *client.Client, fr *spec.FissionResources, delete boo
 				keep = true
 			}
 
-			if keep {
+			if keep && existingObj.Status.BuildStatus == fv1.BuildStatusSucceeded {
 				// nothing to do on the server
 				metadataMap[mapKey(&o.Metadata)] = existingObj.Metadata
 			} else {
@@ -760,6 +760,12 @@ func applyPackages(fclient *client.Client, fr *spec.FissionResources, delete boo
 				if err != nil {
 					// log and ignore
 					fmt.Printf("Error waiting for package '%v' build, ignoring\n", o.Metadata.Name)
+					pkg = &o
+				}
+
+				// update status in order to rebuild the package again
+				if pkg.Status.BuildStatus == fv1.BuildStatusFailed {
+					pkg.Status.BuildStatus = fv1.BuildStatusPending
 				}
 
 				newmeta, err := fclient.PackageUpdate(pkg)
