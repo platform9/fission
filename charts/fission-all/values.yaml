@@ -187,3 +187,7 @@ canaryDeployment:
 # Use these flags to enable opentracing, the variable is endpoint of Jaeger collector in the format shown below
 #traceCollectorEndpoint: "http://jaeger-collector.jaeger.svc:14268/api/traces?format=jaeger.thrift"
 #traceSamplingRate: 0.75
+
+## Add annotations for router
+# routerAnnotations:
+#   cloud.google.com/load-balancer-type: Internal
