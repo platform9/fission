@@ -54,7 +54,7 @@ spec:
           - name: ROUTER_SVC_ADDRESS_UPDATE_TIMEOUT
             value: {{ .Values.router.svcAddressUpdateTimeout | default "30s" | quote }}
           - name: TRACING_SAMPLING_RATE
-            value: {{ .Values.traceSamplingRate | default "0.5" | quote }}
+            value: {{ .Values.router.traceSamplingRate | default "0.5" | quote }}
           - name: USE_ENCODED_PATH
             value: {{ .Values.router.useEncodedPath | default false | quote }}
           - name: DEBUG_ENV
