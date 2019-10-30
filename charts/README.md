@@ -70,6 +70,7 @@ Parameter | Description | Default
 `router.svcAddressUpdateTimeout` | The length of update lock expiry time for router to get a service URL returns from executor | `30`
 `router.svcAnnotations` | Annotations for router service | None
 `router.useEncodedPath` | For router to match encoded path. If true, "/foo%2Fbar" will match the path "/{var}"; Otherwise, it will match the path "/foo/bar". | `false`
+`router.traceSamplingRate` | Sample with a rate per time window (traces/second) | `0.5`
 `router.roundTrip.disableKeepAlive` | Disable transport keep-alive for fast switching function version | `true`
 `router.roundTrip.keepAliveTime` | The keep-alive period for an active network connection to function pod | `30s`
 `router.roundTrip.timeout` | HTTP transport request timeout | `50ms`
