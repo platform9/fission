@@ -56,7 +56,6 @@ func (opts *CreateSubCommand) do(flags cli.Input) error {
 	return nil
 }
 
-// complete creates a environment objects and populates it with default value and CLI inputs.
 func (opts *CreateSubCommand) complete(flags cli.Input) error {
 	pkgNamespace := flags.String("pkgNamespace")
 	envName := flags.String("env")

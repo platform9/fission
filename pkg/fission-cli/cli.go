@@ -30,6 +30,7 @@ import (
 	"github.com/fission/fission/pkg/fission-cli/cliwrapper/driver/urfavecli"
 	"github.com/fission/fission/pkg/fission-cli/cmd"
 	"github.com/fission/fission/pkg/fission-cli/cmd/environment"
+	"github.com/fission/fission/pkg/fission-cli/cmd/kubewatch"
 	_package "github.com/fission/fission/pkg/fission-cli/cmd/package"
 	plugincmd "github.com/fission/fission/pkg/fission-cli/cmd/plugin"
 	"github.com/fission/fission/pkg/fission-cli/cmd/spec"
@@ -246,11 +247,10 @@ func NewCliApp() *cli.App {
 	wObjTypeFlag := cli.StringFlag{Name: "type", Usage: "Type of resource to watch (Pod, Service, etc.)"}
 	wLabelsFlag := cli.StringFlag{Name: "labels", Usage: "Label selector of the form a=b,c=d"}
 	wSubCommands := []cli.Command{
-		{Name: "create", Aliases: []string{"add"}, Usage: "Create a watch", Flags: []cli.Flag{wFnNameFlag, fnNamespaceFlag, wNamespaceFlag, wObjTypeFlag, wLabelsFlag, specSaveFlag}, Action: wCreate},
-		{Name: "get", Usage: "Get details about a watch", Flags: []cli.Flag{wNameFlag, triggerNamespaceFlag}, Action: wGet},
+		{Name: "create", Aliases: []string{"add"}, Usage: "Create a watch", Flags: []cli.Flag{wFnNameFlag, fnNamespaceFlag, wNamespaceFlag, wObjTypeFlag, wLabelsFlag, specSaveFlag}, Action: urfavecli.Wrapper(kubewatch.Create)},
 		// TODO add update flag when supported
-		{Name: "delete", Usage: "Delete watch", Flags: []cli.Flag{wNameFlag, triggerNamespaceFlag}, Action: wDelete},
-		{Name: "list", Usage: "List all watches", Flags: []cli.Flag{triggerNamespaceFlag}, Action: wList},
+		{Name: "delete", Usage: "Delete watch", Flags: []cli.Flag{wNameFlag, triggerNamespaceFlag}, Action: urfavecli.Wrapper(kubewatch.Delete)},
+		{Name: "list", Usage: "List all watches", Flags: []cli.Flag{triggerNamespaceFlag}, Action: urfavecli.Wrapper(kubewatch.List)},
 	}
 
 	// packages
