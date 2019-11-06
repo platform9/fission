@@ -40,7 +40,10 @@ require (
 	github.com/imdario/mergo v0.3.5
 	github.com/influxdata/influxdb v1.2.0
 	github.com/kr/pretty v0.1.0 // indirect
+	github.com/life1347/color v1.7.0
 	github.com/marstr/guid v0.0.0-20170427235115-8bdf7d1a087c // indirect
+	github.com/mattn/go-colorable v0.1.4 // indirect
+	github.com/mattn/go-isatty v0.0.10 // indirect
 	github.com/mholt/archiver v0.0.0-20180417220235-e4ef56d48eb0
 	github.com/nats-io/gnatsd v1.4.1 // indirect
 	github.com/nats-io/go-nats v1.6.0 // indirect
@@ -56,7 +59,8 @@ require (
 	github.com/prometheus/common v0.4.1
 	github.com/robfig/cron v0.0.0-20180505203441-b41be1df6967
 	github.com/satori/go.uuid v1.2.0
-	github.com/spf13/pflag v1.0.3
+	github.com/spf13/cobra v0.0.5
+	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.3.0
 	github.com/ulikunitz/xz v0.0.0-20180703112113-636d36a76670 // indirect
 	github.com/urfave/cli v1.20.0
@@ -69,7 +73,6 @@ require (
 	golang.org/x/crypto v0.0.0-20190618222545-ea8f1a30c443 // indirect
 	golang.org/x/image v0.0.0-20190618124811-92942e4437e2 // indirect
 	golang.org/x/net v0.0.0-20190619014844-b5b0513f8c1b
-	golang.org/x/sys v0.0.0-20190619183051-17bc6164aac4 // indirect
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 // indirect
 	google.golang.org/appengine v1.6.1 // indirect
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect

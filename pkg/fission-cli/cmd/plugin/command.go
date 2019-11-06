@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Fission Authors.
+Copyright 2019 The Fission Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,12 +14,29 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package plugin
 
 import (
-	"github.com/fission/fission/cmd/fission-cli/app"
+	"github.com/spf13/cobra"
+
+	wrapper "github.com/fission/fission/pkg/fission-cli/cliwrapper/driver/cobra"
 )
 
-func main() {
-	app.App().Execute()
+func Commands() *cobra.Command {
+	listCmd := &cobra.Command{
+		Use:   "list",
+		Short: "List installed client plugins",
+		RunE:  wrapper.Wrapper(List),
+	}
+
+	command := &cobra.Command{
+		Use:     "plugin",
+		Aliases: []string{"plugins"},
+		Short:   "Manage CLI plugins",
+		Hidden:  true,
+	}
+
+	command.AddCommand(listCmd)
+
+	return command
 }

@@ -16,41 +16,146 @@ limitations under the License.
 
 package flag
 
-import "strings"
-
 const (
-	GLOBAL_VERBOSITY = "verbosity"
-	GLOBAL_PLUGIN    = "plugin"
+	Verbosity = "verbosity"
+	Server    = "server"
 
-	FISSION_SERVER = "server"
+	resourceName = "name"
+	force        = "force"
+	Output       = "output"
 
-	RESOURCE_NAME = "name"
+	NamespaceFunction    = "fnNamespace"
+	NamespaceEnvironment = "envNamespace"
+	NamespacePackage     = "pkgNamespace"
+	NamespaceTrigger     = "triggerNamespace"
+	NamespaceRecorder    = "recorderNamespace"
+	NamespaceCanary      = "canaryNamespace"
 
-	ENVIRONMENT_NAMESPACE          = "envNamespace"
-	ENVIRONMENT_NAMESPACE_ALIAS    = "envns"
-	ENVIRONMENT_POOLSIZE           = "poolsize"
-	ENVIRONMENT_IMAGE              = "image"
-	ENVIRONMENT_BUILDER            = "builder"
-	ENVIRONMENT_BUILDCOMMAND       = "buildcmd"
-	ENVIRONMENT_KEEPARCHIVE        = "keeparchive"
-	ENVIRONMENT_EXTERNAL_NETWORK   = "externalnetwork"
-	ENVIRONMENT_GRACE_PERIOD       = "graceperiod"
-	ENVIRONMENT_GRACE_PERIOD_ALIAS = "period"
-	ENVIRONMENT_VERSION            = "version"
+	RuntimeMincpu    = "mincpu"
+	RuntimeMaxcpu    = "maxcpu"
+	RuntimeMinmemory = "minmemory"
+	RuntimeMaxmemory = "maxmemory"
+	RuntimeTargetcpu = "targetcpu"
 
-	SPEC_SPEC    = "spec"
-	SPEC_SPECDIR = "specdir"
+	ReplicasMinscale = "minscale"
+	ReplicasMaxscale = "maxscale"
 
-	RUNTIME_MINCPU    = "mincpu"
-	RUNTIME_MAXCPU    = "maxcpu"
-	RUNTIME_MINMEMORY = "minmemory"
-	RUNTIME_MAXMEMORY = "maxmemory"
-	RUNTIME_MINSCALE  = "minscale"
-	RUNTIME_MAXSCALE  = "maxscale"
-	RUNTIME_TARGETCPU = "targetcpu"
+	FnName                  = resourceName
+	FnSpecializationTimeout = "specializationtimeout"
+	FnEnvironmentName       = "env"
+	FnCode                  = "code"
+	FnPackageName           = "pkgname"
+	FnEntrypoint            = "entrypoint"
+	FnBuildCmd              = "buildcmd"
+	FnSecret                = "secret"
+	FnForce                 = force
+	FnCfgMap                = "configmap"
+	FnExecutorType          = "executortype"
+	FnExecutionTimeout      = "fntimeout"
+	FnTestTimeout           = "timeout"
+	FnLogPod                = "pod"
+	FnLogFollow             = "follow"
+	FnLogDetail             = "detail"
+	FnLogDBType             = "dbtype"
+	FnLogReverseQuery       = "reverse"
+	FnLogCount              = "recordcount"
+	FnTestBody              = "body"
+	FnTestHeader            = "header"
+	FnTestQuery             = "query"
+
+	HtName              = resourceName
+	HtMethod            = "method"
+	HtUrl               = "url"
+	HtHost              = "host"
+	HtIngress           = "createingress"
+	HtIngressRule       = "ingressrule"
+	HtIngressAnnotation = "ingressannotation"
+	HtIngressTLS        = "ingresstls"
+	HtFnName            = "function"
+	HtFnWeight          = "weight"
+	HtFilter            = HtFnName
+
+	TtName   = resourceName
+	TtCron   = "cron"
+	TtFnName = "function"
+	TtRound  = "round"
+
+	MqtName           = resourceName
+	MqtFnName         = "function"
+	MqtMQType         = "mqtype"
+	MqtTopic          = "topic"
+	MqtRespTopic      = "resptopic"
+	MqtErrorTopic     = "errortopic"
+	MqtMaxRetries     = "maxretries"
+	MqtMsgContentType = "contenttype"
+
+	RecorderName            = resourceName
+	RecorderFn              = "function"
+	RecorderTriggers        = "trigger"
+	RecorderRetentionPolicy = "retention"
+	RecorderEvictionPolcy   = "eviction"
+	RecorderEnabled         = "enable"
+	RecorderDisabled        = "disable"
+	RecordsFilterTimeFrom   = "from"
+	RecordsFilterTimeTo     = "to"
+	RecordsFilterFunction   = "function"
+	RecordsFilterTrigger    = "trigger"
+	RecordsVerbosity        = "v"
+	RecordsVv               = "vv"
+	RecordsReqID            = "reqUID"
+
+	EnvName            = resourceName
+	EnvPoolsize        = "poolsize"
+	EnvImage           = "image"
+	EnvBuilder         = "builder"
+	EnvBuildcommand    = "buildcmd"
+	EnvKeeparchive     = "keeparchive"
+	EnvExternalNetwork = "externalnetwork"
+	EnvGracePeriod     = "graceperiod"
+	EnvVersion         = "version"
+
+	KwName      = resourceName
+	KwFnName    = "function"
+	KwNamespace = "ns"
+	KwObjType   = "type"
+	KwLabels    = "labels"
+
+	PkgName          = resourceName
+	PkgForce         = force
+	PkgEnvironment   = "env"
+	PkgSrcArchive    = "sourcearchive"
+	PkgDeployArchive = "deployarchive"
+	PkgKeepURL       = "keeparchiveurl"
+	PkgBuildCmd      = "buildcmd"
+	PkgOutput        = Output
+	PkgStatus        = "status"
+	PkgOrphan        = "orphan"
+
+	SpecSave     = "spec"
+	SpecDir      = "specdir"
+	SpecName     = resourceName
+	SpecDeployID = "deployid"
+	SpecWait     = "wait"
+	SpecWatch    = "watch"
+	SpecDelete   = "delete"
+
+	SupportOutput = Output
+	SupportNoZip  = "nozip"
+
+	CanaryName              = resourceName
+	CanaryTriggerName       = "httptrigger"
+	CanaryNewFunc           = "newfunction"
+	CanaryOldFunc           = "oldfunction"
+	CanaryWeightIncrement   = "increment-step"
+	CanaryIncrementInterval = "increment-interval"
+	CanaryFailureThreshold  = "failure-threshold"
+
+	SPEC_SPEC = "spec"
+
+	DefaultSpecOutputDir = "fission-dump"
 )
 
 // GetCliFlagName concatenates flag and its alias into a command flag name.
-func GetCliFlagName(flags ...string) string {
-	return strings.Join(flags, ", ")
-}
+//func GetCliFlagName(flags ...string) string {
+//	return strings.Join(flags, ", ")
+//}

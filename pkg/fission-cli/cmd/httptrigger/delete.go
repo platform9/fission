@@ -19,12 +19,14 @@ package httptrigger
 import (
 	"fmt"
 
-	"github.com/fission/fission/pkg/controller/client"
-	"github.com/fission/fission/pkg/fission-cli/cliwrapper/cli"
-	"github.com/fission/fission/pkg/fission-cli/util"
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/fission/fission/pkg/controller/client"
+	"github.com/fission/fission/pkg/fission-cli/cliwrapper/cli"
+	"github.com/fission/fission/pkg/fission-cli/util"
+	"github.com/fission/fission/pkg/utils"
 )
 
 type DeleteSubCommand struct {
@@ -84,7 +86,7 @@ func (opts *DeleteSubCommand) run(flags cli.Input) error {
 		triggersToDelete = []string{opts.triggerName}
 	}
 
-	errs := &multierror.Error{}
+	errs := utils.MultiErrorWithFormat()
 
 	for _, name := range triggersToDelete {
 		err := opts.client.HTTPTriggerDelete(&metav1.ObjectMeta{

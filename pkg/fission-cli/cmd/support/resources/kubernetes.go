@@ -28,7 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/fission/fission/pkg/fission-cli/consolemsg"
+	"github.com/fission/fission/pkg/fission-cli/console"
 )
 
 const (
@@ -52,7 +52,7 @@ func NewKubernetesVersion(clientset *kubernetes.Clientset) Resource {
 func (res KubernetesVersion) Dump(dumpDir string) {
 	serverVer, err := res.client.ServerVersion()
 	if err != nil {
-		consolemsg.Info(fmt.Sprintf("Error setting up kubernetes client: %v", err))
+		console.Info(fmt.Sprintf("Error setting up kubernetes client: %v", err))
 		return
 	}
 
@@ -80,7 +80,7 @@ func (res KubernetesObjectDumper) Dump(dumpDir string) {
 	case KubernetesService:
 		objs, err := res.client.CoreV1().Services(metav1.NamespaceAll).List(metav1.ListOptions{LabelSelector: res.selector})
 		if err != nil {
-			consolemsg.Info(fmt.Sprintf("Error getting %v list with selector %v: %v", res.objType, res.selector, err))
+			console.Info(fmt.Sprintf("Error getting %v list with selector %v: %v", res.objType, res.selector, err))
 			return
 		}
 
@@ -93,7 +93,7 @@ func (res KubernetesObjectDumper) Dump(dumpDir string) {
 	case KubernetesDeployment:
 		objs, err := res.client.AppsV1().Deployments(metav1.NamespaceAll).List(metav1.ListOptions{LabelSelector: res.selector})
 		if err != nil {
-			consolemsg.Info(fmt.Sprintf("Error getting %v list with selector %v: %v", res.objType, res.selector, err))
+			console.Info(fmt.Sprintf("Error getting %v list with selector %v: %v", res.objType, res.selector, err))
 			return
 		}
 
@@ -105,7 +105,7 @@ func (res KubernetesObjectDumper) Dump(dumpDir string) {
 	case KubernetesPod:
 		objs, err := res.client.CoreV1().Pods(metav1.NamespaceAll).List(metav1.ListOptions{LabelSelector: res.selector})
 		if err != nil {
-			consolemsg.Info(fmt.Sprintf("Error getting %v list with selector %v: %v", res.objType, res.selector, err))
+			console.Info(fmt.Sprintf("Error getting %v list with selector %v: %v", res.objType, res.selector, err))
 			return
 		}
 
@@ -117,7 +117,7 @@ func (res KubernetesObjectDumper) Dump(dumpDir string) {
 	case KubernetesHPA:
 		objs, err := res.client.AutoscalingV2beta1().HorizontalPodAutoscalers(metav1.NamespaceAll).List(metav1.ListOptions{LabelSelector: res.selector})
 		if err != nil {
-			consolemsg.Info(fmt.Sprintf("Error getting %v list with selector %v: %v", res.objType, res.selector, err))
+			console.Info(fmt.Sprintf("Error getting %v list with selector %v: %v", res.objType, res.selector, err))
 			return
 		}
 
@@ -129,7 +129,7 @@ func (res KubernetesObjectDumper) Dump(dumpDir string) {
 	case KubernetesDaemonSet:
 		objs, err := res.client.AppsV1().DaemonSets(metav1.NamespaceAll).List(metav1.ListOptions{LabelSelector: res.selector})
 		if err != nil {
-			consolemsg.Info(fmt.Sprintf("Error getting %v list with selector %v: %v", res.objType, res.selector, err))
+			console.Info(fmt.Sprintf("Error getting %v list with selector %v: %v", res.objType, res.selector, err))
 			return
 		}
 
@@ -141,7 +141,7 @@ func (res KubernetesObjectDumper) Dump(dumpDir string) {
 	case KubernetesNode:
 		objs, err := res.client.CoreV1().Nodes().List(metav1.ListOptions{LabelSelector: res.selector})
 		if err != nil {
-			consolemsg.Info(fmt.Sprintf("Error getting %v list with selector %v: %v", res.objType, res.selector, err))
+			console.Info(fmt.Sprintf("Error getting %v list with selector %v: %v", res.objType, res.selector, err))
 			return
 		}
 
@@ -153,7 +153,7 @@ func (res KubernetesObjectDumper) Dump(dumpDir string) {
 		}
 
 	default:
-		consolemsg.Info(fmt.Sprintf("Unknown type: %v", res.objType))
+		console.Info(fmt.Sprintf("Unknown type: %v", res.objType))
 		return
 	}
 }
@@ -199,7 +199,7 @@ func (res KubernetesPodLogDumper) Dump(dumpDir string) {
 		Pods(metav1.NamespaceAll).
 		List(metav1.ListOptions{LabelSelector: res.labelSelector})
 	if err != nil {
-		consolemsg.Info(fmt.Sprintf("Error getting controller list: %v", err))
+		console.Info(fmt.Sprintf("Error getting controller list: %v", err))
 		return
 	}
 
@@ -218,7 +218,7 @@ func (res KubernetesPodLogDumper) Dump(dumpDir string) {
 
 				stream, err := req.Stream()
 				if err != nil {
-					consolemsg.Info(fmt.Sprintf("Error streaming logs for pod %v: %v", pod.Name, err))
+					console.Info(fmt.Sprintf("Error streaming logs for pod %v: %v", pod.Name, err))
 					return
 				}
 
@@ -232,13 +232,13 @@ func (res KubernetesPodLogDumper) Dump(dumpDir string) {
 							stream.Close()
 							break
 						}
-						consolemsg.Info(fmt.Sprintf("Error reading logs from buffer: %v", err))
+						console.Info(fmt.Sprintf("Error reading logs from buffer: %v", err))
 						return
 					}
 
 					_, err = buffer.WriteString(string(line) + "\n")
 					if err != nil {
-						consolemsg.Info(fmt.Sprintf("Error writing bytes to buffer: %v", err))
+						console.Info(fmt.Sprintf("Error writing bytes to buffer: %v", err))
 					}
 				}
 

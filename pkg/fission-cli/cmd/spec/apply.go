@@ -37,7 +37,7 @@ import (
 
 	pkgutil "github.com/fission/fission/pkg/fission-cli/cmd/package/util"
 	spectypes "github.com/fission/fission/pkg/fission-cli/cmd/spec/types"
-	"github.com/fission/fission/pkg/fission-cli/consolemsg"
+	"github.com/fission/fission/pkg/fission-cli/console"
 	"github.com/fission/fission/pkg/fission-cli/util"
 	"github.com/fission/fission/pkg/types"
 	"github.com/fission/fission/pkg/utils"
@@ -430,7 +430,7 @@ func localArchiveFromSpec(specDir string, aus *spectypes.ArchiveUploadSpec) (*fv
 			absGlob := rootDir + "/" + relativeGlob
 			f, err := filepath.Glob(absGlob)
 			if err != nil {
-				consolemsg.Info(fmt.Sprintf("Invalid glob in archive %v: %v", aus.Name, relativeGlob))
+				console.Info(fmt.Sprintf("Invalid glob in archive %v: %v", aus.Name, relativeGlob))
 				return nil, err
 			}
 			files = append(files, f...)

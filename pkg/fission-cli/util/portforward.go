@@ -31,7 +31,7 @@ import (
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/transport/spdy"
 
-	"github.com/fission/fission/pkg/fission-cli/consolemsg"
+	"github.com/fission/fission/pkg/fission-cli/console"
 	"github.com/fission/fission/pkg/utils"
 )
 
@@ -41,7 +41,7 @@ import (
 // its targetPort. Once the port forward is started, wait for it to
 // start accepting connections before returning.
 func SetupPortForward(namespace, labelSelector string) (string, error) {
-	consolemsg.Verbose(2, "Setting up port forward to %s in namespace %s",
+	console.Verbose(2, "Setting up port forward to %s in namespace %s",
 		labelSelector, namespace)
 
 	localPort, err := findFreePort()
@@ -49,7 +49,7 @@ func SetupPortForward(namespace, labelSelector string) (string, error) {
 		return "", errors.Wrap(err, "error finding unused port")
 	}
 
-	consolemsg.Verbose(2, "Waiting for local port %v", localPort)
+	console.Verbose(2, "Waiting for local port %v", localPort)
 	for {
 		conn, _ := net.DialTimeout("tcp",
 			net.JoinHostPort("", localPort), time.Millisecond)
@@ -61,7 +61,7 @@ func SetupPortForward(namespace, labelSelector string) (string, error) {
 		time.Sleep(time.Millisecond * 50)
 	}
 
-	consolemsg.Verbose(2, "Starting port forward from local port %v", localPort)
+	console.Verbose(2, "Starting port forward from local port %v", localPort)
 	go func() {
 		err := runPortForward(labelSelector, localPort, namespace)
 		if err != nil {
@@ -70,7 +70,7 @@ func SetupPortForward(namespace, labelSelector string) (string, error) {
 		}
 	}()
 
-	consolemsg.Verbose(2, "Waiting for port forward %v to start...", localPort)
+	console.Verbose(2, "Waiting for port forward %v to start...", localPort)
 	for {
 		conn, _ := net.DialTimeout("tcp",
 			net.JoinHostPort("", localPort), time.Millisecond)
@@ -81,7 +81,7 @@ func SetupPortForward(namespace, labelSelector string) (string, error) {
 		time.Sleep(time.Millisecond * 50)
 	}
 
-	consolemsg.Verbose(2, "Port forward from local port %v started", localPort)
+	console.Verbose(2, "Port forward from local port %v started", localPort)
 
 	return localPort, nil
 }
@@ -109,7 +109,7 @@ func runPortForward(labelSelector string, localPort string, ns string) error {
 		return err
 	}
 
-	consolemsg.Verbose(2, "Connected to Kubernetes API")
+	console.Verbose(2, "Connected to Kubernetes API")
 
 	// if namespace is unset, try to find a pod in any namespace
 	if len(ns) == 0 {
@@ -177,7 +177,7 @@ func runPortForward(labelSelector string, localPort string, ns string) error {
 	for _, servicePort := range service.Spec.Ports {
 		targetPort = servicePort.TargetPort.String()
 	}
-	consolemsg.Verbose(2, "Connecting to port %v on pod %v/%v", targetPort, podNameSpace, podNameSpace)
+	console.Verbose(2, "Connecting to port %v on pod %v/%v", targetPort, podNameSpace, podNameSpace)
 
 	stopChannel := make(chan struct{}, 1)
 	readyChannel := make(chan struct{})
@@ -199,7 +199,7 @@ func runPortForward(labelSelector string, localPort string, ns string) error {
 	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, "POST", url)
 
 	outStream := os.Stdout
-	if consolemsg.Verbosity < 2 {
+	if console.Verbosity < 2 {
 		outStream = nil
 	}
 	fw, err := portforward.New(dialer, ports, stopChannel, readyChannel, outStream, os.Stderr)
@@ -207,6 +207,6 @@ func runPortForward(labelSelector string, localPort string, ns string) error {
 		return errors.Wrap(err, "error creating port forwarder")
 	}
 
-	consolemsg.Verbose(2, "Starting port forwarder")
+	console.Verbose(2, "Starting port forwarder")
 	return fw.ForwardPorts()
 }

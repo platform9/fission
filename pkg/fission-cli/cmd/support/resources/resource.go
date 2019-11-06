@@ -24,7 +24,7 @@ import (
 	"github.com/ghodss/yaml"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/fission/fission/pkg/fission-cli/consolemsg"
+	"github.com/fission/fission/pkg/fission-cli/console"
 	"github.com/fission/fission/pkg/utils"
 )
 
@@ -45,7 +45,7 @@ func getPodFileName(dumpdir string, pod metav1.ObjectMeta, containerName string)
 func writeToFile(file string, obj interface{}) {
 	bs, err := yaml.Marshal(obj)
 	if err != nil {
-		consolemsg.Info(fmt.Sprintf("Error encoding object: %v", err))
+		console.Info(fmt.Sprintf("Error encoding object: %v", err))
 		return
 	}
 
@@ -57,6 +57,6 @@ func writeToFile(file string, obj interface{}) {
 
 	err = ioutil.WriteFile(file, bs, 0644)
 	if err != nil {
-		consolemsg.Info(fmt.Sprintf("Error writing file %v: %v", file, err))
+		console.Info(fmt.Sprintf("Error writing file %v: %v", file, err))
 	}
 }

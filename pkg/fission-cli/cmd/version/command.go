@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Fission Authors.
+Copyright 2019 The Fission Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,33 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package consolemsg
+package version
 
 import (
-	"fmt"
-	"os"
+	"github.com/spf13/cobra"
+
+	wrapper "github.com/fission/fission/pkg/fission-cli/cliwrapper/driver/cobra"
 )
 
-var (
-	// global Verbosity of our CLI
-	Verbosity int
-)
-
-func Fatal(msg interface{}) {
-	//os.Stderr.WriteString(fmt.Sprintf("Fatal error: %v\n", msg))
-	//os.Exit(1)
-}
-
-func Warn(msg interface{}) {
-	os.Stderr.WriteString(fmt.Sprintf("Warning: %v\n", msg))
-}
-
-func Info(msg interface{}) {
-	os.Stderr.WriteString(fmt.Sprintf("%v\n", msg))
-}
-
-func Verbose(verbosityLevel int, format string, args ...interface{}) {
-	if Verbosity >= verbosityLevel {
-		fmt.Printf(format+"\n", args...)
+func Commands() *cobra.Command {
+	command := &cobra.Command{
+		Use:   "version",
+		Short: "Version information",
+		RunE:  wrapper.Wrapper(Version),
 	}
+	return command
 }

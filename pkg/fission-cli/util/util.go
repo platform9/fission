@@ -36,10 +36,11 @@ import (
 
 	"github.com/fission/fission/pkg/controller/client"
 	"github.com/fission/fission/pkg/fission-cli/cliwrapper/cli"
-	"github.com/fission/fission/pkg/fission-cli/consolemsg"
+	"github.com/fission/fission/pkg/fission-cli/console"
 	"github.com/fission/fission/pkg/fission-cli/flag"
 	"github.com/fission/fission/pkg/info"
 	"github.com/fission/fission/pkg/plugin"
+	"github.com/fission/fission/pkg/utils"
 )
 
 func GetFissionNamespace() string {
@@ -111,7 +112,7 @@ func GetKubernetesClient() (*restclient.Config, *kubernetes.Clientset, error) {
 			// In case that user.Current() may be unable to work under some circumstances and return errors like
 			// "user: Current not implemented on darwin/amd64" due to cross-compilation problem. (https://github.com/golang/go/issues/6376).
 			// Instead of doing fatal here, we fallback to get home directory from the environment $HOME.
-			consolemsg.Warn(fmt.Sprintf("Could not get the current user's directory (%s), fallback to get it from env $HOME", err))
+			console.Warn(fmt.Sprintf("Could not get the current user's directory (%s), fallback to get it from env $HOME", err))
 			homeDir = os.Getenv("HOME")
 		} else {
 			homeDir = usr.HomeDir
@@ -123,9 +124,9 @@ func GetKubernetesClient() (*restclient.Config, *kubernetes.Clientset, error) {
 				"Set the KUBECONFIG environment variable to your kubeconfig's path.")
 		}
 		loadingRules.ExplicitPath = kubeConfigPath
-		consolemsg.Verbose(2, "Using kubeconfig from %q", kubeConfigPath)
+		console.Verbose(2, "Using kubeconfig from %q", kubeConfigPath)
 	} else {
-		consolemsg.Verbose(2, "Using kubeconfig from environment %q", kubeConfigPath)
+		console.Verbose(2, "Using kubeconfig from environment %q", kubeConfigPath)
 	}
 
 	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
@@ -180,7 +181,7 @@ func GetVersion(client *client.Client) info.Versions {
 
 	serverInfo, err := client.ServerInfo()
 	if err != nil {
-		consolemsg.Warn(fmt.Sprintf("Error getting Fission API version: %v", err))
+		console.Warn(fmt.Sprintf("Error getting Fission API version: %v", err))
 		serverInfo = &info.ServerInfo{}
 	}
 
@@ -195,7 +196,7 @@ func GetVersion(client *client.Client) info.Versions {
 }
 
 func GetServer(flags cli.Input) (c *client.Client, err error) {
-	serverUrl := flags.GlobalString(flag.FISSION_SERVER)
+	serverUrl := flags.GlobalString(flag.Server)
 	if len(serverUrl) == 0 {
 		// starts local portforwarder etc.
 		serverUrl, err = GetApplicationUrl("application=fission-api")
@@ -230,10 +231,10 @@ func GetResourceReqs(flags cli.Input, resReqs *v1.ResourceRequirements) (*v1.Res
 		r.Limits = make(map[v1.ResourceName]resource.Quantity)
 	}
 
-	e := &multierror.Error{}
+	e := utils.MultiErrorWithFormat()
 
-	if flags.IsSet(flag.RUNTIME_MINCPU) {
-		mincpu := flags.Int(flag.RUNTIME_MINCPU)
+	if flags.IsSet(flag.RuntimeMincpu) {
+		mincpu := flags.Int(flag.RuntimeMincpu)
 		cpuRequest, err := resource.ParseQuantity(strconv.Itoa(mincpu) + "m")
 		if err != nil {
 			e = multierror.Append(e, errors.Wrap(err, "Failed to parse mincpu"))
@@ -241,8 +242,8 @@ func GetResourceReqs(flags cli.Input, resReqs *v1.ResourceRequirements) (*v1.Res
 		r.Requests[v1.ResourceCPU] = cpuRequest
 	}
 
-	if flags.IsSet(flag.RUNTIME_MINMEMORY) {
-		minmem := flags.Int(flag.RUNTIME_MINMEMORY)
+	if flags.IsSet(flag.RuntimeMinmemory) {
+		minmem := flags.Int(flag.RuntimeMinmemory)
 		memRequest, err := resource.ParseQuantity(strconv.Itoa(minmem) + "Mi")
 		if err != nil {
 			e = multierror.Append(e, errors.Wrap(err, "Failed to parse minmemory"))
@@ -250,8 +251,8 @@ func GetResourceReqs(flags cli.Input, resReqs *v1.ResourceRequirements) (*v1.Res
 		r.Requests[v1.ResourceMemory] = memRequest
 	}
 
-	if flags.IsSet(flag.RUNTIME_MAXCPU) {
-		maxcpu := flags.Int(flag.RUNTIME_MAXCPU)
+	if flags.IsSet(flag.RuntimeMaxcpu) {
+		maxcpu := flags.Int(flag.RuntimeMaxcpu)
 		cpuLimit, err := resource.ParseQuantity(strconv.Itoa(maxcpu) + "m")
 		if err != nil {
 			e = multierror.Append(e, errors.Wrap(err, "Failed to parse maxcpu"))
@@ -259,8 +260,8 @@ func GetResourceReqs(flags cli.Input, resReqs *v1.ResourceRequirements) (*v1.Res
 		r.Limits[v1.ResourceCPU] = cpuLimit
 	}
 
-	if flags.IsSet(flag.RUNTIME_MAXMEMORY) {
-		maxmem := flags.Int(flag.RUNTIME_MAXMEMORY)
+	if flags.IsSet(flag.RuntimeMaxmemory) {
+		maxmem := flags.Int(flag.RuntimeMaxmemory)
 		memLimit, err := resource.ParseQuantity(strconv.Itoa(maxmem) + "Mi")
 		if err != nil {
 			e = multierror.Append(e, errors.Wrap(err, "Failed to parse maxmemory"))
@@ -297,7 +298,7 @@ func GetResourceReqs(flags cli.Input, resReqs *v1.ResourceRequirements) (*v1.Res
 }
 
 func GetSpecDir(flags cli.Input) string {
-	specDir := flags.String(flag.SPEC_SPECDIR)
+	specDir := flags.String(flag.SpecDir)
 	if len(specDir) == 0 {
 		specDir = "specs"
 	}

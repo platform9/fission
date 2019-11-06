@@ -45,7 +45,7 @@ func List(flags cli.Input) error {
 }
 
 func (opts *ListSubCommand) do(flags cli.Input) error {
-	envNamespace := flags.String(flag.ENVIRONMENT_NAMESPACE)
+	envNamespace := flags.String(flag.NamespaceEnvironment)
 
 	envs, err := opts.client.EnvironmentList(envNamespace)
 	if err != nil {

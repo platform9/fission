@@ -43,7 +43,7 @@ func Delete(flags cli.Input) error {
 }
 
 func (opts *DeleteSubCommand) do(flags cli.Input) error {
-	m, err := util.GetMetadata(flag.RESOURCE_NAME, flag.ENVIRONMENT_NAMESPACE, flags)
+	m, err := util.GetMetadata(flag.EnvName, flag.NamespaceEnvironment, flags)
 	if err != nil {
 		return err
 	}

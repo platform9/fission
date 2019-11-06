@@ -27,7 +27,7 @@ import (
 	"github.com/fission/fission/pkg/controller/client"
 	"github.com/fission/fission/pkg/fission-cli/cliwrapper/cli"
 	_package "github.com/fission/fission/pkg/fission-cli/cmd/package"
-	"github.com/fission/fission/pkg/fission-cli/consolemsg"
+	"github.com/fission/fission/pkg/fission-cli/console"
 	"github.com/fission/fission/pkg/fission-cli/util"
 	"github.com/fission/fission/pkg/types"
 )
@@ -131,7 +131,7 @@ func (opts *UpdateSubCommand) complete(flags cli.Input) error {
 				Name:      secretName,
 			})
 			if k8serrors.IsNotFound(err) {
-				consolemsg.Warn(fmt.Sprintf("secret %s not found in Namespace: %s. Secret needs to be present in the same namespace as function", secretName, fnNamespace))
+				console.Warn(fmt.Sprintf("secret %s not found in Namespace: %s. Secret needs to be present in the same namespace as function", secretName, fnNamespace))
 			}
 		}
 
@@ -155,7 +155,7 @@ func (opts *UpdateSubCommand) complete(flags cli.Input) error {
 				Name:      cfgMapName,
 			})
 			if k8serrors.IsNotFound(err) {
-				consolemsg.Warn(fmt.Sprintf("ConfigMap %s not found in Namespace: %s. ConfigMap needs to be present in the same namespace as the function", cfgMapName, fnNamespace))
+				console.Warn(fmt.Sprintf("ConfigMap %s not found in Namespace: %s. ConfigMap needs to be present in the same namespace as the function", cfgMapName, fnNamespace))
 			}
 		}
 
@@ -271,7 +271,7 @@ func (opts *UpdateSubCommand) complete(flags cli.Input) error {
 	}
 
 	if function.Spec.Environment.Name != pkg.Spec.Environment.Name {
-		consolemsg.Warn("Function's environment is different than package's environment, package's environment will be used for updating function")
+		console.Warn("Function's environment is different than package's environment, package's environment will be used for updating function")
 		function.Spec.Environment.Name = pkg.Spec.Environment.Name
 		function.Spec.Environment.Namespace = pkg.Spec.Environment.Namespace
 	}

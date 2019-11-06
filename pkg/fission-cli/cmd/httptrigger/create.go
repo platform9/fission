@@ -30,7 +30,7 @@ import (
 	ferror "github.com/fission/fission/pkg/error"
 	"github.com/fission/fission/pkg/fission-cli/cliwrapper/cli"
 	"github.com/fission/fission/pkg/fission-cli/cmd/spec"
-	"github.com/fission/fission/pkg/fission-cli/consolemsg"
+	"github.com/fission/fission/pkg/fission-cli/console"
 	"github.com/fission/fission/pkg/fission-cli/util"
 )
 
@@ -104,7 +104,7 @@ func (opts *CreateSubCommand) complete(flags cli.Input) error {
 	if !flags.Bool("spec") {
 		err = util.CheckFunctionExistence(opts.client, functionList, fnNamespace)
 		if err != nil {
-			consolemsg.Warn(err.Error())
+			console.Warn(err.Error())
 		}
 	}
 
@@ -118,7 +118,7 @@ func (opts *CreateSubCommand) complete(flags cli.Input) error {
 
 	host := flags.String("host")
 	if flags.IsSet("host") {
-		consolemsg.Warn(fmt.Sprintf("--host is now marked as deprecated, see 'help' for details"))
+		console.Warn(fmt.Sprintf("--host is now marked as deprecated, see 'help' for details"))
 	}
 
 	// just name triggers by uuid.

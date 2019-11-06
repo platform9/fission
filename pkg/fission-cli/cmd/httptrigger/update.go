@@ -25,7 +25,7 @@ import (
 	fv1 "github.com/fission/fission/pkg/apis/fission.io/v1"
 	"github.com/fission/fission/pkg/controller/client"
 	"github.com/fission/fission/pkg/fission-cli/cliwrapper/cli"
-	"github.com/fission/fission/pkg/fission-cli/consolemsg"
+	"github.com/fission/fission/pkg/fission-cli/console"
 	"github.com/fission/fission/pkg/fission-cli/util"
 )
 
@@ -73,7 +73,7 @@ func (opts *UpdateSubCommand) complete(flags cli.Input) error {
 		functionList := flags.StringSlice("function")
 		err := util.CheckFunctionExistence(opts.client, functionList, triggerNamespace)
 		if err != nil {
-			consolemsg.Warn(err.Error())
+			console.Warn(err.Error())
 		}
 
 		var functionWeightsList []int
@@ -96,7 +96,7 @@ func (opts *UpdateSubCommand) complete(flags cli.Input) error {
 
 	if flags.IsSet("host") {
 		ht.Spec.Host = flags.String("host")
-		consolemsg.Warn(fmt.Sprintf("--host is now marked as deprecated, see 'help' for details"))
+		console.Warn(fmt.Sprintf("--host is now marked as deprecated, see 'help' for details"))
 	}
 
 	if flags.IsSet("ingressrule") || flags.IsSet("ingressannotation") || flags.IsSet("ingresstls") {

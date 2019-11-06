@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Fission Authors.
+Copyright 2019 The Fission Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,12 +14,27 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package utils
 
 import (
-	"github.com/fission/fission/cmd/fission-cli/app"
+	"fmt"
+	"strings"
+
+	"github.com/hashicorp/go-multierror"
 )
 
-func main() {
-	app.App().Execute()
+func MultiErrorWithFormat() *multierror.Error {
+	return &multierror.Error{
+		ErrorFormat: DefaultErrorFormat,
+	}
+}
+
+func DefaultErrorFormat(es []error) string {
+	points := make([]string, len(es))
+	for i, err := range es {
+		points[i] = fmt.Sprintf("* %s", err)
+	}
+	return fmt.Sprintf(
+		"%d errors occurred:\n\t%s\n",
+		len(es), strings.Join(points, "\n\t"))
 }

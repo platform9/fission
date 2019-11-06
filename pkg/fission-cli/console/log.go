@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Fission Authors.
+Copyright 2016 The Fission Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,12 +14,30 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package console
 
 import (
-	"github.com/fission/fission/cmd/fission-cli/app"
+	"fmt"
+	"os"
+
+	"github.com/life1347/color"
 )
 
-func main() {
-	app.App().Execute()
+var (
+	// global Verbosity of our CLI
+	Verbosity int
+)
+
+func Warn(msg interface{}) {
+	os.Stdout.WriteString(fmt.Sprintf("%v: %v\n", color.YellowString("Warning"), msg))
+}
+
+func Info(msg interface{}) {
+	os.Stderr.WriteString(fmt.Sprintf("%v\n", msg))
+}
+
+func Verbose(verbosityLevel int, format string, args ...interface{}) {
+	if Verbosity >= verbosityLevel {
+		fmt.Printf(format+"\n", args...)
+	}
 }

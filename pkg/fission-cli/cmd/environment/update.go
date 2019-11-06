@@ -27,6 +27,7 @@ import (
 	"github.com/fission/fission/pkg/fission-cli/cliwrapper/cli"
 	"github.com/fission/fission/pkg/fission-cli/flag"
 	"github.com/fission/fission/pkg/fission-cli/util"
+	"github.com/fission/fission/pkg/utils"
 )
 
 type UpdateSubCommand struct {
@@ -54,7 +55,7 @@ func (opts *UpdateSubCommand) do(flags cli.Input) error {
 }
 
 func (opts *UpdateSubCommand) complete(flags cli.Input) error {
-	m, err := util.GetMetadata(flag.RESOURCE_NAME, flag.ENVIRONMENT_NAMESPACE, flags)
+	m, err := util.GetMetadata(flag.EnvName, flag.NamespaceEnvironment, flags)
 	if err != nil {
 		return err
 	}
@@ -85,12 +86,12 @@ func (opts *UpdateSubCommand) run(flags cli.Input) error {
 
 // updateExistingEnvironmentWithCmd updates a existing environment's value based on CLI input.
 func updateExistingEnvironmentWithCmd(env *fv1.Environment, flags cli.Input) (*fv1.Environment, error) {
-	e := &multierror.Error{}
+	e := utils.MultiErrorWithFormat()
 
-	envImg := flags.String(flag.ENVIRONMENT_IMAGE)
-	envBuilderImg := flags.String(flag.ENVIRONMENT_BUILDER)
-	envBuildCmd := flags.String(flag.ENVIRONMENT_BUILDCOMMAND)
-	envExternalNetwork := flags.Bool(flag.ENVIRONMENT_EXTERNAL_NETWORK)
+	envImg := flags.String(flag.EnvImage)
+	envBuilderImg := flags.String(flag.EnvBuilder)
+	envBuildCmd := flags.String(flag.EnvBuildcommand)
+	envExternalNetwork := flags.Bool(flag.EnvExternalNetwork)
 
 	if len(envImg) == 0 && len(envBuilderImg) == 0 && len(envBuildCmd) == 0 {
 		e = multierror.Append(e, errors.New("need --image to specify env image, or use --builder to specify env builder, or use --buildcmd to specify new build command"))
@@ -111,23 +112,23 @@ func updateExistingEnvironmentWithCmd(env *fv1.Environment, flags cli.Input) (*f
 		env.Spec.Builder.Command = envBuildCmd
 	}
 
-	if flags.IsSet(flag.ENVIRONMENT_POOLSIZE) {
-		env.Spec.Poolsize = flags.Int(flag.ENVIRONMENT_POOLSIZE)
+	if flags.IsSet(flag.EnvPoolsize) {
+		env.Spec.Poolsize = flags.Int(flag.EnvPoolsize)
 	}
 
-	if flags.IsSet(flag.ENVIRONMENT_GRACE_PERIOD) {
-		env.Spec.TerminationGracePeriod = flags.Int64(flag.ENVIRONMENT_GRACE_PERIOD)
+	if flags.IsSet(flag.EnvGracePeriod) {
+		env.Spec.TerminationGracePeriod = flags.Int64(flag.EnvGracePeriod)
 	}
 
-	if flags.IsSet(flag.ENVIRONMENT_KEEPARCHIVE) {
-		env.Spec.KeepArchive = flags.Bool(flag.ENVIRONMENT_KEEPARCHIVE)
+	if flags.IsSet(flag.EnvKeeparchive) {
+		env.Spec.KeepArchive = flags.Bool(flag.EnvKeeparchive)
 	}
 
 	env.Spec.AllowAccessToExternalNetwork = envExternalNetwork
 
-	if flags.IsSet(flag.RUNTIME_MINCPU) || flags.IsSet(flag.RUNTIME_MAXCPU) ||
-		flags.IsSet(flag.RUNTIME_MINMEMORY) || flags.IsSet(flag.RUNTIME_MAXMEMORY) ||
-		flags.IsSet(flag.RUNTIME_MINSCALE) || flags.IsSet(flag.RUNTIME_MAXSCALE) {
+	if flags.IsSet(flag.RuntimeMincpu) || flags.IsSet(flag.RuntimeMaxcpu) ||
+		flags.IsSet(flag.RuntimeMinmemory) || flags.IsSet(flag.RuntimeMaxmemory) ||
+		flags.IsSet(flag.ReplicasMinscale) || flags.IsSet(flag.ReplicasMaxscale) {
 		e = multierror.Append(e, errors.New("updating resource limits/requests for existing environments is currently unsupported; re-create the environment instead"))
 	}
 

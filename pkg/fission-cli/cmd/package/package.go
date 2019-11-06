@@ -41,8 +41,7 @@ import (
 // upload the archive using client.  noZip avoids zipping the
 // includeFiles, but is ignored if there's more than one includeFile.
 func CreateArchive(client *client.Client, includeFiles []string, noZip bool, keepURL bool, specDir string, specFile string) (*fv1.Archive, error) {
-
-	errs := &multierror.Error{}
+	errs := utils.MultiErrorWithFormat()
 	fileURL := ""
 
 	// check files existence
@@ -65,7 +64,7 @@ func CreateArchive(client *client.Client, includeFiles []string, noZip bool, kee
 		}
 
 		if len(files) == 0 {
-			errs = multierror.Append(errs, errors.New(fmt.Sprintf("Error finding any files with path \"%v\"", path)))
+			errs = multierror.Append(errs, errors.Errorf("Error finding any files with path \"%v\"", path))
 		}
 	}
 
