@@ -99,22 +99,10 @@ func SetFlags(cmd *cobra.Command, flagSet flag.FlagSet) {
 	)
 }
 
-func aliasNormalizeFuncGenerator(new string, old string) func(f *pflag.FlagSet, name string) pflag.NormalizedName {
-	return func(f *pflag.FlagSet, name string) pflag.NormalizedName {
-		switch name {
-		case old:
-			name = new
-			break
-		}
-		return pflag.NormalizedName(name)
-	}
-}
-
 func toCobraFlag(cmd *cobra.Command, f flag.Flag) {
 	if len(f.Aliases) > 0 {
 		var aliases []string
 		for _, alias := range f.Aliases {
-			cmd.Flags().SetNormalizeFunc(aliasNormalizeFuncGenerator(f.Name, alias))
 			aliases = append(aliases, "--"+alias)
 		}
 		f.Usage = fmt.Sprintf("(%s): %s", strings.Join(aliases, ", "), f.Usage)
