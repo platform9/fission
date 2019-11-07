@@ -49,7 +49,9 @@ func App() *cobra.Command {
 		Hidden: true,
 	})
 
-	wrapper.OptionalFlags(rootCmd, flag.GlobalServerFlag, flag.GlobalVerbosityFlag)
+	wrapper.SetFlags(rootCmd, flag.FlagSet{
+		Optional: []flag.Flag{flag.GlobalServerFlag, flag.GlobalVerbosityFlag},
+	})
 
 	groups := helptemplate.CommandGroups{}
 	groups = append(groups, helptemplate.CreateCmdGroup("Basic Commands", environment.Commands(), _package.Commands(), function.Commands()))
