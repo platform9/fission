@@ -75,7 +75,7 @@ func Commands() *cobra.Command {
 		Short:   "List all HTTP triggers in a namespace if specified, else, list HTTP triggers across all namespaces",
 		RunE:    wrapper.Wrapper(List),
 	}
-	wrapper.SetFlags(deleteCmd, flag.FlagSet{
+	wrapper.SetFlags(listCmd, flag.FlagSet{
 		Optional: []flag.Flag{flag.NamespaceTriggerFlag, flag.HtFnFilterFlag},
 	})
 

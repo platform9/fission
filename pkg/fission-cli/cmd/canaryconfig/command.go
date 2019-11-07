@@ -73,7 +73,7 @@ func Commands() *cobra.Command {
 		Short:   "List all canary configs in a namespace if specified, else, list canary configs across all namespaces",
 		RunE:    wrapper.Wrapper(List),
 	}
-	wrapper.SetFlags(deleteCmd, flag.FlagSet{
+	wrapper.SetFlags(listCmd, flag.FlagSet{
 		Optional: []flag.Flag{flag.NamespaceCanaryFlag},
 	})
 
