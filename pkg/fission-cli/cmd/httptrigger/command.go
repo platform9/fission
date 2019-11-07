@@ -53,8 +53,9 @@ func Commands() *cobra.Command {
 		RunE:    wrapper.Wrapper(Update),
 	}
 	wrapper.SetFlags(updateCmd, flag.FlagSet{
-		Required: []flag.Flag{flag.HtNameFlag, flag.HtUrlFlag, flag.HtFnNameFlag},
-		Optional: []flag.Flag{flag.NamespaceTriggerFlag, flag.HtMethodFlag, flag.HtIngressRuleFlag, flag.HtIngressAnnotationFlag,
+		Required: []flag.Flag{flag.HtNameFlag},
+		Optional: []flag.Flag{flag.NamespaceTriggerFlag, flag.HtFnNameFlag, flag.HtUrlFlag,
+			flag.HtMethodFlag, flag.HtIngressRuleFlag, flag.HtIngressAnnotationFlag,
 			flag.HtIngressTLSFlag, flag.HtIngressFlag, flag.HtFnWeightFlag, flag.HtHostFlag},
 	})
 

@@ -30,9 +30,9 @@ func Commands() *cobra.Command {
 		RunE:  wrapper.Wrapper(Create),
 	}
 	wrapper.SetFlags(createCmd, flag.FlagSet{
-		Required: []flag.Flag{flag.FnNameFlag, flag.FnEnvNameFlag},
+		Required: []flag.Flag{flag.FnNameFlag},
 		Optional: []flag.Flag{flag.NamespaceFunctionFlag, flag.NamespaceEnvironmentFlag, flag.SpecSaveFlag,
-			flag.FnCodeFlag, flag.PkgSrcArchiveFlag, flag.PkgDeployArchiveFlag, flag.FnKeepURLFlag,
+			flag.FnEnvNameFlag, flag.FnCodeFlag, flag.PkgSrcArchiveFlag, flag.PkgDeployArchiveFlag, flag.FnKeepURLFlag,
 			flag.FnEntryPointFlag, flag.FnBuildCmdFlag, flag.FnPkgNameFlag, flag.HtUrlFlag, flag.HtMethodFlag,
 			flag.RunTimeMinCPUFlag, flag.RunTimeMaxCPUFlag, flag.RunTimeMinMemoryFlag, flag.RunTimeMaxMemoryFlag,
 			flag.ReplicasMinFlag, flag.ReplicasMaxFlag, flag.FnExecutorTypeFlag, flag.RunTimeTargetCPUFlag,

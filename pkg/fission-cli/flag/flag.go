@@ -77,9 +77,9 @@ var (
 
 	RunTimeMinCPUFlag    = Flag{Type: Int, Name: RuntimeMincpu, Usage: "Minimum CPU to be assigned to pod (In millicore, minimum 1)"}
 	RunTimeMaxCPUFlag    = Flag{Type: Int, Name: RuntimeMaxcpu, Usage: "Maximum CPU to be assigned to pod (In millicore, minimum 1)"}
-	RunTimeTargetCPUFlag = Flag{Type: Int, Name: RuntimeMinmemory, Usage: "Target average CPU usage percentage across pods for scaling"}
-	RunTimeMinMemoryFlag = Flag{Type: Int, Name: RuntimeMaxmemory, Usage: "Minimum memory to be assigned to pod (In megabyte)"}
-	RunTimeMaxMemoryFlag = Flag{Type: Int, Name: RuntimeTargetcpu, Usage: "Maximum memory to be assigned to pod (In megabyte)"}
+	RunTimeTargetCPUFlag = Flag{Type: Int, Name: RuntimeTargetcpu, Usage: "Target average CPU usage percentage across pods for scaling"}
+	RunTimeMinMemoryFlag = Flag{Type: Int, Name: RuntimeMinmemory, Usage: "Minimum memory to be assigned to pod (In megabyte)"}
+	RunTimeMaxMemoryFlag = Flag{Type: Int, Name: RuntimeMaxmemory, Usage: "Maximum memory to be assigned to pod (In megabyte)"}
 
 	ReplicasMinFlag = Flag{Type: Int, Name: ReplicasMinscale, Usage: "Minimum number of pods (Uses resource inputs to configure HPA)"}
 	ReplicasMaxFlag = Flag{Type: Int, Name: ReplicasMaxscale, Usage: "Maximum number of pods (Uses resource inputs to configure HPA)"}
