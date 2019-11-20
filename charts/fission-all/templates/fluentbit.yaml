@@ -45,6 +45,10 @@ spec:
             - name: container-log
               mountPath: /var/log/
               readOnly: false
+{{- if .Values.logger.enableSecurityContext }}
+          securityContext:
+            privileged: true
+{{- end }}
       containers:
         - name: logger
 {{ if .Values.repository }}
@@ -68,6 +72,10 @@ spec:
             - name: docker-log
               mountPath: /var/lib/docker/containers
               readOnly: true
+{{- if .Values.logger.enableSecurityContext }}
+          securityContext:
+            privileged: true
+{{- end }}
         - name: fluentbit
 {{- if .Values.repository }}
           image: "{{ .Values.logger.fluentdImageRepository }}/{{ .Values.logger.fluentdImage }}:{{ .Values.logger.fluentdImageTag }}"
@@ -96,6 +104,10 @@ spec:
                   key: password
             - name: LOG_PATH
               value: /var/log/fission/*.log
+{{- if .Values.logger.enableSecurityContext }}
+          securityContext:
+            privileged: true
+{{- end }}
           volumeMounts:
             - name: container-log
               mountPath: /var/log/

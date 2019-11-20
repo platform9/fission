@@ -57,6 +57,13 @@ logger:
   fluentdImageRepository: index.docker.io
   fluentdImage: fluent/fluent-bit
   fluentdImageTag: 1.0.4
+  
+  ## Fluent-bit writes/reads it’s own sqlite database to record a history of tracked
+  ## files and a state of offsets, this is very useful to resume a state if the ser-
+  ## vice is restarted. For Kubernetes environment with constraints like OpenShift,
+  ## the containers are limited to write hostPath volume. Hence, we have to enable
+  ## security context and set privileged to true.
+  enableSecurityContext: false
 
 ## Router config
 router:

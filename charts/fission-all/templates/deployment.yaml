@@ -534,10 +534,8 @@ spec:
         ]
         ports:
         - containerPort: 4222
-          hostPort: 4222
           protocol: TCP
         - containerPort: 4223
-          hostPort: 4223
           protocol: TCP
         readinessProbe:
           httpGet:
