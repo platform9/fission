@@ -198,8 +198,8 @@ build_charts() {
     do
     # https://github.com/kubernetes/helm/issues/1732
     helm init --client-only
-	helm package -u $c/
-	mv *.tgz $BUILDDIR/charts/
+	  helm package -u $c/
+	  mv *.tgz $BUILDDIR/charts/
     done
     popd
 }
@@ -226,6 +226,8 @@ build_yamls() {
         helm template ${c} -n ${releaseName} --namespace fission --set analytics=false,analyticsNonHelmInstall=true,serviceType=NodePort,routerServiceType=NodePort > ${c}-${version}-minikube.yaml
         # for environments that support LoadBalancer
         helm template ${c} -n ${releaseName} --namespace fission --set analytics=false,analyticsNonHelmInstall=true > ${c}-${version}.yaml
+        # for OpenShift
+        helm template ${c} -n ${releaseName} --namespace fission --set analytics=false,analyticsNonHelmInstall=true,logger.enableSecurityContext=true,prometheus.enabled=false > ${c}-${version}-openshift.yaml
 
         # copy yaml files to build directory
         mv *.yaml ${BUILDDIR}/yamls/
