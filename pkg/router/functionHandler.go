@@ -86,9 +86,10 @@ type (
 
 	// A layer on top of http.DefaultTransport, with retries.
 	RetryingRoundTripper struct {
-		logger      *zap.Logger
-		funcHandler *functionHandler
-		timeout     int
+		logger           *zap.Logger
+		funcHandler      *functionHandler
+		funcTimeout      time.Duration
+		closeContextFunc *context.CancelFunc
 	}
 
 	// To keep the request body open during retries, we create an interface with Close operation being a no-op.
@@ -145,7 +146,7 @@ func (w *fakeCloseReadCloser) RealClose() error {
 // inside ServeHttp function of the reverseProxy.
 // Earlier, GetServiceForFunction was called inside handler function and fission explicitly set http status code to 500
 // if it returned an error.
-func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+func (roundTripper *RetryingRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	// Set forwarded host header if not exists
 	roundTripper.addForwardedHostHeader(req)
 
@@ -182,6 +183,8 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (*http.Res
 			req.Body.(*fakeCloseReadCloser).RealClose()
 		}
 	}()
+
+	roundTripper.logger.Debug("request headers", zap.Any("headers", req.Header))
 
 	// The reason for request failure may vary from case to case.
 	// After some investigation, found most of the failure are due to
@@ -265,30 +268,20 @@ func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (*http.Res
 
 		overhead := time.Since(startTime)
 
-		roundTripper.logger.Debug("request headers", zap.Any("headers", req.Header))
-
-		// Creating context for client
-		if roundTripper.timeout <= 0 {
-			roundTripper.timeout = fv1.DEFAULT_FUNCTION_TIMEOUT
-		}
-
-		roundTripper.logger.Debug("Creating context for request for ", zap.Any("time", roundTripper.timeout))
-		// pass request context as parent context for the case
-		// that user aborts connection before timeout. Otherwise,
-		// the request won't be canceled until the deadline exceeded
-		// which may be a potential security issue.
-		ctx, closeCtx := context.WithTimeout(req.Context(), time.Duration(roundTripper.timeout)*time.Second)
+		// Do NOT assign returned request to "req"
+		// because the request used in the last round
+		// will be canceled when calling setContext.
+		newReq := roundTripper.setContext(req)
 
 		// forward the request to the function service
-		resp, err = ocRoundTripper.RoundTrip(req.WithContext(ctx))
-		closeCtx()
+		resp, err = ocRoundTripper.RoundTrip(newReq)
 
 		if err == nil {
 			// Track metrics
 			httpMetricLabels.code = resp.StatusCode
 			funcMetricLabels.cached = serviceUrlFromCache
 
-			functionCallCompleted(funcMetricLabels, httpMetricLabels,
+			go functionCallCompleted(funcMetricLabels, httpMetricLabels,
 				overhead, time.Since(startTime), resp.ContentLength)
 
 			// return response back to user
@@ -373,6 +366,28 @@ func (roundTripper RetryingRoundTripper) getDefaultTransport() *http.Transport {
 	}
 }
 
+// setContext returns a shallow copy of request with a new timeout context.
+func (roundTripper *RetryingRoundTripper) setContext(req *http.Request) *http.Request {
+	if roundTripper.closeContextFunc != nil {
+		(*roundTripper.closeContextFunc)()
+	}
+	// pass request context as parent context for the case
+	// that user aborts connection before timeout. Otherwise,
+	// the request won't be canceled until the deadline exceeded
+	// which may be a potential security issue.
+	ctx, closeCtx := context.WithTimeout(req.Context(), roundTripper.funcTimeout)
+	roundTripper.closeContextFunc = &closeCtx
+
+	return req.WithContext(ctx)
+}
+
+// closeContext closes the context to release resources.
+func (roundTripper *RetryingRoundTripper) closeContext() {
+	if roundTripper.closeContextFunc != nil {
+		(*roundTripper.closeContextFunc)()
+	}
+}
+
 func (fh *functionHandler) tapService(serviceUrl *url.URL) {
 	if fh.executor == nil {
 		return
@@ -408,20 +423,35 @@ func (fh functionHandler) handler(responseWriter http.ResponseWriter, request *h
 		}
 	}
 
-	var timeout int = fv1.DEFAULT_FUNCTION_TIMEOUT
-	if fh.functionTimeoutMap != nil {
-		timeout = fh.functionTimeoutMap[fh.function.GetUID()]
+	fnTimeout := fh.functionTimeoutMap[fh.function.GetUID()]
+	if fnTimeout == 0 {
+		fnTimeout = fv1.DEFAULT_FUNCTION_TIMEOUT
+	}
+
+	rrt := &RetryingRoundTripper{
+		logger:      fh.logger.Named("roundtripper"),
+		funcHandler: &fh,
+		funcTimeout: time.Duration(fnTimeout) * time.Second,
 	}
 
 	proxy := &httputil.ReverseProxy{
-		Director: director,
-		Transport: &RetryingRoundTripper{
-			logger:      fh.logger.Named("roundtripper"),
-			funcHandler: &fh,
-			timeout:     timeout,
-		},
+		Director:     director,
+		Transport:    rrt,
 		ErrorHandler: getProxyErrorHandler(fh.logger, fh.function),
 	}
+
+	defer func() {
+		// If the context is closed when RoundTrip returns, client may receive
+		// truncated response body due to "context canceled" error. To avoid
+		// this, we need to close request context after proxy.ServeHTTP finished.
+		//
+		// NOTE: rrt.closeContext() must be put in the defer function; otherwise,
+		// reverseProxy may panic when failed to write response and the context
+		// will not be closed.
+		//
+		// ref: https://github.com/golang/go/issues/28239
+		rrt.closeContext()
+	}()
 
 	proxy.ServeHTTP(responseWriter, request)
 }
