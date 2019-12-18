@@ -158,7 +158,7 @@ func specializeHandlerV2() func(http.ResponseWriter, *http.Request) {
 				return
 			} else {
 				log.Printf("unknown error looking for code path(%v): %v", loadreq.FilePath, err)
-				err = fmt.Errorf( "unknown error: %v", err)
+				err = fmt.Errorf("unknown error: %v", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				w.Write([]byte(err.Error()))
 				return
