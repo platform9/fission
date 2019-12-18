@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -9,8 +10,12 @@ import (
 	"path/filepath"
 	"plugin"
 
-	"github.com/pkg/errors"
-	"go.uber.org/zap"
+	// DO NOT IMPORT THIRD PARTY PACKAGES
+	// The 3rd party package version used by go server may be
+	// different from the one in user's source code and will
+	// cause plugin version mismatched. Hence, we should never
+	// import any external packages except the Fission or built-in
+	// packages.
 
 	"github.com/fission/fission/environments/go/context"
 )
@@ -40,33 +45,33 @@ type (
 
 var userFunc http.HandlerFunc
 
-func loadPlugin(logger *zap.Logger, codePath, entrypoint string) (http.HandlerFunc, error) {
+func loadPlugin(codePath, entrypoint string) (http.HandlerFunc, error) {
 
 	// if codepath's a directory, load the file inside it
 	info, err := os.Stat(codePath)
 	if err != nil {
-		return nil, errors.Wrap(err, "error checking plugin path")
+		return nil, fmt.Errorf("error checking plugin path: %v", err)
 	}
 	if info.IsDir() {
 		files, err := ioutil.ReadDir(codePath)
 		if err != nil {
-			return nil, errors.Wrap(err, "error reading directory")
+			return nil, fmt.Errorf("error reading directory: %v", err)
 		}
 		if len(files) == 0 {
-			return nil, errors.New("No files to load")
+			return nil, fmt.Errorf("no files to load: %v", codePath)
 		}
 		fi := files[0]
 		codePath = filepath.Join(codePath, fi.Name())
 	}
 
-	logger.Info("loading plugin", zap.String("location", codePath))
+	log.Printf("loading plugin from %v", codePath)
 	p, err := plugin.Open(codePath)
 	if err != nil {
-		return nil, errors.Wrap(err, "error loading plugin")
+		return nil, fmt.Errorf("error loading plugin: %v", err)
 	}
 	sym, err := p.Lookup(entrypoint)
 	if err != nil {
-		return nil, errors.Wrap(err, "entry point not found")
+		return nil, fmt.Errorf("entry point not found: %v", err)
 	}
 
 	switch h := sym.(type) {
@@ -86,7 +91,7 @@ func loadPlugin(logger *zap.Logger, codePath, entrypoint string) (http.HandlerFu
 	}
 }
 
-func specializeHandler(logger *zap.Logger) func(http.ResponseWriter, *http.Request) {
+func specializeHandler() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if userFunc != nil {
 			w.WriteHeader(http.StatusBadRequest)
@@ -97,37 +102,33 @@ func specializeHandler(logger *zap.Logger) func(http.ResponseWriter, *http.Reque
 		_, err := os.Stat(CODE_PATH)
 		if err != nil {
 			if os.IsNotExist(err) {
+				log.Printf("code path (%v) does not exist: %v", CODE_PATH, err)
 				w.WriteHeader(http.StatusNotFound)
-				logger.Error("code path does not exist",
-					zap.Error(err),
-					zap.String("code_path", CODE_PATH))
 				w.Write([]byte(CODE_PATH + ": not found"))
 				return
 			} else {
-				logger.Error("unknown error looking for code path",
-					zap.Error(err),
-					zap.String("code_path", CODE_PATH))
-				err = errors.Wrap(err, "unknown error")
+				log.Printf("unknown error looking for code path(%v): %v", CODE_PATH, err)
+				err = fmt.Errorf("unknown error: %v", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				w.Write([]byte(err.Error()))
 				return
 			}
 		}
 
-		logger.Info("specializing ...")
-		userFunc, err = loadPlugin(logger, CODE_PATH, "Handler")
+		log.Println("specializing ...")
+		userFunc, err = loadPlugin(CODE_PATH, "Handler")
 		if err != nil {
-			e := "error specializing function"
-			logger.Error(e, zap.Error(err))
+			err = fmt.Errorf("error specializing function: %v", err)
+			log.Printf(err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(errors.Wrap(err, e).Error()))
+			w.Write([]byte(err.Error()))
 			return
 		}
-		logger.Info("done")
+		log.Println("done")
 	}
 }
 
-func specializeHandlerV2(logger *zap.Logger) func(http.ResponseWriter, *http.Request) {
+func specializeHandlerV2() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if userFunc != nil {
 			w.WriteHeader(http.StatusBadRequest)
@@ -137,7 +138,7 @@ func specializeHandlerV2(logger *zap.Logger) func(http.ResponseWriter, *http.Req
 
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			logger.Error("error reading request body", zap.Error(err))
+			log.Printf("error reading request body: %v", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -151,33 +152,29 @@ func specializeHandlerV2(logger *zap.Logger) func(http.ResponseWriter, *http.Req
 		_, err = os.Stat(loadreq.FilePath)
 		if err != nil {
 			if os.IsNotExist(err) {
-				logger.Error("code path does not exist",
-					zap.Error(err),
-					zap.String("code_path", loadreq.FilePath))
+				log.Printf("code path (%v) does not exist: %v", loadreq.FilePath, err)
 				w.WriteHeader(http.StatusNotFound)
 				w.Write([]byte(loadreq.FilePath + ": not found"))
 				return
 			} else {
-				logger.Error("unknown error looking for code path",
-					zap.Error(err),
-					zap.String("code_path", loadreq.FilePath))
-				err = errors.Wrap(err, "unknown error")
+				log.Printf("unknown error looking for code path(%v): %v", loadreq.FilePath, err)
+				err = fmt.Errorf( "unknown error: %v", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				w.Write([]byte(err.Error()))
 				return
 			}
 		}
 
-		logger.Info("specializing ...")
-		userFunc, err = loadPlugin(logger, loadreq.FilePath, loadreq.FunctionName)
+		log.Println("specializing ...")
+		userFunc, err = loadPlugin(loadreq.FilePath, loadreq.FunctionName)
 		if err != nil {
-			e := "error specializing function"
-			logger.Error(e, zap.Error(err))
+			err = fmt.Errorf("error specializing function: %v", err)
+			log.Printf(err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(errors.Wrap(err, e).Error()))
+			w.Write([]byte(err.Error()))
 			return
 		}
-		logger.Info("done")
+		log.Println("done")
 	}
 }
 
@@ -186,15 +183,10 @@ func readinessProbeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	logger, err := zap.NewProduction()
-	if err != nil {
-		log.Fatalf("can't initialize zap logger: %v", err)
-	}
-	defer logger.Sync()
 
 	http.HandleFunc("/healthz", readinessProbeHandler)
-	http.HandleFunc("/specialize", specializeHandler(logger.Named("specialize_handler")))
-	http.HandleFunc("/v2/specialize", specializeHandlerV2(logger.Named("specialize_v2_handler")))
+	http.HandleFunc("/specialize", specializeHandler())
+	http.HandleFunc("/v2/specialize", specializeHandlerV2())
 
 	// Generic route -- all http requests go to the user function.
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -206,6 +198,6 @@ func main() {
 		userFunc(w, r)
 	})
 
-	logger.Info("listening on 8888 ...")
+	log.Println("listening on 8888 ...")
 	http.ListenAndServe(":8888", nil)
 }
