@@ -117,11 +117,11 @@ func (opts *ApplySubCommand) run(input cli.Input) error {
 		}
 
 		// validate
-		err = fr.Validate(input)
+		warning, err := fr.Validate(input)
 		if err != nil {
 			return errors.Wrap(err, "error validating specs")
 		}
-
+		_ = warning
 		// make changes to the cluster based on the specs
 		pkgMetas, as, err := applyResources(opts.Client(), specDir, fr, deleteResources)
 		if err != nil {

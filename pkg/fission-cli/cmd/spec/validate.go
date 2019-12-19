@@ -18,6 +18,7 @@ package spec
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -56,11 +57,16 @@ func (opts *ValidateSubCommand) run(input cli.Input) error {
 	}
 
 	// this does the rest of the checks, like dangling refs
-	err = fr.Validate(input)
+	warning, err := fr.Validate(input)
 	if err != nil {
 		return errors.Wrap(err, "error validating specs")
 	}
-
+	if warning {
+		fmt.Printf("Spec validation was successful with warnings\n")
+	} else {
+		fmt.Printf("Spec validation successful\nSpec contains\n %v Functions\n %v Environments\n %v Packages \n %v Http Triggers \n %v MessageQueue Triggers\n %v Time Triggers\n %v Kube Watchers\n %v ArchiveUploadSpec\n",
+			len(fr.Functions), len(fr.Environments), len(fr.Packages), len(fr.HttpTriggers), len(fr.MessageQueueTriggers), len(fr.TimeTriggers), len(fr.KubernetesWatchTriggers), len(fr.ArchiveUploadSpecs))
+	}
 	return nil
 }
 

@@ -276,9 +276,10 @@ func (fr *FissionResources) validateFunctionReference(functions map[string]bool,
 	return nil
 }
 
-func (fr *FissionResources) Validate(input cli.Input) error {
+//Validate validates if there is any
+func (fr *FissionResources) Validate(input cli.Input) (bool, error) {
 	result := utils.MultiErrorWithFormat()
-
+	warning := false
 	// check references: both dangling refs + garbage
 	//   packages -> archives
 	//   functions -> packages
@@ -375,7 +376,7 @@ func (fr *FissionResources) Validate(input cli.Input) error {
 
 		client, err := util.GetServer(input)
 		if err != nil {
-			return err
+			return warning, err
 		}
 		for _, cm := range f.Spec.ConfigMaps {
 			_, err := client.V1().Misc().ConfigMapGet(&metav1.ObjectMeta{
@@ -383,6 +384,7 @@ func (fr *FissionResources) Validate(input cli.Input) error {
 				Namespace: cm.Namespace,
 			})
 			if k8serrors.IsNotFound(err) {
+				warning = true
 				console.Warn(fmt.Sprintf("Configmap %s is referred in the spec but not present in the cluster", cm.Name))
 			}
 		}
@@ -393,6 +395,7 @@ func (fr *FissionResources) Validate(input cli.Input) error {
 				Namespace: s.Namespace,
 			})
 			if k8serrors.IsNotFound(err) {
+				warning = true
 				console.Warn(fmt.Sprintf("Secret %s is referred in the spec but not present in the cluster", s.Name))
 			}
 
@@ -406,6 +409,7 @@ func (fr *FissionResources) Validate(input cli.Input) error {
 		ks := strings.Split(key, ":")
 		namespace, name := ks[0], ks[1]
 		if !referenced {
+			warning = true
 			console.Warn(fmt.Sprintf(
 				"%v: package '%v' is not used in any function",
 				fr.SourceMap.Locations["Package"][namespace][name],
@@ -421,6 +425,7 @@ func (fr *FissionResources) Validate(input cli.Input) error {
 		}
 
 		if len(t.Spec.Host) > 0 {
+			warning = true
 			console.Warn(fmt.Sprintf("Host in HTTPTrigger spec.Host is now marked as deprecated, see 'help' for details"))
 		}
 
@@ -456,30 +461,35 @@ func (fr *FissionResources) Validate(input cli.Input) error {
 	for _, e := range fr.Environments {
 		environments[fmt.Sprintf("%s:%s", e.Metadata.Name, e.Metadata.Namespace)] = struct{}{}
 		if ((e.Spec.Runtime.Container != nil) && (e.Spec.Runtime.PodSpec != nil)) || ((e.Spec.Builder.Container != nil) && (e.Spec.Builder.PodSpec != nil)) {
+			warning = true
 			console.Warn("You have provided both - container spec and pod spec and while merging the pod spec will take precedence.")
 		}
 		// Unlike CLI can change the environment version silently,
 		// we have to warn the user to modify spec file when this takes place.
 		if e.Spec.Poolsize != 3 && e.Spec.Version < 3 {
+			warning = true
 			console.Warn("Poolsize can only be configured when environment version equals to 3, default poolsize 3 will be used for creating environment pool.")
 		}
 	}
 
 	for _, f := range fr.Functions {
 		if _, ok := environments[fmt.Sprintf("%s:%s", f.Spec.Environment.Name, f.Spec.Environment.Namespace)]; !ok {
+			warning = true
 			console.Warn(fmt.Sprintf("Environment %s is referenced in function %s but not declared in specs", f.Spec.Environment.Name, f.Metadata.Name))
 		}
 		strategy := f.Spec.InvokeStrategy.ExecutionStrategy
 		if strategy.ExecutorType == fv1.ExecutorTypeNewdeploy && strategy.SpecializationTimeout < fv1.DefaultSpecializationTimeOut {
+			warning = true
 			console.Warn(fmt.Sprintf("SpecializationTimeout in function spec.InvokeStrategy.ExecutionStrategy should be a value equal to or greater than %v", fv1.DefaultSpecializationTimeOut))
 		}
 		if f.Spec.FunctionTimeout <= 0 {
+			warning = true
 			console.Warn(fmt.Sprintf("FunctionTimeout in function spec should be a field which should have a value greater than 0"))
 		}
 	}
 
 	// (ErrorOrNil returns nil if there were no errors appended.)
-	return result.ErrorOrNil()
+	return warning, result.ErrorOrNil()
 }
 
 // Keep track of source location of resources, and track duplicates
