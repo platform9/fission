@@ -116,10 +116,14 @@ func (opts *ApplySubCommand) run(input cli.Input) error {
 			return errors.Wrap(err, "error reading specs")
 		}
 
+		var warnings []string
 		// validate
-		_, err = fr.Validate(input)
+		warnings, err = fr.Validate(input)
 		if err != nil {
 			return errors.Wrap(err, "error validating specs")
+		}
+		for _, warning := range warnings {
+			console.Warn(warning)
 		}
 
 		// make changes to the cluster based on the specs
