@@ -4,32 +4,31 @@
 #
 ############## Usage ##############
 # Skaffold CLI should be installed on your machine. 
-# Change vishalbiyani -> to your Dockerhub username
-# Run `skaffold run` to build and deploy with helm. 
+# Change <DOCKERHUB_REPO> -> to your Dockerhub username
+# Run `TAG=1313 skaffold run` to build and deploy with helm - where replace value of tag to what you want to use as tag for image
 # Run`skaffold build` to only build and push images
-############## Current Limitations ##############
-# 1) You can not refer to dynamically generated tag from build section in Helm values
-# - hence you have to use "latest" tag
-############### Possible enhancements ##############
-# 1) Add profiles to suit various deployment needs
+############## Future Improvement/Limitations ##############
+# 1) [LOW]  Add profiles to suit various deployment needs
+# 2) [HIGH] Make base repo configurable as Skaffold config (ATM it works for build but not for Helm Deploy) 
+# (Related issue: https://github.com/GoogleContainerTools/skaffold/issues/3763)
 ####################################
 apiVersion: skaffold/v1beta9
 kind: Config
 build:
   artifacts:
-    - image: vishalbiyani/fission
+    - image: <DOCKERHUB_REPO>/fission
       context: .
       docker:
         dockerfile: cmd/fission-bundle/Dockerfile.fission-bundle
-    - image: vishalbiyani/fetcher
+    - image: <DOCKERHUB_REPO>/fetcher
       docker:
         dockerfile: cmd/fetcher/Dockerfile.fission-fetcher
-    - image: vishalbiyani/preupgradechecks
+    - image: <DOCKERHUB_REPO>/preupgradechecks
       docker:
         dockerfile: cmd/preupgradechecks/Dockerfile.fission-preupgradechecks
   tagPolicy:
     envTemplate:
-      template: "{{.IMAGE_NAME}}:skaffold-test"
+      template: "{{.IMAGE_NAME}}:{{.TAG}}"
 
 deploy:
   helm:
@@ -39,16 +38,16 @@ deploy:
         valuesFiles:
           - ./charts/fission-all/values.yaml
         namespace: "fission"
-        values:
+        setValues:
           namespace: fission
-          fetcher.image: vishalbiyani/fetcher
-          fetcher.imageTag: skaffold-test
-          image: vishalbiyani/fission
-          imageTag: skaffold-test    
-          preUpgradeChecksImage: vishalbiyani/preupgradechecks
           repository: index.docker.io
+        # The env template values only should go in setValueTemplates, all other overrides in setValues
         setValueTemplates:
-          image: "{{.IMAGE}}"
+          image: <DOCKERHUB_REPO>/fission
+          preUpgradeChecksImage: <DOCKERHUB_REPO>/preupgradechecks
+          fetcher.image: <DOCKERHUB_REPO>/fetcher
+          fetcher.imageTag: "{{.TAG}}"
+          imageTag: "{{.TAG}}"
         wait: true
         recreatePods: false
         packaged: null
