@@ -12,7 +12,7 @@
 # 2) [HIGH] Make base repo configurable as Skaffold config (ATM it works for build but not for Helm Deploy) 
 # (Related issue: https://github.com/GoogleContainerTools/skaffold/issues/3763)
 ####################################
-apiVersion: skaffold/v1beta9
+apiVersion: skaffold/v2beta1
 kind: Config
 build:
   artifacts:
