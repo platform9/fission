@@ -78,14 +78,11 @@ func runMessageQueueMgr(logger *zap.Logger, routerUrl string) {
 	}
 }
 
-func runStorageSvc(logger *zap.Logger, port int, filePath string) {
-	subdir := os.Getenv("SUBDIR")
-	if len(subdir) == 0 {
-		subdir = "fission-functions"
+func runStorageSvc(logger *zap.Logger, port int, filePath string, storageArgs ...string) {
+	err := storagesvc.Start(logger, filePath, port, storageArgs...)
+	if err != nil {
+		logger.Fatal("error starting storage service", zap.Error(err))
 	}
-	enableArchivePruner := true
-	storagesvc.RunStorageService(logger, storagesvc.StorageTypeLocal,
-		filePath, subdir, port, enableArchivePruner)
 }
 
 func runBuilderMgr(logger *zap.Logger, storageSvcUrl string, envBuilderNamespace string) {
@@ -201,6 +198,7 @@ Usage:
   fission-bundle --executorPort=<port> [--namespace=<namespace>] [--fission-namespace=<namespace>]
   fission-bundle --kubewatcher [--routerUrl=<url>]
   fission-bundle --storageServicePort=<port> --filePath=<filePath>
+  fission-bundle --storageServicePort=<port> --filePath=<filePath> --storageType=<storateType>
   fission-bundle --builderMgr [--storageSvcUrl=<url>] [--envbuilder-namespace=<namespace>]
   fission-bundle --timer [--routerUrl=<url>]
   fission-bundle --mqt   [--routerUrl=<url>]
@@ -296,7 +294,16 @@ Options:
 	if arguments["--storageServicePort"] != nil {
 		port := getPort(logger, arguments["--storageServicePort"])
 		filePath := arguments["--filePath"].(string)
-		runStorageSvc(logger, port, filePath)
+
+		if arguments["--storageType"] != nil && arguments["--storageType"] == storagesvc.StorageTypeS3 {
+			bucketName := os.Getenv("STORAGE_S3_BUCKET_NAME")
+			accessKeyId := os.Getenv("STORAGE_S3_ACCESS_KEY_ID")
+			secretAccessKey := os.Getenv("STORAGE_S3_SECRET_ACCESS_KEY")
+			region := os.Getenv("STORAGE_S3_REGION")
+			runStorageSvc(logger, port, filePath, "s3", bucketName, accessKeyId, secretAccessKey, region)
+		} else {
+			runStorageSvc(logger, port, filePath, "local")
+		}
 	}
 
 	select {}

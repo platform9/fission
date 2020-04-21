@@ -58,7 +58,7 @@ func TestStorageService(t *testing.T) {
 
 	log.Println("starting storage svc")
 	_ = storagesvc.RunStorageService(
-		logger, storagesvc.StorageTypeLocal, "/tmp", testId, port, enableArchivePruner)
+		logger, storagesvc.NewLocalStorage(), "/tmp", testId, port, enableArchivePruner)
 
 	time.Sleep(time.Second)
 	client := MakeClient(fmt.Sprintf("http://localhost:%v/", port))

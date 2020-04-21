@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/graymeta/stow"
 	_ "github.com/graymeta/stow/local"
 	"github.com/pkg/errors"
 	"go.opencensus.io/plugin/ochttp"
@@ -32,6 +33,11 @@ import (
 )
 
 type (
+	Storage interface {
+		getStorageType() string
+		dial(string) (stow.Location, error)
+	}
+
 	StorageService struct {
 		logger        *zap.Logger
 		storageClient *StowClient
@@ -42,6 +48,35 @@ type (
 		ID string `json:"id"`
 	}
 )
+
+// Start function
+func Start(logger *zap.Logger, filePath string, port int, storageArgs ...string) error {
+	subdir := os.Getenv("SUBDIR")
+	if len(subdir) == 0 {
+		subdir = "fission-functions"
+	}
+	enableArchivePruner := true
+
+	var storage Storage
+	storageType := storageArgs[0]
+	switch storageType {
+	case string(StorageTypeS3):
+		storage = NewS3Storage(storageArgs[1:]...)
+	case string(StorageTypeLocal):
+		storage = NewLocalStorage()
+	}
+	RunStorageService(logger, storage, filePath, subdir, port, enableArchivePruner)
+	return nil
+}
+
+// Functions handling storage interface
+func getStorageType(storage Storage) string {
+	return string(storage.getStorageType())
+}
+
+func getStorageLocation(config *storageConfig) (stow.Location, error) {
+	return config.storage.dial(config.localPath)
+}
 
 // Handle multipart file uploads.
 func (ss *StorageService) uploadHandler(w http.ResponseWriter, r *http.Request) {
@@ -185,9 +220,9 @@ func (ss *StorageService) Start(port int) {
 	ss.logger.Fatal("done listening", zap.Error(err))
 }
 
-func RunStorageService(logger *zap.Logger, storageType StorageType, storagePath string, containerName string, port int, enablePruner bool) *StorageService {
+func RunStorageService(logger *zap.Logger, storage Storage, storagePath string, containerName string, port int, enablePruner bool) *StorageService {
 	// create a storage client
-	storageClient, err := MakeStowClient(logger, storageType, storagePath, containerName)
+	storageClient, err := MakeStowClient(logger, storage, storagePath, containerName)
 	if err != nil {
 		logger.Fatal("error creating stowClient", zap.Error(err))
 	}

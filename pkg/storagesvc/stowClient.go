@@ -20,6 +20,7 @@ import (
 	"io"
 	"mime/multipart"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/graymeta/stow"
@@ -30,10 +31,8 @@ import (
 )
 
 type (
-	StorageType string
-
 	storageConfig struct {
-		storageType   StorageType
+		storage       Storage
 		localPath     string
 		containerName string
 		// other stuff, such as google or s3 credentials, bucket names etc
@@ -48,8 +47,9 @@ type (
 )
 
 const (
-	StorageTypeLocal StorageType = "local"
-	PaginationSize   int         = 10
+	StorageTypeLocal string = "local"
+	StorageTypeS3    string = "s3"
+	PaginationSize   int    = 10
 )
 
 var (
@@ -60,13 +60,14 @@ var (
 	ErrWritingFileIntoResponse = errors.New("unable to copy item into http response")
 )
 
-func MakeStowClient(logger *zap.Logger, storageType StorageType, storagePath string, containerName string) (*StowClient, error) {
-	if storageType != StorageTypeLocal {
-		return nil, errors.New("Storage types other than 'local' are not implemented")
+func MakeStowClient(logger *zap.Logger, storage Storage, storagePath string, containerName string) (*StowClient, error) {
+	storageType := getStorageType(storage)
+	if strings.Compare(storageType, "local") == 1 && strings.Compare(storageType, "s3") == 1 {
+		return nil, errors.New("Storage types other than 'local' and 's3' are not implemented")
 	}
 
 	config := &storageConfig{
-		storageType:   storageType,
+		storage:       storage,
 		localPath:     storagePath,
 		containerName: containerName,
 	}
@@ -76,15 +77,14 @@ func MakeStowClient(logger *zap.Logger, storageType StorageType, storagePath str
 		config: config,
 	}
 
-	cfg := stow.ConfigMap{"path": config.localPath}
-	loc, err := stow.Dial("local", cfg)
+	loc, err := getStorageLocation(config)
 	if err != nil {
 		return nil, err
 	}
 	stowClient.location = loc
 
 	con, err := loc.CreateContainer(config.containerName)
-	if os.IsExist(err) {
+	if err != nil && (os.IsExist(err) || strings.Contains(err.Error(), "BucketAlreadyOwnedByYou")) {
 		var cons []stow.Container
 		var cursor string
 
