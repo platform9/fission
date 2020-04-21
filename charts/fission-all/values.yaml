@@ -203,10 +203,22 @@ kafka:
 
 ## Persist data to a persistent volume.
 persistence:
-  ## If true, fission will create/use a Persistent Volume Claim
+  ## If true, fission will create/use a Persistent Volume Claim unless storageType is set to s3
   ## If false, use emptyDir
   ##
   enabled: true
+
+  ## Must be set to either local or S3.
+  ## If storateType is set(other than local), one of its backend configuration must be set as below.
+  #storageType: local | s3
+
+  ## Sample configruation for AWS s3 storage backend
+  # s3:
+  #   bucketName: <awsBucketName>
+  #   subDir: <sub directory within a bucket>
+  #   accessKeyId: <awsAccessKeyId>
+  #   secretAccessKey: <awsSecretAccessKey>
+  #   region: <awsRegion>
 
   ## A manually managed Persistent Volume Claim name
   ## Requires persistence.enabled: true

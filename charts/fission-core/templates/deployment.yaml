@@ -288,7 +288,7 @@ spec:
         - name: TRACE_JAEGER_COLLECTOR_ENDPOINT
           value: "{{ .Values.traceCollectorEndpoint }}"
         - name: TRACING_SAMPLING_RATE
-          value: {{ .Values.traceSamplingRate | default "0.5" | quote }}          
+          value: {{ .Values.traceSamplingRate | default "0.5" | quote }}      
         - name: ENABLE_ISTIO
           value: "{{ .Values.enableIstio }}"
         - name: FETCHER_MINCPU
@@ -398,27 +398,47 @@ spec:
         image: {{ include "fission-bundleImage" . | quote }}
         imagePullPolicy: {{ .Values.pullPolicy }}
         command: ["/fission-bundle"]
-        args: ["--storageServicePort", "8000", "--filePath", "/fission"]
+        {{- if and (.Values.persistence.enabled) (eq (.Values.persistence.storageType | default "local") "s3") }}
+        args: ["--storageServicePort", "8000", "--storageType", "s3"]
+        {{- else }}
+        args: ["--storageServicePort", "8000", "--storageType", "local"]
+        {{- end }}
         env:
         - name: PRUNE_INTERVAL
           value: "{{.Values.pruneInterval}}"
         - name: TRACE_JAEGER_COLLECTOR_ENDPOINT
           value: "{{ .Values.traceCollectorEndpoint }}"
         - name: TRACING_SAMPLING_RATE
-          value: {{ .Values.traceSamplingRate | default "0.5" | quote }}          
+          value: {{ .Values.traceSamplingRate | default "0.5" | quote }}
+        {{- if and (.Values.persistence.enabled) (eq (.Values.persistence.storageType | default "local") "s3") }}
+        - name: STORAGE_S3_BUCKET_NAME
+          value: {{ .Values.persistence.s3.bucketName }}
+        - name: STORAGE_S3_SUB_DIR
+          value: {{ .Values.persistence.s3.subDir }}
+        - name: STORAGE_S3_ACCESS_KEY_ID
+          value: {{ .Values.persistence.s3.accessKeyId }}
+        - name: STORAGE_S3_SECRET_ACCESS_KEY
+          value: {{ .Values.persistence.s3.secretAccessKey }}
+        - name: STORAGE_S3_REGION
+          value: {{ .Values.persistence.s3.region }}
+        {{- end }}
+        {{- if ne (.Values.persistence.storageType | default "local") "s3" }}
         volumeMounts:
         - name: fission-storage
           mountPath: /fission
+        {{- end }}
         ports:
           - containerPort: 8000
             name: http
       serviceAccountName: fission-svc
+      {{- if and (.Values.persistence.enabled) (ne (.Values.persistence.storageType | default "local") "s3") }}
       volumes:
       - name: fission-storage
-      {{- if .Values.persistence.enabled }}   
         persistentVolumeClaim:
           claimName: {{ .Values.persistence.existingClaim | default "fission-storage-pvc" }}
       {{- else }}
+      volumes:
+      - name: fission-storage
         emptyDir: {}
       {{- end }}
 {{- if .Values.extraCoreComponentPodConfig }}

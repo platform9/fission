@@ -49,7 +49,7 @@ func MakeTestFile(size int) *os.File {
 }
 
 func TestStorageService(t *testing.T) {
-	testId := uniuri.NewLen(8)
+	testID := uniuri.NewLen(8)
 	port := 8080
 	enableArchivePruner := false
 
@@ -58,7 +58,7 @@ func TestStorageService(t *testing.T) {
 
 	log.Println("starting storage svc")
 	_ = storagesvc.RunStorageService(
-		logger, storagesvc.StorageTypeLocal, "/tmp", testId, port, enableArchivePruner)
+		logger, storagesvc.NewLocalStorage(), port, enableArchivePruner)
 
 	time.Sleep(time.Second)
 	client := MakeClient(fmt.Sprintf("http://localhost:%v/", port))
@@ -70,7 +70,7 @@ func TestStorageService(t *testing.T) {
 	// store it
 	metadata := make(map[string]string)
 	ctx := context.Background()
-	fileId, err := client.Upload(ctx, tmpfile.Name(), &metadata)
+	fileID, err := client.Upload(ctx, tmpfile.Name(), &metadata)
 	panicIf(err)
 
 	// make a temp file for verification
@@ -79,7 +79,7 @@ func TestStorageService(t *testing.T) {
 	os.Remove(retrievedfile.Name())
 
 	// retrieve uploaded file
-	err = client.Download(ctx, fileId, retrievedfile.Name())
+	err = client.Download(ctx, fileID, retrievedfile.Name())
 	panicIf(err)
 	defer os.Remove(retrievedfile.Name())
 
@@ -93,15 +93,15 @@ func TestStorageService(t *testing.T) {
 	}
 
 	// delete uploaded file
-	err = client.Delete(ctx, fileId)
+	err = client.Delete(ctx, fileID)
 	panicIf(err)
 
 	// make sure download fails
-	err = client.Download(ctx, fileId, "xxx")
+	err = client.Download(ctx, fileID, "xxx")
 	if err == nil {
 		log.Panic("Download succeeded but file isn't supposed to exist")
 	}
 
 	// cleanup /tmp
-	os.RemoveAll(fmt.Sprintf("/tmp/%v", testId))
+	os.RemoveAll(fmt.Sprintf("/tmp/%v", testID))
 }

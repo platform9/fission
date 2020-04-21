@@ -20,25 +20,20 @@ import (
 	"io"
 	"mime/multipart"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/graymeta/stow"
-	_ "github.com/graymeta/stow/local"
 	"github.com/pkg/errors"
-	"github.com/satori/go.uuid"
 	"go.uber.org/zap"
 )
 
 type (
-	StorageType string
-
 	storageConfig struct {
-		storageType   StorageType
-		localPath     string
-		containerName string
-		// other stuff, such as google or s3 credentials, bucket names etc
+		storage Storage
 	}
 
+	//StowClient is the wraper client for stow (Cloud storage abstraction package)
 	StowClient struct {
 		logger    *zap.Logger
 		config    *storageConfig
@@ -48,8 +43,12 @@ type (
 )
 
 const (
-	StorageTypeLocal StorageType = "local"
-	PaginationSize   int         = 10
+	// StorageTypeLocal is a constant to hold local storate type name literal
+	StorageTypeLocal string = "local"
+	// StorageTypeS3 is a constant to hold S3 storage type name literal
+	StorageTypeS3 string = "s3"
+	// PaginationSize is a constant to hold no of pages
+	PaginationSize int = 10
 )
 
 var (
@@ -60,15 +59,15 @@ var (
 	ErrWritingFileIntoResponse = errors.New("unable to copy item into http response")
 )
 
-func MakeStowClient(logger *zap.Logger, storageType StorageType, storagePath string, containerName string) (*StowClient, error) {
-	if storageType != StorageTypeLocal {
-		return nil, errors.New("Storage types other than 'local' are not implemented")
+// MakeStowClient create a new StowClient for given storage
+func MakeStowClient(logger *zap.Logger, storage Storage) (*StowClient, error) {
+	storageType := getStorageType(storage)
+	if strings.Compare(storageType, "local") == 1 && strings.Compare(storageType, "s3") == 1 {
+		return nil, errors.New("Storage types other than 'local' and 's3' are not implemented")
 	}
 
 	config := &storageConfig{
-		storageType:   storageType,
-		localPath:     storagePath,
-		containerName: containerName,
+		storage: storage,
 	}
 
 	stowClient := &StowClient{
@@ -76,21 +75,21 @@ func MakeStowClient(logger *zap.Logger, storageType StorageType, storagePath str
 		config: config,
 	}
 
-	cfg := stow.ConfigMap{"path": config.localPath}
-	loc, err := stow.Dial("local", cfg)
+	loc, err := getStorageLocation(config)
 	if err != nil {
 		return nil, err
 	}
 	stowClient.location = loc
 
-	con, err := loc.CreateContainer(config.containerName)
-	if os.IsExist(err) {
+	con, err := loc.CreateContainer(config.storage.getContainerName())
+	if err != nil && (os.IsExist(err) || strings.Contains(err.Error(), "BucketAlreadyOwnedByYou")) {
 		var cons []stow.Container
 		var cursor string
 
 		// use location.Containers to find containers that match the prefix (container name)
-		cons, cursor, err = loc.Containers(config.containerName, stow.CursorStart, 1)
+		cons, cursor, err = loc.Containers(config.storage.getContainerName(), stow.CursorStart, 1)
 		if err == nil {
+			con = cons[0]
 			if !stow.IsCursorEnd(cursor) {
 				// Should only have one storage container
 				err = errors.New("Found more than one matched storage containers")
@@ -109,9 +108,7 @@ func MakeStowClient(logger *zap.Logger, storageType StorageType, storagePath str
 
 // putFile writes the file on the storage
 func (client *StowClient) putFile(file multipart.File, fileSize int64) (string, error) {
-	// This is not the item ID (that's returned by Put)
-	// should we just use handler.Filename? what are the constraints here?
-	uploadName := uuid.NewV4().String()
+	uploadName := client.config.storage.getUploadFileName()
 
 	// save the file to the storage backend
 	item, err := client.container.Put(uploadName, file, int64(fileSize), nil)
