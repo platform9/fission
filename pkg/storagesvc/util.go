@@ -18,9 +18,81 @@ package storagesvc
 
 import (
 	"net/url"
+	"strings"
 
 	"github.com/pkg/errors"
 )
+
+func newStorageType(args ...string) (StorageType, error) {
+	storageType := args[0]
+	switch storageType {
+	case "local":
+		return strings.Join(args[1:], ","), nil
+	case "s3":
+		return strings.Join(args[1:], "-"), nil
+	}
+	return nil
+}
+
+func getStowLocation(config StorageConfig) (stow.Location, error) {
+	return config.st.dial(config.st.localPath)
+}
+
+func getStorageTypeName(st StorageType) string {
+	return st.name()
+}
+
+type StorageType interface {
+	name() string
+	dial()
+}
+
+type StorageTypeLocal struct {
+	storageType string
+}
+
+func (st StorageTypeLocal) name() string {
+	return constStorageTypeLocal
+}
+
+func (st StorageTypeLocal) dial(localPath StoragePath) (stow.Localtion, error) {
+	cfg := stow.ConfigMap{"path": localPath}
+	return stow.Dial("local", cfg)
+}
+
+type StorageTypeS3 struct {
+	storageType     string
+	endpoint        string
+	accessKeyId     string
+	secretAccessKey string
+	region          string
+}
+
+func (st StorageTypeS3) name() string {
+	return constStorageTypeS3
+}
+
+func (st StorageTypeS3) dial() {
+	kind := "s3"
+	config := stow.ConfigMap{
+		s3.ConfigAccessKeyID: st.accessKeyId,
+		s3.ConfigSecretKey:   st.secretAccessKey,
+		s3.ConfigRegion:      st.region,
+	}
+	return stow.Dial(kind, config)
+}
+
+func MakeLocalStorage() StorageType {
+	return StorageTypeLocal{
+		storageType: STORAGE_TYPE_LOCAL,
+	}
+}
+
+func MakeS3Storage() StorageType {
+	return StorageTypeS3{
+		storageType: STORAGE_TYPE_S3,
+	}
+}
 
 func getQueryParamValue(urlString string, queryParam string) (string, error) {
 	url, err := url.Parse(urlString)

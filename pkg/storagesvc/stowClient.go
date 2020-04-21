@@ -30,8 +30,6 @@ import (
 )
 
 type (
-	StorageType string
-
 	storageConfig struct {
 		storageType   StorageType
 		localPath     string
@@ -48,8 +46,9 @@ type (
 )
 
 const (
-	StorageTypeLocal StorageType = "local"
-	PaginationSize   int         = 10
+	constStorageTypeLocal string = "local"
+	constStorageTypeS3    string = "s3"
+	PaginationSize        int    = 10
 )
 
 var (
@@ -61,9 +60,9 @@ var (
 )
 
 func MakeStowClient(logger *zap.Logger, storageType StorageType, storagePath string, containerName string) (*StowClient, error) {
-	if storageType != StorageTypeLocal {
-		return nil, errors.New("Storage types other than 'local' are not implemented")
-	}
+	// if getStorageTypeName(storageType) != constStorageTypeLocal {
+	// 	return nil, errors.New("Storage types other than 'local' are not implemented")
+	// }
 
 	config := &storageConfig{
 		storageType:   storageType,
@@ -76,8 +75,7 @@ func MakeStowClient(logger *zap.Logger, storageType StorageType, storagePath str
 		config: config,
 	}
 
-	cfg := stow.ConfigMap{"path": config.localPath}
-	loc, err := stow.Dial("local", cfg)
+	loc, err := getStowLocation(config)
 	if err != nil {
 		return nil, err
 	}

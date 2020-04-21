@@ -78,14 +78,26 @@ func runMessageQueueMgr(logger *zap.Logger, routerUrl string) {
 	}
 }
 
-func runStorageSvc(logger *zap.Logger, port int, filePath string) {
+func runLocalStorageSvc(logger *zap.Logger, port int, filePath string, storageArgs ...string) {
 	subdir := os.Getenv("SUBDIR")
 	if len(subdir) == 0 {
 		subdir = "fission-functions"
 	}
 	enableArchivePruner := true
-	storagesvc.RunStorageService(logger, storagesvc.StorageTypeLocal,
-		filePath, subdir, port, enableArchivePruner)
+	
+	var storageType string
+	if len(storageArgs) > 0 {
+		storageType = storageArgs[0]
+	}
+	switch storageType {
+	case "s3":
+		storagesvc.RunStorageService(logger, storagesvc.ConstStorageTypeLocal,
+			filePath, subdir, port, enableArchivePruner)
+	default:
+		s3StorageType := storagesvc.NewS3Storage(storageArgs[1]...)
+		storagesvc.RunStorageService(logger, s3StorageType,
+			filePath, subdir, port, enableArchivePruner)
+	}
 }
 
 func runBuilderMgr(logger *zap.Logger, storageSvcUrl string, envBuilderNamespace string) {
