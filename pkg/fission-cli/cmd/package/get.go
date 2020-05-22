@@ -32,7 +32,8 @@ import (
 
 const (
 	deployArchive = iota
-	sourceArchive
+	// Commenting it to ensure verify-staticcheck passes
+	// sourceArchive
 )
 
 type GetSubCommand struct {

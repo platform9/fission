@@ -57,7 +57,8 @@ func init() {
 }
 
 const (
-	natsProtocol          = "nats://"
+	// Commenting it to ensure verify-staticcheck passes
+	// natsProtocol          = "nats://"
 	defaultNatsClusterID  = "fissionMQTrigger"
 	defaultNatsClientID   = "fission"
 	defaultNatsQueueGroup = "fission-messageQueueNatsTrigger"
