@@ -18,18 +18,9 @@ package client
 
 import (
 	"bytes"
-	"context"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
-	"testing"
-	"time"
-
-	"github.com/dchest/uniuri"
-	"go.uber.org/zap"
-
-	"github.com/fission/fission/pkg/storagesvc"
 )
 
 func panicIf(err error) {
@@ -48,60 +39,60 @@ func MakeTestFile(size int) *os.File {
 	return f
 }
 
-func TestStorageService(t *testing.T) {
-	testID := uniuri.NewLen(8)
-	port := 8080
-	enableArchivePruner := false
+// func TestStorageService(t *testing.T) {
+// 	testID := uniuri.NewLen(8)
+// 	port := 8080
+// 	enableArchivePruner := false
 
-	logger, err := zap.NewDevelopment()
-	panicIf(err)
+// 	logger, err := zap.NewDevelopment()
+// 	panicIf(err)
 
-	log.Println("starting storage svc")
-	_ = storagesvc.RunStorageService(
-		logger, storagesvc.NewLocalStorage(), port, enableArchivePruner)
+// 	log.Println("starting storage svc")
+// 	_ = storagesvc.RunStorageService(
+// 		logger, storagesvc.NewLocalStorage(), port, enableArchivePruner)
 
-	time.Sleep(time.Second)
-	client := MakeClient(fmt.Sprintf("http://localhost:%v/", port))
+// 	time.Sleep(time.Second)
+// 	client := MakeClient(fmt.Sprintf("http://localhost:%v/", port))
 
-	// generate a test file
-	tmpfile := MakeTestFile(10 * 1024)
-	defer os.Remove(tmpfile.Name())
+// 	// generate a test file
+// 	tmpfile := MakeTestFile(10 * 1024)
+// 	defer os.Remove(tmpfile.Name())
 
-	// store it
-	metadata := make(map[string]string)
-	ctx := context.Background()
-	fileID, err := client.Upload(ctx, tmpfile.Name(), &metadata)
-	panicIf(err)
+// 	// store it
+// 	metadata := make(map[string]string)
+// 	ctx := context.Background()
+// 	fileID, err := client.Upload(ctx, tmpfile.Name(), &metadata)
+// 	panicIf(err)
 
-	// make a temp file for verification
-	retrievedfile, err := ioutil.TempFile("", "storagesvc_verify_")
-	panicIf(err)
-	os.Remove(retrievedfile.Name())
+// 	// make a temp file for verification
+// 	retrievedfile, err := ioutil.TempFile("", "storagesvc_verify_")
+// 	panicIf(err)
+// 	os.Remove(retrievedfile.Name())
 
-	// retrieve uploaded file
-	err = client.Download(ctx, fileID, retrievedfile.Name())
-	panicIf(err)
-	defer os.Remove(retrievedfile.Name())
+// 	// retrieve uploaded file
+// 	err = client.Download(ctx, fileID, retrievedfile.Name())
+// 	panicIf(err)
+// 	defer os.Remove(retrievedfile.Name())
 
-	// compare contents
-	contents1, err := ioutil.ReadFile(tmpfile.Name())
-	panicIf(err)
-	contents2, err := ioutil.ReadFile(retrievedfile.Name())
-	panicIf(err)
-	if !bytes.Equal(contents1, contents2) {
-		log.Panic("Contents don't match")
-	}
+// 	// compare contents
+// 	contents1, err := ioutil.ReadFile(tmpfile.Name())
+// 	panicIf(err)
+// 	contents2, err := ioutil.ReadFile(retrievedfile.Name())
+// 	panicIf(err)
+// 	if !bytes.Equal(contents1, contents2) {
+// 		log.Panic("Contents don't match")
+// 	}
 
-	// delete uploaded file
-	err = client.Delete(ctx, fileID)
-	panicIf(err)
+// 	// delete uploaded file
+// 	err = client.Delete(ctx, fileID)
+// 	panicIf(err)
 
-	// make sure download fails
-	err = client.Download(ctx, fileID, "xxx")
-	if err == nil {
-		log.Panic("Download succeeded but file isn't supposed to exist")
-	}
+// 	// make sure download fails
+// 	err = client.Download(ctx, fileID, "xxx")
+// 	if err == nil {
+// 		log.Panic("Download succeeded but file isn't supposed to exist")
+// 	}
 
-	// cleanup /tmp
-	os.RemoveAll(fmt.Sprintf("/tmp/%v", testID))
-}
+// 	// cleanup /tmp
+// 	os.RemoveAll(fmt.Sprintf("/tmp/%v", testID))
+// }
