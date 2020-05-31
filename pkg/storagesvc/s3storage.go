@@ -12,6 +12,7 @@ import (
 type (
 	s3Storage struct {
 		storageType     string
+		endpoint        string
 		bucketName      string
 		subDir          string
 		accessKeyID     string
@@ -22,6 +23,7 @@ type (
 
 // NewS3Storage returns a new s3 storage struct
 func NewS3Storage(args ...string) Storage {
+	endpoint := os.Getenv("STORAGE_S3_ENDPOINT")
 	bucketName := os.Getenv("STORAGE_S3_BUCKET_NAME")
 	if len(bucketName) > 0 {
 		bucketName += "-fission-functions"
@@ -31,6 +33,7 @@ func NewS3Storage(args ...string) Storage {
 	secretAccessKey := os.Getenv("STORAGE_S3_SECRET_ACCESS_KEY")
 	region := os.Getenv("STORAGE_S3_REGION")
 	return s3Storage{
+		endpoint:        endpoint,
 		storageType:     StorageTypeS3,
 		bucketName:      bucketName,
 		subDir:          subDir,
@@ -61,9 +64,11 @@ func (ss s3Storage) getUploadFileName() string {
 func (ss s3Storage) dial() (stow.Location, error) {
 	kind := "s3"
 	config := stow.ConfigMap{
+		s3.ConfigEndpoint:    ss.endpoint,
 		s3.ConfigAccessKeyID: ss.accessKeyID,
 		s3.ConfigSecretKey:   ss.secretAccessKey,
 		s3.ConfigRegion:      ss.region,
+		s3.ConfigDisableSSL:  "true",
 	}
 	return stow.Dial(kind, config)
 }

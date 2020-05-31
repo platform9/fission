@@ -15,7 +15,7 @@ type localStorage struct {
 }
 
 // NewLocalStorage return new local storage struct
-func NewLocalStorage() Storage {
+func NewLocalStorage(localPath string) Storage {
 	subdir := os.Getenv("SUBDIR")
 	if len(subdir) == 0 {
 		subdir = "fission-functions"
@@ -23,13 +23,17 @@ func NewLocalStorage() Storage {
 	return localStorage{
 		storageType:   StorageTypeLocal,
 		containerName: subdir,
-		localPath:     "/fission",
+		localPath:     localPath,
 	}
 }
 
 // Local
 func (ls localStorage) getStorageType() string {
 	return ls.storageType
+}
+
+func (ls localStorage) SetLocalPath(path string) {
+	ls.localPath = path
 }
 
 func (ls localStorage) getUploadFileName() string {

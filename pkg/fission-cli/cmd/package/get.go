@@ -32,7 +32,6 @@ import (
 
 const (
 	deployArchive = iota
-	sourceArchive
 )
 
 type GetSubCommand struct {

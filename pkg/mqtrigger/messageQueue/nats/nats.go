@@ -57,7 +57,6 @@ func init() {
 }
 
 const (
-	natsProtocol          = "nats://"
 	defaultNatsClusterID  = "fissionMQTrigger"
 	defaultNatsClientID   = "fission"
 	defaultNatsQueueGroup = "fission-messageQueueNatsTrigger"
