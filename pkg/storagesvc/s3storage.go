@@ -47,11 +47,6 @@ func (ss s3Storage) getStorageType() string {
 	return ss.storageType
 }
 
-// Currently stow client doesn't support creating subDir within bucket. So we are using bucketName as subDir
-func (ss s3Storage) getSubDir() string {
-	return ss.bucketName
-}
-
 func (ss s3Storage) getContainerName() string {
 	return ss.bucketName
 }

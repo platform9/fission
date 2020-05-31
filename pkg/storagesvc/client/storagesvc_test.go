@@ -203,7 +203,7 @@ func TestLocalStorageService(t *testing.T) {
 	log.Println("starting storage svc")
 	localPath := fmt.Sprintf("/tmp/%v", testID)
 	_ = os.Mkdir(localPath, os.ModePerm)
-	storage := storagesvc.NewLocalStorage(fmt.Sprintf(localPath))
+	storage := storagesvc.NewLocalStorage(localPath)
 	_ = storagesvc.RunStorageService(logger, storage, port, enableArchivePruner)
 
 	time.Sleep(time.Second)

@@ -298,7 +298,7 @@ Options:
 		if arguments["--storageType"] != nil && arguments["--storageType"] == storagesvc.StorageTypeS3 {
 			storage = storagesvc.NewS3Storage()
 		} else {
-			storage = storagesvc.NewLocalStorage()
+			storage = storagesvc.NewLocalStorage("/fission")
 		}
 		runStorageSvc(logger, port, storage)
 	}

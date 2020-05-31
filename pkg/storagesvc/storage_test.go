@@ -45,16 +45,10 @@ func TestNewS3Storage(t *testing.T) {
 		t.Errorf("Incorrect getStorateType() method implementation. Got: %s, Want %s", storage.getStorageType(), storage.storageType)
 	}
 
-	// TestGetSubDir
-	// Currently stow client doesn't support creating subDir within bucket. So we are using bucketName as subDir
-	if storage.getSubDir() != storage.bucketName {
-		t.Errorf("Incorrect getSubDir() method implementation. Got: %s, Want %s", storage.getSubDir(), storage.bucketName)
-	}
-
 }
 
 func TestNewLocalStorage(t *testing.T) {
-	storage := NewLocalStorage().(localStorage)
+	storage := NewLocalStorage("/fission").(localStorage)
 
 	// // When SUBDIR env is not set, expect a default "fission-functions" value.
 	// if storage.subDir != "fission-functions" {
