@@ -65,7 +65,8 @@ type (
 	Function struct {
 		metav1.TypeMeta   `json:",inline"`
 		metav1.ObjectMeta `json:"metadata"`
-		Spec              FunctionSpec `json:"spec"`
+		Spec              FunctionSpec   `json:"spec"`
+		Status            FunctionStatus `json:"status"`
 	}
 
 	// FunctionList is a list of Functions.
@@ -74,6 +75,29 @@ type (
 		metav1.TypeMeta `json:",inline"`
 		metav1.ListMeta `json:"metadata"`
 		Items           []Function `json:"items"`
+	}
+
+	//FunctionStatus ...
+	FunctionStatus struct {
+		// FnStatus is the function status.
+		FnStatus BuildStatus `json:"functionstatus,omitempty"`
+
+		// EnvStatus is the environment status
+		EnvStatus BuildStatus `json:"envStatus,omitempty"`
+
+		// EnvBuildLog stores build log of the environment
+		EnvBuildLog string `json:"envbuildlog,omitempty"`
+
+		// PkgStatus is the package status
+		PackageStatus BuildStatus `json:"packaStatus,omitempty"`
+
+		// PkgBuildLog stores build log of the package
+		PkgBuildLog string `json:"pkgbuildlog,omitempty"` // output of the build (errors etc)
+
+		// LastUpdateTimestamp will store the timestamp the function was last updated
+		// metav1.Time is a wrapper around time.Time which supports correct marshaling to YAML and JSON.
+		// https://github.com/kubernetes/apimachinery/blob/44bd77c24ef93cd3a5eb6fef64e514025d10d44e/pkg/apis/meta/v1/time.go#L26-L35
+		LastUpdateTimestamp metav1.Time `json:"lastUpdateTimestamp,omitempty"`
 	}
 
 	// Environment is environment for building and running user functions.
@@ -246,6 +270,12 @@ type (
 
 	// BuildStatus indicates the current build status of a package.
 	BuildStatus string
+
+	// FnStatus ... indicates the current status of a function.
+	FnStatus string
+
+	// EnvironmentStatus ... indicates the status of the environment.
+	EnvironmentStatus string
 
 	// PackageSpec includes source/deploy archives and the reference of environment to build the package.
 	PackageSpec struct {

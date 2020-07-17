@@ -47,7 +47,7 @@ func (opts *ListSubCommand) do(input cli.Input) error {
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
 
-	fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", "NAME", "ENV", "EXECUTORTYPE", "MINSCALE", "MAXSCALE", "MINCPU", "MAXCPU", "MINMEMORY", "MAXMEMORY", "TARGETCPU", "SECRETS", "CONFIGMAPS")
+	fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", "NAME", "ENV", "EXECUTORTYPE", "FN_STATUS", "MINSCALE", "MAXSCALE", "MINCPU", "MAXCPU", "MINMEMORY", "MAXMEMORY", "TARGETCPU", "SECRETS", "CONFIGMAPS")
 	for _, f := range fns {
 		secrets := f.Spec.Secrets
 		configMaps := f.Spec.ConfigMaps
@@ -59,9 +59,10 @@ func (opts *ListSubCommand) do(input cli.Input) error {
 			configMapList = append(configMapList, configMap.Name)
 		}
 
-		fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n",
+		fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n",
 			f.ObjectMeta.Name, f.Spec.Environment.Name,
 			f.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType,
+			f.Status.FnStatus,
 			f.Spec.InvokeStrategy.ExecutionStrategy.MinScale,
 			f.Spec.InvokeStrategy.ExecutionStrategy.MaxScale,
 			f.Spec.Resources.Requests.Cpu().String(),

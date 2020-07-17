@@ -50,5 +50,8 @@ func Start(logger *zap.Logger, storageSvcUrl string, envBuilderNamespace string)
 		kubernetesClient, envBuilderNamespace, storageSvcUrl)
 	go pkgWatcher.watchPackages()
 
+	fnWatcher := makefnWatcher(bmLogger, fissionClient, kubernetesClient)
+	go fnWatcher.watchFunctions()
+
 	select {}
 }
