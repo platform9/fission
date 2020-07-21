@@ -208,7 +208,7 @@ func serveMetric(logger *zap.Logger) {
 }
 
 // StartExecutor Starts executor and the executor components such as Poolmgr,
-// deploymgr and potential future executor types
+// deploymgr, fnStatusWatcher and potential future executor types
 func StartExecutor(logger *zap.Logger, functionNamespace string, envBuilderNamespace string, port int) error {
 	fissionClient, kubernetesClient, _, err := crd.MakeFissionClient()
 	if err != nil {
@@ -266,6 +266,9 @@ func StartExecutor(logger *zap.Logger, functionNamespace string, envBuilderNames
 	if err != nil {
 		return err
 	}
+
+	fnStatusWatcher := makefnStatusWatcher(logger, fissionClient, kubernetesClient)
+	go fnStatusWatcher.watchFunctions()
 
 	go reaper.CleanupRoleBindings(logger, kubernetesClient, fissionClient, functionNamespace, envBuilderNamespace, time.Minute*30)
 	go api.Serve(port)

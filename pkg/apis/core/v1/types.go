@@ -85,14 +85,14 @@ type (
 		// EnvStatus is the environment status
 		EnvStatus BuildStatus `json:"envStatus,omitempty"`
 
-		// EnvBuildLog stores build log of the environment
-		EnvBuildLog string `json:"envbuildlog,omitempty"`
+		// EnvStatusdLog stores build log of the environment
+		EnvStatusLog string `json:"envStatuslog,omitempty"`
 
 		// PkgStatus is the package status
-		PackageStatus BuildStatus `json:"packaStatus,omitempty"`
+		PackageStatus BuildStatus `json:"packageStatus,omitempty"`
 
-		// PkgBuildLog stores build log of the package
-		PkgBuildLog string `json:"pkgbuildlog,omitempty"` // output of the build (errors etc)
+		// PkgStatusLog stores build log of the package
+		PkgStatusLog string `json:"pkgStatuslog,omitempty"` // output of the build (errors etc)
 
 		// LastUpdateTimestamp will store the timestamp the function was last updated
 		// metav1.Time is a wrapper around time.Time which supports correct marshaling to YAML and JSON.
