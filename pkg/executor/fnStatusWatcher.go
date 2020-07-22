@@ -197,7 +197,7 @@ func (fnw *fnStatusWatcher) setFnEnvStatus(fn *fv1.Function) error {
 	}
 	for _, dl := range deployList {
 		for _, c := range dl.Status.Conditions {
-			if "false" == c.Status {
+			if c.Status == "false" {
 				ready = false
 				fn.Status.EnvStatus = fv1.BuildStatusPending
 				fn.Status.EnvStatusLog = c.Message
