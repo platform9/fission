@@ -10,6 +10,7 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.lang.reflect.InvocationTargetException;
 
 import org.springframework.boot.*;
 import org.springframework.boot.autoconfigure.*;
@@ -59,10 +60,8 @@ public class Server {
 
 			jarFile = new JarFile(file);
 			Enumeration<JarEntry> e = jarFile.entries();
-			URL[] urls = { new URL("jar:file:" + file + "!/") };
+			URL[] urls = { file.toURI().toURL() };
 
-			// TODO Check if the classloading can be improved for ex. use something like:
-			// Thread.currentThread().setContextClassLoader(cl);
 			if (this.getClass().getClassLoader() == null) {
 				cl = URLClassLoader.newInstance(urls);
 			} else {
@@ -85,7 +84,7 @@ public class Server {
 			}
 
 			// Instantiate the function class
-			fn = (Function) cl.loadClass(entryPoint).newInstance();
+			fn = (Function) cl.loadClass(entryPoint).getDeclaredConstructor().newInstance();
 
 		} catch (MalformedURLException e) {
 			e.printStackTrace();
@@ -97,6 +96,15 @@ public class Server {
 			e.printStackTrace();
 			return ResponseEntity.badRequest().body("Error creating a new instance of function class");
 		} catch (IllegalAccessException e) {
+			e.printStackTrace();
+			return ResponseEntity.badRequest().body("Error creating a new instance of function class");
+		} catch (IllegalArgumentException e) {
+			e.printStackTrace();
+			return ResponseEntity.badRequest().body("Error creating a new instance of function class");
+		} catch (NoSuchMethodException e) {
+			e.printStackTrace();
+			return ResponseEntity.badRequest().body("Error creating a new instance of function class");
+		} catch (InvocationTargetException e) {
 			e.printStackTrace();
 			return ResponseEntity.badRequest().body("Error creating a new instance of function class");
 		} catch (IOException e) {
