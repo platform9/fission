@@ -73,7 +73,6 @@ func (fnw *fnStatusWatcher) watchFunctions() {
 						zap.Error(err),
 						zap.Any("function", fn))
 				}
-				fnw.logger.Info("Updated status of function:", zap.Any("function", fn.ObjectMeta))
 			}()
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
@@ -85,7 +84,6 @@ func (fnw *fnStatusWatcher) watchFunctions() {
 						zap.Error(err),
 						zap.Any("function", fn))
 				}
-				fnw.logger.Info("Updated status of function:", zap.Any("function", fn.ObjectMeta))
 			}()
 		},
 	})
@@ -108,6 +106,7 @@ func (fnw *fnStatusWatcher) updateFuncStatus(fn *fv1.Function) error {
 		e := "error updating function status"
 		return errors.Wrapf(err, "%s %s_%s", e, fn.ObjectMeta.Name, fn.ObjectMeta.Namespace)
 	}
+	fnw.logger.Info("Updated status of function:", zap.Any("function", fn.ObjectMeta))
 	return nil
 }
 
