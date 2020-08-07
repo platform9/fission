@@ -23,7 +23,7 @@ gcr.io, quay.io, etc.  Let's assume you're using a docker hub account
 called USER.  Build and push the image to the the registry:
 
 ```
-   docker build -t USER/jvm-env . && docker push USER/jvm-env
+   docker build -t USER/jvm-env-jersey . && docker push USER/jvm-env-jersey
 ```
 
 ## Using the image in fission
@@ -32,13 +32,13 @@ You can add this customized image to fission with "fission env
 create":
 
 ```
-   fission env create --name jvm --image USER/jvm-env
+   fission env create --name jvm --image USER/jvm-env-jersey
 ```
 
 Or, if you already have an environment, you can update its image:
 
 ```
-   fission env update --name jvm --image USER/jvm-env   
+   fission env update --name jvm --image USER/jvm-env-jersey 
 ```
 
 After this, fission functions that have the env parameter set to the
@@ -46,24 +46,18 @@ same environment name as this command will use this environment.
 
 ## Web Server Framework
 
-JVM environment uses Tomcat HTTP server by default as it is included in spring web. You can choose to use jetty or undertow by changing the dependency in pom.xml file as shown below.
+JVM Jersey environment uses an embedded Jetty HTTP server by default, as can be seen in the pom.xml file.
 
 ```
 <dependency>
-	<groupId>org.springframework.boot</groupId>
-	<artifactId>spring-boot-starter-web</artifactId>
-	<exclusions>
-		<!-- Exclude the Tomcat dependency -->
-		<exclusion>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-tomcat</artifactId>
-		</exclusion>
-	</exclusions>
+	<groupId>org.eclipse.jetty</groupId>
+	<artifactId>jetty-server</artifactId>
+	<version>9.0.4.v20130625</version>
 </dependency>
-<!-- Use Jetty instead -->
 <dependency>
-	<groupId>org.springframework.boot</groupId>
-	<artifactId>spring-boot-starter-jetty</artifactId>
+	<groupId>org.eclipse.jetty</groupId>
+	<artifactId>jetty-servlet</artifactId>
+	<version>9.0.4.v20130625</version>
 </dependency>
 ```
 

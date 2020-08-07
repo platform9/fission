@@ -65,7 +65,7 @@ public class JerseyServer {
 		String entryPoint = req.getFunctionName();
 		logger.log(Level.INFO, "Entrypoint class:" + entryPoint);
 		if (entryPoint == null) {
-			return Response.status(Response.Status.BAD_REQUEST).entity("Entrypoint class is missing in the function")
+			return Response.status(Response.Status.BAD_REQUEST).entity("Entrypoint class is missing in the JAR or the name is incorrect")
 					.build();
 		}
 

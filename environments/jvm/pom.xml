@@ -21,7 +21,7 @@
 		</dependency>
 		<dependency>
 			<groupId>io.fission</groupId>
-			<artifactId>fission-java-spring</artifactId>
+			<artifactId>fission-java-core</artifactId>
 			<version>0.0.2-SNAPSHOT</version>
 		</dependency>
 		<dependency>
@@ -43,7 +43,7 @@
 	<repositories>
 		<repository>
 			<id>fission-java-core</id>
-			<name>fission-java-spring-snapshot</name>
+			<name>fission-java-core-snapshot</name>
 			<url>https://oss.sonatype.org/content/repositories/snapshots/</url>
 		</repository>
 	</repositories>
