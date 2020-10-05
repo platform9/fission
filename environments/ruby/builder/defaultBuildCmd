@@ -1,9 +1,0 @@
-#!/bin/sh
-set -euxo pipefail
-
-if [ -f ${SRC_PKG}/Gemfile.lock ]
-then 
-	cd $SRC_PKG
-	bundle install --deployment
-fi
-cp -r ${SRC_PKG} ${DEPLOY_PKG}
