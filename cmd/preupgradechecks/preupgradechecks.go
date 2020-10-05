@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"fmt"
 
 	multierror "github.com/hashicorp/go-multierror"
@@ -68,7 +69,7 @@ func makePreUpgradeTaskClient(logger *zap.Logger, fnPodNs, envBuilderNs string) 
 // We need this to find out if fission had been previously installed on this cluster
 func (client *PreUpgradeTaskClient) IsFissionReInstall() bool {
 	for i := 0; i < maxRetries; i++ {
-		_, err := client.apiExtClient.ApiextensionsV1beta1().CustomResourceDefinitions().Get(FunctionCRD, metav1.GetOptions{})
+		_, err := client.apiExtClient.ApiextensionsV1().CustomResourceDefinitions().Get(context.Background(), FunctionCRD, metav1.GetOptions{})
 		if err != nil && k8serrors.IsNotFound(err) {
 			return false
 		}
@@ -137,7 +138,7 @@ func (client *PreUpgradeTaskClient) VerifyFunctionSpecReferences() {
 // If its not present, it just ignores and returns no errors
 func (client *PreUpgradeTaskClient) deleteClusterRoleBinding(clusterRoleBinding string) (err error) {
 	for i := 0; i < maxRetries; i++ {
-		err = client.k8sClient.RbacV1beta1().ClusterRoleBindings().Delete(clusterRoleBinding, &metav1.DeleteOptions{})
+		err = client.k8sClient.RbacV1beta1().ClusterRoleBindings().Delete(context.Background(), clusterRoleBinding, metav1.DeleteOptions{})
 		if err != nil && k8serrors.IsNotFound(err) || err == nil {
 			return nil
 		}

@@ -17,6 +17,7 @@ limitations under the License.
 package crd
 
 import (
+	"context"
 	"log"
 	"os"
 	"testing"
@@ -442,12 +443,15 @@ func TestCrd(t *testing.T) {
 
 	// testNS isolation for running multiple CI builds concurrently.
 	testNS = uuid.NewV4().String()
-	kubeClient.CoreV1().Namespaces().Create(&v1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: testNS,
+	kubeClient.CoreV1().Namespaces().Create(
+		context.Background(),
+		&v1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: testNS,
+			},
 		},
-	})
-	defer kubeClient.CoreV1().Namespaces().Delete(testNS, nil)
+		metav1.CreateOptions{})
+	defer kubeClient.CoreV1().Namespaces().Delete(context.Background(), testNS, metav1.DeleteOptions{})
 
 	// init our types
 	err = EnsureFissionCRDs(logger, apiExtClient)

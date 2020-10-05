@@ -18,6 +18,7 @@ package kubewatcher
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -162,13 +163,13 @@ func createKubernetesWatch(kubeClient *kubernetes.Clientset, w *fv1.KubernetesWa
 	// TODO handle the full list of types
 	switch strings.ToUpper(w.Spec.Type) {
 	case "POD":
-		wi, err = kubeClient.CoreV1().Pods(w.Spec.Namespace).Watch(listOptions)
+		wi, err = kubeClient.CoreV1().Pods(w.Spec.Namespace).Watch(context.Background(), listOptions)
 	case "SERVICE":
-		wi, err = kubeClient.CoreV1().Services(w.Spec.Namespace).Watch(listOptions)
+		wi, err = kubeClient.CoreV1().Services(w.Spec.Namespace).Watch(context.Background(), listOptions)
 	case "REPLICATIONCONTROLLER":
-		wi, err = kubeClient.CoreV1().ReplicationControllers(w.Spec.Namespace).Watch(listOptions)
+		wi, err = kubeClient.CoreV1().ReplicationControllers(w.Spec.Namespace).Watch(context.Background(), listOptions)
 	case "JOB":
-		wi, err = kubeClient.BatchV1().Jobs(w.Spec.Namespace).Watch(listOptions)
+		wi, err = kubeClient.BatchV1().Jobs(w.Spec.Namespace).Watch(context.Background(), listOptions)
 	default:
 		err = errors.NewBadRequest(fmt.Sprintf("Error: unknown obj type '%v'", w.Spec.Type))
 	}

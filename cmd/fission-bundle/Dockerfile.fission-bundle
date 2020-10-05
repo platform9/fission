@@ -1,4 +1,4 @@
-FROM golang:1.12-alpine as godep
+FROM golang:1.15-alpine as godep
 RUN apk add bash ca-certificates git gcc g++ libc-dev
 
 ARG GOPKG=github.com/fission/fission

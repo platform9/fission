@@ -19,6 +19,7 @@ limitations under the License.
 package v1
 
 import (
+	"context"
 	"time"
 
 	v1 "github.com/fission/fission/pkg/apis/core/v1"
@@ -70,7 +71,7 @@ func (c *messageQueueTriggers) Get(name string, options metav1.GetOptions) (resu
 		Resource("messagequeuetriggers").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
-		Do().
+		Do(context.Background()).
 		Into(result)
 	return
 }
@@ -87,7 +88,7 @@ func (c *messageQueueTriggers) List(opts metav1.ListOptions) (result *v1.Message
 		Resource("messagequeuetriggers").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Do().
+		Do(context.Background()).
 		Into(result)
 	return
 }
@@ -104,7 +105,7 @@ func (c *messageQueueTriggers) Watch(opts metav1.ListOptions) (watch.Interface, 
 		Resource("messagequeuetriggers").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Watch()
+		Watch(context.Background())
 }
 
 // Create takes the representation of a _messageQueueTrigger and creates it.  Returns the server's representation of the messageQueueTrigger, and an error, if there is any.
@@ -114,7 +115,7 @@ func (c *messageQueueTriggers) Create(_messageQueueTrigger *v1.MessageQueueTrigg
 		Namespace(c.ns).
 		Resource("messagequeuetriggers").
 		Body(_messageQueueTrigger).
-		Do().
+		Do(context.Background()).
 		Into(result)
 	return
 }
@@ -127,7 +128,7 @@ func (c *messageQueueTriggers) Update(_messageQueueTrigger *v1.MessageQueueTrigg
 		Resource("messagequeuetriggers").
 		Name(_messageQueueTrigger.Name).
 		Body(_messageQueueTrigger).
-		Do().
+		Do(context.Background()).
 		Into(result)
 	return
 }
@@ -139,7 +140,7 @@ func (c *messageQueueTriggers) Delete(name string, options *metav1.DeleteOptions
 		Resource("messagequeuetriggers").
 		Name(name).
 		Body(options).
-		Do().
+		Do(context.Background()).
 		Error()
 }
 
@@ -155,7 +156,7 @@ func (c *messageQueueTriggers) DeleteCollection(options *metav1.DeleteOptions, l
 		VersionedParams(&listOptions, scheme.ParameterCodec).
 		Timeout(timeout).
 		Body(options).
-		Do().
+		Do(context.Background()).
 		Error()
 }
 
@@ -168,7 +169,7 @@ func (c *messageQueueTriggers) Patch(name string, pt types.PatchType, data []byt
 		SubResource(subresources...).
 		Name(name).
 		Body(data).
-		Do().
+		Do(context.Background()).
 		Into(result)
 	return
 }

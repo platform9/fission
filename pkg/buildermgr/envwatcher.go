@@ -17,6 +17,7 @@ limitations under the License.
 package buildermgr
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strconv"
@@ -370,7 +371,7 @@ func (envw *environmentWatcher) createBuilder(env *fv1.Environment, ns string) (
 func (envw *environmentWatcher) deleteBuilderServiceByName(name, namespace string) error {
 	err := envw.kubernetesClient.CoreV1().
 		Services(namespace).
-		Delete(name, &delOpt)
+		Delete(context.Background(), name, delOpt)
 	if err != nil {
 		return errors.Wrapf(err, "error deleting builder service %s.%s", name, namespace)
 	}
@@ -380,7 +381,7 @@ func (envw *environmentWatcher) deleteBuilderServiceByName(name, namespace strin
 func (envw *environmentWatcher) deleteBuilderDeploymentByName(name, namespace string) error {
 	err := envw.kubernetesClient.AppsV1().
 		Deployments(namespace).
-		Delete(name, &delOpt)
+		Delete(context.Background(), name, delOpt)
 	if err != nil {
 		return errors.Wrapf(err, "error deleting builder deployment %s.%s", name, namespace)
 	}
@@ -389,6 +390,7 @@ func (envw *environmentWatcher) deleteBuilderDeploymentByName(name, namespace st
 
 func (envw *environmentWatcher) getBuilderServiceList(sel map[string]string, ns string) ([]apiv1.Service, error) {
 	svcList, err := envw.kubernetesClient.CoreV1().Services(ns).List(
+		context.Background(),
 		metav1.ListOptions{
 			LabelSelector: labels.Set(sel).AsSelector().String(),
 		})
@@ -433,7 +435,7 @@ func (envw *environmentWatcher) createBuilderService(env *fv1.Environment, ns st
 		},
 	}
 	envw.logger.Info("creating builder service", zap.String("service_name", name))
-	_, err := envw.kubernetesClient.CoreV1().Services(ns).Create(&service)
+	_, err := envw.kubernetesClient.CoreV1().Services(ns).Create(context.Background(), &service, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -442,6 +444,7 @@ func (envw *environmentWatcher) createBuilderService(env *fv1.Environment, ns st
 
 func (envw *environmentWatcher) getBuilderDeploymentList(sel map[string]string, ns string) ([]appsv1.Deployment, error) {
 	deployList, err := envw.kubernetesClient.AppsV1().Deployments(ns).List(
+		context.Background(),
 		metav1.ListOptions{
 			LabelSelector: labels.Set(sel).AsSelector().String(),
 		})
@@ -529,7 +532,7 @@ func (envw *environmentWatcher) createBuilderDeployment(env *fv1.Environment, ns
 		deployment.Spec.Template.Spec = *newPodSpec
 	}
 
-	_, err = envw.kubernetesClient.AppsV1().Deployments(ns).Create(deployment)
+	_, err = envw.kubernetesClient.AppsV1().Deployments(ns).Create(context.Background(), deployment, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err
 	}

@@ -19,6 +19,7 @@ limitations under the License.
 package v1
 
 import (
+	"context"
 	"time"
 
 	v1 "github.com/fission/fission/pkg/apis/core/v1"
@@ -70,7 +71,7 @@ func (c *environments) Get(name string, options metav1.GetOptions) (result *v1.E
 		Resource("environments").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
-		Do().
+		Do(context.Background()).
 		Into(result)
 	return
 }
@@ -87,7 +88,7 @@ func (c *environments) List(opts metav1.ListOptions) (result *v1.EnvironmentList
 		Resource("environments").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Do().
+		Do(context.Background()).
 		Into(result)
 	return
 }
@@ -104,7 +105,7 @@ func (c *environments) Watch(opts metav1.ListOptions) (watch.Interface, error) {
 		Resource("environments").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Watch()
+		Watch(context.Background())
 }
 
 // Create takes the representation of a _environment and creates it.  Returns the server's representation of the environment, and an error, if there is any.
@@ -114,7 +115,7 @@ func (c *environments) Create(_environment *v1.Environment) (result *v1.Environm
 		Namespace(c.ns).
 		Resource("environments").
 		Body(_environment).
-		Do().
+		Do(context.Background()).
 		Into(result)
 	return
 }
@@ -127,7 +128,7 @@ func (c *environments) Update(_environment *v1.Environment) (result *v1.Environm
 		Resource("environments").
 		Name(_environment.Name).
 		Body(_environment).
-		Do().
+		Do(context.Background()).
 		Into(result)
 	return
 }
@@ -139,7 +140,7 @@ func (c *environments) Delete(name string, options *metav1.DeleteOptions) error 
 		Resource("environments").
 		Name(name).
 		Body(options).
-		Do().
+		Do(context.Background()).
 		Error()
 }
 
@@ -155,7 +156,7 @@ func (c *environments) DeleteCollection(options *metav1.DeleteOptions, listOptio
 		VersionedParams(&listOptions, scheme.ParameterCodec).
 		Timeout(timeout).
 		Body(options).
-		Do().
+		Do(context.Background()).
 		Error()
 }
 
@@ -168,7 +169,7 @@ func (c *environments) Patch(name string, pt types.PatchType, data []byte, subre
 		SubResource(subresources...).
 		Name(name).
 		Body(data).
-		Do().
+		Do(context.Background()).
 		Into(result)
 	return
 }

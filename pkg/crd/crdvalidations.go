@@ -17,16 +17,16 @@ limitations under the License.
 package crd
 
 import (
-	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 )
 
 var (
 	// Function validation schema properties
-	functionSchemaProps = map[string]apiextensionsv1beta1.JSONSchemaProps{
+	functionSchemaProps = map[string]apiextensionsv1.JSONSchemaProps{
 		"spec": {
 			Type:        "object",
 			Description: "Specification of the desired behaviour of the Function",
-			Properties: map[string]apiextensionsv1beta1.JSONSchemaProps{
+			Properties: map[string]apiextensionsv1.JSONSchemaProps{
 				"environment": environmentReferenceSchema,
 				"package":     functionPackageRefSchema,
 				"secrets":     secretReferenceSchema,
@@ -53,25 +53,25 @@ var (
 	}
 
 	// Function validation schema
-	functionSchema = apiextensionsv1beta1.JSONSchemaProps{
+	functionSchema = apiextensionsv1.JSONSchemaProps{
 		Type:        "object",
 		Description: "A Function is a code and a runtime environment which can be used to execute code",
 		Properties:  functionSchemaProps,
 	}
 
 	// Function validation object
-	functionValidation = &apiextensionsv1beta1.CustomResourceValidation{
+	functionValidation = &apiextensionsv1.CustomResourceValidation{
 		OpenAPIV3Schema: &functionSchema,
 	}
 )
 
 var (
 	// Environment validation schema properties
-	environmentSchemaProps = map[string]apiextensionsv1beta1.JSONSchemaProps{
+	environmentSchemaProps = map[string]apiextensionsv1.JSONSchemaProps{
 		"spec": {
 			Type:        "object",
 			Description: "Specification of the desired behaviour of the Environment",
-			Properties: map[string]apiextensionsv1beta1.JSONSchemaProps{
+			Properties: map[string]apiextensionsv1.JSONSchemaProps{
 				"version": {
 					Type:        "integer",
 					Description: "Version is the Environment API version",
@@ -112,14 +112,14 @@ var (
 	}
 
 	// Environment validation schema
-	environmentSchema = apiextensionsv1beta1.JSONSchemaProps{
+	environmentSchema = apiextensionsv1.JSONSchemaProps{
 		Type:        "object",
 		Description: "Environments are the language-specific runtime parts of Fission. An Environment contains just enough software to build and run a Fission Function.",
 		Properties:  environmentSchemaProps,
 	}
 
 	// Environment validation object
-	environmentValidation = &apiextensionsv1beta1.CustomResourceValidation{
+	environmentValidation = &apiextensionsv1.CustomResourceValidation{
 		OpenAPIV3Schema: &environmentSchema,
 	}
 )
@@ -127,11 +127,11 @@ var (
 var (
 
 	// Package validation schema properties
-	packageSchemaProps = map[string]apiextensionsv1beta1.JSONSchemaProps{
+	packageSchemaProps = map[string]apiextensionsv1.JSONSchemaProps{
 		"spec": {
 			Type:        "object",
 			Description: "Specification of the desired behaviour of the package.",
-			Properties: map[string]apiextensionsv1beta1.JSONSchemaProps{
+			Properties: map[string]apiextensionsv1.JSONSchemaProps{
 				"environment": environmentReferenceSchema,
 				"source":      archiveSchema,
 				"deployment":  archiveSchema,
@@ -145,7 +145,7 @@ var (
 		"status": {
 			Type:        "object",
 			Description: "PackageStatus contains the build status of a package also the build log for examination.",
-			Properties: map[string]apiextensionsv1beta1.JSONSchemaProps{
+			Properties: map[string]apiextensionsv1.JSONSchemaProps{
 				"buildstatus": {
 					Type:        "string",
 					Description: "BuildStatus is the package build status.",
@@ -164,21 +164,21 @@ var (
 	}
 
 	// Package validation schema
-	packageSchema = apiextensionsv1beta1.JSONSchemaProps{
+	packageSchema = apiextensionsv1.JSONSchemaProps{
 		Type:        "object",
 		Description: "A Package is a Fission object containing a Deployment Archive and a Source Archive (if any). A Package also references a certain environment.",
 		Properties:  packageSchemaProps,
 	}
 
 	// Environment validation object
-	packageValidation = &apiextensionsv1beta1.CustomResourceValidation{
+	packageValidation = &apiextensionsv1.CustomResourceValidation{
 		OpenAPIV3Schema: &packageSchema,
 	}
 )
 
 // Children of Package crd schema
 var (
-	archiveSchemaProps = map[string]apiextensionsv1beta1.JSONSchemaProps{
+	archiveSchemaProps = map[string]apiextensionsv1.JSONSchemaProps{
 		"type": {
 			Type:        "string",
 			Description: "Type defines how the package is specified: literal or url.",
@@ -194,7 +194,7 @@ var (
 		},
 		"checksum": checksumSchema,
 	}
-	archiveSchema = apiextensionsv1beta1.JSONSchemaProps{
+	archiveSchema = apiextensionsv1.JSONSchemaProps{
 		Type:        "object",
 		Description: "Package contains or references a collection of source or binary files.",
 		Properties:  archiveSchemaProps,
@@ -202,7 +202,7 @@ var (
 )
 
 var (
-	checksumSchemaProps = map[string]apiextensionsv1beta1.JSONSchemaProps{
+	checksumSchemaProps = map[string]apiextensionsv1.JSONSchemaProps{
 		"type": {
 			Type:        "string",
 			Description: "ChecksumType specifies the checksum algorithm, such as sha256, used for a checksum.",
@@ -212,7 +212,7 @@ var (
 			Description: " Sum is hex encoded chechsum value.",
 		},
 	}
-	checksumSchema = apiextensionsv1beta1.JSONSchemaProps{
+	checksumSchema = apiextensionsv1.JSONSchemaProps{
 		Type:        "object",
 		Description: "Checksum of package contents when the contents are stored outside the Package struct. Type is the checksum algorithm;  sha256 is the only currently supported one. Sum is hex  encoded.",
 		Properties:  checksumSchemaProps,
@@ -221,7 +221,7 @@ var (
 
 // Children of Function crd schema
 var (
-	environmentReferenceSchemaProps = map[string]apiextensionsv1beta1.JSONSchemaProps{
+	environmentReferenceSchemaProps = map[string]apiextensionsv1.JSONSchemaProps{
 		"namespace": {
 			Type:        "string",
 			Description: "Namespace for corresponding Environment",
@@ -231,7 +231,7 @@ var (
 			Description: "Name of the Environment to use",
 		},
 	}
-	environmentReferenceSchema = apiextensionsv1beta1.JSONSchemaProps{
+	environmentReferenceSchema = apiextensionsv1.JSONSchemaProps{
 		Type:        "object",
 		Description: "Reference to Fission Environment type custom resource.",
 		Properties:  environmentReferenceSchemaProps,
@@ -239,7 +239,7 @@ var (
 )
 
 var (
-	packageRefSchemaProps = map[string]apiextensionsv1beta1.JSONSchemaProps{
+	packageRefSchemaProps = map[string]apiextensionsv1.JSONSchemaProps{
 		"namespace": {
 			Type:        "string",
 			Description: "Namespace for corresponding Package",
@@ -253,7 +253,7 @@ var (
 			Description: "Including resource version in the reference forces the function to be updated on package update, making it possible to cache the function based on its metadata.",
 		},
 	}
-	functionPackageRefSchemaProps = map[string]apiextensionsv1beta1.JSONSchemaProps{
+	functionPackageRefSchemaProps = map[string]apiextensionsv1.JSONSchemaProps{
 		"packageref": {
 			Type:        "object",
 			Description: "Package Reference",
@@ -264,7 +264,7 @@ var (
 			Description: "FunctionName specifies a specific function within the package using the path and specific function and varies based on language/environment",
 		},
 	}
-	functionPackageRefSchema = apiextensionsv1beta1.JSONSchemaProps{
+	functionPackageRefSchema = apiextensionsv1.JSONSchemaProps{
 		Type:        "object",
 		Description: "FunctionPackageRef includes the reference to the package.",
 		Properties:  functionPackageRefSchemaProps,
@@ -272,7 +272,7 @@ var (
 )
 
 var (
-	secretReferenceSchemaProps = map[string]apiextensionsv1beta1.JSONSchemaProps{
+	secretReferenceSchemaProps = map[string]apiextensionsv1.JSONSchemaProps{
 		"namespace": {
 			Type:        "string",
 			Description: "Namespace for corresponding secret",
@@ -282,22 +282,22 @@ var (
 			Description: "Name of the secret to use",
 		},
 	}
-	secretReferenceObjectSchema = apiextensionsv1beta1.JSONSchemaProps{
+	secretReferenceObjectSchema = apiextensionsv1.JSONSchemaProps{
 		Type:        "object",
 		Description: "Reference to a Kubernetes secret.",
 		Properties:  secretReferenceSchemaProps,
 	}
-	secretReferenceSchema = apiextensionsv1beta1.JSONSchemaProps{
+	secretReferenceSchema = apiextensionsv1.JSONSchemaProps{
 		Type:     "array",
 		Nullable: true,
-		Items: &apiextensionsv1beta1.JSONSchemaPropsOrArray{
+		Items: &apiextensionsv1.JSONSchemaPropsOrArray{
 			Schema: &secretReferenceObjectSchema,
 		},
 	}
 )
 
 var (
-	configMapReferenceSchemaProps = map[string]apiextensionsv1beta1.JSONSchemaProps{
+	configMapReferenceSchemaProps = map[string]apiextensionsv1.JSONSchemaProps{
 		"namespace": {
 			Type:        "string",
 			Description: "Namespace for corresponding ConfigMap",
@@ -307,23 +307,23 @@ var (
 			Description: "Name of the ConfigMap to use",
 		},
 	}
-	configMapReferenceObjectSchema = apiextensionsv1beta1.JSONSchemaProps{
+	configMapReferenceObjectSchema = apiextensionsv1.JSONSchemaProps{
 		Type:        "object",
 		Description: "Reference to a Kubernetes ConfigMap.",
 		Properties:  configMapReferenceSchemaProps,
 	}
 
-	configMapReferenceSchema = apiextensionsv1beta1.JSONSchemaProps{
+	configMapReferenceSchema = apiextensionsv1.JSONSchemaProps{
 		Type:     "array",
 		Nullable: true,
-		Items: &apiextensionsv1beta1.JSONSchemaPropsOrArray{
+		Items: &apiextensionsv1.JSONSchemaPropsOrArray{
 			Schema: &configMapReferenceObjectSchema,
 		},
 	}
 )
 
 var (
-	executionStrategySchema = map[string]apiextensionsv1beta1.JSONSchemaProps{
+	executionStrategySchema = map[string]apiextensionsv1.JSONSchemaProps{
 		"ExecutorType": {
 			Type:        "string",
 			Description: "ExecutorType is the executor type of a function used. Defaults to poolmgr. Available value: poolmgr, newdeploy",
@@ -345,7 +345,7 @@ var (
 			Description: "Timeout setting for executor to wait for pod specialization.",
 		},
 	}
-	invokeStrategySchemaProps = map[string]apiextensionsv1beta1.JSONSchemaProps{
+	invokeStrategySchemaProps = map[string]apiextensionsv1.JSONSchemaProps{
 		"ExecutionStrategy": {
 			Type:        "object",
 			Description: "ExecutionStrategy specifies low-level parameters for function execution, such as the number of instances, scaling strategy etc.",
@@ -356,7 +356,7 @@ var (
 			Description: "StrategyType is the strategy type of a function.",
 		},
 	}
-	invokeStrategySchema = apiextensionsv1beta1.JSONSchemaProps{
+	invokeStrategySchema = apiextensionsv1.JSONSchemaProps{
 		Type:        "object",
 		Description: "InvokeStrategy is a set of controls over how the function executes. It affects the performance and resource usage of the function. An InvokeStrategy is of one of two types: ExecutionStrategy, which controls low-level parameters such as which ExecutorType to use, when to autoscale, minimum and maximum number of running instances, etc.",
 		Properties:  invokeStrategySchemaProps,
@@ -365,7 +365,7 @@ var (
 
 // Children of Environment crd schema
 var (
-	runtimeSchemaProps = map[string]apiextensionsv1beta1.JSONSchemaProps{
+	runtimeSchemaProps = map[string]apiextensionsv1.JSONSchemaProps{
 		"image": {
 			Type:        "string",
 			Description: "Image for containing the language runtime.",
@@ -379,14 +379,14 @@ var (
 			Description: "(Optional) Podspec allows modification of deployed runtime pod with Kubernetes PodSpec.\n You can set either PodSpec or Container, but not both.\n More info for podspec:\n https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#podspec-v1-core",
 		},
 	}
-	runtimeSchema = apiextensionsv1beta1.JSONSchemaProps{
+	runtimeSchema = apiextensionsv1.JSONSchemaProps{
 		Type:        "object",
 		Description: "Runtime is configuration for running function, like container image etc.",
 		Properties:  runtimeSchemaProps,
 	}
 )
 var (
-	builderSchemaProps = map[string]apiextensionsv1beta1.JSONSchemaProps{
+	builderSchemaProps = map[string]apiextensionsv1.JSONSchemaProps{
 		"image": {
 			Type:        "string",
 			Description: "Image for containing the language runtime.",
@@ -404,13 +404,86 @@ var (
 			Description: "(Optional) Podspec allows modification of deployed runtime pod with Kubernetes PodSpec.\n You can set either PodSpec or Container, but not both.",
 		},
 	}
-	builderSchema = apiextensionsv1beta1.JSONSchemaProps{
+	builderSchema = apiextensionsv1.JSONSchemaProps{
 		Type:        "object",
 		Description: "(Optional) Builder is configuration for builder manager to launch environment builder to build source code into deployable binary.",
 		Properties:  builderSchemaProps,
 	}
 )
 
-func boolPtr(b bool) *bool {
-	return &b
-}
+var (
+	httpTriggerSchemaProps = map[string]apiextensionsv1.JSONSchemaProps{}
+	// httpTrigger validation schema
+	httpTriggerSchema = apiextensionsv1.JSONSchemaProps{
+		Type:        "object",
+		Description: "",
+		Properties:  httpTriggerSchemaProps,
+	}
+
+	// httpTrigger validation object
+	httpTriggerValidation = &apiextensionsv1.CustomResourceValidation{
+		OpenAPIV3Schema: &httpTriggerSchema,
+	}
+)
+
+var (
+	k8swatchTriggerSchemaProps = map[string]apiextensionsv1.JSONSchemaProps{}
+	// k8swatchTrigger validation schema
+	k8swatchTriggerSchema = apiextensionsv1.JSONSchemaProps{
+		Type:        "object",
+		Description: "",
+		Properties:  httpTriggerSchemaProps,
+	}
+
+	// k8swatchTrigger validation object
+	k8swatchTriggerValidation = &apiextensionsv1.CustomResourceValidation{
+		OpenAPIV3Schema: &httpTriggerSchema,
+	}
+)
+
+var (
+	timeTriggerSchemaProps = map[string]apiextensionsv1.JSONSchemaProps{}
+	// timeTrigger validation schema
+	timeTriggerSchema = apiextensionsv1.JSONSchemaProps{
+		Type:        "object",
+		Description: "",
+		Properties:  httpTriggerSchemaProps,
+	}
+
+	// timeTriggervalidation object
+	timeTriggerValidation = &apiextensionsv1.CustomResourceValidation{
+		OpenAPIV3Schema: &httpTriggerSchema,
+	}
+)
+
+var (
+	mqTriggerSchemaProps = map[string]apiextensionsv1.JSONSchemaProps{}
+
+	//  mqTrigger validation schema
+	mqTriggerSchema = apiextensionsv1.JSONSchemaProps{
+		Type:        "object",
+		Description: "",
+		Properties:  httpTriggerSchemaProps,
+	}
+
+	//  mqTriggervalidation object
+	mqTriggerValidation = &apiextensionsv1.CustomResourceValidation{
+		OpenAPIV3Schema: &httpTriggerSchema,
+	}
+)
+
+var (
+	canaryconfigSchemaProps = map[string]apiextensionsv1.JSONSchemaProps{}
+
+	//  canaryconfig validation schema
+	canaryconfigSchema = apiextensionsv1.JSONSchemaProps{
+		Type:        "object",
+		Description: "",
+		Properties:  httpTriggerSchemaProps,
+	}
+
+	//  canaryconfig object
+	canaryconfigValidation = &apiextensionsv1.CustomResourceValidation{
+		OpenAPIV3Schema: &httpTriggerSchema,
+	}
+)

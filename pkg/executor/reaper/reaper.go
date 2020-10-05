@@ -17,6 +17,7 @@ limitations under the License.
 package reaper
 
 import (
+	"context"
 	"strings"
 	"time"
 
@@ -39,25 +40,25 @@ var (
 func CleanupKubeObject(logger *zap.Logger, kubeClient *kubernetes.Clientset, kubeobj *apiv1.ObjectReference) {
 	switch strings.ToLower(kubeobj.Kind) {
 	case "pod":
-		err := kubeClient.CoreV1().Pods(kubeobj.Namespace).Delete(kubeobj.Name, nil)
+		err := kubeClient.CoreV1().Pods(kubeobj.Namespace).Delete(context.Background(), kubeobj.Name, meta_v1.DeleteOptions{})
 		if err != nil {
 			logger.Error("error cleaning up pod", zap.Error(err), zap.String("pod", kubeobj.Name))
 		}
 
 	case "service":
-		err := kubeClient.CoreV1().Services(kubeobj.Namespace).Delete(kubeobj.Name, nil)
+		err := kubeClient.CoreV1().Services(kubeobj.Namespace).Delete(context.Background(), kubeobj.Name, meta_v1.DeleteOptions{})
 		if err != nil {
 			logger.Error("error cleaning up service", zap.Error(err), zap.String("service", kubeobj.Name))
 		}
 
 	case "deployment":
-		err := kubeClient.AppsV1().Deployments(kubeobj.Namespace).Delete(kubeobj.Name, &delOpt)
+		err := kubeClient.AppsV1().Deployments(kubeobj.Namespace).Delete(context.Background(), kubeobj.Name, delOpt)
 		if err != nil {
 			logger.Error("error cleaning up deployment", zap.Error(err), zap.String("deployment", kubeobj.Name))
 		}
 
 	case "horizontalpodautoscaler":
-		err := kubeClient.AutoscalingV1().HorizontalPodAutoscalers(kubeobj.Namespace).Delete(kubeobj.Name, nil)
+		err := kubeClient.AutoscalingV1().HorizontalPodAutoscalers(kubeobj.Namespace).Delete(context.Background(), kubeobj.Name, meta_v1.DeleteOptions{})
 		if err != nil {
 			logger.Error("error cleaning up horizontalpodautoscaler", zap.Error(err), zap.String("horizontalpodautoscaler", kubeobj.Name))
 		}
@@ -69,7 +70,7 @@ func CleanupKubeObject(logger *zap.Logger, kubeClient *kubernetes.Clientset, kub
 }
 
 func CleanupDeployments(logger *zap.Logger, client *kubernetes.Clientset, instanceId string, listOps meta_v1.ListOptions) error {
-	deploymentList, err := client.AppsV1().Deployments(meta_v1.NamespaceAll).List(listOps)
+	deploymentList, err := client.AppsV1().Deployments(meta_v1.NamespaceAll).List(context.Background(), listOps)
 	if err != nil {
 		return err
 	}
@@ -81,7 +82,7 @@ func CleanupDeployments(logger *zap.Logger, client *kubernetes.Clientset, instan
 		}
 		if ok && id != instanceId {
 			logger.Info("cleaning up deployment", zap.String("deployment", dep.ObjectMeta.Name))
-			err := client.AppsV1().Deployments(dep.ObjectMeta.Namespace).Delete(dep.ObjectMeta.Name, &delOpt)
+			err := client.AppsV1().Deployments(dep.ObjectMeta.Namespace).Delete(context.Background(), dep.ObjectMeta.Name, delOpt)
 			if err != nil {
 				logger.Error("error cleaning up deployment",
 					zap.Error(err),
@@ -95,7 +96,7 @@ func CleanupDeployments(logger *zap.Logger, client *kubernetes.Clientset, instan
 }
 
 func CleanupPods(logger *zap.Logger, client *kubernetes.Clientset, instanceId string, listOps meta_v1.ListOptions) error {
-	podList, err := client.CoreV1().Pods(meta_v1.NamespaceAll).List(listOps)
+	podList, err := client.CoreV1().Pods(meta_v1.NamespaceAll).List(context.Background(), listOps)
 	if err != nil {
 		return err
 	}
@@ -107,7 +108,7 @@ func CleanupPods(logger *zap.Logger, client *kubernetes.Clientset, instanceId st
 		}
 		if ok && id != instanceId {
 			logger.Info("cleaning up pod", zap.String("pod", pod.ObjectMeta.Name))
-			err := client.CoreV1().Pods(pod.ObjectMeta.Namespace).Delete(pod.ObjectMeta.Name, nil)
+			err := client.CoreV1().Pods(pod.ObjectMeta.Namespace).Delete(context.Background(), pod.ObjectMeta.Name, meta_v1.DeleteOptions{})
 			if err != nil {
 				logger.Error("error cleaning up pod",
 					zap.Error(err),
@@ -121,7 +122,7 @@ func CleanupPods(logger *zap.Logger, client *kubernetes.Clientset, instanceId st
 }
 
 func CleanupServices(logger *zap.Logger, client *kubernetes.Clientset, instanceId string, listOps meta_v1.ListOptions) error {
-	svcList, err := client.CoreV1().Services(meta_v1.NamespaceAll).List(listOps)
+	svcList, err := client.CoreV1().Services(meta_v1.NamespaceAll).List(context.Background(), listOps)
 	if err != nil {
 		return err
 	}
@@ -133,7 +134,7 @@ func CleanupServices(logger *zap.Logger, client *kubernetes.Clientset, instanceI
 		}
 		if ok && id != instanceId {
 			logger.Info("cleaning up service", zap.String("service", svc.ObjectMeta.Name))
-			err := client.CoreV1().Services(svc.ObjectMeta.Namespace).Delete(svc.ObjectMeta.Name, nil)
+			err := client.CoreV1().Services(svc.ObjectMeta.Namespace).Delete(context.Background(), svc.ObjectMeta.Name, meta_v1.DeleteOptions{})
 			if err != nil {
 				logger.Error("error cleaning up service",
 					zap.Error(err),
@@ -147,7 +148,7 @@ func CleanupServices(logger *zap.Logger, client *kubernetes.Clientset, instanceI
 }
 
 func CleanupHpa(logger *zap.Logger, client *kubernetes.Clientset, instanceId string, listOps meta_v1.ListOptions) error {
-	hpaList, err := client.AutoscalingV1().HorizontalPodAutoscalers(meta_v1.NamespaceAll).List(listOps)
+	hpaList, err := client.AutoscalingV1().HorizontalPodAutoscalers(meta_v1.NamespaceAll).List(context.Background(), listOps)
 	if err != nil {
 		return err
 	}
@@ -160,7 +161,7 @@ func CleanupHpa(logger *zap.Logger, client *kubernetes.Clientset, instanceId str
 		}
 		if ok && id != instanceId {
 			logger.Info("cleaning up HPA", zap.String("hpa", hpa.ObjectMeta.Name))
-			err := client.AutoscalingV1().HorizontalPodAutoscalers(hpa.ObjectMeta.Namespace).Delete(hpa.ObjectMeta.Name, nil)
+			err := client.AutoscalingV1().HorizontalPodAutoscalers(hpa.ObjectMeta.Namespace).Delete(context.Background(), hpa.ObjectMeta.Name, meta_v1.DeleteOptions{})
 			if err != nil {
 				logger.Error("error cleaning up HPA",
 					zap.Error(err),
@@ -183,7 +184,7 @@ func CleanupRoleBindings(logger *zap.Logger, client *kubernetes.Clientset, fissi
 
 		logger.Debug("starting cleanupRoleBindings cycle")
 		// get all rolebindings ( just to be efficient, one call to kubernetes )
-		rbList, err := client.RbacV1beta1().RoleBindings(meta_v1.NamespaceAll).List(meta_v1.ListOptions{})
+		rbList, err := client.RbacV1beta1().RoleBindings(meta_v1.NamespaceAll).List(context.Background(), meta_v1.ListOptions{})
 		if err != nil {
 			// something wrong, but next iteration hopefully succeeds
 			logger.Error("error listing role bindings in all namespaces", zap.Error(err))

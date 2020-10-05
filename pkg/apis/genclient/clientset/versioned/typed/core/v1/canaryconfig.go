@@ -19,6 +19,7 @@ limitations under the License.
 package v1
 
 import (
+	"context"
 	"time"
 
 	v1 "github.com/fission/fission/pkg/apis/core/v1"
@@ -71,7 +72,7 @@ func (c *canaryConfigs) Get(name string, options metav1.GetOptions) (result *v1.
 		Resource("canaryconfigs").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
-		Do().
+		Do(context.Background()).
 		Into(result)
 	return
 }
@@ -88,7 +89,7 @@ func (c *canaryConfigs) List(opts metav1.ListOptions) (result *v1.CanaryConfigLi
 		Resource("canaryconfigs").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Do().
+		Do(context.Background()).
 		Into(result)
 	return
 }
@@ -105,7 +106,7 @@ func (c *canaryConfigs) Watch(opts metav1.ListOptions) (watch.Interface, error) 
 		Resource("canaryconfigs").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Watch()
+		Watch(context.Background())
 }
 
 // Create takes the representation of a _canaryConfig and creates it.  Returns the server's representation of the canaryConfig, and an error, if there is any.
@@ -115,7 +116,7 @@ func (c *canaryConfigs) Create(_canaryConfig *v1.CanaryConfig) (result *v1.Canar
 		Namespace(c.ns).
 		Resource("canaryconfigs").
 		Body(_canaryConfig).
-		Do().
+		Do(context.Background()).
 		Into(result)
 	return
 }
@@ -128,7 +129,7 @@ func (c *canaryConfigs) Update(_canaryConfig *v1.CanaryConfig) (result *v1.Canar
 		Resource("canaryconfigs").
 		Name(_canaryConfig.Name).
 		Body(_canaryConfig).
-		Do().
+		Do(context.Background()).
 		Into(result)
 	return
 }
@@ -144,7 +145,7 @@ func (c *canaryConfigs) UpdateStatus(_canaryConfig *v1.CanaryConfig) (result *v1
 		Name(_canaryConfig.Name).
 		SubResource("status").
 		Body(_canaryConfig).
-		Do().
+		Do(context.Background()).
 		Into(result)
 	return
 }
@@ -156,7 +157,7 @@ func (c *canaryConfigs) Delete(name string, options *metav1.DeleteOptions) error
 		Resource("canaryconfigs").
 		Name(name).
 		Body(options).
-		Do().
+		Do(context.Background()).
 		Error()
 }
 
@@ -172,7 +173,7 @@ func (c *canaryConfigs) DeleteCollection(options *metav1.DeleteOptions, listOpti
 		VersionedParams(&listOptions, scheme.ParameterCodec).
 		Timeout(timeout).
 		Body(options).
-		Do().
+		Do(context.Background()).
 		Error()
 }
 
@@ -185,7 +186,7 @@ func (c *canaryConfigs) Patch(name string, pt types.PatchType, data []byte, subr
 		SubResource(subresources...).
 		Name(name).
 		Body(data).
-		Do().
+		Do(context.Background()).
 		Into(result)
 	return
 }

@@ -179,7 +179,7 @@ func (deploy *NewDeploy) IsValid(fsvc *fscache.FuncSvc) bool {
 		return false
 	}
 
-	_, err := deploy.kubernetesClient.CoreV1().Services(service[1]).Get(service[0], metav1.GetOptions{})
+	_, err := deploy.kubernetesClient.CoreV1().Services(service[1]).Get(context.Background(), service[0], metav1.GetOptions{})
 	if err != nil {
 		if !k8sErrs.IsNotFound(err) {
 			deploy.logger.Error("error validating function service address", zap.String("function", fsvc.Function.Name), zap.Error(err))
@@ -194,7 +194,7 @@ func (deploy *NewDeploy) IsValid(fsvc *fscache.FuncSvc) bool {
 	}
 
 	currentDeploy, err := deploy.kubernetesClient.AppsV1().
-		Deployments(deployObj.Namespace).Get(deployObj.Name, metav1.GetOptions{})
+		Deployments(deployObj.Namespace).Get(context.Background(), deployObj.Name, metav1.GetOptions{})
 	if err != nil {
 		if !k8sErrs.IsNotFound(err) {
 			deploy.logger.Error("error validating function deployment", zap.Error(err), zap.String("function", fsvc.Function.Name))
@@ -224,7 +224,7 @@ func (deploy *NewDeploy) RefreshFuncPods(logger *zap.Logger, f fv1.Function) err
 		UID:       env.ObjectMeta.UID,
 	})
 
-	dep, err := deploy.kubernetesClient.AppsV1().Deployments(metav1.NamespaceAll).List(metav1.ListOptions{
+	dep, err := deploy.kubernetesClient.AppsV1().Deployments(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{
 		LabelSelector: labels.Set(funcLabels).AsSelector().String(),
 	})
 
@@ -242,9 +242,9 @@ func (deploy *NewDeploy) RefreshFuncPods(logger *zap.Logger, f fv1.Function) err
 		patch := fmt.Sprintf(`{"spec" : {"template": {"spec":{"containers":[{"name": "%s", "env":[{"name": "%s", "value": "%v"}]}]}}}}`,
 			f.ObjectMeta.Name, fv1.ResourceVersionCount, rvCount)
 
-		_, err = deploy.kubernetesClient.AppsV1().Deployments(deployment.ObjectMeta.Namespace).Patch(deployment.ObjectMeta.Name,
+		_, err = deploy.kubernetesClient.AppsV1().Deployments(deployment.ObjectMeta.Namespace).Patch(context.Background(), deployment.ObjectMeta.Name,
 			k8sTypes.StrategicMergePatchType,
-			[]byte(patch))
+			[]byte(patch), metav1.PatchOptions{})
 		if err != nil {
 			return err
 		}
@@ -683,7 +683,7 @@ func (deploy *NewDeploy) updateFuncDeployment(fn *fv1.Function, env *fv1.Environ
 		ns = fn.ObjectMeta.Namespace
 	}
 
-	existingDepl, err := deploy.kubernetesClient.AppsV1().Deployments(ns).Get(fnObjName, metav1.GetOptions{})
+	existingDepl, err := deploy.kubernetesClient.AppsV1().Deployments(ns).Get(context.Background(), fnObjName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -841,7 +841,7 @@ func (deploy *NewDeploy) idleObjectReaper() {
 				}
 
 				currentDeploy, err := deploy.kubernetesClient.AppsV1().
-					Deployments(deployObj.Namespace).Get(deployObj.Name, metav1.GetOptions{})
+					Deployments(deployObj.Namespace).Get(context.Background(), deployObj.Name, metav1.GetOptions{})
 				if err != nil {
 					deploy.logger.Error("error getting function deployment", zap.Error(err), zap.String("function", fsvc.Function.Name))
 					return
@@ -878,7 +878,7 @@ func (deploy *NewDeploy) scaleDeployment(deplNS string, deplName string, replica
 		zap.String("deployment", deplName),
 		zap.String("namespace", deplNS),
 		zap.Int32("replicas", replicas))
-	_, err := deploy.kubernetesClient.AppsV1().Deployments(deplNS).UpdateScale(deplName, &autoscalingv1.Scale{
+	_, err := deploy.kubernetesClient.AppsV1().Deployments(deplNS).UpdateScale(context.Background(), deplName, &autoscalingv1.Scale{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      deplName,
 			Namespace: deplNS,
@@ -886,6 +886,6 @@ func (deploy *NewDeploy) scaleDeployment(deplNS string, deplName string, replica
 		Spec: autoscalingv1.ScaleSpec{
 			Replicas: replicas,
 		},
-	})
+	}, metav1.UpdateOptions{})
 	return err
 }

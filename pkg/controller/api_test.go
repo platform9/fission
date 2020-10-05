@@ -17,6 +17,7 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -359,12 +360,16 @@ func TestMain(m *testing.M) {
 
 	// testNS isolation for running multiple CI builds concurrently.
 	testNS = uuid.NewV4().String()
-	kubeClient.CoreV1().Namespaces().Create(&v1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: testNS,
+	kubeClient.CoreV1().Namespaces().Create(
+		context.Background(),
+		&v1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: testNS,
+			},
 		},
-	})
-	defer kubeClient.CoreV1().Namespaces().Delete(testNS, nil)
+		metav1.CreateOptions{},
+	)
+	defer kubeClient.CoreV1().Namespaces().Delete(context.Background(), testNS, metav1.DeleteOptions{})
 
 	config := zap.NewDevelopmentConfig()
 	config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder

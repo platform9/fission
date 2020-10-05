@@ -17,6 +17,7 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -32,7 +33,7 @@ func (a *API) ConfigMapExists(w http.ResponseWriter, r *http.Request) {
 		ns = metav1.NamespaceDefault
 	}
 
-	_, err := a.kubernetesClient.CoreV1().ConfigMaps(ns).Get(name, metav1.GetOptions{})
+	_, err := a.kubernetesClient.CoreV1().ConfigMaps(ns).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		a.logger.Error("error getting config map", zap.Error(err), zap.String("config_map_name", name), zap.String("namespace", ns))
 		a.respondWithError(w, err)

@@ -17,6 +17,7 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -310,7 +311,7 @@ func (a *API) FunctionPodLogs(w http.ResponseWriter, r *http.Request) {
 		fv1.ENVIRONMENT_NAME:      f.Spec.Environment.Name,
 		fv1.ENVIRONMENT_NAMESPACE: f.Spec.Environment.Namespace,
 	}
-	podList, err := a.kubernetesClient.CoreV1().Pods(podNs).List(metav1.ListOptions{
+	podList, err := a.kubernetesClient.CoreV1().Pods(podNs).List(context.Background(), metav1.ListOptions{
 		LabelSelector: labels.Set(selector).AsSelector().String(),
 	})
 	if err != nil {
@@ -346,7 +347,7 @@ func getContainerLog(kubernetesClient *kubernetes.Clientset, w http.ResponseWrit
 		podLogOpts := apiv1.PodLogOptions{Container: container.Name} // Only the env container, not fetcher
 		podLogsReq := kubernetesClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.ObjectMeta.Name, &podLogOpts)
 
-		podLogs, err := podLogsReq.Stream()
+		podLogs, err := podLogsReq.Stream(context.Background())
 		if err != nil {
 			return errors.Wrapf(err, "error streaming pod log")
 		}

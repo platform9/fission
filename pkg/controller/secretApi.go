@@ -17,6 +17,7 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -32,7 +33,7 @@ func (a *API) SecretExists(w http.ResponseWriter, r *http.Request) {
 		ns = metav1.NamespaceDefault
 	}
 
-	_, err := a.kubernetesClient.CoreV1().Secrets(ns).Get(name, metav1.GetOptions{})
+	_, err := a.kubernetesClient.CoreV1().Secrets(ns).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		a.logger.Error("error getting secret",
 			zap.Error(err),

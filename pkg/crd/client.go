@@ -33,12 +33,13 @@ import (
 )
 
 type (
+	// FissionClient exports the client interface to be used
 	FissionClient struct {
 		genClientset.Interface
 	}
 )
 
-// Get a kubernetes client using the kubeconfig file at the
+// GetKubernetesClient gets a kubernetes client using the kubeconfig file at the
 // environment var $KUBECONFIG, or an in-cluster config if that's
 // undefined.
 func GetKubernetesClient() (*rest.Config, *kubernetes.Clientset, *apiextensionsclient.Clientset, error) {
@@ -74,6 +75,7 @@ func GetKubernetesClient() (*rest.Config, *kubernetes.Clientset, *apiextensionsc
 	return config, clientset, apiExtClientset, nil
 }
 
+// MakeFissionClient creates a fission client
 func MakeFissionClient() (*FissionClient, *kubernetes.Clientset, *apiextensionsclient.Clientset, error) {
 	config, kubeClient, apiExtClient, err := GetKubernetesClient()
 	if err != nil {
@@ -92,6 +94,7 @@ func MakeFissionClient() (*FissionClient, *kubernetes.Clientset, *apiextensionsc
 	return fc, kubeClient, apiExtClient, nil
 }
 
+// WaitForCRDs does a timeout to check if CRDs have been installed
 func (fc *FissionClient) WaitForCRDs() error {
 	start := time.Now()
 	for {

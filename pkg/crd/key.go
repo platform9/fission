@@ -22,7 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// Given metadata, create a key that uniquely identifies the contents
+// CacheKey : Given metadata, create a key that uniquely identifies the contents
 // of the object. Since resourceVersion changes on every update and
 // UIDs are unique, uid+resourceVersion identifies the
 // content. (ResourceVersion may also update on status updates, so

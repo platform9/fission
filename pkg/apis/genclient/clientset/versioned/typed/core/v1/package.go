@@ -19,6 +19,7 @@ limitations under the License.
 package v1
 
 import (
+	"context"
 	"time"
 
 	v1 "github.com/fission/fission/pkg/apis/core/v1"
@@ -71,7 +72,7 @@ func (c *packages) Get(name string, options metav1.GetOptions) (result *v1.Packa
 		Resource("packages").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
-		Do().
+		Do(context.Background()).
 		Into(result)
 	return
 }
@@ -88,7 +89,7 @@ func (c *packages) List(opts metav1.ListOptions) (result *v1.PackageList, err er
 		Resource("packages").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Do().
+		Do(context.Background()).
 		Into(result)
 	return
 }
@@ -105,7 +106,7 @@ func (c *packages) Watch(opts metav1.ListOptions) (watch.Interface, error) {
 		Resource("packages").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Watch()
+		Watch(context.Background())
 }
 
 // Create takes the representation of a _package and creates it.  Returns the server's representation of the package, and an error, if there is any.
@@ -115,7 +116,7 @@ func (c *packages) Create(_package *v1.Package) (result *v1.Package, err error) 
 		Namespace(c.ns).
 		Resource("packages").
 		Body(_package).
-		Do().
+		Do(context.Background()).
 		Into(result)
 	return
 }
@@ -128,7 +129,7 @@ func (c *packages) Update(_package *v1.Package) (result *v1.Package, err error) 
 		Resource("packages").
 		Name(_package.Name).
 		Body(_package).
-		Do().
+		Do(context.Background()).
 		Into(result)
 	return
 }
@@ -144,7 +145,7 @@ func (c *packages) UpdateStatus(_package *v1.Package) (result *v1.Package, err e
 		Name(_package.Name).
 		SubResource("status").
 		Body(_package).
-		Do().
+		Do(context.Background()).
 		Into(result)
 	return
 }
@@ -156,7 +157,7 @@ func (c *packages) Delete(name string, options *metav1.DeleteOptions) error {
 		Resource("packages").
 		Name(name).
 		Body(options).
-		Do().
+		Do(context.Background()).
 		Error()
 }
 
@@ -172,7 +173,7 @@ func (c *packages) DeleteCollection(options *metav1.DeleteOptions, listOptions m
 		VersionedParams(&listOptions, scheme.ParameterCodec).
 		Timeout(timeout).
 		Body(options).
-		Do().
+		Do(context.Background()).
 		Error()
 }
 
@@ -185,7 +186,7 @@ func (c *packages) Patch(name string, pt types.PatchType, data []byte, subresour
 		SubResource(subresources...).
 		Name(name).
 		Body(data).
-		Do().
+		Do(context.Background()).
 		Into(result)
 	return
 }

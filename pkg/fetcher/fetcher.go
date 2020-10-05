@@ -327,7 +327,7 @@ func (fetcher *Fetcher) Fetch(ctx context.Context, pkg *fv1.Package, req Functio
 func (fetcher *Fetcher) FetchSecretsAndCfgMaps(secrets []fv1.SecretReference, cfgmaps []fv1.ConfigMapReference) (int, error) {
 	if len(secrets) > 0 {
 		for _, secret := range secrets {
-			data, err := fetcher.kubeClient.CoreV1().Secrets(secret.Namespace).Get(secret.Name, metav1.GetOptions{})
+			data, err := fetcher.kubeClient.CoreV1().Secrets(secret.Namespace).Get(context.Background(), secret.Name, metav1.GetOptions{})
 
 			if err != nil {
 				e := "error getting secret from kubeapi"
@@ -371,7 +371,7 @@ func (fetcher *Fetcher) FetchSecretsAndCfgMaps(secrets []fv1.SecretReference, cf
 
 	if len(cfgmaps) > 0 {
 		for _, config := range cfgmaps {
-			data, err := fetcher.kubeClient.CoreV1().ConfigMaps(config.Namespace).Get(config.Name, metav1.GetOptions{})
+			data, err := fetcher.kubeClient.CoreV1().ConfigMaps(config.Namespace).Get(context.Background(), config.Name, metav1.GetOptions{})
 
 			if err != nil {
 				e := "error getting configmap from kubeapi"
