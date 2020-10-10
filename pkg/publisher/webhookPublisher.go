@@ -27,7 +27,7 @@ import (
 )
 
 type (
-	// A webhook publisher for a single URL. Satisifies the Publisher interface.
+	// WebhookPublisher for a single URL. Satisfies the Publisher interface.
 	WebhookPublisher struct {
 		logger *zap.Logger
 
@@ -47,6 +47,7 @@ type (
 	}
 )
 
+// MakeWebhookPublisher triggers a publish request to the given baseUrl with 10 maximum retries in case of error
 func MakeWebhookPublisher(logger *zap.Logger, baseUrl string) *WebhookPublisher {
 	p := &WebhookPublisher{
 		logger:         logger.Named("webhook_publisher"),
@@ -60,6 +61,7 @@ func MakeWebhookPublisher(logger *zap.Logger, baseUrl string) *WebhookPublisher 
 	return p
 }
 
+// Publish sends a request to the target with given payload with a defined retries in case of error
 func (p *WebhookPublisher) Publish(body string, headers map[string]string, target string) {
 	// serializing the request gives user a guarantee that the request is sent in sequence order
 	p.requestChannel <- &publishRequest{

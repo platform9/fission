@@ -17,10 +17,10 @@ limitations under the License.
 package publisher
 
 type (
+	// Publisher publish an request to a "target".  Target depends on the
+	// publisher: it's a URL in the case of a webhook publisher, or a queue
+	// name in a queue-based publisher such as NATS.
 	Publisher interface {
-		// Publish an request to a "target".  Target's meaning depends on the
-		// publisher: it's a URL in the case of a webhook publisher, or a queue
-		// name in a queue-based publisher such as NATS.
 		Publish(body string, headers map[string]string, target string)
 	}
 )
