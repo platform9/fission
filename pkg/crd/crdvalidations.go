@@ -371,12 +371,14 @@ var (
 			Description: "Image for containing the language runtime.",
 		},
 		"container": {
-			Type:        "object",
-			Description: "(Optional) Container allows the modification of the deployed runtime container using the Kubernetes Container spec. Fission overrides the following fields: Name, Image (set to the Runtime.Image), TerminationMessagePath, ImagePullPolicy\n You can set either PodSpec or Container, but not both.",
+			Type:                   "object",
+			Description:            "(Optional) Container allows the modification of the deployed runtime container using the Kubernetes Container spec. Fission overrides the following fields: Name, Image (set to the Runtime.Image), TerminationMessagePath, ImagePullPolicy\n You can set either PodSpec or Container, but not both.",
+			XPreserveUnknownFields: boolPtr(true),
 		},
 		"podspec": {
-			Type:        "object",
-			Description: "(Optional) Podspec allows modification of deployed runtime pod with Kubernetes PodSpec.\n You can set either PodSpec or Container, but not both.\n More info for podspec:\n https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#podspec-v1-core",
+			Type:                   "object",
+			Description:            "(Optional) Podspec allows modification of deployed runtime pod with Kubernetes PodSpec.\n You can set either PodSpec or Container, but not both.\n More info for podspec:\n https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#podspec-v1-core",
+			XPreserveUnknownFields: boolPtr(true),
 		},
 	}
 	runtimeSchema = apiextensionsv1beta1.JSONSchemaProps{
@@ -396,12 +398,14 @@ var (
 			Description: "(Optional) Default build command to run for this build environment.",
 		},
 		"container": {
-			Type:        "object",
-			Description: "(Optional) Container allows the modification of the deployed runtime container using the Kubernetes Container spec. Fission overrides the following fields: Name, Image (set to the Runtime.Image), TerminationMessagePath, ImagePullPolicy\n You can set either PodSpec or Container, but not both.",
+			Type:                   "object",
+			Description:            "(Optional) Container allows the modification of the deployed runtime container using the Kubernetes Container spec. Fission overrides the following fields: Name, Image (set to the Runtime.Image), TerminationMessagePath, ImagePullPolicy\n You can set either PodSpec or Container, but not both.",
+			XPreserveUnknownFields: boolPtr(true),
 		},
 		"podspec": {
-			Type:        "object",
-			Description: "(Optional) Podspec allows modification of deployed runtime pod with Kubernetes PodSpec.\n You can set either PodSpec or Container, but not both.",
+			Type:                   "object",
+			Description:            "(Optional) Podspec allows modification of deployed runtime pod with Kubernetes PodSpec.\n You can set either PodSpec or Container, but not both.",
+			XPreserveUnknownFields: boolPtr(true),
 		},
 	}
 	builderSchema = apiextensionsv1beta1.JSONSchemaProps{
