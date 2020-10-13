@@ -503,11 +503,11 @@ func (roundTripper RetryingRoundTripper) addForwardedHostHeader(req *http.Reques
 }
 
 // unTapservice marks the serviceURL in executor's cache as inactive, so that it can be reused
-func (fh functionHandler) unTapService(fn *fv1.Function, serviceUrl *url.URL) error {
+func (fh functionHandler) unTapService(fn *fv1.Function, serviceURL *url.URL) {
 	fh.logger.Info("UnTapService Called")
 	ctx, cancel := context.WithTimeout(context.Background(), fh.unTapServiceTimeout)
 	defer cancel()
-	err := fh.executor.UnTapService(ctx, fn.ObjectMeta, fn.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType, serviceUrl)
+	err := fh.executor.UnTapService(ctx, fn.ObjectMeta, fn.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType, serviceURL)
 	if err != nil {
 		statusCode, errMsg := ferror.GetHTTPError(err)
 		fh.logger.Error("error from UnTapService",
@@ -515,9 +515,7 @@ func (fh functionHandler) unTapService(fn *fv1.Function, serviceUrl *url.URL) er
 			zap.String("error_message", errMsg),
 			zap.Any("function", fh.function),
 			zap.Int("status_code", statusCode))
-		return err
 	}
-	return nil
 }
 
 // getServiceEntryFromExecutor returns service url entry returns from executor
