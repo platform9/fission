@@ -83,7 +83,7 @@ func serve(ctx context.Context, logger *zap.Logger, port int, tracingSamplingRat
 	mr := router(ctx, logger, httpTriggerSet, resolver)
 	url := fmt.Sprintf(":%v", port)
 
-	http.ListenAndServe(url, &ochttp.Handler{
+	err := http.ListenAndServe(url, &ochttp.Handler{
 		Handler: mr,
 		GetStartOptions: func(r *http.Request) trace.StartOptions {
 			// do not trace router healthz endpoint
@@ -101,6 +101,12 @@ func serve(ctx context.Context, logger *zap.Logger, port int, tracingSamplingRat
 			}
 		},
 	})
+	if err != nil {
+		logger.Error(
+			"HTTP server error",
+			zap.Error(err),
+		)
+	}
 }
 
 func serveMetric(logger *zap.Logger) {

@@ -28,10 +28,16 @@ import (
 )
 
 func OldHandler(responseWriter http.ResponseWriter, request *http.Request) {
-	responseWriter.Write([]byte("old handler"))
+	_, err := responseWriter.Write([]byte("old handler"))
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 func NewHandler(responseWriter http.ResponseWriter, request *http.Request) {
-	responseWriter.Write([]byte("new handler"))
+	_, err := responseWriter.Write([]byte("new handler"))
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func verifyRequest(expectedResponse string) {
@@ -40,7 +46,10 @@ func verifyRequest(expectedResponse string) {
 }
 
 func startServer(mr *mutableRouter) {
-	http.ListenAndServe(":3333", mr)
+	err := http.ListenAndServe(":3333", mr)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func spamServer(quit chan bool) {

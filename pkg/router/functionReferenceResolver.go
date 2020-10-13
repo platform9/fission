@@ -112,7 +112,7 @@ func (frr *functionReferenceResolver) resolve(trigger fv1.HTTPTrigger) (*resolve
 	}
 
 	// cache resolve result
-	frr.refCache.Set(nfr, *rr)
+	frr.refCache.Set(nfr, *rr) //nolint: errcheck
 
 	return rr, nil
 }
