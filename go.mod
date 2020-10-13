@@ -53,7 +53,6 @@ require (
 	github.com/opencontainers/image-spec v1.0.1 // indirect
 	github.com/opencontainers/runc v0.1.1 // indirect
 	github.com/ory/dockertest v3.3.5+incompatible
-	github.com/pierrec/lz4 v2.0.5+incompatible // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.0.0
 	github.com/prometheus/common v0.4.1
@@ -83,3 +82,5 @@ require (
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/klog v0.3.3
 )
+
+go 1.13
