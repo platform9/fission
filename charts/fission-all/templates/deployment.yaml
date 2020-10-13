@@ -677,7 +677,9 @@ spec:
         - name: TLS_ENABLED
           value: "true"
         - name: MESSAGE_QUEUE_SECRETS
-          value: /etc/fission/secrets        
+          value: /etc/fission/secrets
+        - name: INSECURE_SKIP_VERIFY
+          value: "{{ .Values.kafka.authentication.tls.insecureSkipVerify }}"
         volumeMounts:
         - name: kafka-secrets
           mountPath: /etc/fission/secrets

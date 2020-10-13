@@ -184,6 +184,8 @@ kafka:
   authentication:
     tls:
       enabled: false
+      # InsecureSkipVerify controls whether a client verifies the server's certificate chain and host name.
+      insecureSkipVerify: false # Warning: Setting this to true, makes TLS susceptible to man-in-the-middle attacks
       caCert: "" # path to certificate containing public key of CA authority
       userCert: "" # path to certificate containing public key of the user signed by CA authority
       userKey: "" # path to private key of the user
