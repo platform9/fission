@@ -6,8 +6,8 @@ import (
 	"net/http"
 )
 
-func testRequest(targetUrl string, expectedResponse string) {
-	resp, err := http.Get(targetUrl)
+func testRequest(targetURL string, expectedResponse string) {
+	resp, err := http.Get(targetURL)
 	if err != nil {
 		log.Panicf("failed to make get request: %v", err)
 	}

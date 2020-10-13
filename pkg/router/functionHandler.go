@@ -88,7 +88,7 @@ type (
 		funcHandler      *functionHandler
 		funcTimeout      time.Duration
 		closeContextFunc *context.CancelFunc
-		serviceUrl       *url.URL
+		serviceURL       *url.URL
 		urlFromCache     bool
 		totalRetry       int
 	}
@@ -184,7 +184,7 @@ func (roundTripper *RetryingRoundTripper) RoundTrip(req *http.Request) (*http.Re
 		// trying to get new service url from cache/executor.
 		if retryCounter == 0 {
 			// get function service url from cache or executor
-			roundTripper.serviceUrl, err = roundTripper.funcHandler.getServiceEntryFromExecutor()
+			roundTripper.serviceURL, err = roundTripper.funcHandler.getServiceEntryFromExecutor()
 			if err != nil {
 				// We might want a specific error code or header for fission failures as opposed to
 				// user function bugs.
@@ -210,15 +210,15 @@ func (roundTripper *RetryingRoundTripper) RoundTrip(req *http.Request) (*http.Re
 				// }
 			}
 			if roundTripper.funcHandler.function.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType == fv1.ExecutorTypePoolmgr {
-				defer func(fn *fv1.Function, serviceUrl *url.URL) {
-					go roundTripper.funcHandler.unTapService(fn, serviceUrl)
-				}(roundTripper.funcHandler.function, roundTripper.serviceUrl)
+				defer func(fn *fv1.Function, serviceURL *url.URL) {
+					go roundTripper.funcHandler.unTapService(fn, serviceURL)
+				}(roundTripper.funcHandler.function, roundTripper.serviceURL)
 			}
 
 			// modify the request to reflect the service url
 			// this service url comes from executor response
-			req.URL.Scheme = roundTripper.serviceUrl.Scheme
-			req.URL.Host = roundTripper.serviceUrl.Host
+			req.URL.Scheme = roundTripper.serviceURL.Scheme
+			req.URL.Host = roundTripper.serviceURL.Host
 
 			// To keep the function run container simple, it
 			// doesn't do any routing.  In the future if we have
@@ -230,7 +230,7 @@ func (roundTripper *RetryingRoundTripper) RoundTrip(req *http.Request) (*http.Re
 			// Overwrite request host with internal host,
 			// or request will be blocked in some situations
 			// (e.g. istio-proxy)
-			req.Host = roundTripper.serviceUrl.Host
+			req.Host = roundTripper.serviceURL.Host
 		}
 
 		// over-riding default settings.
@@ -350,11 +350,11 @@ func (roundTripper *RetryingRoundTripper) closeContext() {
 	}
 }
 
-func (fh *functionHandler) tapService(fn *fv1.Function, serviceUrl *url.URL) {
+func (fh *functionHandler) tapService(fn *fv1.Function, serviceURL *url.URL) {
 	if fh.executor == nil {
 		return
 	}
-	fh.executor.TapService(fn.ObjectMeta, fn.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType, serviceUrl)
+	fh.executor.TapService(fn.ObjectMeta, fn.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType, serviceURL)
 }
 
 func (fh functionHandler) handler(responseWriter http.ResponseWriter, request *http.Request) {
@@ -541,15 +541,15 @@ func (fh functionHandler) getServiceEntryFromExecutor() (*url.URL, error) {
 	}
 
 	// parse the address into url
-	serviceUrl, err := url.Parse(fmt.Sprintf("http://%v", service))
+	serviceURL, err := url.Parse(fmt.Sprintf("http://%v", service))
 	if err != nil {
 		fh.logger.Error("error parsing service url",
 			zap.Error(err),
-			zap.String("service_url", serviceUrl.String()))
+			zap.String("service_url", serviceURL.String()))
 		return nil, err
 	}
 
-	return serviceUrl, nil
+	return serviceURL, nil
 }
 
 // getProxyErrorHandler returns a reverse proxy error handler
@@ -613,7 +613,7 @@ func (fh functionHandler) collectFunctionMetric(start time.Time, rrt *RetryingRo
 
 	// tapService before invoking roundTrip for the serviceUrl
 	if rrt.urlFromCache {
-		fh.tapService(fh.function, rrt.serviceUrl)
+		fh.tapService(fh.function, rrt.serviceURL)
 	}
 
 	fh.logger.Debug("Request complete", zap.String("function", fh.function.ObjectMeta.Name),

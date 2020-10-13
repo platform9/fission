@@ -35,8 +35,8 @@ func NewHandler(responseWriter http.ResponseWriter, request *http.Request) {
 }
 
 func verifyRequest(expectedResponse string) {
-	targetUrl := "http://localhost:3333"
-	testRequest(targetUrl, expectedResponse)
+	targetURL := "http://localhost:3333"
+	testRequest(targetURL, expectedResponse)
 }
 
 func startServer(mr *mutableRouter) {

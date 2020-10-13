@@ -111,7 +111,7 @@ func serveMetric(logger *zap.Logger) {
 	logger.Fatal("done listening on metrics endpoint", zap.Error(err))
 }
 
-func Start(logger *zap.Logger, port int, executorUrl string) {
+func Start(logger *zap.Logger, port int, executorURL string) {
 	_ = MakeAnalytics("")
 
 	fmap := makeFunctionServiceMap(logger, time.Minute)
@@ -126,7 +126,7 @@ func Start(logger *zap.Logger, port int, executorUrl string) {
 		logger.Fatal("error waiting for CRDs", zap.Error(err))
 	}
 
-	executor := executorClient.MakeClient(logger, executorUrl)
+	executor := executorClient.MakeClient(logger, executorURL)
 
 	timeoutStr := os.Getenv("ROUTER_ROUND_TRIP_TIMEOUT")
 	timeout, err := time.ParseDuration(timeoutStr)
