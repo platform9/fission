@@ -70,7 +70,7 @@ func TestMutableMux(t *testing.T) {
 	logger, err := config.Build()
 	panicIf(err)
 
-	mr := NewMutableRouter(logger, muxRouter)
+	mr := newMutableRouter(logger, muxRouter)
 
 	// start http server
 	log.Print("Start http server")

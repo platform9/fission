@@ -57,7 +57,7 @@ type (
 		function                 *fv1.Function
 		httpTrigger              *fv1.HTTPTrigger
 		functionMap              map[string]*fv1.Function
-		fnWeightDistributionList []FunctionWeightDistribution
+		fnWeightDistributionList []functionWeightDistribution
 		tsRoundTripperParams     *tsRoundTripperParams
 		isDebugEnv               bool
 		svcAddrUpdateThrottler   *throttler.Throttler
@@ -429,7 +429,7 @@ func (fh functionHandler) handler(responseWriter http.ResponseWriter, request *h
 
 // findCeil picks a function from the functionWeightDistribution list based on the
 // random number generated. It uses the prefix calculated for the function weights.
-func findCeil(randomNumber int, wtDistrList []FunctionWeightDistribution) string {
+func findCeil(randomNumber int, wtDistrList []functionWeightDistribution) string {
 	low := 0
 	high := len(wtDistrList) - 1
 
@@ -448,13 +448,12 @@ func findCeil(randomNumber int, wtDistrList []FunctionWeightDistribution) string
 
 	if wtDistrList[low].sumPrefix >= randomNumber {
 		return wtDistrList[low].name
-	} else {
-		return ""
 	}
+	return ""
 }
 
 // picks a function to route to based on a random number generated
-func getCanaryBackend(fnMap map[string]*fv1.Function, fnWtDistributionList []FunctionWeightDistribution) *fv1.Function {
+func getCanaryBackend(fnMap map[string]*fv1.Function, fnWtDistributionList []functionWeightDistribution) *fv1.Function {
 	randomNumber := rand.Intn(fnWtDistributionList[len(fnWtDistributionList)-1].sumPrefix + 1)
 	fnName := findCeil(randomNumber, fnWtDistributionList)
 	return fnMap[fnName]

@@ -39,7 +39,7 @@ type (
 
 	resolveResultType int
 
-	FunctionWeightDistribution struct {
+	functionWeightDistribution struct {
 		name      string
 		weight    int
 		sumPrefix int
@@ -51,7 +51,7 @@ type (
 	resolveResult struct {
 		resolveResultType
 		functionMap                map[string]*fv1.Function
-		functionWtDistributionList []FunctionWeightDistribution
+		functionWtDistributionList []functionWeightDistribution
 	}
 
 	// namespacedTriggerReference is just a trigger reference plus a
@@ -149,7 +149,7 @@ func (frr *functionReferenceResolver) resolveByName(namespace, name string) (*re
 func (frr *functionReferenceResolver) resolveByFunctionWeights(namespace string, fr *fv1.FunctionReference) (*resolveResult, error) {
 
 	functionMap := make(map[string]*fv1.Function)
-	fnWtDistrList := make([]FunctionWeightDistribution, 0)
+	fnWtDistrList := make([]functionWeightDistribution, 0)
 	sumPrefix := 0
 
 	for functionName, functionWeight := range fr.FunctionWeights {
@@ -170,7 +170,7 @@ func (frr *functionReferenceResolver) resolveByFunctionWeights(namespace string,
 		f := obj.(*fv1.Function)
 		functionMap[f.ObjectMeta.Name] = f
 		sumPrefix = sumPrefix + functionWeight
-		fnWtDistrList = append(fnWtDistrList, FunctionWeightDistribution{
+		fnWtDistrList = append(fnWtDistrList, functionWeightDistribution{
 			name:      functionName,
 			weight:    functionWeight,
 			sumPrefix: sumPrefix,

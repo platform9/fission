@@ -34,7 +34,7 @@ type mutableRouter struct {
 	router atomic.Value // mux.Router
 }
 
-func NewMutableRouter(logger *zap.Logger, handler *mux.Router) *mutableRouter {
+func newMutableRouter(logger *zap.Logger, handler *mux.Router) *mutableRouter {
 	mr := mutableRouter{
 		logger: logger.Named("mutable_router"),
 	}

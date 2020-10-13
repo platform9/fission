@@ -69,9 +69,9 @@ func router(ctx context.Context, logger *zap.Logger, httpTriggerSet *HTTPTrigger
 	// see issue https://github.com/fission/fission/issues/1317
 	useEncodedPath, _ := strconv.ParseBool(os.Getenv("USE_ENCODED_PATH"))
 	if useEncodedPath {
-		mr = NewMutableRouter(logger, mux.NewRouter().UseEncodedPath())
+		mr = newMutableRouter(logger, mux.NewRouter().UseEncodedPath())
 	} else {
-		mr = NewMutableRouter(logger, mux.NewRouter())
+		mr = newMutableRouter(logger, mux.NewRouter())
 	}
 
 	httpTriggerSet.subscribeRouter(ctx, mr, resolver)
