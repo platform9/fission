@@ -12,18 +12,22 @@ import (
 )
 
 type (
+	// Analytics helps exporting usage metrics
 	Analytics struct {
 		id  string
 		url string
 	}
+
+	// AnalyticsData is the data exported as usage metrics
 	AnalyticsData struct {
 		ID                string `json:"ID"`
 		FunctionCallCount uint64 `json:"FunctionCallCount"`
 	}
 )
 
+// MakeAnalytics returns a new instance of Analytics if url or
+// 'ANALYTICS_URL' environment variable is set; nil otherwise
 func MakeAnalytics(url string) *Analytics {
-
 	if len(url) == 0 {
 		url = os.Getenv("ANALYTICS_URL")
 		if len(url) == 0 {

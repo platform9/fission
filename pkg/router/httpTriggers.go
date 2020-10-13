@@ -37,6 +37,7 @@ import (
 	"github.com/fission/fission/pkg/utils"
 )
 
+// HTTPTriggerSet represents an HTTP trigger set
 type HTTPTriggerSet struct {
 	*functionServiceMap
 	*mutableRouter

@@ -111,6 +111,7 @@ func serveMetric(logger *zap.Logger) {
 	logger.Fatal("done listening on metrics endpoint", zap.Error(err))
 }
 
+// Start starts a router
 func Start(logger *zap.Logger, port int, executorURL string) {
 	_ = MakeAnalytics("")
 

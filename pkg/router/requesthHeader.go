@@ -26,6 +26,7 @@ import (
 )
 
 const (
+	// HEADERS_FISSION_FUNCTION_PREFIX represents a function prefix request header
 	HEADERS_FISSION_FUNCTION_PREFIX = "Fission-Function"
 )
 

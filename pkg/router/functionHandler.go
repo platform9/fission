@@ -42,7 +42,10 @@ import (
 )
 
 const (
-	FORWARDED        = "Forwarded"
+	// FORWARDED represents the 'Forwarded' request header
+	FORWARDED = "Forwarded"
+
+	// X_FORWARDED_HOST represents the 'X_FORWARDED_HOST' request header
 	X_FORWARDED_HOST = "X-Forwarded-Host"
 )
 
@@ -82,7 +85,7 @@ type (
 		svcAddrRetryCount int
 	}
 
-	// A layer on top of http.DefaultTransport, with retries.
+	// RetryingRoundTripper is a layer on top of http.DefaultTransport, with retries.
 	RetryingRoundTripper struct {
 		logger           *zap.Logger
 		funcHandler      *functionHandler
