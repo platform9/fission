@@ -320,6 +320,9 @@ mqt_keda:
     rabbitmq:
       image: fission/keda-rabbitmq-http-connector
       tag: 1
+    awskinesis:
+      image: fission/keda-awskinesis-http-connector
+      tag: 1
     aws-sqs-queue:
       image: fission/keda-aws-sqs-http-connector
       tag: 1
