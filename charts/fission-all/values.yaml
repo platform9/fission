@@ -90,13 +90,14 @@ logger:
 
 executor:
   adoptExistingResources: false
+  podReadyTimeout: 300s
 
 ## Router config
 router:
   deployAsDaemonSet: false
   svcAddressMaxRetries: 5
   svcAddressUpdateTimeout: 30s
-
+  unTapServiceTimeout: 3600s
   ## Display endpoint access logs
   ## To be aware of enabling logging endpoint access log, it increases
   ## router resource utilization when under heavy workloads.

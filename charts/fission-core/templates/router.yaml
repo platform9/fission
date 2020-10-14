@@ -53,6 +53,8 @@ spec:
             value: {{ .Values.router.svcAddressMaxRetries | default 5 | quote }}
           - name: ROUTER_SVC_ADDRESS_UPDATE_TIMEOUT
             value: {{ .Values.router.svcAddressUpdateTimeout | default "30s" | quote }}
+          - name: ROUTER_UNTAP_SERVICE_TIMEOUT
+            value: {{ .Values.router.unTapServiceTimeout | default "3600s" | quote }}
           - name: TRACE_JAEGER_COLLECTOR_ENDPOINT
             value: "{{ .Values.traceCollectorEndpoint }}"
           - name: TRACING_SAMPLING_RATE

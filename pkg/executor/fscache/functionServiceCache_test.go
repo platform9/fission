@@ -189,7 +189,8 @@ func TestFunctionServiceNewCache(t *testing.T) {
 		logger.Panic(fmt.Sprintln("active instances not matched expected 1, found ", active))
 	}
 
-	fsc.MarkAvailable(fn, fsvc.Address)
+	key := fmt.Sprintf("%v_%v", fn.ObjectMeta.UID, fn.ObjectMeta.ResourceVersion)
+	fsc.MarkAvailable(key, fsvc.Address)
 
 	if fsc.GetTotalAvailable(fsvc.Function) != 0 {
 		log.Panicln("active instances not matched")

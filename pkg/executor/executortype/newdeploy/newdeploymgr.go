@@ -153,7 +153,7 @@ func (deploy *NewDeploy) DeleteFuncSvcFromCache(fsvc *fscache.FuncSvc) {
 	deploy.fsCache.DeleteEntry(fsvc)
 }
 
-func (deploy *NewDeploy) UnTapService(fn *fv1.Function, svcHost string) {
+func (deploy *NewDeploy) UnTapService(key string, svcHost string) {
 	// Not Implemented for NewDeployment. Will be used when support of concurrent specialization of same function is added.
 }
 

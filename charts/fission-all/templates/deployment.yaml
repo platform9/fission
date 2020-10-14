@@ -221,6 +221,8 @@ spec:
           value: "{{ .Values.pullPolicy }}"
         - name: ADOPT_EXISTING_RESOURCES
           value: {{ .Values.executor.adoptExistingResources | default false | quote }}
+        - name: POD_READY_TIMEOUT
+          value: {{ .Values.executor.podReadyTimeout | default false | quote }}
         - name: ENABLE_ISTIO
           value: "{{ .Values.enableIstio }}"
         - name: TRACE_JAEGER_COLLECTOR_ENDPOINT

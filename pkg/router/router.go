@@ -200,6 +200,17 @@ func Start(logger *zap.Logger, port int, executorUrl string) {
 			zap.Duration("default", svcAddrUpdateTimeout))
 	}
 
+	// unTapServiceTimeout is the timeout used as timeout in the request context of unTapService
+	unTapServiceTimeoutstr := os.Getenv("ROUTER_UNTAP_SERVICE_TIMEOUT")
+	unTapServiceTimeout, err := time.ParseDuration(unTapServiceTimeoutstr)
+	if err != nil {
+		unTapServiceTimeout = 3600 * time.Second
+		logger.Error("failed to parse unTap service timeout duration from 'ROUTER_UNTAP_SERVICE_TIMEOUT' - set to the default value",
+			zap.Error(err),
+			zap.String("value", unTapServiceTimeoutstr),
+			zap.Duration("default", unTapServiceTimeout))
+	}
+
 	tracingSamplingRateStr := os.Getenv("TRACING_SAMPLING_RATE")
 	tracingSamplingRate, err := strconv.ParseFloat(tracingSamplingRateStr, 64)
 	if err != nil {
@@ -227,7 +238,7 @@ func Start(logger *zap.Logger, port int, executorUrl string) {
 		keepAliveTime:     keepAliveTime,
 		maxRetries:        maxRetries,
 		svcAddrRetryCount: svcAddrRetryCount,
-	}, isDebugEnv, throttler.MakeThrottler(svcAddrUpdateTimeout))
+	}, isDebugEnv, unTapServiceTimeout, throttler.MakeThrottler(svcAddrUpdateTimeout))
 
 	resolver := makeFunctionReferenceResolver(fnStore)
 

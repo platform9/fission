@@ -173,8 +173,8 @@ func (gpm *GenericPoolManager) DeleteFuncSvcFromCache(fsvc *fscache.FuncSvc) {
 	gpm.fsCache.DeleteFunctionSvc(fsvc)
 }
 
-func (gpm *GenericPoolManager) UnTapService(fn *fv1.Function, svcHost string) {
-	gpm.fsCache.MarkAvailable(fn, svcHost)
+func (gpm *GenericPoolManager) UnTapService(key string, svcHost string) {
+	gpm.fsCache.MarkAvailable(key, svcHost)
 }
 
 func (gpm *GenericPoolManager) GetTotalAvailable(fn *fv1.Function) int {
