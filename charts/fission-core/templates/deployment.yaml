@@ -488,6 +488,8 @@ spec:
           value: "{{ .Values.mqt_keda.connector_images.kafka.image }}:{{ .Values.mqt_keda.connector_images.kafka.tag }}"
         - name: RABBITMQ_IMAGE
           value: "{{ .Values.mqt_keda.connector_images.rabbitmq.image }}:{{ .Values.mqt_keda.connector_images.rabbitmq.tag }}"
+        - name: AWS-SQS-QUEUE_IMAGE
+          value: "{{ .Values.mqt_keda.connector_images.aws_sqs.image }}:{{ .Values.mqt_keda.connector_images.aws_sqs.tag }}"
       serviceAccountName: fission-svc
 {{- if .Values.extraCoreComponentPodConfig }}
 {{ toYaml .Values.extraCoreComponentPodConfig | indent 6 -}}
