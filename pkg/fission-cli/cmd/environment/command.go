@@ -55,8 +55,9 @@ func Commands() *cobra.Command {
 	wrapper.SetFlags(updateCmd, flag.FlagSet{
 		Required: []flag.Flag{flag.EnvName},
 		Optional: []flag.Flag{flag.EnvImage, flag.EnvPoolsize,
-			flag.EnvBuilderImage, flag.EnvBuildCmd, flag.EnvImagePullSecret, flag.EnvTerminationGracePeriod,
-			flag.EnvKeepArchive, flag.NamespaceEnvironment, flag.EnvExternalNetwork},
+			flag.EnvBuilderImage, flag.EnvBuildCmd, flag.EnvImagePullSecret,
+			flag.RunTimeMinCPU, flag.RunTimeMaxCPU, flag.RunTimeMinMemory, flag.RunTimeMaxMemory,
+			flag.EnvTerminationGracePeriod, flag.EnvKeepArchive, flag.NamespaceEnvironment, flag.EnvExternalNetwork},
 	})
 
 	deleteCmd := &cobra.Command{

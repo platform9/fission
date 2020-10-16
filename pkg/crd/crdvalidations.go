@@ -32,8 +32,9 @@ var (
 				"secrets":     secretReferenceSchema,
 				"configmaps":  configMapReferenceSchema,
 				"resources": {
-					Type:        "object",
-					Description: "ResourceRequirements describes the compute resource requirements. This is only for newdeploy to set up resource limitation when creating deployment for a function.",
+					Type:                   "object",
+					Description:            "ResourceRequirements describes the compute resource requirements. This is only for newdeploy to set up resource limitation when creating deployment for a function.",
+					XPreserveUnknownFields: boolPtr(true),
 				},
 				"InvokeStrategy": invokeStrategySchema,
 				"functionTimeout": {
@@ -87,8 +88,9 @@ var (
 					Description: "To enable accessibility of external network for builder/function pod, set to 'true'.",
 				},
 				"resources": {
-					Type:        "object",
-					Description: "The request and limit CPU/MEM resource setting for the pods of the function. Can be overridden at Function in case of newdeployment executor type",
+					Type:                   "object",
+					Description:            "The request and limit CPU/MEM resource setting for the pods of the function. Can be overridden at Function in case of newdeployment executor type",
+					XPreserveUnknownFields: boolPtr(true),
 				},
 				"poolsize": {
 					Type:        "integer",
