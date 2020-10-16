@@ -87,14 +87,14 @@ namespace Fission.DotNetCore.Compiler
             errors = new List<string>();
             oinfo = new List<string>();
 
-            #region syntext tree and default refrence build
+            #region syntext tree and default reference build
             SyntaxTree syntaxTree = CSharpSyntaxTree.ParseText(code);
 
             string assemblyName = Path.GetRandomFileName();
 
             var coreDir = Directory.GetParent(typeof(Enumerable).GetTypeInfo().Assembly.Location);
 
-            Console.WriteLine("Adding core refrences !!");
+            Console.WriteLine("Adding core references !!");
             List<MetadataReference> references = new List<MetadataReference>
             {
                 MetadataReference.CreateFromFile(coreDir.FullName + Path.DirectorySeparatorChar + "mscorlib.dll"),
@@ -104,15 +104,12 @@ namespace Fission.DotNetCore.Compiler
                 MetadataReference.CreateFromFile(typeof(System.Runtime.Serialization.Json.DataContractJsonSerializer).GetTypeInfo().Assembly.Location)
             };
 
-            Console.WriteLine("Adding parent assembaly based refrences !!");
+            Console.WriteLine("Adding parent assembly based references !!");
             foreach (var referencedAssembly in Assembly.GetEntryAssembly().GetReferencedAssemblies())
             {
                 var assembly = Assembly.Load(referencedAssembly);
-                references.Add(MetadataReference.CreateFromFile(assembly.Location));
-               
+                references.Add(MetadataReference.CreateFromFile(assembly.Location));               
             }
-
-
 
             #endregion
 
@@ -128,14 +125,14 @@ namespace Fission.DotNetCore.Compiler
             {
                 string dllCompletePath = Path.Combine(packagepath, library.path).GetrelevantPathAsPerOS();
                 references.Add(MetadataReference.CreateFromFile(dllCompletePath));
-                Console.WriteLine($"refered folder based dll : {dllCompletePath} from package {library.nugetPackage}");
+                Console.WriteLine($"referred folder based dll : {dllCompletePath} from package {library.nugetPackage}");
             }
-            Console.WriteLine($"refered all available dlls!!");
-            oinfo.Add("refered all available dlls!!");
+            Console.WriteLine($"referred all available dlls!!");
+            oinfo.Add("referred all available dlls!!");
 
             #endregion 
 
-            #region dynamic resolve handeler registration 
+            #region dynamic resolve handler registration 
             AppDomain currentDomain = AppDomain.CurrentDomain;
             currentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
 
@@ -188,9 +185,6 @@ namespace Fission.DotNetCore.Compiler
             return null;
 
             #endregion
-
-
-
         }
 
         private Assembly CurrentDomain_AssemblyResolve(object sender, ResolveEventArgs args)
@@ -213,7 +207,7 @@ namespace Fission.DotNetCore.Compiler
             {
                 strTempAssmbPath_relative = functionSpecification.libraries.Where(x => x.name.ToLower() == (args.Name.Substring(0, args.Name.IndexOf(",")).ToString() + ".dll").ToLower()).FirstOrDefault().path;
                 strTempAssmbPath_absolute = Path.Combine(packagepath, strTempAssmbPath_relative);
-                Console.WriteLine($"loading dll in parent assembaly :{strTempAssmbPath_absolute.GetrelevantPathAsPerOS()}");
+                Console.WriteLine($"loading dll in parent assembly :{strTempAssmbPath_absolute.GetrelevantPathAsPerOS()}");
                 //Load the assembly from the specified path. 
                 MyAssembly = Assembly.LoadFile(strTempAssmbPath_absolute.GetrelevantPathAsPerOS());
                 Console.WriteLine($"Load success for :{strTempAssmbPath_absolute.GetrelevantPathAsPerOS()}");

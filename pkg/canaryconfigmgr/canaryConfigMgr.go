@@ -337,7 +337,7 @@ func (canaryCfgMgr *canaryConfigMgr) RollForwardOrBack(canaryConfig *fv1.CanaryC
 
 	if doneProcessingCanaryConfig {
 		ticker.Stop()
-		// update the status of canary config as done processing, we dont care if we arent able to update because
+		// update the status of canary config as done processing, we don't care if we aren't able to update because
 		// resync takes care of the update
 		err = canaryCfgMgr.updateCanaryConfigStatusWithRetries(canaryConfig.ObjectMeta.Name, canaryConfig.ObjectMeta.Namespace,
 			fv1.CanaryConfigStatusSucceeded)

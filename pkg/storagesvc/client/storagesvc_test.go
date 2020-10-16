@@ -115,7 +115,7 @@ func TestS3StorageService(t *testing.T) {
 		}
 
 		// This is to ensure container is up. Just getting minioClient
-		// isn't suffcient to assume container is up.
+		// isn't sufficient to assume container is up.
 		_, err = minioClient.ListBuckets()
 		if err != nil {
 			return err
@@ -148,7 +148,7 @@ func TestS3StorageService(t *testing.T) {
 
 	time.Sleep(10 * time.Second)
 
-	// Retrive file trhough minioClient
+	// Retrive file through minioClient
 	reader, err := minioClient.GetObject(bucketName, fileID, minio.GetObjectOptions{})
 	panicIf(err)
 	defer reader.Close()

@@ -131,7 +131,7 @@ const (
 	ErrorNameExists
 	ErrorInvalidArgument
 	ErrorNoSpace
-	ErrorNotImplmented
+	ErrorNotImplemented
 	ErrorChecksumFail
 	ErrorSizeLimitExceeded
 	ErrorRequestTimeout

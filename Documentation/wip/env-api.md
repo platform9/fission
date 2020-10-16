@@ -46,8 +46,8 @@ directory (in case of deployment packages).
 
 The load request may contain an EntryPoint. If it does, the loader
 must interpret this; usually it's the name of a function in a module
-or package containing multiple functions. If there is no entrypoint,
-the environment must use a default; again, the value of thsi default
+or package containing multiple functions. If there is no entry point,
+the environment must use a default; again, the value of this default
 is environment-specific.
 
 The load request may contain a URL. If it does, requests to that URL

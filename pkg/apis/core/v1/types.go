@@ -222,7 +222,7 @@ type (
 		URL string `json:"url,omitempty"`
 
 		// Checksum ensures the integrity of packages
-		// refereced by URL. Ignored for literals.
+		// referenced by URL. Ignored for literals.
 		Checksum Checksum `json:"checksum,omitempty"`
 	}
 
@@ -377,7 +377,7 @@ type (
 	// ExecutionStrategy specifies low-level parameters for function execution,
 	// such as the number of instances.
 	//
-	// MinScale affects the cold start behaviour for a function. If MinScale is 0 then the
+	// MinScale affects the cold start behavior for a function. If MinScale is 0 then the
 	// deployment is created on first invocation of function and is good for requests of
 	// asynchronous nature. If MinScale is greater than 0 then MinScale number of pods are
 	// created at the time of creation of function. This ensures faster response during first
@@ -679,7 +679,7 @@ type (
 		MqtKind string `json:"mqtkind,omitempty"`
 	}
 
-	// TimeTrigger invokes the specific function at a time or
+	// TimeTriggerSpec invokes the specific function at a time or
 	// times specified by a cron string.
 	TimeTriggerSpec struct {
 		// Cron schedule
@@ -691,7 +691,7 @@ type (
 
 	FailureType string
 
-	// Canary Config Spec
+	// CanaryConfigSpec defines the canary configuration spec
 	CanaryConfigSpec struct {
 		// HTTP trigger that this config references
 		Trigger string `json:"trigger"`
@@ -713,7 +713,7 @@ type (
 		FailureType      FailureType `json:"failureType"`
 	}
 
-	// CanaryConfig Status
+	// CanaryConfigStatus represents canary config status
 	CanaryConfigStatus struct {
 		Status string `json:"status"`
 	}

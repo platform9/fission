@@ -70,7 +70,7 @@ func (gpm *GenericPoolManager) makeFuncController(fissionClient *crd.FissionClie
 				}
 
 				// TODO : Just bring to your attention during review :
-				// setup rolebinding is tried, if it fails, we dont return. we just log an error and move on, because :
+				// setup rolebinding is tried, if it fails, we don't return. we just log an error and move on, because :
 				// 1. not all functions have secrets and/or configmaps, so things will work without this rolebinding in that case.
 				// 2. on the contrary, when the route is tried, the env fetcher logs will show a 403 forbidden message and same will be relayed to executor.
 				err := utils.SetupRoleBinding(gpm.logger, kubernetesClient, fv1.SecretConfigMapGetterRB, fn.ObjectMeta.Namespace, fv1.SecretConfigMapGetterCR, fv1.ClusterRole, fv1.FissionFetcherSA, envNs)

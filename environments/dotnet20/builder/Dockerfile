@@ -21,12 +21,12 @@ FROM microsoft/dotnet:aspnetcore-runtime
 WORKDIR /app
 COPY --from=builderimage /app/out .
 
-#this builder is actually compilation from : https://github.com/fission/fission/tree/master/builder/cmd  and renamed cmd.exe to builder
+# this builder is actually compilation from : https://github.com/fission/fission/tree/master/builder/cmd and renamed cmd.exe to builder
 # make sure to compile it in linux only else you will get exec execute error as binary was compiled in windows and running on linux
 
 COPY --from=fission-builder /builder /builder
 
-#ADD builder /builder
+# ADD builder /builder
 
 ADD build.sh /usr/local/bin/build
 RUN chmod +x /usr/local/bin/build
