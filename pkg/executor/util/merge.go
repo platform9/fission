@@ -54,6 +54,7 @@ func MergeContainer(dst *apiv1.Container, src *apiv1.Container) (*apiv1.Containe
 	return &dstC, errs.ErrorOrNil()
 }
 
+// MergePodSpec updates srcPodSpec with targetPodSpec fields if not empty
 func MergePodSpec(srcPodSpec *apiv1.PodSpec, targetPodSpec *apiv1.PodSpec) (*apiv1.PodSpec, error) {
 	if targetPodSpec == nil {
 		return srcPodSpec, nil

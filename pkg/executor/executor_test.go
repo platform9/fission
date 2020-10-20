@@ -102,9 +102,9 @@ func TestExecutor(t *testing.T) {
 	// run in a random namespace so we can have concurrent tests
 	// on a given cluster
 	rand.Seed(time.Now().UTC().UnixNano())
-	testId := rand.Intn(999)
-	fissionNs := fmt.Sprintf("test-%v", testId)
-	functionNs := fmt.Sprintf("test-function-%v", testId)
+	testID := rand.Intn(999)
+	fissionNs := fmt.Sprintf("test-%v", testID)
+	functionNs := fmt.Sprintf("test-function-%v", testID)
 
 	// skip test if no cluster available for testing
 	kubeconfig := os.Getenv("KUBECONFIG")

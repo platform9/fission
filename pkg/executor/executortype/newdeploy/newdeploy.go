@@ -38,6 +38,7 @@ import (
 	"github.com/fission/fission/pkg/utils"
 )
 
+// Deployment Constants
 const (
 	DeploymentKind    = "Deployment"
 	DeploymentVersion = "apps/v1"

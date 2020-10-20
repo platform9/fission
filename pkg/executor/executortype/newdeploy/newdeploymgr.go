@@ -52,6 +52,7 @@ import (
 var _ executortype.ExecutorType = &NewDeploy{}
 
 type (
+	// NewDeploy represents an ExecutorType
 	NewDeploy struct {
 		logger *zap.Logger
 
@@ -78,6 +79,7 @@ type (
 	}
 )
 
+// MakeNewDeploy initializes and returns an instance of NewDeploy.
 func MakeNewDeploy(
 	logger *zap.Logger,
 	fissionClient *crd.FissionClient,
@@ -128,16 +130,19 @@ func MakeNewDeploy(
 	return nd
 }
 
+// Run start the function and environment controller along with an object reaper.
 func (deploy *NewDeploy) Run(ctx context.Context) {
 	go deploy.funcController.Run(ctx.Done())
 	go deploy.envController.Run(ctx.Done())
 	go deploy.idleObjectReaper()
 }
 
+// GetTypeName returns the executor type name.
 func (deploy *NewDeploy) GetTypeName() fv1.ExecutorType {
 	return fv1.ExecutorTypeNewdeploy
 }
 
+// GetFuncSvc returns a function service; error otherwise.
 func (deploy *NewDeploy) GetFuncSvc(ctx context.Context, fn *fv1.Function) (*fscache.FuncSvc, error) {
 	// TODO: client-go doesn't support to pass in context.
 	//  Once it supports context, we should change the signature of method.
@@ -145,23 +150,28 @@ func (deploy *NewDeploy) GetFuncSvc(ctx context.Context, fn *fv1.Function) (*fsc
 	return deploy.createFunction(fn)
 }
 
+// GetFuncSvcFromCache returns a function service from cache; error otherwise.
 func (deploy *NewDeploy) GetFuncSvcFromCache(fn *fv1.Function) (*fscache.FuncSvc, error) {
 	return deploy.fsCache.GetByFunction(&fn.ObjectMeta)
 }
 
+// DeleteFuncSvcFromCache deletes a function service from cache.
 func (deploy *NewDeploy) DeleteFuncSvcFromCache(fsvc *fscache.FuncSvc) {
 	deploy.fsCache.DeleteEntry(fsvc)
 }
 
+// UnTapService has not been implemented for NewDeployment.
 func (deploy *NewDeploy) UnTapService(key string, svcHost string) {
 	// Not Implemented for NewDeployment. Will be used when support of concurrent specialization of same function is added.
 }
 
+// GetTotalAvailable has not been implemented for NewDeployment.
 func (deploy *NewDeploy) GetTotalAvailable(fn *fv1.Function) int {
 	// Not Implemented for NewDeployment. Will be used when support of concurrent specialization of same function is added.
 	return 0
 }
 
+// TapService makes a TouchByAddress request to the cache.
 func (deploy *NewDeploy) TapService(svcHost string) error {
 	err := deploy.fsCache.TouchByAddress(svcHost)
 	if err != nil {
@@ -252,6 +262,7 @@ func (deploy *NewDeploy) RefreshFuncPods(logger *zap.Logger, f fv1.Function) err
 	return nil
 }
 
+// AdoptExistingResources attempts to adopt resources for functions in all namespaces.
 func (deploy *NewDeploy) AdoptExistingResources() {
 	fnList, err := deploy.fissionClient.CoreV1().Functions(metav1.NamespaceAll).List(metav1.ListOptions{})
 	if err != nil {
@@ -281,6 +292,7 @@ func (deploy *NewDeploy) AdoptExistingResources() {
 	wg.Wait()
 }
 
+// CleanupOldExecutorObjects cleans orphaned resources.
 func (deploy *NewDeploy) CleanupOldExecutorObjects() {
 	deploy.logger.Info("Newdeploy starts to clean orphaned resources", zap.String("instanceID", deploy.instanceID))
 

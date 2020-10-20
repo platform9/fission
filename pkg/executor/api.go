@@ -36,7 +36,7 @@ import (
 	"github.com/fission/fission/pkg/executor/client"
 )
 
-func (executor *Executor) getServiceForFunctionApi(w http.ResponseWriter, r *http.Request) {
+func (executor *Executor) getServiceForFunctionAPI(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "Failed to read request", http.StatusInternalServerError)
@@ -119,13 +119,12 @@ func (executor *Executor) getServiceForFunction(fn *fv1.Function) (string, error
 		if et.IsValid(fsvc) {
 			// Cached, return svc address
 			return fsvc.Address, nil
-		} else {
-			executor.logger.Debug("deleting cache entry for invalid address",
-				zap.String("function_name", fn.ObjectMeta.Name),
-				zap.String("function_namespace", fn.ObjectMeta.Namespace),
-				zap.String("address", fsvc.Address))
-			et.DeleteFuncSvcFromCache(fsvc)
 		}
+		executor.logger.Debug("deleting cache entry for invalid address",
+			zap.String("function_name", fn.ObjectMeta.Name),
+			zap.String("function_namespace", fn.ObjectMeta.Namespace),
+			zap.String("address", fsvc.Address))
+		et.DeleteFuncSvcFromCache(fsvc)
 	}
 
 	respChan := make(chan *createFuncServiceResponse)
@@ -168,7 +167,7 @@ func (executor *Executor) tapServices(w http.ResponseWriter, r *http.Request) {
 
 	errs := &multierror.Error{}
 	for _, req := range tapSvcReqs {
-		svcHost := strings.TrimPrefix(req.ServiceUrl, "http://")
+		svcHost := strings.TrimPrefix(req.ServiceURL, "http://")
 
 		et, exists := executor.executorTypes[req.FnExecutorType]
 		if !exists {
@@ -182,7 +181,7 @@ func (executor *Executor) tapServices(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			errs = multierror.Append(errs,
 				errors.Wrapf(err, "'%v' failed to tap function '%v' in '%v' with service url '%v'",
-					req.FnMetadata.Name, req.FnMetadata.Namespace, req.ServiceUrl, req.FnExecutorType))
+					req.FnMetadata.Name, req.FnMetadata.Namespace, req.ServiceURL, req.FnExecutorType))
 		}
 	}
 
@@ -221,14 +220,15 @@ func (executor *Executor) unTapService(w http.ResponseWriter, r *http.Request) {
 
 	et := executor.executorTypes[t]
 
-	et.UnTapService(key, tapSvcReq.ServiceUrl)
+	et.UnTapService(key, tapSvcReq.ServiceURL)
 
 	w.WriteHeader(http.StatusOK)
 }
 
+// GetHandler returns an http.Handler.
 func (executor *Executor) GetHandler() http.Handler {
 	r := mux.NewRouter()
-	r.HandleFunc("/v2/getServiceForFunction", executor.getServiceForFunctionApi).Methods("POST")
+	r.HandleFunc("/v2/getServiceForFunction", executor.getServiceForFunctionAPI).Methods("POST")
 	r.HandleFunc("/v2/tapService", executor.tapService).Methods("POST") // for backward compatibility
 	r.HandleFunc("/v2/tapServices", executor.tapServices).Methods("POST")
 	r.HandleFunc("/healthz", executor.healthHandler).Methods("GET")
@@ -236,6 +236,7 @@ func (executor *Executor) GetHandler() http.Handler {
 	return r
 }
 
+// Serve starts an HTTP server.
 func (executor *Executor) Serve(port int) {
 	executor.logger.Info("starting executor API", zap.Int("port", port))
 	address := fmt.Sprintf(":%v", port)

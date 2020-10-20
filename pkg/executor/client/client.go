@@ -37,25 +37,29 @@ import (
 )
 
 type (
+	// Client is wrapper on a HTTP client.
 	Client struct {
 		logger      *zap.Logger
-		executorUrl string
-		tappedByUrl map[string]TapServiceRequest
+		executorURL string
+		tappedByURL map[string]TapServiceRequest
 		requestChan chan TapServiceRequest
 		httpClient  *http.Client
 	}
+
+	// TapServiceRequest represents
 	TapServiceRequest struct {
 		FnMetadata     metav1.ObjectMeta
 		FnExecutorType fv1.ExecutorType
-		ServiceUrl     string
+		ServiceURL     string
 	}
 )
 
-func MakeClient(logger *zap.Logger, executorUrl string) *Client {
+// MakeClient initializes and returns a Client instance.
+func MakeClient(logger *zap.Logger, executorURL string) *Client {
 	c := &Client{
 		logger:      logger.Named("executor_client"),
-		executorUrl: strings.TrimSuffix(executorUrl, "/"),
-		tappedByUrl: make(map[string]TapServiceRequest),
+		executorURL: strings.TrimSuffix(executorURL, "/"),
+		tappedByURL: make(map[string]TapServiceRequest),
 		requestChan: make(chan TapServiceRequest, 100),
 		httpClient: &http.Client{
 			Transport: &ochttp.Transport{},
@@ -65,15 +69,16 @@ func MakeClient(logger *zap.Logger, executorUrl string) *Client {
 	return c
 }
 
+// GetServiceForFunction returns the service name for a given function.
 func (c *Client) GetServiceForFunction(ctx context.Context, metadata *metav1.ObjectMeta) (string, error) {
-	executorUrl := c.executorUrl + "/v2/getServiceForFunction"
+	executorURL := c.executorURL + "/v2/getServiceForFunction"
 
 	body, err := json.Marshal(metadata)
 	if err != nil {
 		return "", errors.Wrap(err, "could not marshal request body for getting service for function")
 	}
 
-	resp, err := ctxhttp.Post(ctx, c.httpClient, executorUrl, "application/json", bytes.NewReader(body))
+	resp, err := ctxhttp.Post(ctx, c.httpClient, executorURL, "application/json", bytes.NewReader(body))
 	if err != nil {
 		return "", errors.Wrap(err, "error posting to getting service for function")
 	}
@@ -91,12 +96,13 @@ func (c *Client) GetServiceForFunction(ctx context.Context, metadata *metav1.Obj
 	return string(svcName), nil
 }
 
-func (c *Client) UnTapService(ctx context.Context, fnMeta metav1.ObjectMeta, executorType fv1.ExecutorType, serviceUrl *url.URL) error {
-	url := c.executorUrl + "/v2/unTapService"
+// UnTapService sends a request to /v2/unTapService.
+func (c *Client) UnTapService(ctx context.Context, fnMeta metav1.ObjectMeta, executorType fv1.ExecutorType, serviceURL *url.URL) error {
+	url := c.executorURL + "/v2/unTapService"
 	tapSvc := TapServiceRequest{
 		FnMetadata:     fnMeta,
 		FnExecutorType: executorType,
-		ServiceUrl:     strings.TrimPrefix(serviceUrl.String(), "http://"),
+		ServiceURL:     strings.TrimPrefix(serviceURL.String(), "http://"),
 	}
 
 	body, err := json.Marshal(tapSvc)
@@ -122,14 +128,14 @@ func (c *Client) service() {
 	for {
 		select {
 		case svcReq := <-c.requestChan:
-			c.tappedByUrl[svcReq.ServiceUrl] = svcReq
+			c.tappedByURL[svcReq.ServiceURL] = svcReq
 		case <-ticker.C:
-			if len(c.tappedByUrl) == 0 {
+			if len(c.tappedByURL) == 0 {
 				continue
 			}
 
-			urls := c.tappedByUrl
-			c.tappedByUrl = make(map[string]TapServiceRequest)
+			urls := c.tappedByURL
+			c.tappedByURL = make(map[string]TapServiceRequest)
 
 			go func() {
 				svcReqs := []TapServiceRequest{}
@@ -147,7 +153,8 @@ func (c *Client) service() {
 	}
 }
 
-func (c *Client) TapService(fnMeta metav1.ObjectMeta, executorType fv1.ExecutorType, serviceUrl *url.URL) {
+// TapService sends a TapServiceRequest over the request channel.
+func (c *Client) TapService(fnMeta metav1.ObjectMeta, executorType fv1.ExecutorType, serviceURL *url.URL) {
 	c.requestChan <- TapServiceRequest{
 		FnMetadata: metav1.ObjectMeta{
 			Name:            fnMeta.Name,
@@ -158,19 +165,19 @@ func (c *Client) TapService(fnMeta metav1.ObjectMeta, executorType fv1.ExecutorT
 		FnExecutorType: executorType,
 		// service url is for executor to know which
 		// pod/service is currently used to serve user function.
-		ServiceUrl: serviceUrl.String(),
+		ServiceURL: serviceURL.String(),
 	}
 }
 
 func (c *Client) _tapService(tapSvcReqs []TapServiceRequest) error {
-	executorUrl := c.executorUrl + "/v2/tapServices"
+	executorURL := c.executorURL + "/v2/tapServices"
 
 	body, err := json.Marshal(tapSvcReqs)
 	if err != nil {
 		return err
 	}
 
-	resp, err := http.Post(executorUrl, "application/json", bytes.NewReader(body))
+	resp, err := http.Post(executorURL, "application/json", bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
@@ -179,6 +186,5 @@ func (c *Client) _tapService(tapSvcReqs []TapServiceRequest) error {
 	if resp.StatusCode != 200 {
 		return ferror.MakeErrorFromHTTP(resp)
 	}
-
 	return nil
 }

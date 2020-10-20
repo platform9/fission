@@ -37,6 +37,7 @@ func ApplyImagePullSecret(secret string, podspec apiv1.PodSpec) *apiv1.PodSpec {
 	return &podspec
 }
 
+// WaitTimeout starts a wait group with timeout
 func WaitTimeout(wg *sync.WaitGroup, timeout time.Duration) {
 	waitCh := make(chan struct{})
 	go func() {
