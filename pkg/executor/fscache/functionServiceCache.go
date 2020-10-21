@@ -312,9 +312,33 @@ func (fsc *FunctionServiceCache) _touchByAddress(address string) error {
 
 // DeleteEntry deletes a function service from cache.
 func (fsc *FunctionServiceCache) DeleteEntry(fsvc *FuncSvc) {
-	fsc.byFunction.Delete(crd.CacheKey(fsvc.Function))
-	fsc.byAddress.Delete(fsvc.Address)
-	fsc.byFunctionUID.Delete(fsvc.Function.UID)
+	msg := "error deleting function service"
+	err := fsc.byFunction.Delete(crd.CacheKey(fsvc.Function))
+	if err != nil {
+		fsc.logger.Error(
+			msg,
+			zap.String("function", fsvc.Function.Name),
+			zap.Error(err),
+		)
+	}
+
+	err = fsc.byAddress.Delete(fsvc.Address)
+	if err != nil {
+		fsc.logger.Error(
+			msg,
+			zap.String("function", fsvc.Function.Name),
+			zap.Error(err),
+		)
+	}
+
+	err = fsc.byFunctionUID.Delete(fsvc.Function.UID)
+	if err != nil {
+		fsc.logger.Error(
+			msg,
+			zap.String("function", fsvc.Function.Name),
+			zap.Error(err),
+		)
+	}
 
 	fsc.observeFuncRunningTime(fsvc.Function.Name, string(fsvc.Function.UID), fsvc.Atime.Sub(fsvc.Ctime).Seconds())
 	fsc.observeFuncAliveTime(fsvc.Function.Name, string(fsvc.Function.UID), time.Since(fsvc.Ctime).Seconds())
@@ -323,7 +347,15 @@ func (fsc *FunctionServiceCache) DeleteEntry(fsvc *FuncSvc) {
 
 // DeleteFunctionSvc deletes a function service at key composed of [function][address].
 func (fsc *FunctionServiceCache) DeleteFunctionSvc(fsvc *FuncSvc) {
-	fsc.connFunctionCache.DeleteValue(crd.CacheKey(fsvc.Function), fsvc.Address)
+	err := fsc.connFunctionCache.DeleteValue(crd.CacheKey(fsvc.Function), fsvc.Address)
+	if err != nil {
+		fsc.logger.Error(
+			"error deleting function service",
+			zap.Any("function", fsvc.Function.Name),
+			zap.Any("address", fsvc.Address),
+			zap.Error(err),
+		)
+	}
 }
 
 // DeleteOld deletes aged function service entries from cache.

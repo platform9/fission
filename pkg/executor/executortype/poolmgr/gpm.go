@@ -456,7 +456,7 @@ func (gpm *GenericPoolManager) service() {
 					delete(gpm.pools, key)
 
 					// and delete the pool asynchronously.
-					go pool.destroy()
+					go pool.destroy() //nolint errcheck
 				}
 			}
 			// no response, caller doesn't wait
@@ -501,8 +501,14 @@ func (gpm *GenericPoolManager) getFunctionEnv(fn *fv1.Function) (*fv1.Environmen
 
 	// cache for future lookups
 	m := fn.ObjectMeta
-	gpm.functionEnv.Set(crd.CacheKey(&m), env)
-
+	_, err = gpm.functionEnv.Set(crd.CacheKey(&m), env)
+	if err != nil {
+		gpm.logger.Error(
+			"failed to set the key",
+			zap.String("function", fn.Name),
+			zap.Error(err),
+		)
+	}
 	return env, nil
 }
 

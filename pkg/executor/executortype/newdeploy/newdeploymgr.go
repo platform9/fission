@@ -482,7 +482,7 @@ func (deploy *NewDeploy) fnCreate(fn *fv1.Function) (*fscache.FuncSvc, error) {
 	svc, err := deploy.createOrGetSvc(deployLabels, deployAnnotations, objName, ns)
 	if err != nil {
 		deploy.logger.Error("error creating service", zap.Error(err), zap.String("service", objName))
-		go deploy.cleanupNewdeploy(ns, objName)
+		go deploy.cleanupNewdeploy(ns, objName) //nolint: errcheck
 		return nil, errors.Wrapf(err, "error creating service %v", objName)
 	}
 	svcAddress := fmt.Sprintf("%v.%v", svc.Name, svc.Namespace)
@@ -490,14 +490,14 @@ func (deploy *NewDeploy) fnCreate(fn *fv1.Function) (*fscache.FuncSvc, error) {
 	depl, err := deploy.createOrGetDeployment(fn, env, objName, deployLabels, deployAnnotations, ns)
 	if err != nil {
 		deploy.logger.Error("error creating deployment", zap.Error(err), zap.String("deployment", objName))
-		go deploy.cleanupNewdeploy(ns, objName)
+		go deploy.cleanupNewdeploy(ns, objName) //nolint: errcheck
 		return nil, errors.Wrapf(err, "error creating deployment %v", objName)
 	}
 
 	hpa, err := deploy.createOrGetHpa(objName, &fn.Spec.InvokeStrategy.ExecutionStrategy, depl, deployLabels, deployAnnotations)
 	if err != nil {
 		deploy.logger.Error("error creating HPA", zap.Error(err), zap.String("hpa", objName))
-		go deploy.cleanupNewdeploy(ns, objName)
+		go deploy.cleanupNewdeploy(ns, objName) //nolint: errcheck
 		return nil, errors.Wrapf(err, "error creating the HPA %v", objName)
 	}
 
@@ -739,7 +739,7 @@ func (deploy *NewDeploy) fnDelete(fn *fv1.Function) error {
 	_, err = deploy.fsCache.DeleteOld(fsvc, time.Second*0)
 	if err != nil {
 		multierr = multierror.Append(multierr,
-			errors.Wrap(err, fmt.Sprintf("error deleting the function from cache")))
+			errors.Wrap(err, "error deleting the function from cache"))
 	}
 
 	// to support backward compatibility, if the function was created in default ns, we fall back to creating the

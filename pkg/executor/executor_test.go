@@ -122,10 +122,20 @@ func TestExecutor(t *testing.T) {
 
 	// create the test's namespaces
 	createTestNamespace(kubeClient, fissionNs)
-	defer kubeClient.CoreV1().Namespaces().Delete(fissionNs, nil)
+	defer func() {
+		err := kubeClient.CoreV1().Namespaces().Delete(fissionNs, nil)
+		if err != nil {
+			log.Fatalf("failed to delete namespace: %v", err)
+		}
+	}()
 
 	createTestNamespace(kubeClient, functionNs)
-	defer kubeClient.CoreV1().Namespaces().Delete(functionNs, nil)
+	defer func() {
+		err := kubeClient.CoreV1().Namespaces().Delete(fissionNs, nil)
+		if err != nil {
+			log.Fatalf("failed to delete namespace: %v", err)
+		}
+	}()
 
 	config := zap.NewDevelopmentConfig()
 	config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
@@ -228,11 +238,21 @@ func TestExecutor(t *testing.T) {
 	labels := map[string]string{"functionName": f.ObjectMeta.Name}
 	var fetcherPort int32 = 30001
 	fetcherSvc := createSvc(kubeClient, functionNs, fmt.Sprintf("%v-%v", f.ObjectMeta.Name, "fetcher"), 8000, fetcherPort, labels)
-	defer kubeClient.CoreV1().Services(functionNs).Delete(fetcherSvc.ObjectMeta.Name, nil)
+	defer func() {
+		err := kubeClient.CoreV1().Services(functionNs).Delete(fetcherSvc.ObjectMeta.Name, nil)
+		if err != nil {
+			log.Fatalf("failed to delete service: %v", err)
+		}
+	}()
 
 	var funcSvcPort int32 = 30002
 	functionSvc := createSvc(kubeClient, functionNs, f.ObjectMeta.Name, 8888, funcSvcPort, labels)
-	defer kubeClient.CoreV1().Services(functionNs).Delete(functionSvc.ObjectMeta.Name, nil)
+	defer func() {
+		err := kubeClient.CoreV1().Services(functionNs).Delete(functionSvc.ObjectMeta.Name, nil)
+		if err != nil {
+			log.Fatalf("failed to delete service: %v", err)
+		}
+	}()
 
 	// the main test: get a service for a given function
 	t1 := time.Now()
