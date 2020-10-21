@@ -94,7 +94,14 @@ func (executor *Executor) getServiceForFunctionAPI(w http.ResponseWriter, r *htt
 		return
 	}
 
-	w.Write([]byte(serviceName))
+	_, err = w.Write([]byte(serviceName))
+	if err != nil {
+		executor.logger.Error(
+			"error writing HTTP response",
+			zap.String("function", m.Name),
+			zap.Error(err),
+		)
+	}
 }
 
 // getServiceForFunction first checks if this function's service is cached, if yes, it validates the address.

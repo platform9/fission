@@ -310,7 +310,15 @@ func (gp *GenericPool) scheduleDeletePod(name string) {
 		// cleaned up.  (We need a better solutions for both those things; log
 		// aggregation and storage will help.)
 		gp.logger.Error("error in pod - scheduling cleanup", zap.String("pod", name))
-		gp.kubernetesClient.CoreV1().Pods(gp.namespace).Delete(name, nil)
+		err := gp.kubernetesClient.CoreV1().Pods(gp.namespace).Delete(name, nil)
+		if err != nil {
+			gp.logger.Error(
+				"error deleting pod",
+				zap.String("name", name),
+				zap.String("namespace", gp.namespace),
+				zap.Error(err),
+			)
+		}
 	}()
 }
 
@@ -631,7 +639,10 @@ func (gp *GenericPool) getFuncSvc(ctx context.Context, fn *fv1.Function) (*fscac
 		// Remove old versions function pods
 		for _, pod := range podList.Items {
 			// Delete pod no matter what status it is
-			gp.kubernetesClient.CoreV1().Pods(gp.namespace).Delete(pod.ObjectMeta.Name, nil)
+			err := gp.kubernetesClient.CoreV1().Pods(gp.namespace).Delete(pod.ObjectMeta.Name, nil)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
