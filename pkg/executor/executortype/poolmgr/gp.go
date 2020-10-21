@@ -735,7 +735,7 @@ func (gp *GenericPool) getFuncSvc(ctx context.Context, fn *fv1.Function) (*fscac
 }
 
 // destroys the pool -- the deployment, replicaset and pods
-func (gp *GenericPool) destroy() error {
+func (gp *GenericPool) destroy() {
 	gp.stopCh()
 
 	deletePropagation := metav1.DeletePropagationBackground
@@ -750,7 +750,5 @@ func (gp *GenericPool) destroy() error {
 			zap.Error(err),
 			zap.String("deployment_name", gp.deployment.ObjectMeta.Name),
 			zap.String("deployment_namespace", gp.namespace))
-		return err
 	}
-	return nil
 }
