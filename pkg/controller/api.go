@@ -131,7 +131,7 @@ func (api *API) extractQueryParamFromRequest(r *http.Request, queryParam string)
 // check if namespace exists, if not create it.
 func (api *API) createNsIfNotExists(ns string) error {
 	if ns == metav1.NamespaceDefault {
-		// we dont have to create default ns
+		// we don't have to create default ns
 		return nil
 	}
 

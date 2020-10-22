@@ -85,7 +85,7 @@ func makeRoleBindingObj(roleBinding, roleBindingNs, role, roleKind, sa, saNamesp
 	}
 }
 
-// isSAInRoleBinding checkis if a service account is present in the rolebinding object
+// isSAInRoleBinding checks if a service account is present in the rolebinding object
 func isSAInRoleBinding(rbObj *rbac.RoleBinding, sa, ns string) bool {
 	for _, subject := range rbObj.Subjects {
 		if subject.Name == sa && subject.Namespace == ns {

@@ -19,6 +19,7 @@ package v1
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/fission/fission/pkg/controller/client/rest"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -105,7 +106,7 @@ func (c *KubeWatcher) Get(m *metav1.ObjectMeta) (*fv1.KubernetesWatchTrigger, er
 }
 
 func (c *KubeWatcher) Update(w *fv1.KubernetesWatchTrigger) (*metav1.ObjectMeta, error) {
-	return nil, ferror.MakeError(ferror.ErrorNotImplmented, "watch update not implemented")
+	return nil, ferror.MakeError(ferror.ErrorNotImplemented, "watch update not implemented")
 }
 
 func (c *KubeWatcher) Delete(m *metav1.ObjectMeta) error {

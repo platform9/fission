@@ -65,7 +65,7 @@ func makePreUpgradeTaskClient(logger *zap.Logger, fnPodNs, envBuilderNs string) 
 	}, nil
 }
 
-// IsFissionReInstall checks if there is atleast one fission CRD, i.e. function in this case, on this cluster.
+// IsFissionReInstall checks if there is at least one fission CRD, i.e. function in this case, on this cluster.
 // We need this to find out if fission had been previously installed on this cluster
 func (client *PreUpgradeTaskClient) IsFissionReInstall() bool {
 	for i := 0; i < maxRetries; i++ {
@@ -159,10 +159,10 @@ func (client *PreUpgradeTaskClient) RemoveClusterAdminRolesForFissionSAs() {
 		}
 	}
 
-	client.logger.Info("femoved cluster admin privileges for fission-builder and fission-fetcher service accounts")
+	client.logger.Info("removed cluster admin privileges for fission-builder and fission-fetcher service accounts")
 }
 
-// NeedRoleBindings checks if there is atleast one package or function in default namespace.
+// NeedRoleBindings checks if there is at least one package or function in default namespace.
 // It is needed to find out if package-getter-rb and secret-configmap-getter-rb needs to be created for fission-fetcher
 // and fission-builder service accounts.
 // This is because, we just deleted the ClusterRoleBindings for these service accounts in the previous function and
@@ -181,7 +181,7 @@ func (client *PreUpgradeTaskClient) NeedRoleBindings() bool {
 	return false
 }
 
-// Setup appropriate role bindings for fission-fetcher and fission-builder SAs
+// SetupRoleBindings sets appropriate role bindings for fission-fetcher and fission-builder SAs
 func (client *PreUpgradeTaskClient) SetupRoleBindings() {
 	if !client.NeedRoleBindings() {
 		client.logger.Info("no fission objects found, so no role-bindings to create")

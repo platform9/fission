@@ -44,14 +44,14 @@ namespace Fission.DotNetCore
                 var oinfo = new List<string>();
                 var _request = Request;
                 var _body = Request.Body;
-                // Request.Body.Position = 0; use it only if requst has already been read before that
+                // Request.Body.Position = 0; use it only if request has already been read before that
                 var _requestBodystring = RequestStream.FromStream(Request.Body).AsString();
                 Console.WriteLine($"Request received by endpoint from builder : {_requestBodystring}");
                 BuilderRequest builderRequest = EnvironmentHelper.Instance.GetBuilderRequest(_requestBodystring);
                 if (builderRequest == null)
                 {
-                    Console.WriteLine("Error : Unbale to parse builder request!!");
-                    throw new Exception("Error : Unbale to parse builder request!!");
+                    Console.WriteLine("Error : Unable to parse builder request!!");
+                    throw new Exception("Error : Unable to parse builder request!!");
                 }
 
                 string functionPath = string.Empty;
@@ -113,8 +113,8 @@ namespace Fission.DotNetCore
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Exception occured {ex.Message} | {ex.StackTrace}");
-                var errstr = $"Exception occured {ex.Message} | {ex.StackTrace}";
+                Console.WriteLine($"Exception occurred {ex.Message} | {ex.StackTrace}");
+                var errstr = $"Exception occurred {ex.Message} | {ex.StackTrace}";
                 _logger.WriteError(errstr);
                 var response = (Response)errstr;
                 response.StatusCode = HttpStatusCode.InternalServerError;

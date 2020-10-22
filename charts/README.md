@@ -43,10 +43,10 @@ Parameter | Description | Default
 `routerServiceType` | Type of Fission Router service to use. For minikube, set this to NodePort, elsewhere use LoadBalancer or ClusterIP. | `LoadBalancer`
 `repository` | Image base repository | `index.docker.io`
 `image` | Fission image repository | `fission/fission-bundle`
-`imageTag` | Fission image tag | `1.11.0`
+`imageTag` | Fission image tag | `1.11.2`
 `pullPolicy` | Image pull policy | `IfNotPresent`
 `fetcher.image` | Fission fetcher repository | `fission/fetcher`
-`fetcher.imageTag` | Fission fetcher image tag | `1.11.0`
+`fetcher.imageTag` | Fission fetcher image tag | `1.11.2`
 `controllerPort` | Fission Controller service port | `31313`
 `routerPort` | Fission Router service port | ` 31314`
 `functionNamespace` | Namespace in which to run fission functions (this is different from the release namespace) | `fission-function`

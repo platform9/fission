@@ -11,7 +11,7 @@ Table of Contents
    * [Choose something to work on](#choose-something-to-work-on)
       * [Get Help.](#get-help)
    * [Contributing - building &amp; deploying](#contributing---building--deploying)
-      * [Prequisite](#prequisite)
+      * [Prerequisite](#prerequisite)
       * [Getting Started](#getting-started)
          * [Use Skaffold with Kind/K8S Cluster to build and deploy](#use-skaffold-with-kindk8s-cluster-to-build-and-deploy)
       * [Validating Installation](#validating-installation)
@@ -42,7 +42,7 @@ Do reach out on Slack or Twitter and we are happy to help.
 
 # Contributing - building & deploying
 
-## Pre-requisite
+## Prerequisite
 
 - You'll need the `go` compiler and tools installed. Currently version 1.12.x of Go is needed.
 
@@ -82,7 +82,7 @@ You should bring up Kind/Minikube cluster or if using a cloud provider cluster t
 * For building & deploying to Cloud Provider K8S cluster such as GKE/EKS/AKS:
 
 ```
-$ skaffold config set default-repo vishalbiyani  // (vishalbiyani - should be your registry/Dockerhub handle)
+$ skaffold config set default-repo vishalbiyani  // (vishalbiyani - should be your registry/Docker Hub handle)
 $ skaffold run
 ```
 
@@ -106,7 +106,7 @@ fission	fission  	1       	2020-05-19 16:31:46.947562 +0530 IST	success	fission-
 Also you should see the Fission services deployed and running:
 
 ```
-$ kubectl get pods -nfission
+$ kubectl get pods -n fission
 NAME                                                    READY   STATUS             RESTARTS   AGE
 buildermgr-6f778d4ff9-dqnq5                             1/1     Running            0          6h9m
 controller-d44bd4f4d-5q4z5                              1/1     Running            0          6h9m
@@ -127,7 +127,7 @@ timer-7d85d9c9fb-knctw                                  1/1     Running         
 
 ### cmd
 
-Cmd package is entrypoint for all runtime components and also has Dockerfile for each component. The actual logic here will be pretty light and most of logic of each component is in `pkg` (Discussed later)
+`cmd` package is entry point for all runtime components and also has Dockerfile for each component. The actual logic here will be pretty light and most of logic of each component is in `pkg` (Discussed later)
 
 | Component         	   | Runtime Component      |Used in|
 | :-------------    	   |:-------------          |:-|
@@ -167,7 +167,7 @@ cmd
 /fission-bundle --kubewatcher --routerUrl http://router.fission  # Runs Kubewatcher
 ```
 
-So most serverside components running on server side are fission-bundle binary wrapped in container and used with different arguments. Various arguments and environment variables are passed from manifests/helm chart
+So most server side components running on server side are fission-bundle binary wrapped in container and used with different arguments. Various arguments and environment variables are passed from manifests/helm chart
 
 **fission-cli** : is the cli used by end user to interact Fission
 
@@ -208,7 +208,7 @@ Pkg is where most of core components and logic reside. The structure is fairly s
 
 ### Charts
 
-Fission currently has two charts - and we reccommend using fission-all for development.
+Fission currently has two charts - and we recommend using fission-all for development.
 
 ```
 .

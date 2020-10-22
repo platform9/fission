@@ -235,7 +235,7 @@ Hello, my name is Arthur and I am 42 years old.
 ```
 
 
-## Developing/debugging the enviroment locally
+## Developing/debugging the environment locally
 
 The easiest way to debug the environment is to open the directory in
 Visual Studio Code (VSCode) as that will setup debugger for you the
@@ -269,7 +269,7 @@ $ curl -XPOST http://localhost:8888/specialize
 $ curl -XGET http://localhost:8888
 ``` 
 
-## Few Aditional Features  
+## Few Additional Features  
 
 **1. NameSpace support :**
 
@@ -283,16 +283,17 @@ Now , You can use namespace for Fission function class and have many other class
 				public class FissionFunction 
 				{
 					public string Execute(FissionContext context){
-						   //orignal logic
+                        //original logic
 					}
-					 public string AnotherClass(string myval){
-						 //do something
+					 public string AnotherClass(string myVal){
+						//do something
 					}
 				}
 ```
-**2. Aditional **setting/configuration file** support :**  	
+
+**2. Additional **setting/configuration file** support :**  	
 			
-Now , with Fission V2 end point with builder , in source package you can have aditional setting
+Now , with Fission V2 end point with builder , in source package you can have additional setting
 files which can be read by fission function .
 Lets say you are writing a function and you need some configurable option and setting to be available in function and thus you want to use some additional configuration file , then you can also achieve the same by having a JSON based configuration file and a corresponding POCO Class for the same.
 
@@ -302,7 +303,7 @@ Here is an example of a such file  which we want to use in function , lets say y
 
 ```
  Source Package zip :
- --soruce.zip
+ --source.zip
 	|--Func.cs
 	|--nuget.txt
 	|--exclude.txt
@@ -335,13 +336,13 @@ namespace FuncNameSpace
         public class FissionFunction
             {
                 public string Execute(FissionContext context){
-                    string respo="initial value";
+                    string res="initial value";
                     context.Logger.WriteInfo("Staring..... ");
                     var settings =context.GetSettings<SendGridSettings>("mysetting.json");
                     context.Logger.WriteInfo($"SendGridEndPoint port : {settings.SendGridEndPoints[0].port} ..... ");
-                    respo=settings.SendGridEndPoints[0].port;           
+                    res=settings.SendGridEndPoints[0].port;           
                     context.Logger.WriteInfo("Done!!");
-                    return respo;
+                    return res;
                 }
             }
 

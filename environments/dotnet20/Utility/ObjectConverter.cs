@@ -8,18 +8,13 @@ namespace Fission.DotNetCore.Utilty
 {
     public sealed class ObjectConverter
     {
-
         private static readonly Lazy<ObjectConverter> lazy =
          new Lazy<ObjectConverter>(() => new ObjectConverter());
 
         public static ObjectConverter Instance { get { return lazy.Value; } }
 
-        private ObjectConverter()
-        {
+        private ObjectConverter() {}
 
-        }
-
-        
         public EnvironmentSettings GetWatcherSettingsFromJson(string json)
         {
             return JsonConvert.DeserializeObject<EnvironmentSettings>(json);
@@ -29,8 +24,5 @@ namespace Fission.DotNetCore.Utilty
         {
             return JsonConvert.DeserializeObject<FunctionSpecification>(json);
         }
-
-
-
     }
 }

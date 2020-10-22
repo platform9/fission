@@ -52,11 +52,11 @@ container.
 ### Discussion
 
 Early feedback shows that almost evey user ends up rebuilding images
-to add some dependecies.  Some sort of automated dependecy resolution
+to add some dependencies.  Some sort of automated dependency resolution
 would be very nice to have and improve the development workflow.  In
 other words, just attach a package.json(nodejs) or
 requirements.txt(python) with a function, and fission will do the
-rest.  There's also the possiblity of supporting buildpacks (simple
+rest.  There's also the possibility of supporting buildpacks (simple
 zipfiles), a la AWS Lambda.
 
 Though we can support compiled languages by doing the compilation
@@ -82,7 +82,7 @@ use environments, I've already packaged up my function, here it is".
 Roughly in order of priority:
 
 0. Retain the simplicity of the simple use cases.  First user
-   experience shoud remain trivial -- write a function, map a URL,
+   experience should remain trivial -- write a function, map a URL,
    done.
 
 1. Support compiled languages. Support error reporting on function
@@ -91,7 +91,7 @@ Roughly in order of priority:
 2. Support functions as a collection of files rather than just one
    file.
 
-3. Support automated environment-specific dependecy resolution.
+3. Support automated environment-specific dependency resolution.
 
    (#3 may end up having the same solution as #1.  You could think of
    gathering deps as a "compilation" of package.json,
@@ -297,7 +297,7 @@ affinity rule, but k8s services only support IP based affinity.]
 
 #### Poolmgr
 
-Poolmgr remains relatively unchanged.  Instead of contructing URLs for
+Poolmgr remains relatively unchanged.  Instead of constructing URLs for
 function metadata, it uses the deployment package URL in the function
 object.
 

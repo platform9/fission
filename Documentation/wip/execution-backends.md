@@ -9,7 +9,7 @@ A new layer - executor now sits between the router and actual backends are respo
 
 # Backend
 
-A backend is responsible for execution of a function - which can involve provisioning appropriate objects in Kubernetes. So with the new design Pool manager becomes one of backends. As of this writing there are two backends which are described as:
+A backend is responsible for execution of a function - which can involve provisioning appropriate objects in Kubernetes. So with the new design Pool manager becomes one of the backends. As of this writing there are two backends which are described as:
 
 ### Pool Manager Backend
 
@@ -21,7 +21,7 @@ New Deploy backend create a Kubernetes deployment, a Kubernetes Service for a gi
 
 ### Execution Strategy
 
-While this is still a WIP, parameters that affect execution behaviour of function are based on `InvokeStrategy`. A invoke strategy defines the `strategyType` and actual strategy parameters encapsulated in the strategy object. 
+While this is still a WIP, parameters that affect execution behavior of function are based on `InvokeStrategy`. A invoke strategy defines the `strategyType` and actual strategy parameters encapsulated in the strategy object. 
 
 ```
 InvokeStrategy struct {

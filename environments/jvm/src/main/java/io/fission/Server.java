@@ -61,7 +61,7 @@ public class Server {
 			Enumeration<JarEntry> e = jarFile.entries();
 			URL[] urls = { new URL("jar:file:" + file + "!/") };
 
-			// TODO Check if the classloading can be improved for ex. use something like:
+			// TODO Check if the class loading can be improved for ex. use something like:
 			// Thread.currentThread().setContextClassLoader(cl);
 			if (this.getClass().getClassLoader() == null) {
 				cl = URLClassLoader.newInstance(urls);
@@ -70,7 +70,7 @@ public class Server {
 			}
 
 			if (cl == null) {
-				return ResponseEntity.status(500).body("Failed to initialize the classloader");
+				return ResponseEntity.status(500).body("Failed to initialize the class loader");
 			}
 
 			// Load all dependent classes from libraries etc.
@@ -119,5 +119,4 @@ public class Server {
 	public static void main(String[] args) throws Exception {
 		SpringApplication.run(Server.class, args);
 	}
-
 }

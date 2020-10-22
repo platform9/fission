@@ -78,7 +78,7 @@ func (executor *Executor) getServiceForFunctionApi(w http.ResponseWriter, r *htt
 	}
 	if t == fv1.ExecutorTypePoolmgr && et.GetTotalAvailable(fn) >= conncurrency {
 		errMsg := fmt.Sprintf("max concurrency reached for %v. All %v instance are active", fn.ObjectMeta.Name, fn.Spec.Concurrency)
-		executor.logger.Error("error occured", zap.String("error", errMsg))
+		executor.logger.Error("error occurred", zap.String("error", errMsg))
 		http.Error(w, errMsg, http.StatusTooManyRequests)
 		return
 	}
@@ -211,18 +211,8 @@ func (executor *Executor) unTapService(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to parse request", http.StatusBadRequest)
 		return
 	}
-
-	fn, err := executor.fissionClient.CoreV1().Functions(tapSvcReq.FnMetadata.Namespace).Get(tapSvcReq.FnMetadata.Name, metav1.GetOptions{})
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			http.Error(w, "Failed to find function", http.StatusNotFound)
-		} else {
-			http.Error(w, "Failed to get function", http.StatusInternalServerError)
-		}
-		return
-	}
-
-	t := fn.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType
+	key := fmt.Sprintf("%v_%v", tapSvcReq.FnMetadata.UID, tapSvcReq.FnMetadata.ResourceVersion)
+	t := tapSvcReq.FnExecutorType
 	if t != fv1.ExecutorTypePoolmgr {
 		msg := fmt.Sprintf("Unknown executor type '%v'", t)
 		http.Error(w, msg, http.StatusBadRequest)
@@ -231,7 +221,7 @@ func (executor *Executor) unTapService(w http.ResponseWriter, r *http.Request) {
 
 	et := executor.executorTypes[t]
 
-	et.UnTapService(fn, tapSvcReq.ServiceUrl)
+	et.UnTapService(key, tapSvcReq.ServiceUrl)
 
 	w.WriteHeader(http.StatusOK)
 }

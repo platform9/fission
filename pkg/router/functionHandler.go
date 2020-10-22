@@ -59,6 +59,7 @@ type (
 		isDebugEnv               bool
 		svcAddrUpdateThrottler   *throttler.Throttler
 		functionTimeoutMap       map[k8stypes.UID]int
+		unTapServiceTimeout      time.Duration
 	}
 
 	tsRoundTripperParams struct {
@@ -209,7 +210,9 @@ func (roundTripper *RetryingRoundTripper) RoundTrip(req *http.Request) (*http.Re
 				// }
 			}
 			if roundTripper.funcHandler.function.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType == fv1.ExecutorTypePoolmgr {
-				defer roundTripper.funcHandler.unTapService(roundTripper.funcHandler.function, roundTripper.serviceUrl)
+				defer func(fn *fv1.Function, serviceUrl *url.URL) {
+					go roundTripper.funcHandler.unTapService(fn, serviceUrl)
+				}(roundTripper.funcHandler.function, roundTripper.serviceUrl)
 			}
 
 			// modify the request to reflect the service url
@@ -500,7 +503,7 @@ func (roundTripper RetryingRoundTripper) addForwardedHostHeader(req *http.Reques
 // unTapservice marks the serviceURL in executor's cache as inactive, so that it can be reused
 func (fh functionHandler) unTapService(fn *fv1.Function, serviceUrl *url.URL) error {
 	fh.logger.Info("UnTapService Called")
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), fh.unTapServiceTimeout)
 	defer cancel()
 	err := fh.executor.UnTapService(ctx, fn.ObjectMeta, fn.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType, serviceUrl)
 	if err != nil {

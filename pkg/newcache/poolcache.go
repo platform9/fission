@@ -96,7 +96,7 @@ func (c *Cache) service() {
 				}
 			}
 			if !found {
-				resp.error = ferror.MakeError(ferror.ErrorNotFound, fmt.Sprintf("funtion '%v' No inactive function found", req.function))
+				resp.error = ferror.MakeError(ferror.ErrorNotFound, fmt.Sprintf("function '%v' No inactive function found", req.function))
 			}
 			req.responseChannel <- resp
 		case listAvailableValue:

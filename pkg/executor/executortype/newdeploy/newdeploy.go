@@ -559,8 +559,8 @@ func (deploy *NewDeploy) cleanupNewdeploy(ns string, name string) error {
 
 // referencedResourcesRVSum returns the sum of resource version of all resources the function references to.
 // We used to update timestamp in the deployment environment field in order to trigger a rolling update when
-// the function referenced resources get updated. However, use timestamp means we are not able to avoid tri-
-// ggering a rolling update when executor tries to adopt orphaned deployment due to timestamp changed which
+// the function referenced resources get updated. However, use timestamp means we are not able to avoid
+// triggering a rolling update when executor tries to adopt orphaned deployment due to timestamp changed which
 // is unwanted. In order to let executor adopt deployment without triggering a rolling update, we need an
 // identical way to get a value that can reflect resources changed without affecting by the time.
 // To achieve this goal, the sum of the resource version of all referenced resources is a good fit for our

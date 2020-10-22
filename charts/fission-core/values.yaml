@@ -17,7 +17,7 @@ repository: index.docker.io
 image: fission/fission-bundle
 
 ## Fission image version
-imageTag: 1.11.0
+imageTag: 1.11.2
 
 ## Image pull policy
 pullPolicy: IfNotPresent
@@ -43,7 +43,7 @@ fetcher:
   ## Fetcher repository
   image: fission/fetcher
   ## Fetcher image version
-  imageTag: 1.11.0
+  imageTag: 1.11.2
 
   ## Fetcher is only for to downloading or uploading archive.
   ## Normally, you don't need to change the value here, unless necessary.
@@ -58,13 +58,14 @@ fetcher:
 
 executor:
   adoptExistingResources: false
+  podReadyTimeout: 300s
 
 ## Router config
 router:
   deployAsDaemonSet: false
   svcAddressMaxRetries: 5
   svcAddressUpdateTimeout: 30s
-
+  unTapServiceTimeout: 3600s
   ## Display endpoint access logs
   ## To be aware of enabling logging endpoint access log, it increases
   ## router resource utilization when under heavy workloads.
@@ -207,4 +208,10 @@ mqt_keda:
       tag: 1
     rabbitmq:
       image: fission/keda-rabbitmq-http-connector
+      tag: 1
+    awskinesis:
+      image: fission/keda-awskinesis-http-connector
+      tag: 1
+    aws-sqs-queue:
+      image: fission/keda-aws-sqs-http-connector
       tag: 1

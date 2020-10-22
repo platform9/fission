@@ -77,7 +77,7 @@ public class JerseyServer {
 			Enumeration<JarEntry> e = jarFile.entries();
 			URL[] urls = { new URL("jar:file:" + file + "!/") };
 
-			// TODO Check if the classloading can be improved for ex. use something like:
+			// TODO Check if the class loading can be improved for ex. use something like:
 			// Thread.currentThread().setContextClassLoader(cl);
 			if (this.getClass().getClassLoader() == null) {
 				cl = URLClassLoader.newInstance(urls);
@@ -86,8 +86,7 @@ public class JerseyServer {
 			}
 
 			if (cl == null) {
-
-				return Response.status(Response.Status.BAD_REQUEST).entity("Failed to initialize the classloader")
+				return Response.status(Response.Status.BAD_REQUEST).entity("Failed to initialize the class loader")
 						.build();
 			}
 

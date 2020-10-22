@@ -123,7 +123,7 @@ func functionCallCompleted(f *functionLabels, h *httpLabels, overhead, duration 
 
 	l := labelsToStrings(f, h)
 
-	// overhead: time from request ingress into router upto proxing into function pod
+	// overhead: time from request ingress into router up to proxing into function pod
 	functionCallOverhead.WithLabelValues(l...).Observe(float64(overhead.Nanoseconds()) / 1e9)
 
 	// total function call counter

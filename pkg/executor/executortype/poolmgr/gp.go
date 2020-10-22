@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math/rand"
 	"net"
 	"os"
 	"strings"
@@ -96,6 +95,16 @@ func MakeGenericPool(
 
 	gpLogger := logger.Named("generic_pool")
 
+	podReadyTimeoutStr := os.Getenv("POD_READY_TIMEOUT")
+	podReadyTimeout, err := time.ParseDuration(podReadyTimeoutStr)
+	if err != nil {
+		podReadyTimeout = 300 * time.Second
+		gpLogger.Error("failed to parse pod ready timeout duration from 'POD_READY_TIMEOUT' - set to the default value",
+			zap.Error(err),
+			zap.String("value", podReadyTimeoutStr),
+			zap.Duration("default", podReadyTimeout))
+	}
+
 	gpLogger.Info("creating pool", zap.Any("environment", env.ObjectMeta))
 
 	ctx, stopCh := context.WithCancel(context.Background())
@@ -111,7 +120,7 @@ func MakeGenericPool(
 		kubernetesClient:  kubernetesClient,
 		namespace:         namespace,
 		functionNamespace: functionNamespace,
-		podReadyTimeout:   5 * time.Minute, // TODO make this an env param?
+		podReadyTimeout:   podReadyTimeout,
 		fsCache:           fsCache,
 		poolInstanceId:    uniuri.NewLen(8),
 		fetcherConfig:     fetcherConfig,
@@ -124,7 +133,7 @@ func MakeGenericPool(
 	gp.runtimeImagePullPolicy = utils.GetImagePullPolicy(os.Getenv("RUNTIME_IMAGE_PULL_POLICY"))
 
 	// create fetcher SA in this ns, if not already created
-	err := fetcherConfig.SetupServiceAccount(gp.kubernetesClient, gp.namespace, nil)
+	err = fetcherConfig.SetupServiceAccount(gp.kubernetesClient, gp.namespace, nil)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error creating fetcher service account in namespace %q", gp.namespace)
 	}
@@ -203,6 +212,7 @@ func (gp *GenericPool) _choosePod(newLabels map[string]string) (*apiv1.Pod, erro
 		podList, err := gp.kubernetesClient.CoreV1().Pods(gp.namespace).List(
 			context.Background(),
 			metav1.ListOptions{
+				FieldSelector: "status.phase=Running",
 				LabelSelector: labels.Set(
 					gp.deployment.Spec.Selector.MatchLabels).AsSelector().String(),
 			})
@@ -220,6 +230,7 @@ func (gp *GenericPool) _choosePod(newLabels map[string]string) (*apiv1.Pod, erro
 
 			// add it to the list of ready pods
 			readyPods = append(readyPods, &pod)
+			break
 		}
 		gp.logger.Info("found ready pods",
 			zap.Any("labels", newLabels),
@@ -238,7 +249,7 @@ func (gp *GenericPool) _choosePod(newLabels map[string]string) (*apiv1.Pod, erro
 		// Pick a ready pod.  For now just choose randomly;
 		// ideally we'd care about which node it's running on,
 		// and make a good scheduling decision.
-		chosenPod := readyPods[rand.Intn(len(readyPods))]
+		chosenPod := readyPods[0]
 
 		if gp.env.Spec.AllowedFunctionsPerContainer != fv1.AllowedFunctionsPerContainerInfinite {
 			// Relabel.  If the pod already got picked and

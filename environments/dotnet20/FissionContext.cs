@@ -47,7 +47,6 @@ namespace Fission.DotNetCore.Api
         {
             return File.ReadAllText(Path.Combine(this.PackagePath, relativePath));
         }
-
     }
 
     public class Logger

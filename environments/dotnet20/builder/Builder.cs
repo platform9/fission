@@ -41,7 +41,7 @@ namespace Builder
                 }
                 catch(Exception childEx)
                 {
-                    //do nothing , just log orignal exception
+                    //do nothing , just log original exception
                     Console.WriteLine($"{Environment.NewLine} Exception During Build :{ex.Message} |{Environment.NewLine}  {ex.StackTrace} {Environment.NewLine} ");
                 }              
 

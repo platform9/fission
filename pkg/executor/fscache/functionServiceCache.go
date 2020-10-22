@@ -218,8 +218,8 @@ func (fsc *FunctionServiceCache) GetTotalAvailable(m *metav1.ObjectMeta) int {
 	return fsc.connFunctionCache.GetTotalAvailable(crd.CacheKey(m))
 }
 
-func (fsc *FunctionServiceCache) MarkAvailable(fn *fv1.Function, svcHost string) {
-	fsc.connFunctionCache.MarkAvailable(crd.CacheKey(&fn.ObjectMeta), svcHost)
+func (fsc *FunctionServiceCache) MarkAvailable(key string, svcHost string) {
+	fsc.connFunctionCache.MarkAvailable(key, svcHost)
 }
 
 func (fsc *FunctionServiceCache) Add(fsvc FuncSvc) (*FuncSvc, error) {
