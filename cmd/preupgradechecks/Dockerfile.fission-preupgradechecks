@@ -12,7 +12,7 @@ COPY go.* ./
 
 RUN go mod download
 
-From godep as builder
+FROM godep as builder
 
 ARG GOPKG
 WORKDIR /go/src/${GOPKG}

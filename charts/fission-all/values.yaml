@@ -20,7 +20,7 @@ image: fission/fission-bundle
 pullPolicy: IfNotPresent
 
 ## Fission image version
-imageTag: 1.11.1
+imageTag: 1.11.2
 
 ## Port at which Fission controller service should be exposed
 controllerPort: 31313
@@ -50,7 +50,7 @@ fetcher:
   ## Fetcher repository
   image: fission/fetcher
   ## Fetcher image version
-  imageTag: 1.11.1
+  imageTag: 1.11.2
 
   ## Fetcher is only for to downloading or uploading archive.
   ## Normally, you don't need to change the value here, unless necessary.

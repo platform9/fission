@@ -182,7 +182,7 @@ func (a *API) WatchApiGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) WatchApiUpdate(w http.ResponseWriter, r *http.Request) {
-	a.respondWithError(w, ferror.MakeError(ferror.ErrorNotImplmented,
+	a.respondWithError(w, ferror.MakeError(ferror.ErrorNotImplemented,
 		"Not implemented"))
 }
 

@@ -125,4 +125,4 @@ Improving this is probably best left to future work.
 
 
 The more heavyweight solution solves some of these limitations to an extent, but these do not way up to the increased 
-development and maintainance cost IMO. If needed we could explore this option (or some hybrid option) in the future.
+development and maintenance cost IMO. If needed we could explore this option (or some hybrid option) in the future.

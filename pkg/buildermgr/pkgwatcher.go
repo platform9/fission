@@ -153,7 +153,7 @@ func (pkgw *packageWatcher) build(buildCache *cache.Cache, srcpkg *fv1.Package) 
 			}
 
 			// Add the package getter rolebinding to builder sa
-			// we continue here if role binding was not setup succeesffully. this is because without this, the fetcher wont be able to fetch the source pkg into the container and
+			// we continue here if role binding was not setup successfully. this is because without this, the fetcher wont be able to fetch the source pkg into the container and
 			// the build will fail eventually
 			err := utils.SetupRoleBinding(pkgw.logger, pkgw.k8sClient, fv1.PackageGetterRB, pkg.ObjectMeta.Namespace, fv1.PackageGetterCR, fv1.ClusterRole, fv1.FissionBuilderSA, builderNs)
 			if err != nil {
@@ -264,7 +264,7 @@ func (pkgw *packageWatcher) watchPackages() {
 			// TODO: Once enable "/status", check generation for spec changed instead.
 			//   Before "/status" is enabled, the generation and resource version will be changed
 			//   if we update the status of a package, hence we are not able to differentiate
-			//   the spec change or status change. So we only build package which's status
+			//   the spec change or status change. So we only build package which has status
 			//   us "pending" and user have to use "kubectl replace" to update a package.
 			if oldPkg.ResourceVersion == pkg.ResourceVersion &&
 				pkg.Status.BuildStatus != fv1.BuildStatusPending {

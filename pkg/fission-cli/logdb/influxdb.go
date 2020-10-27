@@ -88,7 +88,7 @@ func (influx InfluxDB) GetLogs(filter LogFilter) ([]LogEntry, error) {
 	for _, r := range response.Results {
 		for _, series := range r.Series {
 
-			//create map of columns to row indeces
+			//create map of columns to row indices
 			indexMap := makeIndexMap(series.Columns)
 
 			// TODO: Remove fallback indexes. Some of index's name changed in fluent-bit, here we add extra fallbackIndexes to address compatibility problem.

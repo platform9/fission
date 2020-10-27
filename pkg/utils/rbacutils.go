@@ -84,7 +84,7 @@ func makeRoleBindingObj(roleBinding, roleBindingNs, role, roleKind, sa, saNamesp
 	}
 }
 
-// isSAInRoleBinding checkis if a service account is present in the rolebinding object
+// isSAInRoleBinding checks if a service account is present in the rolebinding object
 func isSAInRoleBinding(rbObj *rbac.RoleBinding, sa, ns string) bool {
 	for _, subject := range rbObj.Subjects {
 		if subject.Name == sa && subject.Namespace == ns {
@@ -281,7 +281,7 @@ func SetupRoleBinding(logger *zap.Logger, k8sClient *kubernetes.Clientset, roleB
 // returns silently.
 func DeleteRoleBinding(k8sClient *kubernetes.Clientset, roleBinding, roleBindingNs string) error {
 	// if deleteRoleBinding is invoked by 2 fission services at the same time for the same rolebinding,
-	// the first call will succeed while the 2nd will fail with isNotFound. but we dont want to error out then.
+	// the first call will succeed while the 2nd will fail with isNotFound. but we don't want to error out then.
 	err := k8sClient.RbacV1beta1().RoleBindings(roleBindingNs).Delete(roleBinding, &metav1.DeleteOptions{})
 	if err == nil || k8serrors.IsNotFound(err) {
 		return nil

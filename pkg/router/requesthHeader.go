@@ -30,7 +30,7 @@ const (
 	HEADERS_FISSION_FUNCTION_PREFIX = "Fission-Function"
 )
 
-// setFunctionMetadataToHeaders set function metadatas to request header
+// setFunctionMetadataToHeaders set function metadata to request header
 func setFunctionMetadataToHeader(meta *metav1.ObjectMeta, request *http.Request) {
 	request.Header.Set(fmt.Sprintf("X-%s-Uid", HEADERS_FISSION_FUNCTION_PREFIX), string(meta.UID))
 	request.Header.Set(fmt.Sprintf("X-%s-Name", HEADERS_FISSION_FUNCTION_PREFIX), meta.Name)

@@ -53,7 +53,7 @@ func (opts *ListSubCommand) complete(input cli.Input) error {
 func (opts *ListSubCommand) run(input cli.Input) error {
 	ws, err := opts.Client().V1().KubeWatcher().List(opts.namespace)
 	if err != nil {
-		return errors.Wrap(err, "error listing kubewatches")
+		return errors.Wrap(err, "error listing kubewatchers")
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)

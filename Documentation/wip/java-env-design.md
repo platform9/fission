@@ -8,7 +8,7 @@ This document documents the design and thoughts that lead to design of Java envi
     - Kotlin (Server side with Spring)
 
 - In Java there are a few prominent frameworks which have a ecosystem of their own (See list below). How these framework fit in the environment will be detailed later, but it is important to understand their place in ecosystem and design for it.
-    - A large percentage of entertprise developers use [Spring framework](https://spring.io/) as has been shown by multiple surveys
+    - A large percentage of enterprise developers use [Spring framework](https://spring.io/) as has been shown by multiple surveys
     - Reactive has taken up recently with data intensive operations [Reactive extensions for JVM](https://github.com/ReactiveX/RxJava)
     - [Spark](http://sparkjava.com/) is a micro web framework
 
@@ -31,7 +31,7 @@ Now - the T & R could be different things and we discuss some options below:
 
 From the early implementation in the branch mentioned above, the environment extracts the body and send it as a JSON string. The JSON then can be transformed into the appropriate object by the function.
 
-This works well, but has one major limitation: the function does not get access to other things like headers etc. The same thing applies to the reponse: function can send the body but looses control over status code etc.
+This works well, but has one major limitation: the function does not get access to other things like headers etc. The same thing applies to the response: function can send the body but looses control over status code etc.
 
 ### HttpServletRequest and HttpServletResponse
 

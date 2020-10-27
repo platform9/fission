@@ -40,18 +40,18 @@ namespace Builder.Engine
             await BuildDllInfo();
 
             Console.WriteLine("DLL Info Gathered!!");
-            // try to compile the function and if compilation succedd ,then create func spec file
+            // try to compile the function and if compilation succeed ,then create func spec file
             //this enables us to find compilation issues during package creation itself thus saving time 
             // however this feature impose that  the function file name should be func.cs 
-            //if we dont want it , we can comment the  TryCompile() logic
-            Console.WriteLine("Trying to compile it during build itslef !!");
+            //if we don't want it , we can comment the  TryCompile() logic
+            Console.WriteLine("Trying to compile it during build itself !!");
             bool compiled =await TryCompile();
             Console.WriteLine($"Compilation result Gathered as : {compiled}!!");
             if (compiled)
             {
 
                 //nowwhatever has been done so far and all files which are generated are in /app folder where dll resides
-                //thus copy relavant thing in SRC_PKG as it is ,but lest skip it here , we shall do it in build.sh
+                //thus copy relevant thing in SRC_PKG as it is ,but lest skip it here , we shall do it in build.sh
                 CopyToSourceDir();
                 Console.WriteLine($"Copy to Source Done!!");
                 //build the function specs
@@ -98,7 +98,7 @@ namespace Builder.Engine
         
         public async Task<bool> TryCompile()
         {
-            bool issuccess = false;
+            bool isSuccess = false;
 
             string CODE_PATH = Path.Combine(SRC_PKG, BuilderHelper.Instance.builderSettings.functionBodyFileName);
             if (!File.Exists(CODE_PATH))
@@ -107,20 +107,20 @@ namespace Builder.Engine
                     $" to use TryCompile() in Builder, make sure , your main function file name is " +
                     $"{BuilderHelper.Instance.builderSettings.functionBodyFileName} and " +
                     $"it is located at root of zip!!" );
-                return issuccess;
+                return isSuccess;
             }
 
             var code = File.ReadAllText(CODE_PATH);
-            issuccess = await Compile(code);
+            isSuccess = await Compile(code);
 
-            return issuccess;
+            return isSuccess;
         }
 
         public async Task<bool> Compile(string code)
         {
-            bool issuccess = false;
+            bool isSuccess = false;
 
-            #region assymbaly init and parent dll refrences
+            #region assembly init and parent dll references
             SyntaxTree syntaxTree = CSharpSyntaxTree.ParseText(code);
             string assemblyName = Path.GetRandomFileName();
 
@@ -139,13 +139,13 @@ namespace Builder.Engine
             {
                 var assembly = Assembly.Load(referencedAssembly);
                 references.Add(MetadataReference.CreateFromFile(assembly.Location));
-                BuilderHelper.Instance.logger.Log($"Refering assembaly based dls :  {assembly.Location}");
+                BuilderHelper.Instance.logger.Log($"Refering assembly based dls :  {assembly.Location}");
             }
 
             #endregion
 
             #region handler registration for runtime resolution
-            //now add handeler for missing dlls for parent app domain as same assembalies should be needed 
+            //now add handler for missing dlls for parent app domain as same assemblies should be needed 
             //for parent , thus refering from https://support.microsoft.com/en-in/help/837908/how-to-load-an-assembly-at-runtime-that-is-located-in-a-folder-that-is
             AppDomain currentDomain = AppDomain.CurrentDomain;
             currentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
@@ -153,8 +153,8 @@ namespace Builder.Engine
             #endregion
 
             BuilderHelper.Instance.logger.Log($"dynamic handlar registered!!");
-            #region nuget dll refrence add
-            //now add those dll refrence
+            #region nuget dll reference add
+            //now add those dll reference
             foreach (var dll in dllInfos)
             {
                 BuilderHelper.Instance.logger.Log($"refering nuget based dll : {dll.path}");
@@ -193,12 +193,12 @@ namespace Builder.Engine
                 else
                 {
                     BuilderHelper.Instance.logger.Log("Compile Success!!",true);
-                    issuccess = true;
+                    isSuccess = true;
                 }
             }
 
             #endregion 
-            return issuccess;
+            return isSuccess;
 
         }
 
@@ -223,7 +223,7 @@ namespace Builder.Engine
                 functionSpecification.libraries.Add(library);
             }
 
-            //serilize that object to save it in json file
+            //serialize that object to save it in json file
             string funcMetaJson= JsonConvert.SerializeObject(functionSpecification);
 
             string funcMetaFile = Path.Combine(this.SRC_PKG, BuilderHelper.Instance.builderSettings.functionSpecFileName);
@@ -247,7 +247,7 @@ namespace Builder.Engine
                 dllInfos.AddRange(nugetEngine.dllInfos);
             }
 
-            //now do a distinct of all dlls paths as multiple packaed might have added same dll
+            //now do a distinct of all dlls paths as multiple packaged might have added same dll
             dllInfos = dllInfos.DistinctBy(x => x.path).ToList();
 
 #if DEBUG

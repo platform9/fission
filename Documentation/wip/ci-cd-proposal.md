@@ -57,7 +57,7 @@ If we look at this from CI/CD perspective this process requires:
   3. Fission CLI
   4. Kubernetes Config so that the apply command can be run
 
-So if we build a container - which has the above requirements met as installed software (Ex. Fission & Kubectl CLI) or available as environment variable (Github pull token or Kubeconfig), the container can be used as part of CI workflow in any tool such as - Jenkins, Argo, Github Actions, Gitlab etc.
+So if we build a container - which has the above requirements met as installed software (Ex. Fission & Kubectl CLI) or available as environment variable (Github pull token or Kubeconfig), the container can be used as part of CI workflow in any tool such as - Jenkins, Argo, Github Actions, GitLab etc.
 
 The idea is to build a generic container with Fission CLI, Kubernetes CLI and a way to read Github token and Kubeconfig from env variable/mounted files and being able to run `fission spec apply` command.
 
@@ -90,7 +90,7 @@ Without changing anything in Fission spec it is possible to change these things 
   1. Generate and maintain specs for each environment. This is not a best practice as it leads to drift in code and configuration between environment over time.
   2. Use placeholder variables (i.e. $DB_CONNECTION_VALUE) and replace them for each environment before deploying. This is better in the sense that you are combining changes specific to each environment with spec code but is still a work around sort of.
 
-For environment specific configurations, it is possible to use some sort of templating or overlay mechanism. One of interesting projects using overlays is [Kustomize](https://github.com/kubernetes-sigs/kustomize). In any case as of today the fission spec command does not have a way to use template or modify values using overlay and it is worth exploring this approach for fission spec.
+For environment specific configurations, it is possible to use some sort of templates or overlay mechanism. One of interesting projects using overlays is [Kustomize](https://github.com/kubernetes-sigs/kustomize). In any case as of today the fission spec command does not have a way to use template or modify values using overlay and it is worth exploring this approach for fission spec.
 
 ## 3 Promotion from one environment to another
 

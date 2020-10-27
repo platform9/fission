@@ -10,8 +10,8 @@ Use Cases
 
 ⚠️ **Words of Caution** ⚠️
 
-The environment runs on an alpine image with some additional utility commandline tools installed, such as 'grep'. 
-However, in case you want to make use of more esoteric commandline tools, you should add the relevant apk to the 
+The environment runs on an alpine image with some additional utility command line tools installed, such as 'grep'. 
+However, in case you want to make use of more esoteric command line tools, you should add the relevant apk to the 
 Dockerfile and build a new binary environment. See 'Compiling' for instructions.
 
 When executing functions using binaries, **ensure that the executable is built for the right architecture**. 

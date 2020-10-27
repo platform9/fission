@@ -48,7 +48,7 @@ So we can write a simple logic - to check if a annotation is applicable for an i
 
 ### Implementation 2
 
-- One of side effects of this is that the annotations will still stay on the source CRD object - for example annotation will stay on the httptrigger as well as the ingress object. This can cause problems in certain cases where something like Prometheus uses annotations to scrape objects. So instead we wrap the annotations needed by an object into another annotation name. This also solves problem of having to guess which annotations to apply to which object. 
+- One of the side effects is that the annotations will still stay on the source CRD object - for example annotation will stay on the httptrigger as well as the ingress object. This can cause problems in certain cases where something like Prometheus uses annotations to scrape objects. So instead we wrap the annotations needed by an object into another annotation name. This also solves problem of having to guess which annotations to apply to which object. 
 
 ```yaml
 apiVersion: fission.io/v1

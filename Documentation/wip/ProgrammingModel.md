@@ -20,5 +20,5 @@ documentation on the context object in each environment.
 
 ## Kubernetes Watch Event Triggers
 
-Kubernetes watches can be used to trigger functions.  These functions
+Kubernetes watches can be used to trigger functions. These functions
 receive the Kubernetes watch.Event object in JSON-serialized form.

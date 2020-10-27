@@ -18,9 +18,12 @@ package environment
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	fv1 "github.com/fission/fission/pkg/apis/core/v1"
@@ -79,28 +82,23 @@ func (opts *UpdateSubCommand) run(input cli.Input) error {
 func updateExistingEnvironmentWithCmd(env *fv1.Environment, input cli.Input) (*fv1.Environment, error) {
 	e := utils.MultiErrorWithFormat()
 
-	envImg := input.String(flagkey.EnvImage)
-	envBuilderImg := input.String(flagkey.EnvBuilderImage)
-	envBuildCmd := input.String(flagkey.EnvBuildcommand)
-	envExternalNetwork := input.Bool(flagkey.EnvExternalNetwork)
-
-	if len(envImg) == 0 && len(envBuilderImg) == 0 && len(envBuildCmd) == 0 {
-		e = multierror.Append(e, errors.New("need --image to specify env image, or use --builder to specify env builder, or use --buildcmd to specify new build command"))
+	if input.IsSet(flagkey.EnvImage) {
+		env.Spec.Runtime.Image = input.String(flagkey.EnvImage)
 	}
 
-	if len(envImg) > 0 {
-		env.Spec.Runtime.Image = envImg
+	if input.IsSet(flagkey.EnvBuilderImage) {
+		env.Spec.Builder.Image = input.String(flagkey.EnvBuilderImage)
 	}
 
-	if env.Spec.Version == 1 && (len(envBuilderImg) > 0 || len(envBuildCmd) > 0) {
+	if input.IsSet(flagkey.EnvBuildcommand) {
+		env.Spec.Builder.Command = input.String(flagkey.EnvBuildcommand)
+	}
+
+	if env.Spec.Version == 1 && (len(env.Spec.Builder.Image) > 0 || len(env.Spec.Builder.Command) > 0) {
 		e = multierror.Append(e, errors.New("version 1 Environments do not support builders. Must specify --version=2"))
 	}
-
-	if len(envBuilderImg) > 0 {
-		env.Spec.Builder.Image = envBuilderImg
-	}
-	if len(envBuildCmd) > 0 {
-		env.Spec.Builder.Command = envBuildCmd
+	if input.IsSet(flagkey.EnvExternalNetwork) {
+		env.Spec.AllowAccessToExternalNetwork = input.Bool(flagkey.EnvExternalNetwork)
 	}
 
 	if input.IsSet(flagkey.EnvPoolsize) {
@@ -119,14 +117,59 @@ func updateExistingEnvironmentWithCmd(env *fv1.Environment, input cli.Input) (*f
 		env.Spec.ImagePullSecret = input.String(flagkey.EnvImagePullSecret)
 	}
 
-	env.Spec.AllowAccessToExternalNetwork = envExternalNetwork
+	if input.IsSet(flagkey.RuntimeMincpu) {
+		mincpu := input.Int(flagkey.RuntimeMincpu)
+		cpuRequest, err := resource.ParseQuantity(strconv.Itoa(mincpu) + "m")
+		if err != nil {
+			e = multierror.Append(e, errors.Wrap(err, "Failed to parse mincpu"))
+		}
+		env.Spec.Resources.Requests[v1.ResourceCPU] = cpuRequest
+	}
 
-	// TODO: allow to update resource.
-	//if input.IsSet(flagkey.RuntimeMincpu) || input.IsSet(flagkey.RuntimeMaxcpu) ||
-	//	input.IsSet(flagkey.RuntimeMinmemory) || input.IsSet(flagkey.RuntimeMaxmemory) ||
-	//	input.IsSet(flagkey.ReplicasMinscale) || input.IsSet(flagkey.ReplicasMaxscale) {
-	//	e = multierror.Append(e, errors.New("updating resource limits/requests for existing environments is currently unsupported; re-create the environment instead"))
-	//}
+	if input.IsSet(flagkey.RuntimeMaxcpu) {
+		maxcpu := input.Int(flagkey.RuntimeMaxcpu)
+		cpuLimit, err := resource.ParseQuantity(strconv.Itoa(maxcpu) + "m")
+		if err != nil {
+			e = multierror.Append(e, errors.Wrap(err, "Failed to parse maxcpu"))
+		}
+		env.Spec.Resources.Limits[v1.ResourceCPU] = cpuLimit
+	}
+
+	if input.IsSet(flagkey.RuntimeMinmemory) {
+		minmem := input.Int(flagkey.RuntimeMinmemory)
+		memRequest, err := resource.ParseQuantity(strconv.Itoa(minmem) + "Mi")
+		if err != nil {
+			e = multierror.Append(e, errors.Wrap(err, "Failed to parse minmemory"))
+		}
+		env.Spec.Resources.Requests[v1.ResourceMemory] = memRequest
+	}
+
+	if input.IsSet(flagkey.RuntimeMaxmemory) {
+		maxmem := input.Int(flagkey.RuntimeMaxmemory)
+		memLimit, err := resource.ParseQuantity(strconv.Itoa(maxmem) + "Mi")
+		if err != nil {
+			e = multierror.Append(e, errors.Wrap(err, "Failed to parse maxmemory"))
+		}
+		env.Spec.Resources.Limits[v1.ResourceMemory] = memLimit
+	}
+
+	limitCPU := env.Spec.Resources.Limits[v1.ResourceCPU]
+	requestCPU := env.Spec.Resources.Requests[v1.ResourceCPU]
+
+	if limitCPU.IsZero() && !requestCPU.IsZero() {
+		env.Spec.Resources.Limits[v1.ResourceCPU] = requestCPU
+	} else if limitCPU.Cmp(requestCPU) < 0 {
+		e = multierror.Append(e, fmt.Errorf("MinCPU (%v) cannot be greater than MaxCPU (%v)", requestCPU.String(), limitCPU.String()))
+	}
+
+	limitMem := env.Spec.Resources.Limits[v1.ResourceMemory]
+	requestMem := env.Spec.Resources.Requests[v1.ResourceMemory]
+
+	if limitMem.IsZero() && !requestMem.IsZero() {
+		env.Spec.Resources.Limits[v1.ResourceMemory] = requestMem
+	} else if limitMem.Cmp(requestMem) < 0 {
+		e = multierror.Append(e, fmt.Errorf("MinMemory (%v) cannot be greater than MaxMemory (%v)", requestMem.String(), limitMem.String()))
+	}
 
 	if e.ErrorOrNil() != nil {
 		return nil, e.ErrorOrNil()

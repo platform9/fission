@@ -78,7 +78,7 @@ func (executor *Executor) getServiceForFunctionApi(w http.ResponseWriter, r *htt
 	}
 	if t == fv1.ExecutorTypePoolmgr && et.GetTotalAvailable(fn) >= conncurrency {
 		errMsg := fmt.Sprintf("max concurrency reached for %v. All %v instance are active", fn.ObjectMeta.Name, fn.Spec.Concurrency)
-		executor.logger.Error("error occured", zap.String("error", errMsg))
+		executor.logger.Error("error occurred", zap.String("error", errMsg))
 		http.Error(w, errMsg, http.StatusTooManyRequests)
 		return
 	}

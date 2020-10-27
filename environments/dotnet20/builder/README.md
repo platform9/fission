@@ -4,7 +4,7 @@ This is a simple dotnet core 2.0 C# environment builder for Fission.
 
 It's a docker image containing the dotnet 2.0.0 (core) run-time builder. This image read the source package and uses 
 *roslyn* to compile the source package code and creates deployment package out of it.
-This enables using  nuget packages as part of function and thus user can use extended functionality in fission functions via nuget.
+This enables using nuget packages as part of function and thus user can use extended functionality in fission functions via nuget.
 
 During build , builder also does a pre-compile to prevent any compilation issues during function environment pod specialization.
 Thus we get the function compilation issues during builder phase in package info's build logs itself.
@@ -25,7 +25,7 @@ The source package structure in zip file :
 
 ```
  Source Package zip :
- --soruce.zip
+ --source.zip
 	|--func.cs
 	|--nuget.txt
 	|--exclude.txt
@@ -63,8 +63,8 @@ this should match the following regex as mentions in builderSetting.json
 ```
 "ExcludeDllRegEx": "\\:?\\s*(?<package>[^:\\n]*)(?:\\:)?(?<dll>.*)?",
 ```
- From above , builder will create a deployment package with all dlls in a folder and one functionspecification file :
- Deployement Package zip :
+ From above , builder will create a deployment package with all dlls in a folder and one function specification file :
+ Deployment Package zip :
 
 ```
  --Deploye.zip
@@ -77,7 +77,7 @@ this should match the following regex as mentions in builderSetting.json
 		|--csvhelper.dll
 	|--logs()
 		|-->logFileName
-	|--func.meta.json // this is the functionspecific file
+	|--func.meta.json // this is the function specific file
 	|--....MiscFiles(optional)
 	|--....MiscFiles(optional)
 ```
@@ -93,19 +93,19 @@ using Fission.DotNetCore.Api;
 public class FissionFunction 
 {
     public string Execute(FissionContext context){
-		string respo="initial value";
+		string res="initial value";
 	        try
             {
 				context.Logger.WriteInfo("Staring..... ");
-				respo=$" sample object by getting Enum of   CsvHelper nuget dll: { CsvHelper.Caches.NamedIndex.ToString()}";
+				res=$" sample object by getting Enum of   CsvHelper nuget dll: { CsvHelper.Caches.NamedIndex.ToString()}";
             }  
             catch(Exception ex)
             {
 				context.Logger.WriteError(ex.Message);
-                respo = ex.Message;
+                res = ex.Message;
             }
 		context.Logger.WriteInfo("Done!");
-		return respo;
+		return res;
     }
 }
 ```
@@ -116,16 +116,16 @@ CsvHelper
 ```
 **Content of exclude.txt**
 
-As we dont want to exclude any specific dll thus we shall leave it as empty.
+As we don't want to exclude any specific dll thus we shall leave it as empty.
 
-Now check name of existing environments & functions as we want to create a unique environment for this dotnetcore if not already present
+Now check name of existing environments & functions as we want to create a unique environment for this .Net Core if not already present
 
 ```
 fission env list
 fission fn list
  ```
  Create Environment with builder (choose a unique which doesn't exist , here we have chosen : dotnetcorewithnuget  ) 
- also suppose the builder image name is fissiondotnet20-builder and hosted on dockerhub as fission/dotnet20-builder
+ also suppose the builder image name is fissiondotnet20-builder and hosted on Docker Hub as fission/dotnet20-builder
  ```
 fission environment create --name dotnetcorewithnuget --image fission/dotnet20-env  --builder  fission/dotnet20-builder
  ```
