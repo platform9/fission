@@ -27,7 +27,7 @@ import (
 )
 
 type (
-	// A webhook publisher for a single URL. Satisifies the Publisher interface.
+	// WebhookPublisher for a single URL. Satisfies the Publisher interface.
 	WebhookPublisher struct {
 		logger *zap.Logger
 
@@ -36,7 +36,7 @@ type (
 		maxRetries int
 		retryDelay time.Duration
 
-		baseUrl string
+		baseURL string
 	}
 	publishRequest struct {
 		body       string
@@ -47,10 +47,11 @@ type (
 	}
 )
 
-func MakeWebhookPublisher(logger *zap.Logger, baseUrl string) *WebhookPublisher {
+// MakeWebhookPublisher creates a WebhookPublisher object for the given baseURL
+func MakeWebhookPublisher(logger *zap.Logger, baseURL string) *WebhookPublisher {
 	p := &WebhookPublisher{
 		logger:         logger.Named("webhook_publisher"),
-		baseUrl:        baseUrl,
+		baseURL:        baseURL,
 		requestChannel: make(chan *publishRequest, 32), // buffered channel
 		// TODO make this configurable
 		maxRetries: 10,
@@ -60,6 +61,7 @@ func MakeWebhookPublisher(logger *zap.Logger, baseUrl string) *WebhookPublisher 
 	return p
 }
 
+// Publish sends a request to the target with payload having given body and headers
 func (p *WebhookPublisher) Publish(body string, headers map[string]string, target string) {
 	// serializing the request gives user a guarantee that the request is sent in sequence order
 	p.requestChannel <- &publishRequest{
@@ -74,12 +76,12 @@ func (p *WebhookPublisher) Publish(body string, headers map[string]string, targe
 func (p *WebhookPublisher) svc() {
 	for {
 		r := <-p.requestChannel
-		p.makeHttpRequest(r)
+		p.makeHTTPRequest(r)
 	}
 }
 
-func (p *WebhookPublisher) makeHttpRequest(r *publishRequest) {
-	url := p.baseUrl + "/" + strings.TrimPrefix(r.target, "/")
+func (p *WebhookPublisher) makeHTTPRequest(r *publishRequest) {
+	url := p.baseURL + "/" + strings.TrimPrefix(r.target, "/")
 
 	msg := "making HTTP request"
 	level := zap.ErrorLevel

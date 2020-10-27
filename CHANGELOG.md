@@ -1,24 +1,33 @@
-# 1.11.1
+# 1.11.2
+[Documentation](https://docs.fission.io/)
+## Downloads for 1.11.2
 
-Install Guide: docs.fission.io/installation
-Release Highlight: docs.fission.io/releases/1.11.1
-Full Changelog: /CHANGELOG.md@master
 
 filename | sha256 hash
 -------- | -----------
-[fission-core-1.11.1-minikube.yaml](https://github.com/fission/fission/releases/download/1.11.1/fission-core-1.11.1-minikube.yaml) | `eea5b535a52b0304aa0fe05d533b83f2a2e0baf6c92c07647b0b29cca6f1933d`
-[fission-all-1.11.1-minikube.yaml](https://github.com/fission/fission/releases/download/1.11.1/fission-all-1.11.1-minikube.yaml) | `f2124664c3ffc3b25d393a197e81a05c9f8ec677d73dced9c1f2882601e49916`
-[fission-core-1.11.1-openshift.yaml](https://github.com/fission/fission/releases/download/1.11.1/fission-core-1.11.1-openshift.yaml) | `4c9d428cfa25ce2e43e1f3b4f6aab05af2eda45e2bf896262689c1e92bb34e2a`
-[fission-core-1.11.1.yaml](https://github.com/fission/fission/releases/download/1.11.1/fission-core-1.11.1.yaml) | `07851e8cfe3a7629cbbce42624af1da82d7ba0882d546586d1501a48084c0d3b`
-[fission-all-1.11.1-openshift.yaml](https://github.com/fission/fission/releases/download/1.11.1/fission-all-1.11.1-openshift.yaml) | `873cca25848920cb702e1fc6f5d9234df17389955cce36d67347a78bb79eeccc`
-[fission-all-1.11.1.yaml](https://github.com/fission/fission/releases/download/1.11.1/fission-all-1.11.1.yaml) | `122054aa2777467511a3f2bf804bc0bd7d1fed11ebdeaebfb8b73990783e56b8`
-[fission-all-1.11.1.tgz](https://github.com/fission/fission/releases/download/1.11.1/fission-all-1.11.1.tgz) | `2f370f40a8799dab8e3ac12b861b18c1eab264c90eb641f9855051bd534f5c29`
-[fission-core-1.11.1.tgz](https://github.com/fission/fission/releases/download/1.11.1/fission-core-1.11.1.tgz) | `dc2c6df660974c893433b570e8711c59adf0f7450b4eeef965f44c907f03458c`
-[fission-cli-osx](https://github.com/fission/fission/releases/download/1.11.1/fission-cli-osx) | `8a3aa0d4f0f2b564a274e3c96bb0ba41ca4f91481abb906913bf93086d9cd005`
-[fission-cli-linux](https://github.com/fission/fission/releases/download/1.11.1/fission-cli-linux) | `3840ed221f14c8f70b20a2b8be2881305423b32d4705cb92349e24d4b627cc9a`
-[fission-cli-windows.exe](https://github.com/fission/fission/releases/download/1.11.1/fission-cli-windows.exe) | `3c85b3ec9f0d2d6d4f35a63e1fcea755ed7c0ee66e906c66cb41c99c5bf73140`
+[fission-core-1.11.2.tgz](https://github.com/fission/fission/releases/download/1.11.2/fission-core-1.11.2.tgz) | `0a9ca8a968847fd85960fef003b3cb3521f205b5de3ad3e8db24be1f2225ecdc`
+[fission-all-1.11.2.tgz](https://github.com/fission/fission/releases/download/1.11.2/fission-all-1.11.2.tgz) | `66b1951b45db973877e2701ed02694376b342f1ee8b31068b891390aaf016ac6`
+[fission-cli-linux](https://github.com/fission/fission/releases/download/1.11.2/fission-cli-linux) | `ced71903e70078d159c28379ab92b9bc21aceb598ae98bf646323c9395921361`
+[fission-cli-windows.exe](https://github.com/fission/fission/releases/download/1.11.2/fission-cli-windows.exe) | `d03a2b54d4f35b3c242663a7adb199b23f8d3ad2182a384654a67d941e473d41`
+[fission-cli-osx](https://github.com/fission/fission/releases/download/1.11.2/fission-cli-osx) | `3591a4f6ecc713223597064d56dcce9b4c5c00017aaf094b07fb6ef02f8f4c0a`
+[fission-all-1.11.2-minikube.yaml](https://github.com/fission/fission/releases/download/1.11.2/fission-all-1.11.2-minikube.yaml) | `085c70d48ac9347affea6e6cae9eb7e41f73ef6f4b85cf5f03a30aef4ddfad6a`
+[fission-core-1.11.2.yaml](https://github.com/fission/fission/releases/download/1.11.2/fission-core-1.11.2.yaml) | `be75632b869f2de8f7b584327e7df41d65ec9270d834670119750664aced202b`
+[fission-all-1.11.2.yaml](https://github.com/fission/fission/releases/download/1.11.2/fission-all-1.11.2.yaml) | `5d2328037e4f734ff9a30e5d723ad104ab54b59e0ed4244186b03e5f181a3898`
+[fission-core-1.11.2-minikube.yaml](https://github.com/fission/fission/releases/download/1.11.2/fission-core-1.11.2-minikube.yaml) | `b13bfe8f979fc5b5fc3e761fe69e225cfbda3d1d70337f70b769598182538298`
+[fission-all-1.11.2-openshift.yaml](https://github.com/fission/fission/releases/download/1.11.2/fission-all-1.11.2-openshift.yaml) | `d40513512a26f28811ea30c17b51fadb4b39ba867c5cf99b0c008fb27b5e14eb`
+[fission-core-1.11.2-openshift.yaml](https://github.com/fission/fission/releases/download/1.11.2/fission-core-1.11.2-openshift.yaml) | `5de16081e1e5e9e83eb4c8adef6d86510888ed5dc618e6d31f9e5ec757ab8c8b`
 
 # Changelog
+
+## [v1.11.2](https://github.com/fission/fission/tree/v1.11.2) (2020-10-20)
+
+[Full Changelog](https://github.com/fission/fission/compare/1.11.1...v1.11.2)
+
+**Merged pull requests:**
+
+- Fix env resources getting pruned due to CRD Validation [\#1833](https://github.com/fission/fission/pull/1833) ([therahulbhati](https://github.com/therahulbhati))
+- Fixed typos across fission repo [\#1832](https://github.com/fission/fission/pull/1832) ([gauravgahlot](https://github.com/gauravgahlot))
+- Release 1.11.1 [\#1838](https://github.com/fission/fission/pull/1838) ([vishal-biyani](https://github.com/vishal-biyani))
 
 ## [1.11.1](https://github.com/fission/fission/tree/1.11.1) (2020-10-14)
 
