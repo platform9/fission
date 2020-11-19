@@ -71,18 +71,6 @@ type (
 		readyPodQueue            workqueue.RateLimitingInterface
 		poolInstanceID           string // small random string to uniquify pod names
 		instanceID               string // poolmgr instance id
-		requestChannel           chan *choosePodRequest
-		stopCh                   context.CancelFunc
-	}
-
-	// serialize the choosing of pods so that choices don't conflict
-	choosePodRequest struct {
-		newLabels       map[string]string
-		responseChannel chan *choosePodResponse
-	}
-	choosePodResponse struct {
-		pod *apiv1.Pod
-		error
 	}
 )
 
@@ -130,7 +118,6 @@ func MakeGenericPool(
 		useSvc:                   false,       // defaults off -- svc takes a second or more to become routable, slowing cold start
 		useIstio:                 enableIstio, // defaults off -- istio integration requires pod relabeling and it takes a second or more to become routable, slowing cold start
 		stopReadyPodControllerCh: make(chan struct{}),
-		requestChannel:           make(chan *choosePodRequest),
 		poolInstanceID:           uniuri.NewLen(8),
 		instanceID:               instanceID,
 	}
