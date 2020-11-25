@@ -316,6 +316,18 @@ func GetSpecDir(input cli.Input) string {
 	return specDir
 }
 
+func GetValidationFlag(input cli.Input) bool {
+	validationFlag := input.String(flagkey.SpecValidate)
+	// if flag has not been set, we return true to turn on validation by default
+	if len(validationFlag) == 0 {
+		return true
+	}
+	if validationFlag == "false" {
+		return false
+	}
+	return true
+}
+
 // UpdateMapFromStringSlice parses key, val from "key=val" string array and updates passed map
 func UpdateMapFromStringSlice(dataMap *map[string]string, params []string) bool {
 	updated := false

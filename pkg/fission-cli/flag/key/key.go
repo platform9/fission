@@ -137,6 +137,7 @@ const (
 	SpecWatch    = "watch"
 	SpecDelete   = "delete"
 	SpecDry      = "dry"
+	SpecValidate = "validation"
 
 	SupportOutput = Output
 	SupportNoZip  = "nozip"

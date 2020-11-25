@@ -70,6 +70,7 @@ func (opts *ApplySubCommand) run(input cli.Input) error {
 	deleteResources := input.Bool(flagkey.SpecDelete)
 	watchResources := input.Bool(flagkey.SpecWatch)
 	waitForBuild := input.Bool(flagkey.SpecWait)
+	validateSpecs := util.GetValidationFlag(input)
 
 	var watcher *fsnotify.Watcher
 	var pbw *packageBuildWatcher
@@ -115,9 +116,11 @@ func (opts *ApplySubCommand) run(input cli.Input) error {
 			return errors.Wrap(err, "error reading specs")
 		}
 
-		err = Validate(input)
-		if err != nil {
-			return errors.Wrap(err, "abort applying resources")
+		if validateSpecs {
+			err = Validate(input)
+			if err != nil {
+				return errors.Wrap(err, "abort applying resources")
+			}
 		}
 
 		// make changes to the cluster based on the specs

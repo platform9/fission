@@ -48,7 +48,7 @@ func Commands() *cobra.Command {
 		RunE:  wrapper.Wrapper(Apply),
 	}
 	wrapper.SetFlags(applyCmd, flag.FlagSet{
-		Optional: []flag.Flag{flag.SpecDir, flag.SpecDelete, flag.SpecWait, flag.SpecWatch},
+		Optional: []flag.Flag{flag.SpecDir, flag.SpecDelete, flag.SpecWait, flag.SpecWatch, flag.SpecValidation},
 	})
 
 	destroyCmd := &cobra.Command{
