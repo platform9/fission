@@ -1,7 +1,5 @@
 module github.com/fission/fission
 
-go 1.15
-
 require (
 	cloud.google.com/go v0.40.0 // indirect
 	contrib.go.opencensus.io/exporter/jaeger v0.1.0
