@@ -44,6 +44,7 @@ import (
 )
 
 type (
+	// Executor defines a fission function executor.
 	Executor struct {
 		logger *zap.Logger
 
@@ -55,6 +56,7 @@ type (
 		requestChan chan *createFuncServiceRequest
 		fsCreateWg  map[string]*sync.WaitGroup
 	}
+
 	createFuncServiceRequest struct {
 		function *fv1.Function
 		respChan chan *createFuncServiceResponse
@@ -66,6 +68,7 @@ type (
 	}
 )
 
+// MakeExecutor returns an Executor for given ExecutorType(s).
 func MakeExecutor(logger *zap.Logger, cms *cms.ConfigSecretController,
 	fissionClient *crd.FissionClient, types map[fv1.ExecutorType]executortype.ExecutorType) (*Executor, error) {
 	executor := &Executor{

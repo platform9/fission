@@ -4,9 +4,10 @@
   <h1 align="center">Fission: Serverless Functions for Kubernetes</h1>
 </p>
 <p align="center">
-  <a href="https://travis-ci.org/fission/fission">
-    <img src="https://travis-ci.org/fission/fission.svg?branch=master" alt="Build Status" />
+  <a href="https://github.com/fission/fission/actions?query=workflow%3A%22Fission+CI%22">
+    <img src="https://github.com/fission/fission/workflows/Fission%20CI/badge.svg?branch=master" alt="Build Status" />
   </a>
+  
   <a href="https://goreportcard.com/report/github.com/fission/fission">
     <img src="https://goreportcard.com/badge/github.com/fission/fission" alt="Go Report Card" />
   </a>

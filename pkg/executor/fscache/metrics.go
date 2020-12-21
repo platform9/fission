@@ -47,6 +47,7 @@ func init() {
 	prometheus.MustRegister(funcIsAlive)
 }
 
+// IncreaseColdStarts increments the counter by 1.
 func (fsc *FunctionServiceCache) IncreaseColdStarts(funcname, funcuid string) {
 	coldStarts.WithLabelValues(funcname, funcuid).Inc()
 }

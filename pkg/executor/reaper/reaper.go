@@ -68,7 +68,8 @@ func CleanupKubeObject(logger *zap.Logger, kubeClient *kubernetes.Clientset, kub
 	}
 }
 
-func CleanupDeployments(logger *zap.Logger, client *kubernetes.Clientset, instanceId string, listOps meta_v1.ListOptions) error {
+// CleanupDeployments deletes deployment(s) for a given instanceID
+func CleanupDeployments(logger *zap.Logger, client *kubernetes.Clientset, instanceID string, listOps meta_v1.ListOptions) error {
 	deploymentList, err := client.AppsV1().Deployments(meta_v1.NamespaceAll).List(listOps)
 	if err != nil {
 		return err
@@ -79,7 +80,7 @@ func CleanupDeployments(logger *zap.Logger, client *kubernetes.Clientset, instan
 			// Backward compatibility with older label name
 			id, ok = dep.ObjectMeta.Labels[fv1.EXECUTOR_INSTANCEID_LABEL]
 		}
-		if ok && id != instanceId {
+		if ok && id != instanceID {
 			logger.Info("cleaning up deployment", zap.String("deployment", dep.ObjectMeta.Name))
 			err := client.AppsV1().Deployments(dep.ObjectMeta.Namespace).Delete(dep.ObjectMeta.Name, &delOpt)
 			if err != nil {
@@ -94,7 +95,8 @@ func CleanupDeployments(logger *zap.Logger, client *kubernetes.Clientset, instan
 	return nil
 }
 
-func CleanupPods(logger *zap.Logger, client *kubernetes.Clientset, instanceId string, listOps meta_v1.ListOptions) error {
+// CleanupPods deletes pod(s) for a given instanceID
+func CleanupPods(logger *zap.Logger, client *kubernetes.Clientset, instanceID string, listOps meta_v1.ListOptions) error {
 	podList, err := client.CoreV1().Pods(meta_v1.NamespaceAll).List(listOps)
 	if err != nil {
 		return err
@@ -105,7 +107,7 @@ func CleanupPods(logger *zap.Logger, client *kubernetes.Clientset, instanceId st
 			// Backward compatibility with older label name
 			id, ok = pod.ObjectMeta.Labels[fv1.EXECUTOR_INSTANCEID_LABEL]
 		}
-		if ok && id != instanceId {
+		if ok && id != instanceID {
 			logger.Info("cleaning up pod", zap.String("pod", pod.ObjectMeta.Name))
 			err := client.CoreV1().Pods(pod.ObjectMeta.Namespace).Delete(pod.ObjectMeta.Name, nil)
 			if err != nil {
@@ -120,7 +122,8 @@ func CleanupPods(logger *zap.Logger, client *kubernetes.Clientset, instanceId st
 	return nil
 }
 
-func CleanupServices(logger *zap.Logger, client *kubernetes.Clientset, instanceId string, listOps meta_v1.ListOptions) error {
+// CleanupServices deletes service(s) for a given instanceID
+func CleanupServices(logger *zap.Logger, client *kubernetes.Clientset, instanceID string, listOps meta_v1.ListOptions) error {
 	svcList, err := client.CoreV1().Services(meta_v1.NamespaceAll).List(listOps)
 	if err != nil {
 		return err
@@ -131,7 +134,7 @@ func CleanupServices(logger *zap.Logger, client *kubernetes.Clientset, instanceI
 			// Backward compatibility with older label name
 			id, ok = svc.ObjectMeta.Labels[fv1.EXECUTOR_INSTANCEID_LABEL]
 		}
-		if ok && id != instanceId {
+		if ok && id != instanceID {
 			logger.Info("cleaning up service", zap.String("service", svc.ObjectMeta.Name))
 			err := client.CoreV1().Services(svc.ObjectMeta.Namespace).Delete(svc.ObjectMeta.Name, nil)
 			if err != nil {
@@ -146,7 +149,8 @@ func CleanupServices(logger *zap.Logger, client *kubernetes.Clientset, instanceI
 	return nil
 }
 
-func CleanupHpa(logger *zap.Logger, client *kubernetes.Clientset, instanceId string, listOps meta_v1.ListOptions) error {
+// CleanupHpa deletes horizontal pod autoscaler(s) for a given instanceID
+func CleanupHpa(logger *zap.Logger, client *kubernetes.Clientset, instanceID string, listOps meta_v1.ListOptions) error {
 	hpaList, err := client.AutoscalingV1().HorizontalPodAutoscalers(meta_v1.NamespaceAll).List(listOps)
 	if err != nil {
 		return err
@@ -158,7 +162,7 @@ func CleanupHpa(logger *zap.Logger, client *kubernetes.Clientset, instanceId str
 			// Backward compatibility with older label name
 			id, ok = hpa.ObjectMeta.Labels[fv1.EXECUTOR_INSTANCEID_LABEL]
 		}
-		if ok && id != instanceId {
+		if ok && id != instanceID {
 			logger.Info("cleaning up HPA", zap.String("hpa", hpa.ObjectMeta.Name))
 			err := client.AutoscalingV1().HorizontalPodAutoscalers(hpa.ObjectMeta.Namespace).Delete(hpa.ObjectMeta.Name, nil)
 			if err != nil {
@@ -171,7 +175,6 @@ func CleanupHpa(logger *zap.Logger, client *kubernetes.Clientset, instanceId str
 		}
 	}
 	return nil
-
 }
 
 // CleanupRoleBindings periodically lists rolebindings across all namespaces and removes Service Accounts from them or

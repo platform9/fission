@@ -21,7 +21,7 @@ route_succ=route-succ-$TEST_ID
 route_fail=route-fail-$TEST_ID
 canary_1=canary-1-$TEST_ID
 canary_2=canary-2-$TEST_ID
-
+echo "Exported all the things"
 cleanup() {
     log "Cleaning up..."
     clean_resource_by_id $TEST_ID
@@ -53,7 +53,7 @@ success_scenario() {
     sleep 60
 
     log "Fire requests to the route"
-    ab -n 300 -c 1 http://$FISSION_ROUTER/$route_succ
+    p=$(ab -n 300 -c 1 http://$FISSION_ROUTER/$route_succ)
 
     sleep 60
 

@@ -51,7 +51,7 @@ get_archive_url_from_package() {
 
 get_archive_from_storage() {
     storage_service_url=$1
-    controller_ip=$(kubectl -n $FISSION_NAMESPACE get svc controller -o jsonpath='{...ip}')
+    controller_ip=$CONTROLLER_IP
     controller_proxy_url=`echo $storage_service_url | sed -e "s/storagesvc.$FISSION_NAMESPACE/$controller_ip\/proxy\/storage/"`
     log "controller_proxy_url=$controller_proxy_url"
     http_status=`curl --retry 5 -sw "%{http_code}" $controller_proxy_url -o /dev/null`
@@ -109,7 +109,7 @@ main() {
 
     # archivePruner is set to run every minute for test. In production, its set to run every hour.
     log "waiting for packages to get recycled"
-    sleep 120
+    sleep 300
 
     # curl on the archive url
     get_archive_from_storage $url_1

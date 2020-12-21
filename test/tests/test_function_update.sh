@@ -53,7 +53,6 @@ echo $response | grep -i foo
 # function to emulate real online traffic. The router
 # should be able to update cache under this situation.
 ( watch -n1 curl http://$FISSION_ROUTER/$fn ) > /dev/null 2>&1 &
-pid=$!
 
 log "Updating function"
 echo 'module.exports = function(context, callback) { callback(200, "bar!\n"); }' > $tmp_dir/bar.js
@@ -67,7 +66,5 @@ response=$(curl http://$FISSION_ROUTER/$fn)
 
 log "Checking for valid response again"
 echo $response | grep -i bar
-
-kill -15 $pid
 
 log "All done."

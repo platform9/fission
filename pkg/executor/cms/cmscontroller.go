@@ -34,6 +34,7 @@ import (
 )
 
 type (
+	// ConfigSecretController represents a controller for configmaps and secrets
 	ConfigSecretController struct {
 		logger *zap.Logger
 

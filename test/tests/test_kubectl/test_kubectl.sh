@@ -26,9 +26,6 @@ fi
 name="go-spec-kubectl"
 pkgName="go-b4bbb0e0-2d93-47f0-8c4e-eea644eec2a9"
 
-# cleanup first
-cleanup
-
 # apply environment & function
 kubectl apply -f spec-yaml -R
 
@@ -46,5 +43,7 @@ kubectl replace -f spec-yaml/function-go.yaml
 timeout 90 bash -c "waitBuild $pkgName"
 
 fission fn test --name $name
+
+cleanup
 
 log "Test PASSED"

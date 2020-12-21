@@ -16,7 +16,40 @@ source $(dirname $BASH_SOURCE)/init_tools.sh
 ROOT=$(readlink -f $(dirname $0)/..)
 LOG_DIR=${LOG_DIR:-$ROOT/test/logs}
 JOBS=${JOBS:-1}
-TIMEOUT=${TIMEOUT:-0}
+
+export FUNCTION_NAMESPACE=fission-function
+export FISSION_NAMESPACE=fission
+export FISSION_ROUTER=127.0.0.1:8888
+export NODE_RUNTIME_IMAGE=fission/node-env-12.16:1.11.0
+export NODE_BUILDER_IMAGE=fission/node-builder-12.16:1.11.0
+export PYTHON_RUNTIME_IMAGE=fission/python-env
+export PYTHON_BUILDER_IMAGE=fission/python-builder
+export GO_RUNTIME_IMAGE=fission/go-env-1.12
+export GO_BUILDER_IMAGE=fission/go-builder-1.12 
+export JVM_RUNTIME_IMAGE=fission/jvm-env
+export JVM_BUILDER_IMAGE=fission/jvm-builder
+export JVM_JERSEY_RUNTIME_IMAGE=fission/jvm-jersey-env
+export JVM_JERSEY_BUILDER_IMAGE=fission/jvm-jersey-builder
+export TS_RUNTIME_IMAGE=fission/tensorflow-serving-env
+export CONTROLLER_IP=127.0.0.1:8889
+export FISSION_NATS_STREAMING_URL=http://defaultFissionAuthToken@127.0.0.1:8890
+
+echo "Pulling env and builder images"
+docker pull $NODE_RUNTIME_IMAGE && kind load docker-image $NODE_RUNTIME_IMAGE --name kind
+docker pull $NODE_BUILDER_IMAGE && kind load docker-image $NODE_BUILDER_IMAGE --name kind
+docker system prune -a -f
+docker pull $PYTHON_RUNTIME_IMAGE && kind load docker-image $PYTHON_RUNTIME_IMAGE --name kind
+docker pull $PYTHON_BUILDER_IMAGE && kind load docker-image $PYTHON_BUILDER_IMAGE --name kind
+docker pull $JVM_RUNTIME_IMAGE && kind load docker-image $JVM_RUNTIME_IMAGE --name kind
+docker pull $JVM_BUILDER_IMAGE && kind load docker-image $JVM_BUILDER_IMAGE --name kind
+docker system prune -a -f
+docker pull $JVM_JERSEY_RUNTIME_IMAGE && kind load docker-image $JVM_JERSEY_RUNTIME_IMAGE --name kind
+docker pull $JVM_JERSEY_BUILDER_IMAGE && kind load docker-image $JVM_JERSEY_BUILDER_IMAGE --name kind
+docker pull $GO_RUNTIME_IMAGE && kind load docker-image $GO_RUNTIME_IMAGE --name kind
+docker pull $GO_BUILDER_IMAGE && kind load docker-image $GO_BUILDER_IMAGE --name kind
+docker system prune -a -f
+docker pull $TS_RUNTIME_IMAGE && kind load docker-image $TS_RUNTIME_IMAGE --name kind
+echo "Successfully pull env and builder images"
 
 main() {
     if [ $# -eq 0 ]; then
@@ -24,7 +57,6 @@ main() {
     else
         args="$@"
     fi
-
     num_skip=0
     mkdir -p $LOG_DIR
     test_files=""
@@ -54,7 +86,9 @@ main() {
     done
 
     start_time=$(date +%s)
+    
     parallel \
+        --retries 8 \
         --joblog - \
         --jobs $JOBS \
         --timeout $TIMEOUT \
@@ -72,7 +106,8 @@ main() {
     time=$((end_time - start_time))
     echo ============================================================
     echo "PASS: $num_pass    FAIL: $num_fail    SKIP: $num_skip    TIME: ${time}s"
-    return $num_fail
+    FAILURES=$((FAILURES+$num_fail))
 }
 
+docker system prune -a -f
 main "$@"
