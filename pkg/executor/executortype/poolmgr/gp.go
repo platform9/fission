@@ -49,6 +49,7 @@ import (
 )
 
 type (
+	// GenericPool represents a generic environment pool
 	GenericPool struct {
 		logger                   *zap.Logger
 		env                      *fv1.Environment
@@ -60,19 +61,20 @@ type (
 		fsCache                  *fscache.FunctionServiceCache // cache funcSvc's by function, address and podname
 		useSvc                   bool                          // create k8s service for specialized pods
 		useIstio                 bool
-		poolInstanceId           string           // small random string to uniquify pod names
 		runtimeImagePullPolicy   apiv1.PullPolicy // pull policy for generic pool to created env deployment
 		kubernetesClient         *kubernetes.Clientset
 		fissionClient            *crd.FissionClient
-		instanceId               string // poolmgr instance id
 		fetcherConfig            *fetcherConfig.Config
 		stopReadyPodControllerCh chan struct{}
 		readyPodController       cache.Controller
 		readyPodIndexer          cache.Indexer
 		readyPodQueue            workqueue.RateLimitingInterface
+		poolInstanceID           string // small random string to uniquify pod names
+		instanceID               string // poolmgr instance id
 	}
 )
 
+// MakeGenericPool returns an instance of GenericPool
 func MakeGenericPool(
 	logger *zap.Logger,
 	fissionClient *crd.FissionClient,
@@ -83,7 +85,7 @@ func MakeGenericPool(
 	functionNamespace string,
 	fsCache *fscache.FunctionServiceCache,
 	fetcherConfig *fetcherConfig.Config,
-	instanceId string,
+	instanceID string,
 	enableIstio bool) (*GenericPool, error) {
 
 	gpLogger := logger.Named("generic_pool")
@@ -112,12 +114,12 @@ func MakeGenericPool(
 		functionNamespace:        functionNamespace,
 		podReadyTimeout:          podReadyTimeout,
 		fsCache:                  fsCache,
-		poolInstanceId:           uniuri.NewLen(8),
 		fetcherConfig:            fetcherConfig,
-		instanceId:               instanceId,
 		useSvc:                   false,       // defaults off -- svc takes a second or more to become routable, slowing cold start
 		useIstio:                 enableIstio, // defaults off -- istio integration requires pod relabeling and it takes a second or more to become routable, slowing cold start
 		stopReadyPodControllerCh: make(chan struct{}),
+		poolInstanceID:           uniuri.NewLen(8),
+		instanceID:               instanceID,
 	}
 
 	gp.runtimeImagePullPolicy = utils.GetImagePullPolicy(os.Getenv("RUNTIME_IMAGE_PULL_POLICY"))
@@ -155,7 +157,7 @@ func (gp *GenericPool) getEnvironmentPoolLabels() map[string]string {
 
 func (gp *GenericPool) getDeployAnnotations() map[string]string {
 	return map[string]string{
-		fv1.EXECUTOR_INSTANCEID_LABEL: gp.instanceId,
+		fv1.EXECUTOR_INSTANCEID_LABEL: gp.instanceID,
 	}
 }
 
@@ -261,35 +263,43 @@ func (gp *GenericPool) scheduleDeletePod(name string) {
 		// cleaned up.  (We need a better solutions for both those things; log
 		// aggregation and storage will help.)
 		gp.logger.Error("error in pod - scheduling cleanup", zap.String("pod", name))
-		gp.kubernetesClient.CoreV1().Pods(gp.namespace).Delete(name, nil)
+		err := gp.kubernetesClient.CoreV1().Pods(gp.namespace).Delete(name, nil)
+		if err != nil {
+			gp.logger.Error(
+				"error deleting pod",
+				zap.String("name", name),
+				zap.String("namespace", gp.namespace),
+				zap.Error(err),
+			)
+		}
 	}()
 }
 
+// IsIPv6 validates if the podIP follows to IPv6 protocol
 func IsIPv6(podIP string) bool {
 	ip := net.ParseIP(podIP)
 	return ip != nil && strings.Contains(podIP, ":")
 }
 
-func (gp *GenericPool) getFetcherUrl(podIP string) string {
-	testUrl := os.Getenv("TEST_FETCHER_URL")
-	if len(testUrl) != 0 {
+func (gp *GenericPool) getFetcherURL(podIP string) string {
+	testURL := os.Getenv("TEST_FETCHER_URL")
+	if len(testURL) != 0 {
 		// it takes a second or so for the test service to
 		// become routable once a pod is relabeled. This is
 		// super hacky, but only runs in unit tests.
 		time.Sleep(5 * time.Second)
-		return testUrl
+		return testURL
 	}
+
 	isv6 := IsIPv6(podIP)
-	var baseUrl string
+	var baseURL string
 
 	if isv6 { // We use bracket if the IP is in IPv6.
-		baseUrl = fmt.Sprintf("http://[%v]:8000/", podIP)
+		baseURL = fmt.Sprintf("http://[%v]:8000/", podIP)
 	} else {
-		baseUrl = fmt.Sprintf("http://%v:8000/", podIP)
+		baseURL = fmt.Sprintf("http://%v:8000/", podIP)
 	}
-
-	return baseUrl
-
+	return baseURL
 }
 
 // specializePod chooses a pod, copies the required user-defined function to that pod
@@ -308,8 +318,8 @@ func (gp *GenericPool) specializePod(ctx context.Context, pod *apiv1.Pod, fn *fv
 	}
 
 	// tell fetcher to get the function.
-	fetcherUrl := gp.getFetcherUrl(podIP)
-	gp.logger.Info("calling fetcher to copy function", zap.String("function", fn.ObjectMeta.Name), zap.String("url", fetcherUrl))
+	fetcherURL := gp.getFetcherURL(podIP)
+	gp.logger.Info("calling fetcher to copy function", zap.String("function", fn.ObjectMeta.Name), zap.String("url", fetcherURL))
 
 	specializeReq := gp.fetcherConfig.NewSpecializeRequest(fn, gp.env)
 
@@ -317,7 +327,7 @@ func (gp *GenericPool) specializePod(ctx context.Context, pod *apiv1.Pod, fn *fv
 
 	// Fetcher will download user function to share volume of pod, and
 	// invoke environment specialize api for pod specialization.
-	err := fetcherClient.MakeClient(gp.logger, fetcherUrl).Specialize(ctx, &specializeReq)
+	err := fetcherClient.MakeClient(gp.logger, fetcherURL).Specialize(ctx, &specializeReq)
 	if err != nil {
 		return err
 	}
@@ -452,8 +462,8 @@ func (gp *GenericPool) createPool() error {
 
 	depl, err := gp.kubernetesClient.AppsV1().Deployments(gp.namespace).Get(deployment.Name, metav1.GetOptions{})
 	if err == nil {
-		if depl.Annotations[fv1.EXECUTOR_INSTANCEID_LABEL] != gp.instanceId {
-			deployment.Annotations[fv1.EXECUTOR_INSTANCEID_LABEL] = gp.instanceId
+		if depl.Annotations[fv1.EXECUTOR_INSTANCEID_LABEL] != gp.instanceID {
+			deployment.Annotations[fv1.EXECUTOR_INSTANCEID_LABEL] = gp.instanceID
 			// Update with the latest deployment spec. Kubernetes will trigger
 			// rolling update if spec is different from the one in the cluster.
 			depl, err = gp.kubernetesClient.AppsV1().Deployments(gp.namespace).Update(deployment)
@@ -538,7 +548,7 @@ func (gp *GenericPool) getFuncSvc(ctx context.Context, fn *fv1.Function) (*fscac
 		// Remove old versions function pods
 		for _, pod := range podList.Items {
 			// Delete pod no matter what status it is
-			gp.kubernetesClient.CoreV1().Pods(gp.namespace).Delete(pod.ObjectMeta.Name, nil)
+			gp.kubernetesClient.CoreV1().Pods(gp.namespace).Delete(pod.ObjectMeta.Name, nil) //nolint errcheck
 		}
 	}
 

@@ -10,7 +10,7 @@ log() {
 export -f log
 
 generate_test_id() {
-    echo $(cat /dev/urandom | tr -dc 'a-z' | fold -w 8 | head -n 1)
+    echo $(((10000 + $RANDOM) % 99999))
 }
 
 clean_resource_by_id() {
@@ -72,8 +72,11 @@ test_response() {
     set +e
     while true; do
         log "test_fn: call curl"
+        echo $(curl "$url")
         resp=$(curl --silent --show-error "$url")
+        # log "response:" $resp
         status_code=$?
+        log "status_code:" $status_code
         if [ $status_code -ne 0 ]; then
             log "test_fn: curl failed ($status_code). Retrying ..."
             sleep 1
@@ -138,7 +141,7 @@ export -f wait_for_builder
 
 waitBuild() {
     log "Waiting for builder manager to finish the build"
-
+    echo "Waiting for builder manager"
     set +e
     while true; do
       kubectl --namespace default get packages $1 -o jsonpath='{.status.buildstatus}'|grep succeeded
@@ -152,6 +155,7 @@ waitBuild() {
 export -f waitBuild
 
 waitBuildExpectedStatus() {
+    echo "In wait expected status"
     pkg=$1
     status=$2
 
@@ -168,27 +172,4 @@ waitBuildExpectedStatus() {
     set -e
 }
 export -f waitBuildExpectedStatus
-
-
-## Common env parameters
-export FISSION_NAMESPACE=${FISSION_NAMESPACE:-fission}
-export FUNCTION_NAMESPACE=${FUNCTION_NAMESPACE:-fission-function}
-
-router=$(kubectl -n $FISSION_NAMESPACE get svc router -o jsonpath='{...ip}')
-
-export FISSION_ROUTER=${FISSION_ROUTER:-$router}
-export FISSION_NATS_STREAMING_URL="http://defaultFissionAuthToken@$(kubectl -n $FISSION_NAMESPACE get svc nats-streaming -o jsonpath='{...ip}:{.spec.ports[0].port}')"
-
-## Parameters used by some specific test cases
-## To change the environment image setting for CI test, please refer run_all_tests() in test_utils.sh.
-export PYTHON_RUNTIME_IMAGE=${PYTHON_RUNTIME_IMAGE:-fission/python-env}
-export PYTHON_BUILDER_IMAGE=${PYTHON_BUILDER_IMAGE:-fission/python-builder}
-export GO_RUNTIME_IMAGE=${GO_RUNTIME_IMAGE:-fission/go-env-1.12}
-export GO_BUILDER_IMAGE=${GO_BUILDER_IMAGE:-fission/go-builder-1.12}
-export JVM_RUNTIME_IMAGE=${JVM_RUNTIME_IMAGE:-fission/jvm-env}
-export JVM_JERSEY_RUNTIME_IMAGE=${JVM_JERSEY_RUNTIME_IMAGE:-fission/jvm-jersey-env}
-export JVM_BUILDER_IMAGE=${JVM_BUILDER_IMAGE:-fission/jvm-builder}
-export NODE_RUNTIME_IMAGE=${NODE_RUNTIME_IMAGE:-fission/node-env}
-export NODE_BUILDER_IMAGE=${NODE_BUILDER_IMAGE:-fission/node-env-builder}
-export TS_RUNTIME_IMAGE=${TS_RUNTIME_IMAGE:-fission/tensorflow-serving-env}
 

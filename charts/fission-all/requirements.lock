@@ -1,6 +1,6 @@
 dependencies:
 - name: prometheus
-  repository: https://kubernetes-charts.storage.googleapis.com
+  repository: https://charts.helm.sh/stable
   version: 9.3.1
-digest: sha256:30650503ee29eef57a3a0e8459c2a5cbbd20f29db2da559c6c6f980da44bcec4
-generated: "2020-05-10T23:45:06.461989+05:30"
+digest: sha256:28719be0cec390c81148faf347b873996478a68e5d6614ecef709abdd9abeb6e
+generated: "2020-12-17T13:04:21.126528187+05:30"

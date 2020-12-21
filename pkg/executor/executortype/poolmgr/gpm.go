@@ -66,7 +66,7 @@ type (
 		fissionClient  *crd.FissionClient
 		functionEnv    *cache.Cache
 		fsCache        *fscache.FunctionServiceCache
-		instanceId     string
+		instanceID     string
 		requestChannel chan *request
 
 		enableIstio   bool
@@ -97,7 +97,7 @@ func MakeGenericPoolManager(
 	kubernetesClient *kubernetes.Clientset,
 	functionNamespace string,
 	fetcherConfig *fetcherConfig.Config,
-	instanceId string) executortype.ExecutorType {
+	instanceID string) executortype.ExecutorType {
 
 	gpmLogger := logger.Named("generic_pool_manager")
 
@@ -109,7 +109,7 @@ func MakeGenericPoolManager(
 		fissionClient:          fissionClient,
 		functionEnv:            cache.MakeCache(10*time.Second, 0),
 		fsCache:                fscache.MakeFunctionServiceCache(gpmLogger),
-		instanceId:             instanceId,
+		instanceID:             instanceID,
 		requestChannel:         make(chan *request),
 		defaultIdlePodReapTime: 2 * time.Minute,
 		fetcherConfig:          fetcherConfig,
@@ -312,7 +312,7 @@ func (gpm *GenericPoolManager) AdoptExistingResources() {
 			// avoid too many requests arrive Kubernetes API server at the same time.
 			time.Sleep(time.Duration(rand.Intn(30)) * time.Millisecond)
 
-			patch := fmt.Sprintf(`{"metadata":{"annotations":{"%v":"%v"}}}`, fv1.EXECUTOR_INSTANCEID_LABEL, gpm.instanceId)
+			patch := fmt.Sprintf(`{"metadata":{"annotations":{"%v":"%v"}}}`, fv1.EXECUTOR_INSTANCEID_LABEL, gpm.instanceID)
 			pod, err = gpm.kubernetesClient.CoreV1().Pods(pod.Namespace).Patch(pod.Name, k8sTypes.StrategicMergePatchType, []byte(patch))
 			if err != nil {
 				// just log the error since it won't affect the function serving
@@ -387,19 +387,19 @@ func (gpm *GenericPoolManager) AdoptExistingResources() {
 }
 
 func (gpm *GenericPoolManager) CleanupOldExecutorObjects() {
-	gpm.logger.Info("Poolmanager starts to clean orphaned resources", zap.String("instanceID", gpm.instanceId))
+	gpm.logger.Info("Poolmanager starts to clean orphaned resources", zap.String("instanceID", gpm.instanceID))
 
 	errs := &multierror.Error{}
 	listOpts := metav1.ListOptions{
 		LabelSelector: labels.Set(map[string]string{fv1.EXECUTOR_TYPE: string(fv1.ExecutorTypePoolmgr)}).AsSelector().String(),
 	}
 
-	err := reaper.CleanupDeployments(gpm.logger, gpm.kubernetesClient, gpm.instanceId, listOpts)
+	err := reaper.CleanupDeployments(gpm.logger, gpm.kubernetesClient, gpm.instanceID, listOpts)
 	if err != nil {
 		errs = multierror.Append(errs, err)
 	}
 
-	err = reaper.CleanupPods(gpm.logger, gpm.kubernetesClient, gpm.instanceId, listOpts)
+	err = reaper.CleanupPods(gpm.logger, gpm.kubernetesClient, gpm.instanceID, listOpts)
 	if err != nil {
 		errs = multierror.Append(errs, err)
 	}
@@ -434,7 +434,7 @@ func (gpm *GenericPoolManager) service() {
 
 				pool, err = MakeGenericPool(gpm.logger,
 					gpm.fissionClient, gpm.kubernetesClient, req.env, poolsize,
-					ns, gpm.namespace, gpm.fsCache, gpm.fetcherConfig, gpm.instanceId, gpm.enableIstio)
+					ns, gpm.namespace, gpm.fsCache, gpm.fetcherConfig, gpm.instanceID, gpm.enableIstio)
 				if err != nil {
 					req.responseChannel <- &response{error: err}
 					continue
@@ -456,7 +456,7 @@ func (gpm *GenericPoolManager) service() {
 					delete(gpm.pools, key)
 
 					// and delete the pool asynchronously.
-					go pool.destroy()
+					go pool.destroy() //nolint errcheck
 				}
 			}
 			// no response, caller doesn't wait
@@ -501,8 +501,14 @@ func (gpm *GenericPoolManager) getFunctionEnv(fn *fv1.Function) (*fv1.Environmen
 
 	// cache for future lookups
 	m := fn.ObjectMeta
-	gpm.functionEnv.Set(crd.CacheKey(&m), env)
-
+	_, err = gpm.functionEnv.Set(crd.CacheKey(&m), env)
+	if err != nil {
+		gpm.logger.Error(
+			"failed to set the key",
+			zap.String("function", fn.Name),
+			zap.Error(err),
+		)
+	}
 	return env, nil
 }
 

@@ -29,9 +29,9 @@ deploy:
   helm:
     flags:
       upgrade:
-        ["--timeout=3m", "--install", "--force", "--debug"]
+        ["--timeout=3m", "--install","--dependency-update", "--force", "--debug"]
       install:
-        ["--timeout=3m","--debug"]
+        ["--timeout=3m","--debug","--dependency-update"]
     releases:
       - name: fission
         chartPath: ./charts/fission-all
@@ -46,6 +46,7 @@ deploy:
           namespace: fission
           repository: "index.docker.io"
           routerServiceType: LoadBalancer
+          pruneInterval: 60
           fetcher.imageTag: ""
           imageTag: ""
           prometheus.enabled: false
@@ -65,3 +66,17 @@ profiles:
       - op: replace
         path: /deploy/helm/releases/0/setValues/routerServiceType
         value: "NodePort"
+  - name: kind-ci
+    patches:
+    - op: replace
+      path: /deploy/helm/releases/0/setValues/repository
+      value: ""
+    - op: replace
+      path: /deploy/helm/releases/0/setValues/pruneInterval
+      value: 1
+    - op: replace
+      path: /deploy/helm/releases/0/setValues/routerServiceType
+      value: "NodePort"
+    - op: replace
+      path: /deploy/helm/releases/0/setValues/prometheus.enabled
+      value: true

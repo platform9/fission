@@ -1,4 +1,7 @@
 #!/bin/bash
+#test:disabled 
+# this test is disabled only for Kind tests and for GKE/EKS tests should be enabled
+
 set -euo pipefail
 source $(dirname $0)/../utils.sh
 
@@ -103,7 +106,7 @@ log "Modifying the route by adding host, path, annotations, tls"
 fission route update --name $routeName --function $functionName --ingressannotation "foo=bar" --ingressrule "$hostName=/foo/bar" --ingresstls "dummy"
 
 sleep 3
-checkIngress $routeName $hostName "/foo/bar" "map[foo:bar]" "dummy"
+checkIngress $routeName $hostName "/foo/bar" '{"foo":"bar"}' "dummy"
 
 log "Remove ingress annotations, host, rule and tls"
 fission route update --name $routeName --function $functionName --ingressannotation "-" --ingressrule "-" --ingresstls "-"
@@ -127,7 +130,7 @@ fission route create --name $routeName --url $relativeUrl --function $functionNa
     --ingressrule "*=$wildcardPath"
 
 sleep 3
-checkIngress $routeName "" $wildcardPath "map[nginx.ingress.kubernetes.io/ssl-redirect:false nginx.ingress.kubernetes.io/use-regex:true]" ""
+checkIngress $routeName "" $wildcardPath '{"nginx.ingress.kubernetes.io/ssl-redirect":"false","nginx.ingress.kubernetes.io/use-regex":"true"}' ""
 timeout 10 bash -c "test_ingress $realPath 'hello, world!'"
 
 log "Test PASSED"

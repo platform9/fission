@@ -1,0 +1,82 @@
+
+name: Fission CI 
+
+on: 
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  # Job to run change detection
+  integration-test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout sources
+      uses: actions/checkout@v2
+
+    - name: setup go
+      uses: actions/setup-go@v2
+      with:
+        go-version: '1.12.17' 
+
+    - name: Helm installation
+      uses: Azure/setup-helm@v1
+      with:
+        version: v3.3.4
+      
+    - name: Kind Clutser
+      uses: engineerd/setup-kind@v0.5.0
+      with:
+        config: kind.yaml
+      
+    - name: Configuring and testing the Installation      
+      run: |
+        kubectl cluster-info --context kind-kind
+        kind get kubeconfig --internal >$HOME/.kube/config
+        kubectl get nodes
+        sudo apt-get install -y apache2-utils
+    
+    - name: Static code analysis
+      run: |
+        ./hack/verify-gofmt.sh
+        ./hack/verify-govet.sh
+        helm lint charts/fission-all/ charts/fission-core/
+    
+    - name: Run unit tests
+      run: ./hack/runtests.sh
+    
+    - name: Helm update
+      run: helm repo add helm https://charts.helm.sh/stable 
+      
+    - name: Install Skaffold 
+      run: |
+        curl -Lo skaffold https://storage.googleapis.com/skaffold/releases/latest/skaffold-linux-amd64
+        sudo install skaffold /usr/local/bin/
+        skaffold version
+    
+    - name: Build and Install Fission
+      run: |
+        kubectl create ns fission
+        skaffold run -p kind-ci
+    
+    - name: Build and Install Fission CLI
+      run: |
+        go build -o fission cmd/fission-cli/main.go
+        sudo mv fission /usr/local/bin
+        fission version
+    
+    # - name: Skip & install fission
+    #   run: kubectl create ns fission && helm install --namespace fission --name-template fission https://github.com/fission/fission/releases/download/1.11.2/fission-all-1.11.2.tgz --set pruneInterval=1
+
+    # - name: Skip & install cli
+    #   run: curl -Lo fission https://github.com/fission/fission/releases/download/1.11.2/fission-cli-linux && chmod +x fission && sudo mv fission /usr/local/bin/
+
+    - name: Port-forward fission components
+      run: |
+        kubectl port-forward svc/router 8888:80 -nfission &
+        kubectl port-forward svc/controller 8889:80 -nfission &
+        kubectl port-forward svc/nats-streaming 8890:4222 -nfission &
+
+    - name: Integration tests
+      run: ./test/kind_CI.sh

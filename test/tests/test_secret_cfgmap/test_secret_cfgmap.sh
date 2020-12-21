@@ -71,6 +71,9 @@ fission route create --function ${fn_secret} --url /${fn_secret} --method GET
 log "Waiting for router to catch up"
 sleep 5
 
+fission fn list
+kubectl get secrets --all-namespaces
+kubectl get configmaps --all-namespaces
 timeout 60 bash -c "checkFunctionResponse ${fn_secret} 'TESTVALUE' 'secret'"
 
 log "Creating second secret"

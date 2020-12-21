@@ -210,7 +210,7 @@ set_environment() {
 }
 
 generate_test_id() {
-    echo $(cat /dev/urandom | tr -dc 'a-z' | fold -w 6 | head -n 1)
+    echo $(((10000 + $RANDOM) % 99999))
 }
 
 helm_install_fission() {
@@ -618,7 +618,7 @@ install_and_test() {
         # Commented out due to Travis-CI log length limit
         # describe each pod in fission ns and function namespace
         # describe_all_pods $id
-	      exit 1
+	    exit 1
     fi
 }
 
