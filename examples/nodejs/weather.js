@@ -1,11 +1,9 @@
 'use strict';
 
-const rp = require('request-promise-native');
+const fetch = require('node-fetch');
 
-module.exports = async function (context) {
-    const stringBody = JSON.stringify(context.request.body);
-    const body = JSON.parse(stringBody);
-    const location = body.location;
+module.exports = async (context) => {
+    const location = ctx.request.body.location;
 
     if (!location) {
         return {
@@ -17,14 +15,13 @@ module.exports = async function (context) {
     }
 
     try {
-        const response = await rp(`https://query.yahooapis.com/v1/public/yql?q=select item.condition from weather.forecast where woeid in (select woeid from geo.places(1) where text="${location}") and u="c"&format=json`);
-        const condition = JSON.parse(response).query.results.channel.item.condition;
-        const text = condition.text;
-        const temperature = condition.temp;
+        const locationSearch = await fetch(`https://www.metaweather.com/api/location/search/?query=${encodeURIComponent(location)}`).then(res => JSON.parse(res));
+        const weatherResponse = await fetch(`https://www.metaweather.com/api/location/(${locationSearch[0].woeid}/`).then(res => JSON.parse(res));
+        const weather = weatherResponse.consolidatedWeather[0]
         return {
             status: 200,
             body: {
-                text: `It is ${temperature} celsius degrees in ${location} and ${text}`
+                text: `It is ${weather.the_temp} celsius degrees in ${location} and ${weather.weather_state_name}`
             },
             headers: {
                 'Content-Type': 'application/json'
