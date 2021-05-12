@@ -17,6 +17,7 @@ limitations under the License.
 package v1
 
 import (
+	asv2beta2 "k8s.io/api/autoscaling/v2beta2"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -409,6 +410,9 @@ type (
 
 		// This is the timeout setting for executor to wait for pod specialization.
 		SpecializationTimeout int
+
+		// Only for newdeploy to provide custom metrics support added in autoscaling/v2beta2
+		CustomMetrics []asv2beta2.MetricSpec
 	}
 
 	FunctionReferenceType string

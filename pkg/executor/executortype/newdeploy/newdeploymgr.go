@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -585,7 +586,8 @@ func (deploy *NewDeploy) updateFunction(oldFn *fv1.Function, newFn *fv1.Function
 
 	deployChanged := false
 
-	if oldFn.Spec.InvokeStrategy != newFn.Spec.InvokeStrategy {
+	// TODO : Replace with custom equal function if required
+	if !reflect.DeepEqual(oldFn.Spec.InvokeStrategy, newFn.Spec.InvokeStrategy) {
 
 		// to support backward compatibility, if the function was created in default ns, we fall back to creating the
 		// deployment of the function in fission-function ns, so cleaning up resources there
@@ -619,11 +621,12 @@ func (deploy *NewDeploy) updateFunction(oldFn *fv1.Function, newFn *fv1.Function
 			hpaChanged = true
 		}
 
-		if newFn.Spec.InvokeStrategy.ExecutionStrategy.TargetCPUPercent != oldFn.Spec.InvokeStrategy.ExecutionStrategy.TargetCPUPercent {
-			targetCpupercent := int32(newFn.Spec.InvokeStrategy.ExecutionStrategy.TargetCPUPercent)
-			hpa.Spec.TargetCPUUtilizationPercentage = &targetCpupercent
-			hpaChanged = true
-		}
+		// TODO : Not needed, TargetCPU handled using custom metrics now. Add checks for custom metrics.
+		// if newFn.Spec.InvokeStrategy.ExecutionStrategy.TargetCPUPercent != oldFn.Spec.InvokeStrategy.ExecutionStrategy.TargetCPUPercent {
+		// 	targetCpupercent := int32(newFn.Spec.InvokeStrategy.ExecutionStrategy.TargetCPUPercent)
+		// 	hpa.Spec.TargetCPUUtilizationPercentage = &targetCpupercent
+		// 	hpaChanged = true
+		// }
 
 		if hpaChanged {
 			err := deploy.updateHpa(hpa)

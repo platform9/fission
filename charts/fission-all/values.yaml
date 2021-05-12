@@ -270,8 +270,10 @@ analytics: true
 ## Internally used for generating an analytics job for non-helm installs
 analyticsNonHelmInstall: false
 
-## Enable Heapster only in clusters where heapster does not exist already
-heapster: false
+# ## Enable Heapster only in clusters where heapster does not exist already
+# heapster: false
+## Enable metrics-server only in clusters where metrics-server does not exist already
+metricsServer: false
 
 ## Enable InfluxDB
 influxdb:

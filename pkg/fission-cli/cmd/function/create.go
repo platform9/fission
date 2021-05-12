@@ -428,6 +428,7 @@ func getExecutionStrategy(input cli.Input) (strategy *fv1.ExecutionStrategy, err
 			SpecializationTimeout: specializationTimeout,
 		}
 	} else {
+		// TODO: Check if this is required and update handling to custom metrics server. If target CPU utilisation is defined in the custom metrics, it will override this.
 		targetCPU := DEFAULT_TARGET_CPU_PERCENTAGE
 		if input.IsSet(flagkey.RuntimeTargetcpu) {
 			targetCPU, err = getTargetCPU(input)

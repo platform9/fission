@@ -25,7 +25,7 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	appsv1 "k8s.io/api/apps/v1"
-	asv1 "k8s.io/api/autoscaling/v1"
+	asv2beta2 "k8s.io/api/autoscaling/v2beta2"
 	apiv1 "k8s.io/api/core/v1"
 	k8s_err "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -364,8 +364,21 @@ func (deploy *NewDeploy) getResources(env *fv1.Environment, fn *fv1.Function) ap
 	return resources
 }
 
+func convertTargetCPUToCustomMetric(targetCPUVal int32) asv2beta2.MetricSpec {
+	return asv2beta2.MetricSpec{
+		Type: "Resource",
+		Resource: &asv2beta2.ResourceMetricSource{
+			Name: "cpu",
+			Target: asv2beta2.MetricTarget{
+				Type:               "Utilization",
+				AverageUtilization: &targetCPUVal,
+			},
+		},
+	}
+}
+
 func (deploy *NewDeploy) createOrGetHpa(hpaName string, execStrategy *fv1.ExecutionStrategy,
-	depl *appsv1.Deployment, deployLabels map[string]string, deployAnnotations map[string]string) (*asv1.HorizontalPodAutoscaler, error) {
+	depl *appsv1.Deployment, deployLabels map[string]string, deployAnnotations map[string]string) (*asv2beta2.HorizontalPodAutoscaler, error) {
 
 	if depl == nil {
 		return nil, errors.New("failed to create HPA, found empty deployment")
@@ -379,34 +392,47 @@ func (deploy *NewDeploy) createOrGetHpa(hpaName string, execStrategy *fv1.Execut
 	if maxRepl == 0 {
 		maxRepl = minRepl
 	}
+	deploy.logger.Info("ExecutionStrategy to publish: ", zap.Any("execStr", execStrategy))
+	// TODO: Check if target CPU is from both, custom metric and TargetCPU field. Use CustomMetric one in that case.
+	var customMetrics []asv2beta2.MetricSpec
+	var passedFromCM bool = false
+	for _, cm := range execStrategy.CustomMetrics {
+		if cm.Type == "Resource" && cm.Resource.Name == "cpu" && cm.Resource.Target.Type == "Utilization" {
+			passedFromCM = true
+		}
+		customMetrics = append(customMetrics, cm)
+	}
 	targetCPU := int32(execStrategy.TargetCPUPercent)
-
-	hpa := &asv1.HorizontalPodAutoscaler{
+	if targetCPU != 0 && !passedFromCM {
+		targetCPUmetricSpec := convertTargetCPUToCustomMetric(targetCPU)
+		customMetrics = append(customMetrics, targetCPUmetricSpec)
+	}
+	deploy.logger.Info("CustomMetrics to publish: ", zap.Any("customMetric", customMetrics))
+	hpa := &asv2beta2.HorizontalPodAutoscaler{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        hpaName,
 			Labels:      deployLabels,
 			Annotations: deployAnnotations,
 		},
-		Spec: asv1.HorizontalPodAutoscalerSpec{
-			ScaleTargetRef: asv1.CrossVersionObjectReference{
+		Spec: asv2beta2.HorizontalPodAutoscalerSpec{
+			ScaleTargetRef: asv2beta2.CrossVersionObjectReference{
 				Kind:       DeploymentKind,
 				Name:       depl.ObjectMeta.Name,
 				APIVersion: DeploymentVersion,
 			},
-			MinReplicas:                    &minRepl,
-			MaxReplicas:                    maxRepl,
-			TargetCPUUtilizationPercentage: &targetCPU,
+			MinReplicas: &minRepl,
+			MaxReplicas: maxRepl,
+			Metrics:     customMetrics,
 		},
 	}
-
-	existingHpa, err := deploy.kubernetesClient.AutoscalingV1().HorizontalPodAutoscalers(depl.ObjectMeta.Namespace).Get(hpaName, metav1.GetOptions{})
+	existingHpa, err := deploy.kubernetesClient.AutoscalingV2beta2().HorizontalPodAutoscalers(depl.ObjectMeta.Namespace).Get(hpaName, metav1.GetOptions{})
 	if err == nil {
 		// to adopt orphan service
 		if existingHpa.Annotations[fv1.EXECUTOR_INSTANCEID_LABEL] != deploy.instanceID {
 			existingHpa.Annotations = hpa.Annotations
 			existingHpa.Labels = hpa.Labels
 			existingHpa.Spec = hpa.Spec
-			existingHpa, err = deploy.kubernetesClient.AutoscalingV1().HorizontalPodAutoscalers(depl.ObjectMeta.Namespace).Update(existingHpa)
+			existingHpa, err = deploy.kubernetesClient.AutoscalingV2beta2().HorizontalPodAutoscalers(depl.ObjectMeta.Namespace).Update(existingHpa)
 			if err != nil {
 				deploy.logger.Warn("error adopting HPA", zap.Error(err),
 					zap.String("HPA", hpaName), zap.String("ns", depl.ObjectMeta.Namespace))
@@ -415,10 +441,10 @@ func (deploy *NewDeploy) createOrGetHpa(hpaName string, execStrategy *fv1.Execut
 		}
 		return existingHpa, err
 	} else if k8s_err.IsNotFound(err) {
-		cHpa, err := deploy.kubernetesClient.AutoscalingV1().HorizontalPodAutoscalers(depl.ObjectMeta.Namespace).Create(hpa)
+		cHpa, err := deploy.kubernetesClient.AutoscalingV2beta2().HorizontalPodAutoscalers(depl.ObjectMeta.Namespace).Create(hpa)
 		if err != nil {
 			if k8s_err.IsAlreadyExists(err) {
-				cHpa, err = deploy.kubernetesClient.AutoscalingV1().HorizontalPodAutoscalers(depl.ObjectMeta.Namespace).Get(hpaName, metav1.GetOptions{})
+				cHpa, err = deploy.kubernetesClient.AutoscalingV2beta2().HorizontalPodAutoscalers(depl.ObjectMeta.Namespace).Get(hpaName, metav1.GetOptions{})
 			}
 			if err != nil {
 				return nil, err
@@ -429,17 +455,17 @@ func (deploy *NewDeploy) createOrGetHpa(hpaName string, execStrategy *fv1.Execut
 	return nil, err
 }
 
-func (deploy *NewDeploy) getHpa(ns, name string) (*asv1.HorizontalPodAutoscaler, error) {
-	return deploy.kubernetesClient.AutoscalingV1().HorizontalPodAutoscalers(ns).Get(name, metav1.GetOptions{})
+func (deploy *NewDeploy) getHpa(ns, name string) (*asv2beta2.HorizontalPodAutoscaler, error) {
+	return deploy.kubernetesClient.AutoscalingV2beta2().HorizontalPodAutoscalers(ns).Get(name, metav1.GetOptions{})
 }
 
-func (deploy *NewDeploy) updateHpa(hpa *asv1.HorizontalPodAutoscaler) error {
-	_, err := deploy.kubernetesClient.AutoscalingV1().HorizontalPodAutoscalers(hpa.ObjectMeta.Namespace).Update(hpa)
+func (deploy *NewDeploy) updateHpa(hpa *asv2beta2.HorizontalPodAutoscaler) error {
+	_, err := deploy.kubernetesClient.AutoscalingV2beta2().HorizontalPodAutoscalers(hpa.ObjectMeta.Namespace).Update(hpa)
 	return err
 }
 
 func (deploy *NewDeploy) deleteHpa(ns string, name string) error {
-	return deploy.kubernetesClient.AutoscalingV1().HorizontalPodAutoscalers(ns).Delete(name, &metav1.DeleteOptions{})
+	return deploy.kubernetesClient.AutoscalingV2beta2().HorizontalPodAutoscalers(ns).Delete(name, &metav1.DeleteOptions{})
 }
 
 func (deploy *NewDeploy) createOrGetSvc(deployLabels map[string]string, deployAnnotations map[string]string, svcName string, svcNamespace string) (*apiv1.Service, error) {

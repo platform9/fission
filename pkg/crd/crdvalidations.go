@@ -329,6 +329,10 @@ var (
 )
 
 var (
+	customMetricObjectSchema = apiextensionsv1beta1.JSONSchemaProps{
+		Type:                   "object",
+		XPreserveUnknownFields: boolPtr(true),
+	}
 	executionStrategySchema = map[string]apiextensionsv1beta1.JSONSchemaProps{
 		"ExecutorType": {
 			Type:        "string",
@@ -349,6 +353,13 @@ var (
 		"SpecializationTimeout": {
 			Type:        "integer",
 			Description: "Timeout setting for executor to wait for pod specialization.",
+		},
+		"CustomMetrics": {
+			Type: "array",
+			Items: &apiextensionsv1beta1.JSONSchemaPropsOrArray{
+				Schema: &customMetricObjectSchema,
+			},
+			Description: "(Optional) Metric Server Object. For more details: \nhttps://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#metricspec-v2beta1-autoscaling",
 		},
 	}
 	invokeStrategySchemaProps = map[string]apiextensionsv1beta1.JSONSchemaProps{

@@ -602,52 +602,60 @@ spec:
 {{ toYaml .Values.extraCoreComponentPodConfig | indent 6 -}}
 {{- end }}
 {{- end }}
-{{- if .Values.heapster }}
+{{- if .Values.metricsServer }}
 ---
 apiVersion: v1
-kind: Service
+kind: ServiceAccount
 metadata:
-  name: heapster
+  name: metrics-server
   namespace: kube-system
-  labels:
-    svc: heapster
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    kubernetes.io/cluster-service: 'true'
-    kubernetes.io/name: heapster
-spec:
-  type: ClusterIP 
-  ports:
-  - port: 80
-    targetPort: 8082
-  selector:
-    svc: heapster
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: heapster
+  name: metrics-server
   namespace: kube-system
   labels:
+    k8s-app: metrics-server
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    svc: heapster
 spec:
-  replicas: 1
   selector:
     matchLabels:
-      svc: heapster
+      k8s-app: metrics-server
   template:
     metadata:
+      name: metrics-server
       labels:
-        svc: heapster
+        k8s-app: metrics-server
     spec:
+      serviceAccountName: metrics-server
+      volumes:
+      # mount in tmp so we can safely use from-scratch images and/or read-only containers
+      - name: tmp-dir
+        emptyDir: {}
       containers:
-      - name: heapster
-        image: gcr.io/google_containers/heapster-amd64:v1.5.0
-        imagePullPolicy: {{ .Values.pullPolicy }}
-        command: 
-        - /heapster
-        - --source=kubernetes:https://kubernetes.default
-      serviceAccountName: {{ .Release.Namespace }}/fission-svc
+      - name: metrics-server
+        image: k8s.gcr.io/metrics-server/metrics-server:v0.3.7
+        command:
+          - /metrics-server
+          - --kubelet-insecure-tls
+        imagePullPolicy: IfNotPresent
+        args:
+          - --cert-dir=/tmp
+          - --secure-port=4443
+        ports:
+        - name: main-port
+          containerPort: 4443
+          protocol: TCP
+        securityContext:
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+        volumeMounts:
+        - name: tmp-dir
+          mountPath: /tmp
+      nodeSelector:
+        kubernetes.io/os: linux
 {{- end }}
 ---
 apiVersion: apps/v1
