@@ -18,162 +18,155 @@ package environment
 
 import (
 	"fmt"
-	"strconv"
-
-	"github.com/hashicorp/go-multierror"
-	"github.com/pkg/errors"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	fv1 "github.com/fission/fission/pkg/apis/core/v1"
-	"github.com/fission/fission/pkg/fission-cli/cliwrapper/cli"
 	"github.com/fission/fission/pkg/fission-cli/cmd"
 	flagkey "github.com/fission/fission/pkg/fission-cli/flag/key"
+	"github.com/fission/fission/pkg/fission-cli/util"
 	"github.com/fission/fission/pkg/utils"
+	"github.com/hashicorp/go-multierror"
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type UpdateSubCommand struct {
+type updateOptions struct {
+	Name            string
+	Image           string
+	PoolSize        int
+	BuilderImage    string
+	BuildCommand    string
+	ImagePullSecret string
+	MinCPU          int
+	MaxCPU          int
+	MinMemory       int
+	MaxMemory       int
+	GracePeriod     int64
+	KeepArchive     bool
+	Namespace       string
+	ExternalNetwork bool
+
 	cmd.CommandActioner
 	env *fv1.Environment
 }
 
-func Update(input cli.Input) error {
-	return (&UpdateSubCommand{}).do(input)
+func newUpdateOptions() *updateOptions {
+	return &updateOptions{}
 }
 
-func (opts *UpdateSubCommand) do(input cli.Input) error {
-	err := opts.complete(input)
-	if err != nil {
-		return err
+func newCmdupdate() *cobra.Command {
+	o := newUpdateOptions()
+
+	cmd := &cobra.Command{
+		Use:   "update",
+		Short: "Update an environment",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			err := o.comlete(cmd, args)
+			if err != nil {
+				return err
+			}
+			return o.run(cmd, args)
+		},
 	}
-	return opts.run(input)
+	// required options
+	cmd.Flags().StringVar(&o.Name, flagkey.EnvName, o.Name, "Environment name")
+	cmd.MarkFlagRequired(flagkey.EnvName)
+
+	// optional options
+	cmd.Flags().IntVar(&o.PoolSize, flagkey.EnvPoolsize, 3, "Size of the pool")
+	cmd.Flags().StringVar(&o.Image, flagkey.EnvImage, o.Image, "Environment image URL")
+	cmd.Flags().StringVar(&o.BuilderImage, flagkey.EnvBuilderImage, o.BuilderImage, "Environment builder image URL")
+	cmd.Flags().StringVar(&o.BuildCommand, flagkey.EnvBuildcommand, o.BuildCommand, "Build command for environment builder to build source package")
+	cmd.Flags().IntVar(&o.MinCPU, flagkey.RuntimeMincpu, o.MinCPU, "Minimum CPU to be assigned to pod (In millicore, minimum 1)")
+	cmd.Flags().IntVar(&o.MaxCPU, flagkey.RuntimeMaxcpu, o.MaxCPU, "Maximum CPU to be assigned to pod (In millicore, minimum 1)")
+	cmd.Flags().IntVar(&o.MinMemory, flagkey.RuntimeMinmemory, o.MinMemory, "Minimum memory to be assigned to pod (In megabyte)")
+	cmd.Flags().IntVar(&o.MaxMemory, flagkey.RuntimeMaxmemory, o.MaxMemory, "Maximum memory to be assigned to pod (In megabyte)")
+	cmd.Flags().Int64Var(&o.GracePeriod, flagkey.EnvGracePeriod, 360, "Grace time (in seconds) for pod to perform connection draining before termination (default value will be used if 0 is given)")
+
+	cmd.Flags().StringVar(&o.ImagePullSecret, flagkey.EnvImagePullSecret, o.ImagePullSecret, "Secret for Kubernetes to pull an image from a private registry")
+	cmd.Flags().BoolVar(&o.ExternalNetwork, flagkey.EnvExternalNetwork, o.ExternalNetwork, "Allow pod to access external network (only works when istio feature is enabled)")
+	cmd.Flags().BoolVar(&o.KeepArchive, flagkey.EnvKeeparchive, o.KeepArchive, "Keep the archive instead of extracting it into a directory (mainly for the JVM environment because .jar is one kind of zip archive)")
+	cmd.Flags().StringVar(&o.Namespace, flagkey.NamespaceEnvironment, metav1.NamespaceDefault, "Namespace for environment object")
+
+	flagAlias := util.NewFlagAlias()
+	flagAlias.Set(flagkey.NamespaceEnvironment, "envns")
+	flagAlias.Set(flagkey.EnvGracePeriod, "period")
+	flagAlias.ApplyToCmd(cmd)
+
+	cmd.Flags().SortFlags = false
+	return cmd
 }
 
-func (opts *UpdateSubCommand) complete(input cli.Input) error {
-	env, err := opts.Client().V1().Environment().Get(&metav1.ObjectMeta{
-		Name:      input.String(flagkey.EnvName),
-		Namespace: input.String(flagkey.NamespaceEnvironment),
+func (o *updateOptions) comlete(cmd *cobra.Command, args []string) error {
+	env, err := o.Client().V1().Environment().Get(&metav1.ObjectMeta{
+		Name:      o.Name,
+		Namespace: o.Namespace,
 	})
 	if err != nil {
 		return errors.Wrap(err, "error finding environment")
 	}
 
-	env, err = updateExistingEnvironmentWithCmd(env, input)
+	env, err = o.updateEnvironmentFromCmd(env, cmd)
 	if err != nil {
 		return err
 	}
 
-	opts.env = env
+	o.env = env
 	return nil
 }
 
-func (opts *UpdateSubCommand) run(input cli.Input) error {
-	_, err := opts.Client().V1().Environment().Update(opts.env)
+func (o *updateOptions) run(cmd *cobra.Command, args []string) error {
+	_, err := o.Client().V1().Environment().Update(o.env)
 	if err != nil {
 		return errors.Wrap(err, "error updating environment")
 	}
 
-	fmt.Printf("environment '%v' updated\n", opts.env.ObjectMeta.Name)
+	fmt.Printf("environment '%v' updated\n", o.env.ObjectMeta.Name)
 	return nil
 }
 
 // updateExistingEnvironmentWithCmd updates a existing environment's value based on CLI input.
-func updateExistingEnvironmentWithCmd(env *fv1.Environment, input cli.Input) (*fv1.Environment, error) {
+func (o *updateOptions) updateEnvironmentFromCmd(env *fv1.Environment, cmd *cobra.Command) (*fv1.Environment, error) {
 	e := utils.MultiErrorWithFormat()
 
-	if input.IsSet(flagkey.EnvImage) {
-		env.Spec.Runtime.Image = input.String(flagkey.EnvImage)
+	if cmd.Flag(flagkey.EnvImage).Changed {
+		env.Spec.Runtime.Image = o.Image
 	}
 
-	if input.IsSet(flagkey.EnvBuilderImage) {
-		env.Spec.Builder.Image = input.String(flagkey.EnvBuilderImage)
+	if cmd.Flag(flagkey.EnvBuilderImage).Changed {
+		env.Spec.Builder.Image = o.BuilderImage
 	}
 
-	if input.IsSet(flagkey.EnvBuildcommand) {
-		env.Spec.Builder.Command = input.String(flagkey.EnvBuildcommand)
+	if cmd.Flag(flagkey.EnvBuildcommand).Changed {
+		env.Spec.Builder.Command = o.BuildCommand
 	}
 
 	if env.Spec.Version == 1 && (len(env.Spec.Builder.Image) > 0 || len(env.Spec.Builder.Command) > 0) {
 		e = multierror.Append(e, errors.New("version 1 Environments do not support builders. Must specify --version=2"))
 	}
-	if input.IsSet(flagkey.EnvExternalNetwork) {
-		env.Spec.AllowAccessToExternalNetwork = input.Bool(flagkey.EnvExternalNetwork)
+	if cmd.Flag(flagkey.EnvExternalNetwork).Changed {
+		env.Spec.AllowAccessToExternalNetwork = o.ExternalNetwork
 	}
 
-	if input.IsSet(flagkey.EnvPoolsize) {
-		env.Spec.Poolsize = input.Int(flagkey.EnvPoolsize)
+	if cmd.Flag(flagkey.EnvPoolsize).Changed {
+		env.Spec.Poolsize = o.PoolSize
 	}
 
-	if input.IsSet(flagkey.EnvGracePeriod) {
-		env.Spec.TerminationGracePeriod = input.Int64(flagkey.EnvGracePeriod)
+	if cmd.Flag(flagkey.EnvGracePeriod).Changed {
+		env.Spec.TerminationGracePeriod = o.GracePeriod
 	}
 
-	if input.IsSet(flagkey.EnvKeeparchive) {
-		env.Spec.KeepArchive = input.Bool(flagkey.EnvKeeparchive)
+	if cmd.Flag(flagkey.EnvKeeparchive).Changed {
+		env.Spec.KeepArchive = o.KeepArchive
 	}
 
-	if input.IsSet(flagkey.EnvImagePullSecret) {
-		env.Spec.ImagePullSecret = input.String(flagkey.EnvImagePullSecret)
+	if cmd.Flag(flagkey.EnvImagePullSecret).Changed {
+		env.Spec.ImagePullSecret = o.ImagePullSecret
 	}
-
-	if input.IsSet(flagkey.RuntimeMincpu) {
-		mincpu := input.Int(flagkey.RuntimeMincpu)
-		cpuRequest, err := resource.ParseQuantity(strconv.Itoa(mincpu) + "m")
-		if err != nil {
-			e = multierror.Append(e, errors.Wrap(err, "Failed to parse mincpu"))
-		}
-		env.Spec.Resources.Requests[v1.ResourceCPU] = cpuRequest
+	resources, err := util.CompleteResourceReqs(cmd, &env.Spec.Resources)
+	if err != nil {
+		return nil, err
 	}
-
-	if input.IsSet(flagkey.RuntimeMaxcpu) {
-		maxcpu := input.Int(flagkey.RuntimeMaxcpu)
-		cpuLimit, err := resource.ParseQuantity(strconv.Itoa(maxcpu) + "m")
-		if err != nil {
-			e = multierror.Append(e, errors.Wrap(err, "Failed to parse maxcpu"))
-		}
-		env.Spec.Resources.Limits[v1.ResourceCPU] = cpuLimit
-	}
-
-	if input.IsSet(flagkey.RuntimeMinmemory) {
-		minmem := input.Int(flagkey.RuntimeMinmemory)
-		memRequest, err := resource.ParseQuantity(strconv.Itoa(minmem) + "Mi")
-		if err != nil {
-			e = multierror.Append(e, errors.Wrap(err, "Failed to parse minmemory"))
-		}
-		env.Spec.Resources.Requests[v1.ResourceMemory] = memRequest
-	}
-
-	if input.IsSet(flagkey.RuntimeMaxmemory) {
-		maxmem := input.Int(flagkey.RuntimeMaxmemory)
-		memLimit, err := resource.ParseQuantity(strconv.Itoa(maxmem) + "Mi")
-		if err != nil {
-			e = multierror.Append(e, errors.Wrap(err, "Failed to parse maxmemory"))
-		}
-		env.Spec.Resources.Limits[v1.ResourceMemory] = memLimit
-	}
-
-	limitCPU := env.Spec.Resources.Limits[v1.ResourceCPU]
-	requestCPU := env.Spec.Resources.Requests[v1.ResourceCPU]
-
-	if limitCPU.IsZero() && !requestCPU.IsZero() {
-		env.Spec.Resources.Limits[v1.ResourceCPU] = requestCPU
-	} else if limitCPU.Cmp(requestCPU) < 0 {
-		e = multierror.Append(e, fmt.Errorf("MinCPU (%v) cannot be greater than MaxCPU (%v)", requestCPU.String(), limitCPU.String()))
-	}
-
-	limitMem := env.Spec.Resources.Limits[v1.ResourceMemory]
-	requestMem := env.Spec.Resources.Requests[v1.ResourceMemory]
-
-	if limitMem.IsZero() && !requestMem.IsZero() {
-		env.Spec.Resources.Limits[v1.ResourceMemory] = requestMem
-	} else if limitMem.Cmp(requestMem) < 0 {
-		e = multierror.Append(e, fmt.Errorf("MinMemory (%v) cannot be greater than MaxMemory (%v)", requestMem.String(), limitMem.String()))
-	}
-
-	if e.ErrorOrNil() != nil {
-		return nil, e.ErrorOrNil()
-	}
+	env.Spec.Resources = *resources
 
 	return env, nil
 }

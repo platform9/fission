@@ -25,10 +25,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/fission/fission/pkg/controller/client/rest"
-
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,7 +37,9 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/fission/fission/pkg/controller/client"
+	"github.com/fission/fission/pkg/controller/client/rest"
 	"github.com/fission/fission/pkg/fission-cli/cliwrapper/cli"
+	"github.com/fission/fission/pkg/fission-cli/cliwrapper/driver/cobra/helptemplate"
 	"github.com/fission/fission/pkg/fission-cli/console"
 	flagkey "github.com/fission/fission/pkg/fission-cli/flag/key"
 	"github.com/fission/fission/pkg/info"
@@ -226,6 +228,88 @@ func GetServerURL(input cli.Input) (serverUrl string, err error) {
 	return serverUrl, nil
 }
 
+func CompleteResourceReqs(cmd *cobra.Command, resReqs *v1.ResourceRequirements) (*v1.ResourceRequirements, error) {
+	r := &v1.ResourceRequirements{}
+
+	if resReqs != nil {
+		r.Requests = resReqs.Requests
+		r.Limits = resReqs.Limits
+	}
+
+	if len(r.Requests) == 0 {
+		r.Requests = make(map[v1.ResourceName]resource.Quantity)
+	}
+
+	if len(r.Limits) == 0 {
+		r.Limits = make(map[v1.ResourceName]resource.Quantity)
+	}
+
+	e := utils.MultiErrorWithFormat()
+
+	if cmd.Flag(flagkey.RuntimeMincpu).Changed {
+		mincpu, _ := cmd.Flags().GetInt(flagkey.RuntimeMincpu)
+		cpuRequest, err := resource.ParseQuantity(strconv.Itoa(mincpu) + "m")
+		if err != nil {
+			e = multierror.Append(e, errors.Wrap(err, "Failed to parse mincpu"))
+		}
+		r.Requests[v1.ResourceCPU] = cpuRequest
+	}
+
+	if cmd.Flag(flagkey.RuntimeMinmemory).Changed {
+		minmem, _ := cmd.Flags().GetInt(flagkey.RuntimeMinmemory)
+		memRequest, err := resource.ParseQuantity(strconv.Itoa(minmem) + "Mi")
+		if err != nil {
+			e = multierror.Append(e, errors.Wrap(err, "Failed to parse minmemory"))
+		}
+		r.Requests[v1.ResourceMemory] = memRequest
+	}
+
+	if cmd.Flag(flagkey.RuntimeMaxcpu).Changed {
+		maxcpu, _ := cmd.Flags().GetInt(flagkey.RuntimeMaxcpu)
+		cpuLimit, err := resource.ParseQuantity(strconv.Itoa(maxcpu) + "m")
+		if err != nil {
+			e = multierror.Append(e, errors.Wrap(err, "Failed to parse maxcpu"))
+		}
+		r.Limits[v1.ResourceCPU] = cpuLimit
+	}
+
+	if cmd.Flag(flagkey.RuntimeMaxmemory).Changed {
+		maxmem, _ := cmd.Flags().GetInt(flagkey.RuntimeMaxmemory)
+		memLimit, err := resource.ParseQuantity(strconv.Itoa(maxmem) + "Mi")
+		if err != nil {
+			e = multierror.Append(e, errors.Wrap(err, "Failed to parse maxmemory"))
+		}
+		r.Limits[v1.ResourceMemory] = memLimit
+	}
+
+	limitCPU := r.Limits[v1.ResourceCPU]
+	requestCPU := r.Requests[v1.ResourceCPU]
+
+	if limitCPU.IsZero() && !requestCPU.IsZero() {
+		r.Limits[v1.ResourceCPU] = requestCPU
+	} else if limitCPU.Cmp(requestCPU) < 0 {
+		e = multierror.Append(e, fmt.Errorf("MinCPU (%v) cannot be greater than MaxCPU (%v)", requestCPU.String(), limitCPU.String()))
+	}
+
+	limitMem := r.Limits[v1.ResourceMemory]
+	requestMem := r.Requests[v1.ResourceMemory]
+
+	if limitMem.IsZero() && !requestMem.IsZero() {
+		r.Limits[v1.ResourceMemory] = requestMem
+	} else if limitMem.Cmp(requestMem) < 0 {
+		e = multierror.Append(e, fmt.Errorf("MinMemory (%v) cannot be greater than MaxMemory (%v)", requestMem.String(), limitMem.String()))
+	}
+
+	if e.ErrorOrNil() != nil {
+		return nil, e
+	}
+
+	return &v1.ResourceRequirements{
+		Requests: r.Requests,
+		Limits:   r.Limits,
+	}, nil
+}
+
 func GetResourceReqs(input cli.Input, resReqs *v1.ResourceRequirements) (*v1.ResourceRequirements, error) {
 	r := &v1.ResourceRequirements{}
 
@@ -341,4 +425,55 @@ func UpdateMapFromStringSlice(dataMap *map[string]string, params []string) bool 
 		}
 	}
 	return updated
+}
+
+// flagAlias allows flag has more than one name
+type flagAlias struct {
+	normalizeMap map[string]string
+	usageMap     map[string][]string
+}
+
+func NewFlagAlias() *flagAlias {
+	return &flagAlias{
+		normalizeMap: make(map[string]string, 0),
+		usageMap:     make(map[string][]string, 0),
+	}
+}
+
+func (fa *flagAlias) Set(flagName string, alias string) {
+	fa.normalizeMap[alias] = flagName
+	fa.usageMap[flagName] = append(fa.usageMap[flagName], "--"+alias)
+}
+func (fa *flagAlias) mapForNormalize() map[string]string {
+	// TODO(ClayCheung): need deep copy
+	return fa.normalizeMap
+}
+
+func (fa *flagAlias) mapForUsage() map[string][]string {
+	// TODO(ClayCheung): need deep copy
+	return fa.usageMap
+}
+
+func (fa *flagAlias) ApplyToCmd(cmd *cobra.Command) {
+	// set cobra normalize
+	cmd.Flags().SetNormalizeFunc(
+		func(f *pflag.FlagSet, name string) pflag.NormalizedName {
+			n, ok := fa.mapForNormalize()[name]
+			if ok {
+				name = n
+			}
+			return pflag.NormalizedName(name)
+		},
+	)
+	// set usage to display flag alias
+	for flagName, aliases := range fa.mapForUsage() {
+		f := cmd.Flag(flagName)
+		if f == nil {
+			return
+		}
+		f.Usage = fmt.Sprintf("%s%s%s",
+			strings.Join(aliases, helptemplate.AliasSeparator),
+			helptemplate.AliasSeparator,
+			f.Usage)
+	}
 }

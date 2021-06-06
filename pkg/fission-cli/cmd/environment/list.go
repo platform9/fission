@@ -21,23 +21,49 @@ import (
 	"os"
 	"text/tabwriter"
 
-	"github.com/pkg/errors"
-
-	"github.com/fission/fission/pkg/fission-cli/cliwrapper/cli"
 	"github.com/fission/fission/pkg/fission-cli/cmd"
 	flagkey "github.com/fission/fission/pkg/fission-cli/flag/key"
+	"github.com/fission/fission/pkg/fission-cli/util"
+
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type ListSubCommand struct {
+type listOptions struct {
+	Namespace string
+
 	cmd.CommandActioner
 }
 
-func List(input cli.Input) error {
-	return (&ListSubCommand{}).do(input)
+func newListOptions() *listOptions {
+	return &listOptions{}
 }
 
-func (opts *ListSubCommand) do(input cli.Input) error {
-	envs, err := opts.Client().V1().Environment().List(input.String(flagkey.NamespaceEnvironment))
+func newCmdList() *cobra.Command {
+	o := newListOptions()
+
+	cmd := &cobra.Command{
+		Use:   "list",
+		Short: "List environments",
+		Long:  "List all environments in a namespace if specified, else, list environments across all namespaces",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return o.run()
+		},
+	}
+	// optional options
+	cmd.Flags().StringVar(&o.Namespace, flagkey.NamespaceEnvironment, metav1.NamespaceDefault, "Namespace for environment object")
+
+	flagAlias := util.NewFlagAlias()
+	flagAlias.Set(flagkey.NamespaceEnvironment, "envns")
+	flagAlias.ApplyToCmd(cmd)
+
+	cmd.Flags().SortFlags = false
+	return cmd
+}
+
+func (o *listOptions) run() error {
+	envs, err := o.Client().V1().Environment().List(o.Namespace)
 	if err != nil {
 		return errors.Wrap(err, "error listing environments")
 	}

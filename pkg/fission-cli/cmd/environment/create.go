@@ -18,54 +18,118 @@ package environment
 
 import (
 	"fmt"
-
-	"github.com/hashicorp/go-multierror"
-	"github.com/pkg/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	fv1 "github.com/fission/fission/pkg/apis/core/v1"
-	"github.com/fission/fission/pkg/fission-cli/cliwrapper/cli"
 	"github.com/fission/fission/pkg/fission-cli/cmd"
 	"github.com/fission/fission/pkg/fission-cli/cmd/spec"
 	"github.com/fission/fission/pkg/fission-cli/console"
 	flagkey "github.com/fission/fission/pkg/fission-cli/flag/key"
 	"github.com/fission/fission/pkg/fission-cli/util"
 	"github.com/fission/fission/pkg/utils"
+	"github.com/hashicorp/go-multierror"
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type CreateSubCommand struct {
+type createOptions struct {
+	Name            string
+	Image           string
+	PoolSize        int
+	BuilderImage    string
+	BuildCommand    string
+	MinCPU          int
+	MaxCPU          int
+	MinMemory       int
+	MaxMemory       int
+	GracePeriod     int64
+	Version         int
+	ImagePullSecret string
+	ExternalNetwork bool
+	KeepArchive     bool
+	Namespace       string
+	SpecSave        bool
+	SpecDry         bool
+
 	cmd.CommandActioner
 	env *fv1.Environment
 }
 
-func Create(input cli.Input) error {
-	return (&CreateSubCommand{}).do(input)
+func newCreateOptions() *createOptions {
+	return &createOptions{}
 }
 
-func (opts *CreateSubCommand) do(input cli.Input) error {
-	err := opts.complete(input)
+func newCmdCreate() *cobra.Command {
+	o := newCreateOptions()
+
+	cmd := &cobra.Command{
+		Use:   "create",
+		Short: "Create an environment",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			err := o.complete(cmd, args)
+			if err != nil {
+				return err
+			}
+			err = o.validate(cmd, args)
+			if err != nil {
+				return err
+			}
+			return o.run(cmd, args)
+		},
+	}
+	// required options
+	cmd.Flags().StringVar(&o.Name, flagkey.EnvName, o.Name, "Environment name")
+	cmd.MarkFlagRequired(flagkey.EnvName)
+	cmd.Flags().StringVar(&o.Image, flagkey.EnvImage, o.Image, "Environment image URL")
+	cmd.MarkFlagRequired(flagkey.EnvImage)
+
+	// optional options
+	cmd.Flags().IntVar(&o.PoolSize, flagkey.EnvPoolsize, 3, "Size of the pool")
+	cmd.Flags().StringVar(&o.BuilderImage, flagkey.EnvBuilderImage, o.BuilderImage, "Environment builder image URL")
+	cmd.Flags().StringVar(&o.BuildCommand, flagkey.EnvBuildcommand, o.BuildCommand, "Build command for environment builder to build source package")
+	cmd.Flags().IntVar(&o.MinCPU, flagkey.RuntimeMincpu, o.MinCPU, "Minimum CPU to be assigned to pod (In millicore, minimum 1)")
+	cmd.Flags().IntVar(&o.MaxCPU, flagkey.RuntimeMaxcpu, o.MaxCPU, "Maximum CPU to be assigned to pod (In millicore, minimum 1)")
+	cmd.Flags().IntVar(&o.MinMemory, flagkey.RuntimeMinmemory, o.MinMemory, "Minimum memory to be assigned to pod (In megabyte)")
+	cmd.Flags().IntVar(&o.MaxMemory, flagkey.RuntimeMaxmemory, o.MaxMemory, "Maximum memory to be assigned to pod (In megabyte)")
+	cmd.Flags().Int64Var(&o.GracePeriod, flagkey.EnvGracePeriod, 360, "Grace time (in seconds) for pod to perform connection draining before termination (default value will be used if 0 is given)")
+	cmd.Flags().IntVar(&o.Version, flagkey.EnvVersion, 1, "Environment API version (1 means v1 interface)")
+	cmd.Flags().StringVar(&o.ImagePullSecret, flagkey.EnvImagePullSecret, o.ImagePullSecret, "Secret for Kubernetes to pull an image from a private registry")
+	cmd.Flags().BoolVar(&o.ExternalNetwork, flagkey.EnvExternalNetwork, o.ExternalNetwork, "Allow pod to access external network (only works when istio feature is enabled)")
+	cmd.Flags().BoolVar(&o.KeepArchive, flagkey.EnvKeeparchive, o.KeepArchive, "Keep the archive instead of extracting it into a directory (mainly for the JVM environment because .jar is one kind of zip archive)")
+	cmd.Flags().StringVar(&o.Namespace, flagkey.NamespaceEnvironment, metav1.NamespaceDefault, "Namespace for environment object")
+	cmd.Flags().BoolVar(&o.SpecSave, flagkey.SpecSave, o.SpecSave, "Save to the spec directory instead of creating on cluster")
+	cmd.Flags().BoolVar(&o.SpecDry, flagkey.SpecDry, o.SpecDry, "View the generated specs")
+
+	flagAlias := util.NewFlagAlias()
+	flagAlias.Set(flagkey.NamespaceEnvironment, "envns")
+	flagAlias.Set(flagkey.EnvGracePeriod, "period")
+	flagAlias.ApplyToCmd(cmd)
+
+	cmd.Flags().SortFlags = false
+	return cmd
+
+}
+
+func (o *createOptions) complete(cmd *cobra.Command, args []string) error {
+	env, err := o.createEnvironmentFromCmd(cmd)
 	if err != nil {
 		return err
 	}
-	return opts.run(input)
-}
-
-// complete creates a environment objects and populates it with default value and CLI inputs.
-func (opts *CreateSubCommand) complete(input cli.Input) error {
-	env, err := createEnvironmentFromCmd(input)
-	if err != nil {
-		return err
-	}
-	opts.env = env
+	o.env = env
 	return nil
 }
 
-// run write the resource to a spec file or create a fission CRD with remote fission server.
-// It also prints warning/error if necessary.
-func (opts *CreateSubCommand) run(input cli.Input) error {
-	m := opts.env.ObjectMeta
+func (o *createOptions) validate(cmd *cobra.Command, args []string) error {
+	err := o.env.Validate()
+	if err != nil {
+		return fv1.AggregateValidationErrors("Environment", err)
+	}
+	return nil
+}
 
-	envList, err := opts.Client().V1().Environment().List(m.Namespace)
+func (o *createOptions) run(cmd *cobra.Command, args []string) error {
+	m := o.env.ObjectMeta
+
+	envList, err := o.Client().V1().Environment().List(m.Namespace)
 	if err != nil {
 		return err
 	} else if len(envList) > 0 {
@@ -76,20 +140,20 @@ func (opts *CreateSubCommand) run(input cli.Input) error {
 
 	// if we're writing a spec, don't call the API
 	// save to spec file or display the spec to console
-	if input.Bool(flagkey.SpecDry) {
-		return spec.SpecDry(*opts.env)
+	if o.SpecDry {
+		return spec.SpecDry(*o.env)
 	}
 
-	if input.Bool(flagkey.SpecSave) {
+	if o.SpecSave {
 		specFile := fmt.Sprintf("env-%v.yaml", m.Name)
-		err = spec.SpecSave(*opts.env, specFile)
+		err = spec.SpecSave(*o.env, specFile)
 		if err != nil {
 			return errors.Wrap(err, "error saving environment spec")
 		}
 		return nil
 	}
 
-	_, err = opts.Client().V1().Environment().Create(opts.env)
+	_, err = o.Client().V1().Environment().Create(o.env)
 	if err != nil {
 		return errors.Wrap(err, "error creating environment")
 	}
@@ -98,44 +162,32 @@ func (opts *CreateSubCommand) run(input cli.Input) error {
 	return nil
 }
 
-// createEnvironmentFromCmd creates environment initialized with CLI input.
-func createEnvironmentFromCmd(input cli.Input) (*fv1.Environment, error) {
+// createEnvironmentFromCmd creates environment initialized with createOptions.
+func (o *createOptions) createEnvironmentFromCmd(cmd *cobra.Command) (*fv1.Environment, error) {
 	e := utils.MultiErrorWithFormat()
 
-	envName := input.String(flagkey.EnvName)
-	envImg := input.String(flagkey.EnvImage)
-	envNamespace := input.String(flagkey.NamespaceEnvironment)
-	envBuildCmd := input.String(flagkey.EnvBuildcommand)
-	envExternalNetwork := input.Bool(flagkey.EnvExternalNetwork)
-	keepArchive := input.Bool(flagkey.EnvKeeparchive)
-	envGracePeriod := input.Int64(flagkey.EnvGracePeriod)
-	pullSecret := input.String(flagkey.EnvImagePullSecret)
-
-	envVersion := input.Int(flagkey.EnvVersion)
 	// Environment API interface version is not specified and
 	// builder image is empty, set default interface version
-	if envVersion == 0 {
-		envVersion = 1
+	if o.Version == 0 {
+		o.Version = 1
 	}
 
-	poolsize := input.Int(flagkey.EnvPoolsize)
-	if input.IsSet(flagkey.EnvPoolsize) {
+	if cmd.Flag(flagkey.EnvPoolsize).Changed {
 		// TODO: remove silently version 3 assignment, we need to warn user to set it explicitly.
-		envVersion = 3
+		o.Version = 3
 	}
 
-	envBuilderImg := input.String(flagkey.EnvBuilderImage)
-	if len(envBuilderImg) > 0 {
-		if !input.IsSet(flagkey.EnvVersion) {
+	if len(o.BuilderImage) > 0 {
+		if !cmd.Flag(flagkey.EnvVersion).Changed {
 			// TODO: remove set env version to 2 silently, we need to warn user to set it explicitly.
-			envVersion = 2
+			o.Version = 2
 		}
-		if len(envBuildCmd) == 0 {
-			envBuildCmd = "build"
+		if len(o.BuildCommand) == 0 {
+			o.BuildCommand = "build"
 		}
 	}
 
-	resourceReq, err := util.GetResourceReqs(input, nil)
+	resourceReq, err := util.CompleteResourceReqs(cmd, nil)
 	if err != nil {
 		e = multierror.Append(e, err)
 	}
@@ -150,31 +202,25 @@ func createEnvironmentFromCmd(input cli.Input) (*fv1.Environment, error) {
 			APIVersion: fv1.CRD_VERSION,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      envName,
-			Namespace: envNamespace,
+			Name:      o.Name,
+			Namespace: o.Namespace,
 		},
 		Spec: fv1.EnvironmentSpec{
-			Version: envVersion,
+			Version: o.Version,
 			Runtime: fv1.Runtime{
-				Image: envImg,
+				Image: o.Image,
 			},
 			Builder: fv1.Builder{
-				Image:   envBuilderImg,
-				Command: envBuildCmd,
+				Image:   o.BuilderImage,
+				Command: o.BuildCommand,
 			},
-			Poolsize:                     poolsize,
+			Poolsize:                     o.PoolSize,
 			Resources:                    *resourceReq,
-			AllowAccessToExternalNetwork: envExternalNetwork,
-			TerminationGracePeriod:       envGracePeriod,
-			KeepArchive:                  keepArchive,
-			ImagePullSecret:              pullSecret,
+			AllowAccessToExternalNetwork: o.ExternalNetwork,
+			TerminationGracePeriod:       o.GracePeriod,
+			KeepArchive:                  o.KeepArchive,
+			ImagePullSecret:              o.ImagePullSecret,
 		},
 	}
-
-	err = env.Validate()
-	if err != nil {
-		return nil, fv1.AggregateValidationErrors("Environment", err)
-	}
-
 	return env, nil
 }
