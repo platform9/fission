@@ -1,9 +1,12 @@
-name: Upgrade functionality test
+name: Upgrade check
 
-on: [workflow_dispatch]
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
 
 jobs:
-  
   upgrade-functionality-test:
     runs-on: ubuntu-latest
     steps:

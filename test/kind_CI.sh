@@ -32,20 +32,17 @@ export CONTROLLER_IP=127.0.0.1:8889
 export FISSION_NATS_STREAMING_URL=http://defaultFissionAuthToken@127.0.0.1:8890
 
 echo "Pulling env and builder images"
-docker pull $NODE_RUNTIME_IMAGE && kind load docker-image $NODE_RUNTIME_IMAGE --name kind
-docker pull $NODE_BUILDER_IMAGE && kind load docker-image $NODE_BUILDER_IMAGE --name kind
+parallel \
+    --retries 8 \
+    --joblog - \
+    --jobs 4 \
+    --timeout 600 \
+    'docker pull -q {} &&  kind load docker-image {} && docker rmi {}' \
+    ::: $NODE_BUILDER_IMAGE $PYTHON_RUNTIME_IMAGE $PYTHON_BUILDER_IMAGE $JVM_RUNTIME_IMAGE \
+    $JVM_BUILDER_IMAGE $JVM_JERSEY_RUNTIME_IMAGE $JVM_JERSEY_BUILDER_IMAGE \
+    $GO_RUNTIME_IMAGE  $GO_BUILDER_IMAGE $TS_RUNTIME_IMAGE
+
 docker system prune -a -f
-docker pull $PYTHON_RUNTIME_IMAGE && kind load docker-image $PYTHON_RUNTIME_IMAGE --name kind
-docker pull $PYTHON_BUILDER_IMAGE && kind load docker-image $PYTHON_BUILDER_IMAGE --name kind
-docker pull $JVM_RUNTIME_IMAGE && kind load docker-image $JVM_RUNTIME_IMAGE --name kind
-docker pull $JVM_BUILDER_IMAGE && kind load docker-image $JVM_BUILDER_IMAGE --name kind
-docker system prune -a -f
-docker pull $JVM_JERSEY_RUNTIME_IMAGE && kind load docker-image $JVM_JERSEY_RUNTIME_IMAGE --name kind
-docker pull $JVM_JERSEY_BUILDER_IMAGE && kind load docker-image $JVM_JERSEY_BUILDER_IMAGE --name kind
-docker pull $GO_RUNTIME_IMAGE && kind load docker-image $GO_RUNTIME_IMAGE --name kind
-docker pull $GO_BUILDER_IMAGE && kind load docker-image $GO_BUILDER_IMAGE --name kind
-docker system prune -a -f
-docker pull $TS_RUNTIME_IMAGE && kind load docker-image $TS_RUNTIME_IMAGE --name kind
 echo "Successfully pull env and builder images"
 
 # run tests without newdeploy in parallel.

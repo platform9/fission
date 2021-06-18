@@ -10,8 +10,28 @@ on:
   workflow_dispatch:
 
 jobs:
-  # Job to run change detection
+  unit-tests:
+    name: Unit tests and Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2.3.4
+
+      - name: setup go
+        uses: actions/setup-go@v2.1.3
+        with:
+          go-version: "1.15.12"
+
+      - name: Static code analysis
+        run: |
+          ./hack/verify-gofmt.sh
+          ./hack/verify-govet.sh
+
+      - name: Run unit tests
+        run: ./hack/runtests.sh
+
   integration-test:
+    name: Integration test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
@@ -28,10 +48,10 @@ jobs:
         with:
           go-version: "1.15.12"
 
-      - name: Helm installation
-        uses: Azure/setup-helm@v1
-        with:
-          version: v3.3.4
+      - name: Install Fission CLI
+        run: |
+          go build -o fission cmd/fission-cli/main.go
+          sudo mv fission /usr/local/bin
 
       - name: Kind Clutser
         uses: engineerd/setup-kind@v0.5.0
@@ -45,14 +65,14 @@ jobs:
           kubectl get nodes
           sudo apt-get install -y apache2-utils
 
-      - name: Static code analysis
-        run: |
-          ./hack/verify-gofmt.sh
-          ./hack/verify-govet.sh
-          helm lint charts/fission-all/ charts/fission-core/
+      - name: Helm installation
+        uses: Azure/setup-helm@v1
+        with:
+          version: v3.3.4
 
-      - name: Run unit tests
-        run: ./hack/runtests.sh
+      - name: Lint charts
+        run: |
+          helm lint charts/fission-all/ charts/fission-core/
 
       - name: Helm update
         run: helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
@@ -69,10 +89,8 @@ jobs:
           kubectl create -k crds/v1
           skaffold run -p kind-ci
 
-      - name: Build and Install Fission CLI
+      - name: Fission version
         run: |
-          go build -o fission cmd/fission-cli/main.go
-          sudo mv fission /usr/local/bin
           fission version
 
       - name: Port-forward fission components
