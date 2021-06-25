@@ -347,6 +347,7 @@ func (gp *GenericPool) getFetcherURL(podIP string) string {
 // (via fetcher), and calls the function-run container to load it, resulting in a
 // specialized pod.
 func (gp *GenericPool) specializePod(ctx context.Context, pod *apiv1.Pod, fn *fv1.Function) error {
+	startTime := time.Now()
 	// for fetcher we don't need to create a service, just talk to the pod directly
 	podIP := pod.Status.PodIP
 	if len(podIP) == 0 {
@@ -370,9 +371,10 @@ func (gp *GenericPool) specializePod(ctx context.Context, pod *apiv1.Pod, fn *fv
 	// invoke environment specialize api for pod specialization.
 	err := fetcherClient.MakeClient(gp.logger, fetcherURL).Specialize(ctx, &specializeReq)
 	if err != nil {
+		gp.fsCache.ObserveSpecialisePodTime(gp.env.Name, string(gp.env.ObjectMeta.UID), false, time.Since(startTime))
 		return err
 	}
-
+	gp.fsCache.ObserveSpecialisePodTime(gp.env.Name, string(gp.env.ObjectMeta.UID), false, time.Since(startTime))
 	return nil
 }
 
@@ -696,7 +698,7 @@ func (gp *GenericPool) getFuncSvc(ctx context.Context, fn *fv1.Function) (*fscac
 	gp.podFSVCMap.Store(pod.ObjectMeta.Name, []interface{}{crd.CacheKey(fsvc.Function), fsvc.Address})
 	gp.fsCache.AddFunc(*fsvc)
 
-	gp.fsCache.IncreaseColdStarts(fn.ObjectMeta.Name, string(fn.ObjectMeta.UID))
+	gp.fsCache.IncreaseColdStarts(fn.ObjectMeta.Name, string(fn.ObjectMeta.UID), fsvc.Cached)
 
 	return fsvc, nil
 }

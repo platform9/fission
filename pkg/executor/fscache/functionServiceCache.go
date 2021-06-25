@@ -57,8 +57,9 @@ type (
 		Executor          fv1.ExecutorType
 		CPULimit          resource.Quantity
 
-		Ctime time.Time
-		Atime time.Time
+		Cached bool
+		Ctime  time.Time
+		Atime  time.Time
 	}
 
 	// FunctionServiceCache represents the function service cache
@@ -227,7 +228,7 @@ func (fsc *FunctionServiceCache) AddFunc(fsvc FuncSvc) {
 	fsvc.Ctime = now
 	fsvc.Atime = now
 
-	fsc.setFuncAlive(fsvc.Function.Name, string(fsvc.Function.UID), true)
+	fsc.setFuncAlive(fsvc.Function.Name, string(fsvc.Function.UID), true, fsvc.Cached)
 }
 
 // SetCPUUtilizaton updates/sets CPUutilization in the pool cache
@@ -283,7 +284,7 @@ func (fsc *FunctionServiceCache) Add(fsvc FuncSvc) (*FuncSvc, error) {
 		return nil, err
 	}
 
-	fsc.setFuncAlive(fsvc.Function.Name, string(fsvc.Function.UID), true)
+	fsc.setFuncAlive(fsvc.Function.Name, string(fsvc.Function.UID), true, fsvc.Cached)
 	return nil, nil
 }
 
@@ -344,9 +345,9 @@ func (fsc *FunctionServiceCache) DeleteEntry(fsvc *FuncSvc) {
 		)
 	}
 
-	fsc.observeFuncRunningTime(fsvc.Function.Name, string(fsvc.Function.UID), fsvc.Atime.Sub(fsvc.Ctime).Seconds())
-	fsc.observeFuncAliveTime(fsvc.Function.Name, string(fsvc.Function.UID), time.Since(fsvc.Ctime).Seconds())
-	fsc.setFuncAlive(fsvc.Function.Name, string(fsvc.Function.UID), false)
+	fsc.observeFuncRunningTime(fsvc.Function.Name, string(fsvc.Function.UID), fsvc.Atime.Sub(fsvc.Ctime).Seconds(), fsvc.Cached)
+	fsc.observeFuncAliveTime(fsvc.Function.Name, string(fsvc.Function.UID), time.Since(fsvc.Ctime).Seconds(), fsvc.Cached)
+	fsc.setFuncAlive(fsvc.Function.Name, string(fsvc.Function.UID), false, fsvc.Cached)
 }
 
 // DeleteFunctionSvc deletes a function service at key composed of [function][address].

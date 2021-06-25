@@ -48,8 +48,8 @@ const (
 	// FORWARDED represents the 'Forwarded' request header
 	FORWARDED = "Forwarded"
 
-	// X_FORWARDED_HOST represents the 'X_FORWARDED_HOST' request header
-	X_FORWARDED_HOST = "X-Forwarded-Host"
+	// XForwardedHost represents the 'X-Forwarded-Host' request header
+	XForwardedHost = "X-Forwarded-Host"
 )
 
 type (
@@ -391,6 +391,7 @@ func (fh *functionHandler) tapService(fn *fv1.Function, serviceURL *url.URL) {
 }
 
 func (fh functionHandler) handler(responseWriter http.ResponseWriter, request *http.Request) {
+	fh.collectFunctionMetricBeforeProcessing(request)
 	if fh.httpTrigger != nil && fh.httpTrigger.Spec.FunctionReference.Type == fv1.FunctionReferenceTypeFunctionWeights {
 		// canary deployment. need to determine the function to send request to now
 		fn := getCanaryBackend(fh.functionMap, fh.fnWeightDistributionList)
@@ -494,7 +495,7 @@ func (roundTripper RetryingRoundTripper) addForwardedHostHeader(req *http.Reques
 	// for more detailed information, please visit:
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Forwarded
 
-	if len(req.Header.Get(FORWARDED)) > 0 || len(req.Header.Get(X_FORWARDED_HOST)) > 0 {
+	if len(req.Header.Get(FORWARDED)) > 0 || len(req.Header.Get(XForwardedHost)) > 0 {
 		// forwarded headers were set by external proxy, leave them intact
 		return
 	}
@@ -529,15 +530,15 @@ func (roundTripper RetryingRoundTripper) addForwardedHostHeader(req *http.Reques
 	}
 
 	req.Header.Set(FORWARDED, host)
-	req.Header.Set(X_FORWARDED_HOST, req.Host)
+	req.Header.Set(XForwardedHost, req.Host)
 }
 
 // unTapservice marks the serviceURL in executor's cache as inactive, so that it can be reused
-func (fh functionHandler) unTapService(fn *fv1.Function, serviceUrl *url.URL) error {
+func (fh functionHandler) unTapService(fn *fv1.Function, serviceURL *url.URL) error {
 	fh.logger.Info("UnTapService Called")
 	ctx, cancel := context.WithTimeout(context.Background(), fh.unTapServiceTimeout)
 	defer cancel()
-	err := fh.executor.UnTapService(ctx, fn.ObjectMeta, fn.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType, serviceUrl)
+	err := fh.executor.UnTapService(ctx, fn.ObjectMeta, fn.Spec.InvokeStrategy.ExecutionStrategy.ExecutorType, serviceURL)
 	if err != nil {
 		statusCode, errMsg := ferror.GetHTTPError(err)
 		fh.logger.Error("error from UnTapService",
@@ -586,7 +587,9 @@ func (fh functionHandler) removeServiceEntryFromCache() {
 	}
 }
 
-func (fh functionHandler) getServiceEntryFromExecutor() (serviceUrl *url.URL, err error) {
+// getServiceEntryFromExecutor returns service url entry returns from executor
+func (fh functionHandler) getServiceEntryFromExecutor() (*url.URL, error) {
+	startTime := time.Now()
 	// send a request to executor to specialize a new pod
 	fh.logger.Debug("function timeout specified", zap.Int("timeout", fh.function.Spec.FunctionTimeout))
 	timeout := 30 * time.Second
@@ -603,8 +606,13 @@ func (fh functionHandler) getServiceEntryFromExecutor() (serviceUrl *url.URL, er
 			zap.String("error_message", errMsg),
 			zap.Any("function", fh.function),
 			zap.Int("status_code", statusCode))
+		duration := time.Since(startTime)
+		observeServiceURLFetchTime(duration, true)
 		return nil, err
 	}
+	duration := time.Since(startTime)
+	observeServiceURLFetchTime(duration, false)
+
 	// parse the address into url
 	svcURL, err := url.Parse(fmt.Sprintf("http://%v", service))
 	if err != nil {
@@ -704,6 +712,24 @@ func (fh functionHandler) getProxyErrorHandler(start time.Time, rrt *RetryingRou
 	}
 }
 
+func (fh functionHandler) collectFunctionMetricBeforeProcessing(req *http.Request) {
+
+	// Metrics stuff
+	funcMetricLabels := &functionLabels{
+		namespace: fh.function.ObjectMeta.Namespace,
+		name:      fh.function.ObjectMeta.Name,
+	}
+	httpMetricLabels := &httpLabels{
+		method: req.Method,
+	}
+	if fh.httpTrigger != nil {
+		httpMetricLabels.host = fh.httpTrigger.Spec.Host
+		httpMetricLabels.path = fh.httpTrigger.Spec.RelativeURL
+	}
+	incrementRequest(funcMetricLabels, httpMetricLabels, string(fh.function.ObjectMeta.UID))
+
+}
+
 func (fh functionHandler) collectFunctionMetric(start time.Time, rrt *RetryingRoundTripper, req *http.Request, resp *http.Response) {
 	duration := time.Since(start)
 
@@ -729,7 +755,7 @@ func (fh functionHandler) collectFunctionMetric(start time.Time, rrt *RetryingRo
 	funcMetricLabels.cached = rrt.urlFromCache
 
 	functionCallCompleted(funcMetricLabels, httpMetricLabels,
-		duration, duration, resp.ContentLength)
+		duration, duration, resp.ContentLength, string(fh.function.ObjectMeta.UID))
 
 	// tapService before invoking roundTrip for the serviceUrl
 	if rrt.urlFromCache {
