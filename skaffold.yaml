@@ -18,15 +18,27 @@ build:
       context: .
       docker:
         dockerfile: cmd/fission-bundle/Dockerfile.fission-bundle
+        buildArgs:
+          CGO_ENABLED: 1
+          GO_OPTIONS: -race
     - image: fetcher
       docker:
         dockerfile: cmd/fetcher/Dockerfile.fission-fetcher
+        buildArgs:
+          CGO_ENABLED: 1
+          GO_OPTIONS: -race
     - image: preupgradechecks
       docker:
         dockerfile: cmd/preupgradechecks/Dockerfile.fission-preupgradechecks
+        buildArgs:
+          CGO_ENABLED: 1
+          GO_OPTIONS: -race
     - image: reporter
       docker:
         dockerfile: cmd/reporter/Dockerfile.reporter
+        buildArgs:
+          CGO_ENABLED: 1
+          GO_OPTIONS: -race
 
 deploy:
   helm:

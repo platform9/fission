@@ -9,6 +9,12 @@ log() {
 }
 export -f log
 
+doit() {
+    echo "! $*"
+    "$@"
+}
+export -f doit
+
 generate_test_id() {
     echo $(((10000 + $RANDOM) % 99999))
 }

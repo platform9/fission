@@ -31,7 +31,12 @@ ARG BUILDVERSION=unknown
 ARG BUILDDATE=unknown
 # E.g. BUILDDATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
 
-RUN CGO_ENABLED=0 go build \
+ARG CGO_ENABLED=0
+
+ARG GO_OPTIONS=
+
+RUN CGO_ENABLED=${CGO_ENABLED} go build \
+    ${GO_OPTIONS} \
     -o /go/bin/reporter \
     -gcflags=-trimpath=$GOPATH \
     -asmflags=-trimpath=$GOPATH \

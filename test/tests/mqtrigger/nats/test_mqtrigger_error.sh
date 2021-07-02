@@ -40,15 +40,15 @@ else
 fi
 
 log "Creating nodejs env"
-fission env create --name $env --image $NODE_RUNTIME_IMAGE
+doit fission env create --name $env --image $NODE_RUNTIME_IMAGE
 
 log "Creating function"
-fission fn create --name $fn --env $env --code $DIR/main_error.js --method GET
+doit fission fn create --name $fn --env $env --code $DIR/main_error.js --method GET
 
 log "Creating message queue trigger"
-fission mqtrigger create --name $mqt --function $fn --mqtype "nats-streaming" --topic $topic --resptopic $resptopic --errortopic $errortopic --maxretries $maxretries
+doit fission mqtrigger create --name $mqt --function $fn --mqtype "nats-streaming" --topic $topic --resptopic $resptopic --errortopic $errortopic --maxretries $maxretries
 log "Updated mqtrigger list"
-fission mqtrigger list
+doit fission mqtrigger list
 
 # wait until nats trigger is created
 sleep 5
@@ -69,6 +69,6 @@ echo "$response"
 echo "$response" | grep "$expectedRespOutput"
 
 log "Deleting  message queue trigger"
-fission mqtrigger delete --name $mqt
+doit fission mqtrigger delete --name $mqt
 
 log "Test PASSED"
