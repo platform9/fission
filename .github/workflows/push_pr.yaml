@@ -112,6 +112,11 @@ jobs:
         run: |
           command -v fission && fission support dump
 
+      - name: Analyze fission dump
+        run: |
+          ./hack/dump-analyzer.sh -x
+          ./hack/dump-analyzer.sh -r
+
       - name: Archive fission dump
         if: ${{ failure() }}
         uses: actions/upload-artifact@v2
