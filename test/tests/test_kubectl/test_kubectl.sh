@@ -28,7 +28,7 @@ name="go-spec-kubectl"
 pkgName="go-b4bbb0e0-2d93-47f0-8c4e-eea644eec2a9"
 
 # apply environment & function
-kubectl apply -f spec-yaml -R
+doit kubectl apply -f spec-yaml -R
 
 # wait for build to finish
 timeout 180 bash -c "wait_for_builder $name"
@@ -37,13 +37,13 @@ timeout 180 bash -c "waitBuildExpectedStatus $pkgName failed"
 sed -i 's/gogo/go/g' spec-yaml/function-go.yaml
 
 # before we enable "/status" this should be failed.
-kubectl apply -f spec-yaml/function-go.yaml
+doit kubectl apply -f spec-yaml/function-go.yaml
 timeout 180 bash -c "waitBuildExpectedStatus $pkgName failed"
 
-kubectl replace -f spec-yaml/function-go.yaml
+doit kubectl replace -f spec-yaml/function-go.yaml
 timeout 180 bash -c "waitBuild $pkgName"
 
-fission fn test --name $name
+doit fission fn test --name $name
 
 cleanup
 

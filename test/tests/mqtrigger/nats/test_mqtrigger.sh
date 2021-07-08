@@ -38,13 +38,13 @@ else
 fi
 
 log "Creating nodejs env"
-fission env create --name $env --image $NODE_RUNTIME_IMAGE
+doit fission env create --name $env --image $NODE_RUNTIME_IMAGE
 
 log "Creating function"
-fission fn create --name $fn --env $env --code $DIR/main.js --method GET
+doit fission fn create --name $fn --env $env --code $DIR/main.js --method GET
 
 log "Creating message queue trigger"
-fission mqtrigger create --name $mqt --function $fn --mqtype "nats-streaming" --topic $topic --resptopic $resptopic
+doit fission mqtrigger create --name $mqt --function $fn --mqtype "nats-streaming" --topic $topic --resptopic $resptopic
 
 # wait until nats trigger is created
 sleep 5
@@ -53,7 +53,7 @@ sleep 5
 # Send a message
 #
 log "Sending message"
-go run $DIR/stan-pub/main.go -s $FISSION_NATS_STREAMING_URL -c $clusterID -id $pubClientID $topic ""
+doit go run $DIR/stan-pub/main.go -s $FISSION_NATS_STREAMING_URL -c $clusterID -id $pubClientID $topic ""
 
 #
 # Wait for message on response topic 
@@ -65,7 +65,7 @@ echo "$response"
 echo "$response" | grep "$expectedRespOutput"
 
 log "Deleting message queue trigger"
-fission mqtrigger delete --name $mqt
+doit fission mqtrigger delete --name $mqt
 
 log "Subscriber received expected response: $response"
 log "Test PASSED"
