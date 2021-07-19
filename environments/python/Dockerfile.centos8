@@ -1,0 +1,18 @@
+FROM centos:latest
+
+WORKDIR /app
+
+RUN yum -y groupinstall 'Development Tools'
+RUN yum -y install glibc.x86_64
+RUN yum -y install python38.x86_64 python38-devel.x86_64 
+RUN yum install -y libev-devel.x86_64 
+RUN pip3 install --upgrade pip && pip3 install wheel
+RUN rm -r /root/.cache
+
+COPY . /app
+RUN pip3 install -r requirements.txt
+
+#Symbolic link needs to point from /usr/local/bin/python to whatever location python is using in your distro
+RUN ln -sf /usr/bin/python3 /usr/local/bin/python
+ENTRYPOINT ["python3"] 
+CMD ["server.py"]
