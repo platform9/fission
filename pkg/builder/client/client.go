@@ -59,6 +59,7 @@ func (c *Client) Build(req *builder.PackageBuildRequest) (*builder.PackageBuildR
 
 		if err == nil {
 			if resp.StatusCode == 200 {
+				resp.Body.Close()
 				break
 			}
 			err = ferror.MakeErrorFromHTTP(resp)

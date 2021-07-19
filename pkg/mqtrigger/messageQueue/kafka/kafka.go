@@ -281,6 +281,7 @@ func kafkaMsgHandler(kafka *Kafka, producer sarama.SyncProducer, trigger *fv1.Me
 		}
 		if err == nil && resp.StatusCode == http.StatusOK {
 			// Success, quit retrying
+			resp.Body.Close()
 			break
 		}
 	}

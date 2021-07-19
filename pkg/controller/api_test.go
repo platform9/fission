@@ -385,6 +385,7 @@ func TestMain(m *testing.M) {
 	resp, err := http.Get("http://localhost:8888/")
 	panicIf(err)
 	assert(resp.StatusCode == 200, "http get status code on root")
+	defer resp.Body.Close()
 
 	var found bool = false
 	for _, b := range resp.Header["Content-Type"] {

@@ -305,13 +305,15 @@ func getAuthTriggerSpec(mqt *fv1.MessageQueueTrigger, authenticationRef string, 
 	if err != nil {
 		return nil, err
 	}
-	var secretTargetRefFields []interface{}
+	secretTargetRefFields := make([]interface{}, len(secret.Data))
+	i := 0
 	for secretField := range secret.Data {
-		secretTargetRefFields = append(secretTargetRefFields, map[string]interface{}{
+		secretTargetRefFields[i] = map[string]interface{}{
 			"name":      mqt.Spec.Secret,
 			"parameter": secretField,
 			"key":       secretField,
-		})
+		}
+		i++
 	}
 	authTriggerObj := &unstructured.Unstructured{
 		Object: map[string]interface{}{

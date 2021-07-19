@@ -113,6 +113,7 @@ func (p *WebhookPublisher) makeHTTPRequest(r *publishRequest) {
 	} else {
 		var body []byte
 		body, err = ioutil.ReadAll(resp.Body)
+		defer resp.Body.Close()
 		if err != nil {
 			fields = append(fields, zap.Error(err), zap.Any("request", r))
 			msg = "read response body error"

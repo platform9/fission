@@ -179,6 +179,7 @@ func msgHandler(nats *Nats, trigger *fv1.MessageQueueTrigger) func(*ns.Msg) {
 			}
 			if err == nil && resp.StatusCode == http.StatusOK {
 				// Success, quit retrying
+				resp.Body.Close()
 				break
 			}
 		}

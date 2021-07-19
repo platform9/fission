@@ -224,16 +224,15 @@ func main() {
 		return
 	}
 
-	var series []chart.Series
-
 	files, err := listJsonFiles(*file)
 	if err != nil {
 		fmt.Printf("Failed to get file information: %v", err)
 		return
 	}
 
-	for _, f := range files {
-		series = append(series, generateContinuousSeries(f))
+	series := make([]chart.Series, len(files))
+	for i, f := range files {
+		series[i] = generateContinuousSeries(f)
 	}
 
 	err = generateChart(*title, *outputFile, format, series)

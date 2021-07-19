@@ -219,9 +219,11 @@ func mergeContainerList(dst []apiv1.Container, src []apiv1.Container) ([]apiv1.C
 		}
 	}
 
-	var containerList []apiv1.Container
+	containerList := make([]apiv1.Container, len(containers))
+	i := 0
 	for _, c := range containers {
-		containerList = append(containerList, *c)
+		containerList[i] = *c
+		i++
 	}
 
 	if errs.ErrorOrNil() != nil {

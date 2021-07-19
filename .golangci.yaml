@@ -17,14 +17,14 @@ linters:
     - misspell
     - nakedret
     - unconvert
+    - bodyclose
+    - prealloc
     # Enable in future
-    # - bodyclose
     # - dogsled
     # - dupl
     # - gosec
     # - ifshort
     # - nilerr
-    # - prealloc
     # - revive
     # - unparam
     # - wrapcheck
