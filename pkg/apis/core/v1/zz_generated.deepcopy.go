@@ -21,6 +21,7 @@ limitations under the License.
 package v1
 
 import (
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
@@ -280,6 +281,11 @@ func (in *EnvironmentSpec) DeepCopyInto(out *EnvironmentSpec) {
 	in.Runtime.DeepCopyInto(&out.Runtime)
 	in.Builder.DeepCopyInto(&out.Builder)
 	in.Resources.DeepCopyInto(&out.Resources)
+	if in.RollingUpdate != nil {
+		in, out := &in.RollingUpdate, &out.RollingUpdate
+		*out = new(appsv1.RollingUpdateDeployment)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 

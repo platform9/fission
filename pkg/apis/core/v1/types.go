@@ -17,7 +17,9 @@ limitations under the License.
 package v1
 
 import (
+	appsv1 "k8s.io/api/apps/v1"
 	apiv1 "k8s.io/api/core/v1"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -637,6 +639,10 @@ type (
 		// private registry.
 		// +optional
 		ImagePullSecret string `json:"imagepullsecret"`
+
+		// Rolling update config params. (Works only with percentage)
+		// +optional
+		RollingUpdate *appsv1.RollingUpdateDeployment `json:"rollingUpdate,omitempty"`
 	}
 	// AllowedFunctionsPerContainer defaults to 'single'. Related to Fission Workflows
 	AllowedFunctionsPerContainer string
