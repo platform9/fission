@@ -1,0 +1,49 @@
+name: Fission Images build for different architectures
+on: 
+  push:
+    branches:
+      - 'master'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: docker login
+      env:
+        DOCKER_USER: ${{ secrets.DOCKER_USER }}   
+        DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }} 
+        DOCKER_BUILDKIT: 1
+        BUILDX_PLATFORMS: linux/amd64,linux/arm64,linux/ppc64le,linux/s390x,linux/386,linux/arm/v7,linux/arm/v6 
+      run: |
+        docker login -u $DOCKER_USER -p $DOCKER_PASSWORD
+    - name: install buildx
+      id: buildx
+      uses: crazy-max/ghaction-docker-buildx@v1
+      with:
+        version: latest
+
+    - name: building minimal Linux distributions with Linuxkit
+      run: |
+        docker run --rm --privileged linuxkit/binfmt:v0.8
+        docker buildx create --use --name=qemu
+        docker buildx inspect --bootstrap
+
+    - name: docker build builder
+      run: |
+        docker buildx build --platform linux/amd64,linux/arm/v7,linux/arm64 -t fission/builder_arch:2.0 --push -f ./cmd/builder/Dockerfile.fission-builder .
+
+    - name: docker build fetcher
+      run: |
+        docker buildx build --platform linux/amd64,linux/arm/v7,linux/arm64 -t fission/fetcher_arch:2.0 --push -f ./cmd/fetcher/Dockerfile.fission-fetcher .
+
+    - name: docker build fission-bundle
+      run: |
+        docker buildx build --platform linux/amd64,linux/arm/v7,linux/arm64 -t fission/fission-bundle_arch:2.0 --push -f ./cmd/fission-bundle/Dockerfile.fission-bundle .
+    
+    - name: docker build preupgradechecks
+      run: |
+        docker buildx build --platform linux/amd64,linux/arm/v7,linux/arm64 -t fission/preupgradechecks_arch:2.0 --push -f ./cmd/preupgradechecks/Dockerfile.fission-preupgradechecks .
+
+    - name: docker build reporter
+      run: |
+        docker buildx build --platform linux/amd64,linux/arm/v7,linux/arm64 -t fission/reporter_arch:2.0 --push -f ./cmd/reporter/Dockerfile.reporter .
