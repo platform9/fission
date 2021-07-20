@@ -71,8 +71,9 @@ func Test_getEnvVarlist(t *testing.T) {
 				"consumerGroup":    "my-group",
 				"topic":            "topic",
 			},
-			Secret:  "test-kafka-secrets",
-			MqtKind: "keda",
+			Secret:     "test-kafka-secrets",
+			MqtKind:    "keda",
+			Sequential: false,
 		},
 	}
 
@@ -195,8 +196,9 @@ func Test_getEnvVarlist(t *testing.T) {
 				"consumerGroup":    "my-group",
 				"topic":            "topic",
 			},
-			Secret:  "test-kafka-secrets-invalid",
-			MqtKind: "keda",
+			Secret:     "test-kafka-secrets-invalid",
+			MqtKind:    "keda",
+			Sequential: false,
 		},
 	}
 
@@ -267,8 +269,9 @@ func Test_checkAndUpdateTriggerFields(t *testing.T) {
 				"consumerGroup":    "my-group",
 				"topic":            "topic",
 			},
-			Secret:  "test-kafka-secrets",
-			MqtKind: "keda",
+			Secret:     "test-kafka-secrets",
+			MqtKind:    "keda",
+			Sequential: false,
 		},
 	}
 	newMqt1 := &fv1.MessageQueueTrigger{
@@ -296,8 +299,9 @@ func Test_checkAndUpdateTriggerFields(t *testing.T) {
 				"consumerGroup":    "my-group-2",
 				"topic":            "my-topic",
 			},
-			Secret:  "new-test-kafka-secrets",
-			MqtKind: "keda",
+			Secret:     "new-test-kafka-secrets",
+			MqtKind:    "keda",
+			Sequential: false,
 		},
 	}
 
@@ -327,8 +331,9 @@ func Test_checkAndUpdateTriggerFields(t *testing.T) {
 				"consumerGroup":    "my-group",
 				"topic":            "topic",
 			},
-			Secret:  "test-kafka-secrets",
-			MqtKind: "keda",
+			Secret:     "test-kafka-secrets",
+			MqtKind:    "keda",
+			Sequential: false,
 		},
 	}
 	newMqt2 := &fv1.MessageQueueTrigger{
@@ -404,8 +409,9 @@ func Test_getAuthTriggerSpec(t *testing.T) {
 				"consumerGroup":    "my-group",
 				"topic":            "topic",
 			},
-			Secret:  "test-kafka-secrets",
-			MqtKind: "keda",
+			Secret:     "test-kafka-secrets",
+			MqtKind:    "keda",
+			Sequential: false,
 		},
 	}
 
@@ -516,8 +522,9 @@ func Test_getAuthTriggerSpec(t *testing.T) {
 				"consumerGroup":    "my-group",
 				"topic":            "topic",
 			},
-			Secret:  "test-kafka-no-secret",
-			MqtKind: "keda",
+			Secret:     "test-kafka-no-secret",
+			MqtKind:    "keda",
+			Sequential: false,
 		},
 	}
 

@@ -185,7 +185,12 @@ func (kafka Kafka) Subscribe(trigger *fv1.MessageQueueTrigger) (messageQueue.Sub
 	go func() {
 		for msg := range consumer.Messages() {
 			kafka.logger.Debug("calling message handler", zap.String("message", string(msg.Value[:])))
-			go kafkaMsgHandler(&kafka, producer, trigger, msg, consumer)
+			msgHandler := func() { kafkaMsgHandler(&kafka, producer, trigger, msg, consumer) }
+			if trigger.Spec.Sequential {
+				msgHandler()
+			} else {
+				go msgHandler()
+			}
 		}
 	}()
 

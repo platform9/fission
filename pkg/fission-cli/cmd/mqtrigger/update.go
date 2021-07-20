@@ -68,6 +68,7 @@ func (opts *UpdateSubCommand) complete(input cli.Input) error {
 	metadataParams := input.StringSlice(flagkey.MqtMetadata)
 	secret := input.String(flagkey.MqtSecret)
 	mqtKind := input.String(flagkey.MqtKind)
+	sequential := input.Bool(flagkey.MqtSequential)
 	// TODO : Find out if we can make a call to checkIfFunctionExists, in the same ns more importantly.
 
 	err = checkMQTopicAvailability(mqt.Spec.MessageQueueType, topic, respTopic)
@@ -127,6 +128,11 @@ func (opts *UpdateSubCommand) complete(input cli.Input) error {
 
 	if input.IsSet(flagkey.MqtKind) {
 		mqt.Spec.MqtKind = mqtKind
+		updated = true
+	}
+
+	if input.IsSet(flagkey.MqtSequential) {
+		mqt.Spec.Sequential = sequential
 		updated = true
 	}
 

@@ -798,6 +798,11 @@ type (
 		// - Structs are merged and variables from pod spec take precedence
 		// +optional
 		PodSpec *apiv1.PodSpec `json:"podspec,omitempty"`
+
+		// Whether to consume messages sequentially or concurrently, by default its 'false'.
+		// Not all MessageQueueTypes support this flag
+		// +optional
+		Sequential bool `json:"sequenti
 	}
 
 	// TimeTriggerSpec invokes the specific function at a time or

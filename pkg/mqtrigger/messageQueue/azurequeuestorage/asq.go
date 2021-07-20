@@ -82,6 +82,7 @@ type AzureQueueSubscription struct {
 	contentType     string
 	unsubscribe     chan bool
 	done            chan bool
+	sequential      bool
 }
 
 // AzureQueueService is the interface that abstracts the Azure storage service.
@@ -237,6 +238,7 @@ func (asc AzureStorageConnection) Subscribe(trigger *fv1.MessageQueueTrigger) (m
 		contentType: trigger.Spec.ContentType,
 		unsubscribe: make(chan bool),
 		done:        make(chan bool),
+		sequential:  trigger.Spec.Sequential,
 	}
 
 	go runAzureQueueSubscription(asc, subscription)
@@ -310,10 +312,15 @@ func pollAzureQueueSubscription(conn AzureStorageConnection, sub *AzureQueueSubs
 
 		wg.Add(len(messages))
 		for _, msg := range messages {
-			go func(conn AzureStorageConnection, sub *AzureQueueSubscription, msg AzureMessage) {
+			msgHandler := func() {
 				defer wg.Done()
 				invokeTriggeredFunction(conn, sub, msg)
-			}(conn, sub, msg)
+			}
+			if sub.sequential {
+				msgHandler()
+			} else {
+				go msgHandler()
+			}
 		}
 	}
 }

@@ -115,6 +115,8 @@ func (opts *CreateSubCommand) complete(input cli.Input) error {
 		return errors.New("MaxReplicaCount must be greater than or equal to 0")
 	}
 
+	sequential := input.Bool(flagkey.MqtSequential)
+
 	metadata := make(map[string]string)
 	metadataParams := input.StringSlice(flagkey.MqtMetadata)
 	_ = util.UpdateMapFromStringSlice(&metadata, metadataParams)
@@ -166,6 +168,7 @@ func (opts *CreateSubCommand) complete(input cli.Input) error {
 			Metadata:         metadata,
 			Secret:           secret,
 			MqtKind:          mqtKind,
+			Sequential:       sequential,
 		},
 	}
 

@@ -49,7 +49,7 @@ func Commands() *cobra.Command {
 		Optional: []flag.Flag{flag.MqtFnName, flag.MqtTopic, flag.MqtRespTopic, flag.MqtErrorTopic,
 			flag.MqtMaxRetries, flag.MqtMsgContentType, flag.NamespaceTrigger, flag.MqtPollingInterval,
 			flag.MqtCooldownPeriod, flag.MqtMinReplicaCount, flag.MqtMaxReplicaCount, flag.MqtMetadata,
-			flag.MqtSecret, flag.MqtKind},
+			flag.MqtSecret, flag.MqtKind, flag.MqtSequential},
 	})
 
 	deleteCmd := &cobra.Command{

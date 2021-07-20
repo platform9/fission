@@ -155,6 +155,7 @@ var (
 	MqtMetadata        = Flag{Type: StringSlice, Name: flagkey.MqtMetadata, Usage: "Metadata needed for connecting to source system in format: --metadata key1=value1 --metadata key2=value2"}
 	MqtSecret          = Flag{Type: String, Name: flagkey.MqtSecret, Usage: "Name of secret object", DefaultValue: ""}
 	MqtKind            = Flag{Type: String, Name: flagkey.MqtKind, Usage: "Kind of Message Queue Trigger, e.g. fission, keda", DefaultValue: "fission"}
+	MqtSequential      = Flag{Type: Bool, Name: flagkey.MqtSequential, Usage: "Consume messages sequentially instead of concurrently"}
 
 	EnvName                   = Flag{Type: String, Name: flagkey.EnvName, Usage: "Environment name"}
 	EnvPoolsize               = Flag{Type: Int, Name: flagkey.EnvPoolsize, Usage: "Size of the pool", DefaultValue: 3}
