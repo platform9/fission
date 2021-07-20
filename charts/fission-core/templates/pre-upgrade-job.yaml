@@ -1,3 +1,4 @@
+{{- if .Values.preUpgradeChecks }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -31,3 +32,4 @@ spec:
         command: [ "/pre-upgrade-checks" ]
         args: ["--fn-pod-namespace", "{{ .Values.functionNamespace }}", "--envbuilder-namespace", "{{ .Values.builderNamespace }}"]
       serviceAccountName: fission-svc
+{{- end }}

@@ -36,6 +36,11 @@ functionNamespace: fission-function
 ## the release namespace)
 builderNamespace: fission-builder
 
+# Whether or not to create namespaces for builder/fetcher as part of the helm install
+# In some configurations, a service account may have privilegdes to deploy into a namespace, but not
+# to create additional namespaces (so the namespaces must be pre-prepared)
+createNamespace: true
+
 ## Enable istio integration
 enableIstio: false
 
@@ -205,6 +210,10 @@ gaTrackingID: UA-196546703-1
 ## This interval configures the frequency at which it runs inside the storagesvc pod.
 ## The value is in minutes.
 pruneInterval: 60
+
+# Allow user to disable pre-upgrade checks at their own peril
+# (in the event that something like Istio sidecars prevents any jobs from completing!)
+preUpgradeChecks: true
 
 ## Fission pre-install/pre-upgrade checks live in this image
 preUpgradeChecksImage: fission/pre-upgrade-checks
