@@ -1,14 +1,20 @@
+- [BUILDING MULTI-ARCHITECTURE IMAGES](#building-multi-architecture-images)
+  - [BUILDERS](#builders)
+  - [BUILD OPTIONS](#build-options)
+    - [PLATFORMS](#platforms)
+    - [REPOSITORY SELECTION](#repository-selection)
+
 # BUILDING MULTI-ARCHITECTURE IMAGES
 
 While the Docker images for Fission can be built by running:
 
-```
+```shell
 make image
 ```
 
-the stable images are build for multiple architectures (and automatically pushed to the repository) by
+The stable images are build for multiple architectures (and automatically pushed to the repository) by
 
-```
+```shell
 make images-multiarch
 ```
 
@@ -21,9 +27,10 @@ experimental feature by Docker, and as such it requires access to experimental f
 in the daemon.json file.
 
 By default, this will use BuildKit and QEMU emulation support to build the image for each architecture
-locally. However, for faster building, it is possible to use native nodes to build each architecture,
-either simple remote Docker instances or a Kubernetes cluster. For information on how to set this up,
-please see the blog article here:
+locally.
+However, for faster building, it is possible to use native nodes to build each architecture,
+either simple remote Docker instances or a Kubernetes cluster.
+For information on how to set this up, please see the blog article here:
 
 <https://www.docker.com/blog/multi-arch-images/>
 
@@ -40,16 +47,15 @@ built when running the multi-arch build. If unset, it defaults to _linux/amd64,l
 
 ### REPOSITORY SELECTION
 
-By default, the multi-arch build will automatically try to push the resulting images to the fission/*
-repositories, under the dev tag; i.e. fission/fission-bundle:dev, fission/fetcher:dev, and
-fission/builder:dev. However, for convenient, this can be customized by setting the REPO and TAG
-environment variables to set a different repository prefix and tag for the images.
+By default, the multi-arch build will automatically try to push the resulting images to the fission/* repositories, under the dev tag; i.e. fission/fission-bundle:dev, fission/fetcher:dev, and fission/builder:dev.
+However, for convenient, this can be customized by setting the REPO and TAG environment variables to set a different repository prefix and tag for the images.
 
 For example:
 
-```
+```shell
 REPO=randomdev TAG=test make images-multiarch
 ```
 
-would build and push the images randomdev/fission-bundle:test, randomdev/fetcher:test, and
-randomdev/builder:test . Private Docker repositories can be used in the same manner.
+Would build and push the images randomdev/fission-bundle:test, randomdev/fetcher:test, and
+randomdev/builder:test.
+Private Docker repositories can be used in the same manner.
