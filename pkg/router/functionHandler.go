@@ -705,16 +705,17 @@ func (fh functionHandler) getProxyErrorHandler(start time.Time, rrt *RetryingRou
 			// Reference: https://httpstatuses.com/499
 			status = 499
 			msg = "client closes the connection"
-			fh.logger.Debug(msg, zap.Any("function", fh.function), zap.Any("request_header", req.Header))
+			fh.logger.Debug(msg, zap.Any("function", fh.function), zap.String("status", "Client Closed Request"))
 		case context.DeadlineExceeded:
 			status = http.StatusGatewayTimeout
-			msg := "function not responses before the timeout"
-			fh.logger.Error(msg, zap.Any("function", fh.function), zap.Any("request_header", req.Header))
+			msg := "no response from function before timeout"
+			fh.logger.Error(msg, zap.Any("function", fh.function), zap.String("status", http.StatusText(status)))
 		default:
 			code, _ := ferror.GetHTTPError(err)
 			status = code
 			msg = "error sending request to function"
-			fh.logger.Error(msg, zap.Error(err), zap.Any("function", fh.function), zap.Any("request_header", req.Header), zap.Any("code", code))
+			fh.logger.Error(msg, zap.Error(err), zap.Any("function", fh.function),
+				zap.Any("status", http.StatusText(status)), zap.Int("code", code))
 		}
 
 		go fh.collectFunctionMetric(start, rrt, req, &http.Response{
@@ -730,7 +731,6 @@ func (fh functionHandler) getProxyErrorHandler(start time.Time, rrt *RetryingRou
 				"error writing HTTP response",
 				zap.Error(err),
 				zap.Any("function", fh.function),
-				zap.Any("request_header", req.Header),
 			)
 		}
 	}

@@ -43,6 +43,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/http/httputil"
 	"os"
 	"strconv"
 	"strings"
@@ -93,8 +94,11 @@ func serve(ctx context.Context, logger *zap.Logger, port int, tracingSamplingRat
 				}
 			}
 			if displayAccessLog {
-				logger.Info("path", zap.String("path", r.URL.Path),
-					zap.String("method", r.Method), zap.Any("header", r.Header))
+				reqMsg, err := httputil.DumpRequest(r, false)
+				if err != nil {
+					logger.Error("error dumping request", zap.Error(err))
+				}
+				logger.Info("request dump", zap.String("request", string(reqMsg)))
 			}
 			return trace.StartOptions{
 				Sampler: trace.ProbabilitySampler(tracingSamplingRate),
